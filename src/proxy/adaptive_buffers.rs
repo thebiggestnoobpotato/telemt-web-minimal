@@ -418,7 +418,7 @@ fn direct_direction_size(tier: AdaptiveTier, base: usize, ceiling: usize) -> usi
 }
 
 #[cfg(test)]
-/// Returns the staged Middle-End flush policy retained by security fixtures.
+/// Returns the staged flush policy for an adaptive buffer tier, retained by security fixtures.
 pub fn me_flush_policy_for_tier(
     tier: AdaptiveTier,
     base_frames: usize,

@@ -5,11 +5,6 @@ highlight = "all"
 
 # Explicitly flag the weak cryptography so the agent is forced to justify its existence
 [[bans.skip]]
-name = "md-5"
-version = "*"
-reason = "MUST VERIFY: Only allowed for legacy checksums, never for security."
-
-[[bans.skip]]
 name = "sha1"
 version = "*"
-reason = "MUST VERIFY: Only allowed for backwards compatibility."
+reason = "MUST VERIFY: RFC 6455 WebSocket key derivation requires SHA-1; never used for security."

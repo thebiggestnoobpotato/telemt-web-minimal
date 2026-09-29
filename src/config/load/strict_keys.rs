@@ -269,7 +269,6 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
     "user_id",
     "username",
     "password",
-    "url",
     "weight",
     "enabled",
     "scopes",

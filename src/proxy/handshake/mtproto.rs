@@ -1,6 +1,6 @@
 use super::*;
 
-/// Handles an MTProto obfuscation handshake with isolated test state.
+/// Handles a direct MTProto handshake with isolated test state.
 #[cfg(test)]
 pub async fn handle_mtproto_handshake<R, W>(
     handshake: &[u8; HANDSHAKE_LEN],

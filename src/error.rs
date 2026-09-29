@@ -228,9 +228,6 @@ pub enum ProxyError {
     #[error("Traffic budget wait deadline exceeded")]
     TrafficBudgetWaitDeadlineExceeded,
 
-    #[error("ME client writer cancelled")]
-    MiddleClientWriterCancelled,
-
     // ============= Config Errors =============
     #[error("Config error: {0}")]
     Config(String),
@@ -293,7 +290,8 @@ pub type StreamResult<T> = std::result::Result<T, StreamError>;
 pub enum HandshakeResult<T, R, W> {
     /// Handshake succeeded
     Success(T),
-    /// Client failed validation, needs masking. Returns ownership of streams.
+    /// Client failed validation. Returns ownership of streams so the caller
+    /// can reject the stream.
     BadClient { reader: R, writer: W },
     /// Error occurred
     Error(ProxyError),

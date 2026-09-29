@@ -1,4 +1,4 @@
-//! MTProto handshake authentication, TLS fronting, and nonce derivation.
+//! MTProto handshake authentication and nonce derivation.
 
 #![allow(dead_code)]
 
@@ -34,7 +34,7 @@ use rand::RngExt;
 // Handshake submodules.
 // - auth_candidates: access-secret decoding and candidate selection.
 // - auth_probe: scanner throttling and sticky authentication state.
-// - mtproto: direct MTProto obfuscation handshake.
+// - mtproto: direct MTProto handshake.
 // - nonce: Telegram-side nonce generation and encryption.
 // - session: authenticated session key ownership.
 mod auth_candidates;

@@ -12,11 +12,7 @@ use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::NetworkDecision;
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, run_direct_buffer_budget_controller};
 use crate::proxy::shared_state::ProxySharedState;
-use crate::startup::{
-    COMPONENT_ME_CONNECTIVITY_PING, COMPONENT_ME_POOL_CONSTRUCT, COMPONENT_ME_POOL_INIT_STAGE1,
-    COMPONENT_ME_PROXY_CONFIG_V4, COMPONENT_ME_PROXY_CONFIG_V6, COMPONENT_ME_SECRET_FETCH,
-    StartupMeStatus, StartupTracker,
-};
+use crate::startup::StartupTracker;
 use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::{ReplayChecker, Stats};
 use crate::stream::BufferPool;
@@ -59,45 +55,6 @@ pub(super) async fn prepare_runtime(
     let prefer_ipv6 = decision.prefer_ipv6();
     let beobachten = Arc::new(BeobachtenStore::new());
     let rng = Arc::new(SecureRandom::new());
-
-    // This build has no Middle-End pool; keep the startup report shape stable.
-    startup_tracker.set_me_status(StartupMeStatus::Skipped, "skipped").await;
-    startup_tracker
-        .skip_component(
-            COMPONENT_ME_SECRET_FETCH,
-            Some("not available in this build".to_string()),
-        )
-        .await;
-    startup_tracker
-        .skip_component(
-            COMPONENT_ME_PROXY_CONFIG_V4,
-            Some("not available in this build".to_string()),
-        )
-        .await;
-    startup_tracker
-        .skip_component(
-            COMPONENT_ME_PROXY_CONFIG_V6,
-            Some("not available in this build".to_string()),
-        )
-        .await;
-    startup_tracker
-        .skip_component(
-            COMPONENT_ME_POOL_CONSTRUCT,
-            Some("not available in this build".to_string()),
-        )
-        .await;
-    startup_tracker
-        .skip_component(
-            COMPONENT_ME_POOL_INIT_STAGE1,
-            Some("not available in this build".to_string()),
-        )
-        .await;
-    startup_tracker
-        .skip_component(
-            COMPONENT_ME_CONNECTIVITY_PING,
-            Some("not available in this build".to_string()),
-        )
-        .await;
 
     let config = Arc::new(config);
     let replay_checker = Arc::new(ReplayChecker::new(
@@ -143,7 +100,6 @@ pub(super) async fn prepare_runtime(
         runtime_task_scope.clone(),
     );
 
-    startup_tracker.set_transport_mode("direct").await;
     startup_tracker.set_degraded(false).await;
     info!("Transport: Direct DC - TCP - standard DC-over-TCP");
 

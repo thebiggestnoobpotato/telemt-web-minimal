@@ -1,4 +1,5 @@
-//! Transport layer: connection pooling, socket utilities, proxy protocol
+//! Transport layer: connection pooling, socket utilities, SOCKS upstreams,
+//! and the DC upstream manager.
 
 pub mod pool;
 pub mod socket;

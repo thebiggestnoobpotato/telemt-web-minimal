@@ -8,8 +8,8 @@
 //!   expanded key schedules are also zeroized by the RustCrypto backend.
 //! - `AesCtr` uses the RustCrypto `zeroize` contract to clear its expanded
 //!   key schedule, counter, and buffered keystream on drop.
-//! - Callers that hold raw key material (e.g. `HandshakeSuccess`,
-//!   `ObfuscationParams`) remain responsible for zeroizing their own copies.
+//! - Callers that hold raw key material (e.g. `HandshakeSuccess`) remain
+//!   responsible for zeroizing their own copies.
 
 #![allow(dead_code)]
 
