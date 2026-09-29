@@ -8,23 +8,22 @@ async fn save_sections_preserves_other_tables_and_comments() {
     let path = dir.join("config.toml");
     std::fs::write(
         &path,
-        "# top comment\n[censorship]\ntls_domain = \"old.example\"\n\n[server]\nport = 443\n",
+        "# top comment\n[server]\nport = 443\n\n[access.users]\nalice = \"000102030405060708090a0b0c0d0e0f\"\n",
     )
     .unwrap();
 
     let mut cfg = ProxyConfig::default();
-    cfg.censorship.tls_domain = "new.example".to_string();
     cfg.server.port = 443;
 
-    let rev = save_sections_to_disk(&path, &cfg, &["censorship"])
+    let rev = save_sections_to_disk(&path, &cfg, &["server"])
         .await
         .unwrap();
 
     let written = std::fs::read_to_string(&path).unwrap();
-    assert!(written.contains("tls_domain = \"new.example\""));
+    assert!(written.contains("port = 443"));
     // Untouched comments and tables remain byte content.
     assert!(written.contains("# top comment"));
-    assert!(written.contains("[server]\nport = 443"));
+    assert!(written.contains("[access.users]"));
     assert_eq!(rev, compute_revision(&written));
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -43,13 +42,13 @@ fn find_bounds_matches_array_of_tables() {
 
 #[test]
 fn find_bounds_matches_header_with_inline_comment() {
-    let src = "[censorship] # notes\ntls_domain = \"a\"\n\n[server]\nport = 1\n";
-    let bounds = find_toml_table_bounds(src, "censorship");
+    let src = "[network] # notes\nipv6 = false\n\n[server]\nport = 1\n";
+    let bounds = find_toml_table_bounds(src, "network");
     assert!(bounds.is_some(), "commented header must still match");
     let (start, end) = bounds.unwrap();
     let slice = &src[start..end];
-    assert!(slice.starts_with("[censorship] # notes"));
-    assert!(slice.contains("tls_domain"));
+    assert!(slice.starts_with("[network] # notes"));
+    assert!(slice.contains("ipv6"));
     // The bound terminates at the next header.
     assert!(!slice.contains("[server]"));
 }
@@ -60,7 +59,7 @@ async fn save_general_section_keeps_subtables_dotted_without_duplicates() {
     let path = dir.path().join("config.toml");
     tokio::fs::write(
         &path,
-        "[general]\nprefer_ipv6 = false\n\n[general.modes]\ntls = true\n\n\
+        "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
          [general.links]\npublic_host = \"old.example\"\n\n[server]\nport = 443\n",
     )
     .await
@@ -75,18 +74,18 @@ async fn save_general_section_keeps_subtables_dotted_without_duplicates() {
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
 
-    // No bare top-level [modes] / [links] headers leaked.
+    // No bare top-level [telemetry] / [links] headers leaked.
     for line in written.lines() {
         let header = line.trim();
-        assert_ne!(header, "[modes]", "leaked top-level [modes]:\n{written}");
+        assert_ne!(header, "[telemetry]", "leaked top-level [telemetry]:\n{written}");
         assert_ne!(header, "[links]", "leaked top-level [links]:\n{written}");
     }
 
     // Sub-tables kept their dotted prefix exactly once each.
     assert_eq!(
-        written.matches("[general.modes]").count(),
+        written.matches("[general.telemetry]").count(),
         1,
-        "[general.modes] must appear exactly once:\n{written}"
+        "[general.telemetry] must appear exactly once:\n{written}"
     );
     assert_eq!(
         written.matches("[general.links]").count(),
@@ -108,7 +107,7 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
     let path = dir.path().join("config.toml");
     tokio::fs::write(
         &path,
-        "[general]\nprefer_ipv6 = false\n\n[general.modes]\ntls = true\n\n\
+        "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
          [general.links]\npublic_host = \"old.example\"\n",
     )
     .await
@@ -125,7 +124,7 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
         .unwrap();
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
-    assert_eq!(written.matches("[general.modes]").count(), 1, "{written}");
+    assert_eq!(written.matches("[general.telemetry]").count(), 1, "{written}");
     assert_eq!(written.matches("[general.links]").count(), 1, "{written}");
     assert_eq!(written.matches("[general]").count(), 1, "{written}");
     toml::from_str::<toml::Value>(&written)
@@ -134,7 +133,7 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
 
 #[test]
 fn find_bounds_spans_dotted_subtables() {
-    let src = "[general]\nprefer_ipv6 = false\n\n[general.modes]\ntls = true\n\n\
+    let src = "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
                [general.links]\npublic_host = \"a\"\n\n[server]\nport = 1\n";
     let bounds = find_toml_table_bounds(src, "general");
     assert!(bounds.is_some(), "should locate [general] block");
@@ -142,7 +141,7 @@ fn find_bounds_spans_dotted_subtables() {
     let slice = &src[start..end];
     assert!(slice.starts_with("[general]"));
     // Nested sub-tables belong to the parent table bound.
-    assert!(slice.contains("[general.modes]"));
+    assert!(slice.contains("[general.telemetry]"));
     assert!(slice.contains("[general.links]"));
     // The bound terminates before an unrelated header.
     assert!(!slice.contains("[server]"));
@@ -172,11 +171,11 @@ fn nested_include_detection_does_not_reject_similar_access_keys() {
 async fn save_general_handles_non_contiguous_subtables() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.toml");
-    // Hand-edited layout: [general.modes] sits AFTER an unrelated [server].
+    // Hand-edited layout: [general.telemetry] sits AFTER an unrelated [server].
     tokio::fs::write(
         &path,
         "[general]\nprefer_ipv6 = false\n\n[server]\nport = 443\n\n\
-         [general.modes]\ntls = true\n",
+         [general.telemetry]\ncore_enabled = true\n",
     )
     .await
     .unwrap();
@@ -190,9 +189,9 @@ async fn save_general_handles_non_contiguous_subtables() {
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
     assert_eq!(
-        written.matches("[general.modes]").count(),
+        written.matches("[general.telemetry]").count(),
         1,
-        "non-contiguous [general.modes] must not duplicate:\n{written}"
+        "non-contiguous [general.telemetry] must not duplicate:\n{written}"
     );
     toml::from_str::<toml::Value>(&written)
         .unwrap_or_else(|e| panic!("written config must parse: {e}\n{written}"));
@@ -208,12 +207,12 @@ async fn manifest_revision_changes_when_an_included_source_changes() {
     tokio::fs::write(&root, "include = \"included.toml\"\n")
         .await
         .unwrap();
-    tokio::fs::write(&included, "[censorship]\ntls_domain = \"one.example\"\n")
+    tokio::fs::write(&included, "[general]\nprefer_ipv6 = true\n")
         .await
         .unwrap();
     let first = current_revision(&root).await.unwrap();
 
-    tokio::fs::write(&included, "[censorship]\ntls_domain = \"two.example\"\n")
+    tokio::fs::write(&included, "[general]\nprefer_ipv6 = false\n")
         .await
         .unwrap();
     let second = current_revision(&root).await.unwrap();
@@ -240,7 +239,7 @@ async fn access_mutation_writes_only_the_single_included_owner() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
     let included = dir.path().join("users.toml");
-    let root_body = "include = \"users.toml\"\n[censorship]\ntls_domain = \"example.com\"\n";
+    let root_body = "include = \"users.toml\"\n[general]\nprefer_ipv6 = false\n";
     let included_body = "[access.users]\nalice = \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
@@ -265,8 +264,8 @@ async fn access_mutation_rejects_source_graph_change_after_snapshot() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
     let included = dir.path().join("users.toml");
-    let root_body = "include = \"users.toml\"\n[censorship]\ntls_domain = \"one.example\"\n";
-    let external_root = "include = \"users.toml\"\n[censorship]\ntls_domain = \"two.example\"\n";
+    let root_body = "include = \"users.toml\"\n[general]\nprefer_ipv6 = true\n";
+    let external_root = "include = \"users.toml\"\n[general]\nprefer_ipv6 = false\n";
     let included_body = "[access.users]\nalice = \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
@@ -321,8 +320,8 @@ async fn config_sidecar_lock_serializes_competing_revision_writers() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.toml");
     let original = concat!(
-        "[censorship]\n",
-        "tls_domain = \"original.example\"\n",
+        "[general]\n",
+        "prefer_ipv6 = true\n",
         "[access.users]\n",
         "alice = \"00000000000000000000000000000000\"\n"
     );
@@ -335,14 +334,14 @@ async fn config_sidecar_lock_serializes_competing_revision_writers() {
         revision.clone(),
         path.clone(),
         original.to_string(),
-        original.replace("original.example", "first.example"),
+        original.replace("[general]", "[general]\n# one"),
     ));
     let second = tokio::spawn(write_atomic_if_unchanged(
         path.clone(),
         revision,
         path.clone(),
         original.to_string(),
-        original.replace("original.example", "second.example"),
+        original.replace("[general]", "[general]\n# two"),
     ));
     let first = first.await.unwrap();
     let second = second.await.unwrap();
@@ -355,7 +354,7 @@ async fn config_sidecar_lock_serializes_competing_revision_writers() {
     assert_eq!(conflict.code, "revision_conflict");
     assert_eq!(winner_revision, current_revision(&path).await.unwrap());
     let persisted = tokio::fs::read_to_string(&path).await.unwrap();
-    assert!(persisted.contains("first.example") || persisted.contains("second.example"));
+    assert!(persisted.contains("# one") || persisted.contains("# two"));
 }
 
 #[tokio::test]

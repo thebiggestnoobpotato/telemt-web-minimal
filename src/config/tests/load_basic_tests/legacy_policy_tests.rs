@@ -1,41 +1,6 @@
 use super::*;
 
 #[test]
-fn proxy_protocol_trusted_cidrs_missing_uses_trust_all_but_explicit_empty_stays_empty() {
-    let cfg_missing: ProxyConfig = toml::from_str(
-        r#"
-        [server]
-        [general]
-        [network]
-        [access]
-        "#,
-    )
-    .unwrap();
-    assert_eq!(
-        cfg_missing.server.proxy_protocol_trusted_cidrs,
-        default_proxy_protocol_trusted_cidrs()
-    );
-
-    let cfg_explicit_empty: ProxyConfig = toml::from_str(
-        r#"
-        [server]
-        proxy_protocol_trusted_cidrs = []
-
-        [general]
-        [network]
-        [access]
-        "#,
-    )
-    .unwrap();
-    assert!(
-        cfg_explicit_empty
-            .server
-            .proxy_protocol_trusted_cidrs
-            .is_empty()
-    );
-}
-
-#[test]
 fn conntrack_inline_explicit_flag_is_false_when_omitted() {
     let cfg = load_config_from_temp_toml(
         r#"
@@ -69,110 +34,6 @@ fn conntrack_inline_explicit_flag_is_true_when_present() {
         cfg.server
             .conntrack_control
             .inline_conntrack_control_explicit
-    );
-}
-
-#[test]
-fn unknown_sni_action_parses_and_defaults_to_drop() {
-    let cfg_default: ProxyConfig = toml::from_str(
-        r#"
-        [server]
-        [general]
-        [network]
-        [access]
-        [censorship]
-        "#,
-    )
-    .unwrap();
-    assert_eq!(
-        cfg_default.censorship.unknown_sni_action,
-        UnknownSniAction::Drop
-    );
-
-    let cfg_mask: ProxyConfig = toml::from_str(
-        r#"
-        [server]
-        [general]
-        [network]
-        [access]
-        [censorship]
-        unknown_sni_action = "mask"
-        "#,
-    )
-    .unwrap();
-    assert_eq!(
-        cfg_mask.censorship.unknown_sni_action,
-        UnknownSniAction::Mask
-    );
-
-    let cfg_accept: ProxyConfig = toml::from_str(
-        r#"
-        [server]
-        [general]
-        [network]
-        [access]
-        [censorship]
-        unknown_sni_action = "accept"
-        "#,
-    )
-    .unwrap();
-    assert_eq!(
-        cfg_accept.censorship.unknown_sni_action,
-        UnknownSniAction::Accept
-    );
-
-    let cfg_reject: ProxyConfig = toml::from_str(
-        r#"
-        [server]
-        [general]
-        [network]
-        [access]
-        [censorship]
-        unknown_sni_action = "reject_handshake"
-        "#,
-    )
-    .unwrap();
-    assert_eq!(
-        cfg_reject.censorship.unknown_sni_action,
-        UnknownSniAction::RejectHandshake
-    );
-}
-
-#[test]
-fn exclusive_mask_parses_domain_target_map() {
-    let cfg = load_config_from_temp_toml(
-        r#"
-        [general]
-        [network]
-        [server]
-        [access]
-        [censorship]
-        tls_domain = "weißbiergärten.de"
-        tls_domains = ["bürgeramt.de"]
-        [censorship.exclusive_mask]
-        "bürgeramt.de" = "rindfleischetikettierungsüberwachungsaufgabenübertragungsgesetz.de:443"
-        "ipv6.example" = "[::1]:443"
-        "#,
-    );
-
-    assert!(cfg.censorship.tls_domain.is_ascii());
-    assert!(cfg.censorship.tls_domain.contains("xn--"));
-    assert_eq!(cfg.censorship.tls_domains.len(), 1);
-    let normalized_extra = &cfg.censorship.tls_domains[0];
-    assert!(normalized_extra.is_ascii());
-    assert!(normalized_extra.contains("xn--"));
-
-    let normalized_target = cfg
-        .censorship
-        .exclusive_mask
-        .get(normalized_extra)
-        .expect("exclusive_mask key must match normalized tls_domains entry");
-    assert!(normalized_target.is_ascii());
-    assert!(normalized_target.contains("xn--"));
-    assert!(normalized_target.ends_with(":443"));
-    assert_eq!(
-        cfg.censorship.exclusive_mask.get("ipv6.example"),
-        Some(&"[::1]:443".to_string())
     );
 }
 
@@ -316,8 +177,8 @@ fn load_with_metadata_collects_include_files() {
         r#"
             include = "included.toml"
 
-            [censorship]
-            tls_domain = "example.com"
+            [general]
+            prefer_ipv6 = false
         "#,
     )
     .unwrap();
@@ -337,9 +198,6 @@ fn load_with_metadata_collects_include_files() {
 #[test]
 fn dc_overrides_inject_dc203_default() {
     let toml = r#"
-        [censorship]
-        tls_domain = "example.com"
-
         [access.users]
         user = "00000000000000000000000000000000"
     "#;

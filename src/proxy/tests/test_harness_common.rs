@@ -188,7 +188,6 @@ pub fn seeded_rng(seed: u64) -> StdRng {
 
 pub fn tls_only_config() -> Arc<ProxyConfig> {
     let mut cfg = ProxyConfig::default();
-    cfg.general.modes.tls = true;
     Arc::new(cfg)
 }
 
@@ -199,8 +198,5 @@ pub fn handshake_test_config(secret_hex: &str) -> ProxyConfig {
         .users
         .insert("test-user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
-    cfg.censorship.mask = true;
-    cfg.censorship.mask_host = Some("127.0.0.1".to_string());
-    cfg.censorship.mask_port = 0;
     cfg
 }

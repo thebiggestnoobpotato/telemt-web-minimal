@@ -3,8 +3,8 @@ use super::*;
 #[test]
 fn invalid_user_ad_tag_reports_access_user_ad_tags_key() {
     let toml = r#"
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         alice = "00000000000000000000000000000000"
@@ -27,8 +27,8 @@ fn invalid_dns_override_is_rejected() {
         [network]
         dns_overrides = ["example.com:443:2001:db8::10"]
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -47,8 +47,8 @@ fn valid_dns_override_is_accepted() {
         [network]
         dns_overrides = ["example.com:443:127.0.0.1", "example.net:443:[2001:db8::10]"]
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"

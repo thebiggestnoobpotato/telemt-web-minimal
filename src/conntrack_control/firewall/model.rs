@@ -146,38 +146,15 @@ fn notrack_targets(cfg: &ProxyConfig) -> (Vec<NotrackTarget>, Vec<NotrackTarget>
     match cfg.server.conntrack_control.mode {
         ConntrackMode::Tracked => {}
         ConntrackMode::Notrack => {
-            if cfg.server.listeners.is_empty() {
-                let port = cfg.server.port;
-                for raw in [
-                    cfg.server.listen_addr_ipv4.as_deref(),
-                    cfg.server.listen_addr_ipv6.as_deref(),
-                ]
-                .into_iter()
-                .flatten()
-                {
-                    if let Ok(ip) = raw.parse::<IpAddr>() {
-                        let target = NotrackTarget {
-                            ip: (!ip.is_unspecified()).then_some(ip),
-                            port,
-                        };
-                        if ip.is_ipv4() {
-                            v4_targets.insert(target);
-                        } else {
-                            v6_targets.insert(target);
-                        }
-                    }
-                }
-            } else {
-                for listener in &cfg.server.listeners {
-                    let target = NotrackTarget {
-                        ip: (!listener.ip.is_unspecified()).then_some(listener.ip),
-                        port: listener.port.unwrap_or(cfg.server.port),
-                    };
-                    if listener.ip.is_ipv4() {
-                        v4_targets.insert(target);
-                    } else {
-                        v6_targets.insert(target);
-                    }
+            for listener in &cfg.server.listeners {
+                let target = NotrackTarget {
+                    ip: (!listener.ip.is_unspecified()).then_some(listener.ip),
+                    port: listener.port.unwrap_or(cfg.server.port),
+                };
+                if listener.ip.is_ipv4() {
+                    v4_targets.insert(target);
+                } else {
+                    v6_targets.insert(target);
                 }
             }
         }

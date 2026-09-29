@@ -26,7 +26,6 @@ fn prepared_runtime(generation: Arc<RuntimeGeneration>) -> PreparedRuntime {
     let user_admission_epoch = generation.proxy_shared.user_admission().epoch();
     PreparedRuntime {
         generation,
-        detected_ips: (None, None),
         config_watcher_activation,
         user_admission_epoch,
     }
@@ -42,7 +41,6 @@ async fn fixture(request: ReloadRequest) -> ReloadFixture {
         .submit(new_config.clone(), "revision".to_string(), request.clone())
         .await
         .unwrap();
-    let (detected_ips_tx, _detected_ips_rx) = watch::channel((None, None));
     let (runtime_watch_tx, runtime_watch_rx) = watch::channel(Some(old_runtime.watch_state()));
     let listener_manager = Arc::new(Mutex::new(ListenerManager::empty(active_runtime.clone())));
     let web_trace = crate::web::trace::WebTraceStore::new(
@@ -55,7 +53,6 @@ async fn fixture(request: ReloadRequest) -> ReloadFixture {
         commands,
         config_path: PathBuf::new(),
         quota_store: Arc::new(QuotaStore::default()),
-        detected_ips_tx,
         runtime_log_filter: runtime_log_filter(),
         runtime_watch_tx,
         listener_manager,
@@ -257,7 +254,6 @@ async fn quiesce_joins_idle_supervisor_and_rejects_later_submissions() {
     let runtime = test_runtime_generation(1, ProxyConfig::default());
     let active_runtime = Arc::new(ArcSwap::from(runtime.clone()));
     let (control, commands) = ReloadControl::channel(runtime.id);
-    let (detected_ips_tx, _detected_ips_rx) = watch::channel((None, None));
     let (runtime_watch_tx, _runtime_watch_rx) = watch::channel(Some(runtime.watch_state()));
     let listener_manager = ListenerManager::empty(active_runtime.clone());
     let handle = ReloadSupervisor::spawn(
@@ -266,7 +262,6 @@ async fn quiesce_joins_idle_supervisor_and_rejects_later_submissions() {
         commands,
         PathBuf::new(),
         Arc::new(QuotaStore::default()),
-        detected_ips_tx,
         runtime_log_filter(),
         runtime_watch_tx,
         listener_manager,

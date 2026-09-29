@@ -44,100 +44,6 @@ pub(crate) fn default_beobachten_file() -> String {
     "beobachten.txt".to_string()
 }
 
-pub(crate) fn default_tls_new_session_tickets() -> u8 {
-    0
-}
-
-pub(crate) fn default_serverhello_compact() -> bool {
-    false
-}
-
-pub(crate) fn default_tls_full_cert_ttl_secs() -> u64 {
-    90
-}
-
-pub(crate) fn default_server_hello_delay_min_ms() -> u64 {
-    8
-}
-
-pub(crate) fn default_server_hello_delay_max_ms() -> u64 {
-    24
-}
-
-pub(crate) fn default_alpn_enforce() -> bool {
-    true
-}
-
-pub(crate) fn default_mask_shape_hardening() -> bool {
-    true
-}
-
-pub(crate) fn default_mask_shape_hardening_aggressive_mode() -> bool {
-    false
-}
-
-pub(crate) fn default_mask_shape_bucket_floor_bytes() -> usize {
-    512
-}
-
-pub(crate) fn default_mask_shape_bucket_cap_bytes() -> usize {
-    4096
-}
-
-pub(crate) fn default_mask_shape_above_cap_blur() -> bool {
-    false
-}
-
-pub(crate) fn default_mask_shape_above_cap_blur_max_bytes() -> usize {
-    512
-}
-
-#[cfg(not(test))]
-pub(crate) fn default_mask_relay_max_bytes() -> usize {
-    5 * 1024 * 1024
-}
-
-#[cfg(test)]
-pub(crate) fn default_mask_relay_max_bytes() -> usize {
-    32 * 1024
-}
-
-#[cfg(not(test))]
-pub(crate) fn default_mask_relay_timeout_ms() -> u64 {
-    60_000
-}
-
-#[cfg(test)]
-pub(crate) fn default_mask_relay_timeout_ms() -> u64 {
-    200
-}
-
-#[cfg(not(test))]
-pub(crate) fn default_mask_relay_idle_timeout_ms() -> u64 {
-    5_000
-}
-
-#[cfg(test)]
-pub(crate) fn default_mask_relay_idle_timeout_ms() -> u64 {
-    100
-}
-
-pub(crate) fn default_mask_classifier_prefetch_timeout_ms() -> u64 {
-    5
-}
-
-pub(crate) fn default_mask_timing_normalization_enabled() -> bool {
-    false
-}
-
-pub(crate) fn default_mask_timing_normalization_floor_ms() -> u64 {
-    0
-}
-
-pub(crate) fn default_mask_timing_normalization_ceiling_ms() -> u64 {
-    0
-}
-
 pub(crate) fn default_stun_servers() -> Vec<String> {
     vec![
         "stun.l.google.com:5349".to_string(),
@@ -173,18 +79,6 @@ pub(crate) fn default_ntp_check() -> bool {
 
 pub(crate) fn default_ntp_servers() -> Vec<String> {
     vec!["pool.ntp.org".to_string()]
-}
-
-pub(crate) fn default_fast_mode_min_tls_record() -> usize {
-    0
-}
-
-pub(crate) fn default_listen_addr_ipv6() -> String {
-    DEFAULT_LISTEN_ADDR_IPV6.to_string()
-}
-
-pub(crate) fn default_listen_addr_ipv6_opt() -> Option<String> {
-    Some(default_listen_addr_ipv6())
 }
 
 pub(crate) fn default_access_users() -> HashMap<String, String> {

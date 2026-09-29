@@ -19,9 +19,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
         .users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
-    cfg.general.modes.secure = true;
-    cfg.general.modes.classic = true;
-    cfg.general.modes.tls = true;
     cfg
 }
 
@@ -142,7 +139,6 @@ async fn mtproto_multi_user_decryption_isolation() {
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 
     let mut config = ProxyConfig::default();
-    config.general.modes.secure = true;
     config.access.ignore_time_skew = true;
 
     config.access.users.insert(
@@ -409,31 +405,6 @@ fn auth_probe_saturation_note_resets_retention_window() {
         guard.is_some(),
         "Ongoing saturation notes must refresh last_seen so saturation state remains retained past the original window"
     );
-}
-
-#[test]
-fn mtproto_classic_tags_rejected_when_only_secure_mode_enabled() {
-    let mut config = ProxyConfig::default();
-    config.general.modes.classic = false;
-    config.general.modes.secure = true;
-    config.general.modes.tls = false;
-
-    assert!(!mode_enabled_for_proto(&config, ProtoTag::Abridged, false));
-    assert!(!mode_enabled_for_proto(
-        &config,
-        ProtoTag::Intermediate,
-        false
-    ));
-}
-
-#[test]
-fn mtproto_secure_tag_rejected_when_only_classic_mode_enabled() {
-    let mut config = ProxyConfig::default();
-    config.general.modes.classic = true;
-    config.general.modes.secure = false;
-    config.general.modes.tls = false;
-
-    assert!(!mode_enabled_for_proto(&config, ProtoTag::Secure, false));
 }
 
 #[test]

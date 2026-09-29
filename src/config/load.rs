@@ -15,7 +15,7 @@ use crate::error::{ProxyError, Result};
 use super::defaults::*;
 use super::types::*;
 
-// Domain names, mask targets, and legacy scalar normalization helpers.
+// Domain name and ad tag normalization helpers.
 mod normalize;
 // Include preprocessing and rendered config metadata helpers.
 mod includes;
@@ -38,16 +38,12 @@ mod validation;
 use self::includes::{
     hash_rendered_snapshot, normalize_config_path, preprocess_includes, read_config_source,
 };
-use self::normalize::{
-    is_valid_ad_tag, is_valid_tls_domain_name, normalize_domain_to_ascii,
-    normalize_exclusive_mask_target, normalize_mask_host_to_ascii, parse_exclusive_mask_target,
-    sanitize_ad_tag,
-};
+use self::normalize::{is_valid_ad_tag, normalize_domain_to_ascii, sanitize_ad_tag};
 pub(crate) use self::runtime_auth::UserAuthSnapshot;
 use self::strict_keys::handle_unknown_config_keys;
 use self::validation::{
-    normalize_upstream_family_policy, validate_listener_runtime_profiles, validate_logging_config,
-    validate_network_cfg, validate_upstreams,
+    normalize_upstream_family_policy, validate_logging_config, validate_network_cfg,
+    validate_upstreams,
 };
 
 const MIN_DIRECT_RELAY_BUFFER_BUDGET_BYTES: usize = 16 * 1024 * 1024;
@@ -104,10 +100,6 @@ pub struct ProxyConfig {
     /// Timeout values used by client, fallback, and upstream operations.
     #[serde(default)]
     pub timeouts: TimeoutsConfig,
-
-    /// Anti-censorship behavior and traffic shaping configuration.
-    #[serde(default)]
-    pub censorship: AntiCensorshipConfig,
 
     /// User authentication secrets and admission policy.
     #[serde(default)]
@@ -276,41 +268,6 @@ impl ProxyConfig {
 
         validate_logging_config(&self.logging)?;
 
-        if !self.general.modes.classic && !self.general.modes.secure && !self.general.modes.tls {
-            return Err(ProxyError::Config("No modes enabled".to_string()));
-        }
-
-        if !is_valid_tls_domain_name(&self.censorship.tls_domain) {
-            return Err(ProxyError::Config(format!(
-                "Invalid tls_domain: '{}'. Must be a valid domain name",
-                self.censorship.tls_domain
-            )));
-        }
-
-        for domain in &self.censorship.tls_domains {
-            if !is_valid_tls_domain_name(domain) {
-                return Err(ProxyError::Config(format!(
-                    "Invalid tls_domains entry: '{}'. Must be a valid domain name",
-                    domain
-                )));
-            }
-        }
-
-        for (domain, target) in &self.censorship.exclusive_mask {
-            if !is_valid_tls_domain_name(domain) {
-                return Err(ProxyError::Config(format!(
-                    "Invalid censorship.exclusive_mask domain: '{}'. Must be a valid domain name",
-                    domain
-                )));
-            }
-            if parse_exclusive_mask_target(target).is_none() {
-                return Err(ProxyError::Config(format!(
-                    "Invalid censorship.exclusive_mask target for '{}': '{}'. Expected host:port with port > 0",
-                    domain, target
-                )));
-            }
-        }
-
         for (user, tag) in &self.access.user_ad_tags {
             let zeros = "00000000000000000000000000000000";
             if !is_valid_ad_tag(tag) {
@@ -325,7 +282,6 @@ impl ProxyConfig {
         }
 
         crate::network::dns_overrides::validate_entries(&self.network.dns_overrides)?;
-        validate_listener_runtime_profiles(self)?;
 
         Ok(())
     }
@@ -334,18 +290,6 @@ impl ProxyConfig {
 #[cfg(test)]
 #[path = "tests/load_idle_policy_tests.rs"]
 mod load_idle_policy_tests;
-
-#[cfg(test)]
-#[path = "tests/load_security_tests.rs"]
-mod load_security_tests;
-
-#[cfg(test)]
-#[path = "tests/load_mask_shape_security_tests.rs"]
-mod load_mask_shape_security_tests;
-
-#[cfg(test)]
-#[path = "tests/load_mask_classifier_prefetch_timeout_security_tests.rs"]
-mod load_mask_classifier_prefetch_timeout_security_tests;
 
 #[cfg(test)]
 #[path = "tests/load_memory_envelope_tests.rs"]

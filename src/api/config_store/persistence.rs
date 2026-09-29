@@ -68,8 +68,8 @@ pub(in crate::api) fn render_top_level_section(
 
     // Serialize the table *inside a wrapper keyed by `section`* so the `toml`
     // crate emits correctly dotted headers for nested sub-tables, e.g.
-    // `[general]` + `[general.modes]` + `[general.links]`. Serializing the
-    // inner table alone would render bare `[modes]`/`[links]` headers, which
+    // `[general]` + `[general.links]` + `[general.telemetry]`. Serializing the
+    // inner table alone would render bare `[links]`/`[telemetry]` headers, which
     // would leak as duplicate top-level tables and break config load.
     let mut wrapper = toml::value::Table::new();
     wrapper.insert(section.to_string(), table.clone());
@@ -376,7 +376,7 @@ fn find_all_table_blocks(source: &str, table_name: &str) -> Vec<(usize, usize)> 
 
     for line in source.split_inclusive('\n') {
         // Drop any inline comment so a hand-edited header like
-        // `[censorship] # note` still matches. Section names never contain `#`.
+        // `[general] # note` still matches. Section names never contain `#`.
         let header = line.trim().split('#').next().unwrap_or("").trim();
         let is_header = header.starts_with('[');
         if let Some(start_offset) = start {

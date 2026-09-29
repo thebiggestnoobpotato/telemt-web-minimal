@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
@@ -42,7 +42,7 @@ pub(super) async fn run_telemt_core(
         effective_log_level,
         runtime_log_filter,
         logging_guard: _logging_guard,
-    } = bootstrap::bootstrap(privilege_drop_requested).await?;
+    } = bootstrap::bootstrap().await?;
 
     if privilege_drop_requested && config.server.conntrack_control.inline_conntrack_control {
         warn!("Inline conntrack control is disabled when process privileges are dropped");
@@ -140,7 +140,6 @@ pub(super) async fn run_telemt_core(
     let web_trace = WebTraceStore::new(config.web.debug.clone(), &config.web.limits);
     let web_runtime_control = WebRuntimeControl::new();
 
-    let (detected_ips_tx, detected_ips_rx) = watch::channel((None::<IpAddr>, None::<IpAddr>));
     let (admission_tx, admission_rx) = watch::channel(true);
     let (reload_control, reload_commands) = reload::ReloadControl::channel(1);
     let (active_runtime_tx, active_runtime_rx) =
@@ -188,7 +187,6 @@ pub(super) async fn run_telemt_core(
             let config_path_api = config_path.clone();
             let quota_state_api = quota_state.clone();
             let startup_tracker_api = startup_tracker.clone();
-            let detected_ips_rx_api = detected_ips_rx.clone();
             let reload_control_api = reload_control.clone();
             let active_runtime_rx_api = active_runtime_rx.clone();
             let runtime_watch_rx_api = runtime_watch_rx.clone();
@@ -205,7 +203,6 @@ pub(super) async fn run_telemt_core(
                     upstream_manager_api,
                     config_path_api,
                     quota_state_api,
-                    detected_ips_rx_api,
                     process_started_at_epoch_secs,
                     startup_tracker_api,
                     reload_control_api,
@@ -259,10 +256,6 @@ pub(super) async fn run_telemt_core(
         config.general.stun_nat_probe_concurrency,
     )
     .await?;
-    detected_ips_tx.send_replace((
-        probe.detected_ipv4.map(IpAddr::V4),
-        probe.detected_ipv6.map(IpAddr::V6),
-    ));
     let decision = decide_network_capabilities(&config.network, &probe);
     log_probe_result(&probe, &decision);
     startup_tracker
@@ -275,7 +268,6 @@ pub(super) async fn run_telemt_core(
     let runtime = runtime_startup::prepare_runtime(
         config,
         &config_path,
-        &probe,
         &decision,
         process_started_at,
         &startup_tracker,
@@ -311,13 +303,7 @@ pub(super) async fn run_telemt_core(
     );
     runtime_task_scope_guard.disarm();
     let active_runtime = Arc::new(ArcSwap::from(runtime_generation));
-    let bound = listeners::bind_listeners(
-        &runtime.config,
-        runtime.detected_ip_v4,
-        runtime.detected_ip_v6,
-        &startup_tracker,
-    )
-    .await?;
+    let bound = listeners::bind_listeners(&runtime.config, &startup_tracker).await?;
     if bound.is_empty() {
         error!("No listeners. Exiting.");
         std::process::exit(1);
@@ -375,7 +361,6 @@ pub(super) async fn run_telemt_core(
         reload_commands,
         config_path,
         quota_store,
-        detected_ips_tx,
         runtime_log_filter,
         runtime_watch_tx,
         listener_manager,

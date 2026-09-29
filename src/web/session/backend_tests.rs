@@ -87,8 +87,6 @@ fn test_runtime_with_dc(
     config.web.limits.max_stream_handshakes = max_stream_handshakes;
     config.web.timeouts.stream_handshake_secs = 1;
     config.web.timeouts.shutdown_secs = 1;
-    config.censorship.server_hello_delay_min_ms = 0;
-    config.censorship.server_hello_delay_max_ms = 0;
     if let Some(dc_addr) = dc_addr {
         config
             .dc_overrides

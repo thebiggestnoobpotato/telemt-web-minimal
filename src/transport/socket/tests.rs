@@ -178,27 +178,4 @@ fn test_listen_options_default() {
     assert!(opts.reuse_addr);
     assert!(opts.reuse_port);
     assert_eq!(opts.backlog, 1024);
-    assert_eq!(opts.client_mss, None);
-}
-
-#[cfg(target_os = "linux")]
-#[test]
-fn test_create_listener_applies_client_mss() {
-    let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
-    let options = ListenOptions {
-        reuse_port: false,
-        client_mss: Some(256),
-        ..Default::default()
-    };
-    let socket = match create_listener(addr, &options) {
-        Ok(socket) => socket,
-        Err(e) if e.kind() == ErrorKind::PermissionDenied => return,
-        Err(e) => panic!("create_listener failed: {e}"),
-    };
-    let mss = match socket.tcp_mss() {
-        Ok(mss) => mss,
-        Err(e) if e.kind() == ErrorKind::PermissionDenied => return,
-        Err(e) => panic!("tcp_mss failed: {e}"),
-    };
-    assert_eq!(mss, 256);
 }

@@ -27,7 +27,6 @@ pub(crate) struct ReloadSupervisor {
     commands: ReloadCommandReceiver,
     config_path: PathBuf,
     quota_store: Arc<QuotaStore>,
-    detected_ips_tx: watch::Sender<(Option<std::net::IpAddr>, Option<std::net::IpAddr>)>,
     runtime_log_filter: RuntimeLogFilter,
     runtime_watch_tx: watch::Sender<Option<RuntimeWatchState>>,
     listener_manager: Arc<Mutex<ListenerManager>>,
@@ -95,7 +94,6 @@ impl ReloadSupervisor {
         commands: ReloadCommandReceiver,
         config_path: PathBuf,
         quota_store: Arc<QuotaStore>,
-        detected_ips_tx: watch::Sender<(Option<std::net::IpAddr>, Option<std::net::IpAddr>)>,
         runtime_log_filter: RuntimeLogFilter,
         runtime_watch_tx: watch::Sender<Option<RuntimeWatchState>>,
         listener_manager: ListenerManager,
@@ -109,7 +107,6 @@ impl ReloadSupervisor {
             commands,
             config_path,
             quota_store,
-            detected_ips_tx,
             runtime_log_filter,
             runtime_watch_tx,
             listener_manager: listener_manager.clone(),
@@ -275,7 +272,6 @@ impl ReloadSupervisor {
             .await;
         let PreparedRuntime {
             generation: new_runtime,
-            detected_ips,
             config_watcher_activation,
             user_admission_epoch,
         } = prepared;
@@ -350,7 +346,6 @@ impl ReloadSupervisor {
                 .await
                 .finish_transition(pending);
         }
-        self.detected_ips_tx.send_replace(detected_ips);
         self.runtime_log_filter
             .apply_reload(&new_runtime.config().general.log_level);
         self.runtime_watch_tx

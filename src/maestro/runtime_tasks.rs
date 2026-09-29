@@ -1,10 +1,9 @@
-use std::net::IpAddr;
 use std::path::Path;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use tokio::sync::watch;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
 use tracing_subscriber::reload;
@@ -13,7 +12,6 @@ use crate::config::hot_reload::spawn_config_watcher;
 use crate::config::{LogLevel, ProxyConfig};
 use crate::ip_tracker::UserIpTracker;
 use crate::metrics;
-use crate::network::probe::NetworkProbe;
 use crate::proxy::shared_state::ProxySharedState;
 use crate::startup::{
     COMPONENT_CONFIG_WATCHER_START, COMPONENT_METRICS_START, COMPONENT_RUNTIME_READY,
@@ -32,8 +30,6 @@ use super::helpers::write_beobachten_snapshot;
 pub(crate) struct RuntimeWatches {
     pub(crate) config_rx: watch::Receiver<Arc<ProxyConfig>>,
     pub(crate) log_level_rx: watch::Receiver<LogLevel>,
-    pub(crate) detected_ip_v4: Option<IpAddr>,
-    pub(crate) detected_ip_v6: Option<IpAddr>,
 }
 
 #[derive(Clone)]
@@ -91,7 +87,6 @@ pub(crate) async fn spawn_runtime_tasks(
     generation_id: u64,
     config: &Arc<ProxyConfig>,
     config_path: &Path,
-    probe: &NetworkProbe,
     prefer_ipv6: bool,
     decision_ipv4_dc: bool,
     decision_ipv6_dc: bool,
@@ -137,13 +132,6 @@ pub(crate) async fn spawn_runtime_tasks(
             .await;
     });
 
-    let detected_ip_v4: Option<IpAddr> = probe.detected_ipv4.map(IpAddr::V4);
-    let detected_ip_v6: Option<IpAddr> = probe.detected_ipv6.map(IpAddr::V6);
-    debug!(
-        "Detected IPs: v4={:?} v6={:?}",
-        detected_ip_v4, detected_ip_v6
-    );
-
     startup_tracker
         .start_component(
             COMPONENT_CONFIG_WATCHER_START,
@@ -153,8 +141,6 @@ pub(crate) async fn spawn_runtime_tasks(
     let (config_rx, log_level_rx, config_watcher_task) = spawn_config_watcher(
         config_path.to_path_buf(),
         config.clone(),
-        detected_ip_v4,
-        detected_ip_v6,
         task_scope.cancellation_token(),
         Some(upstream_manager.dns_resolver()),
         config_watcher_activation,
@@ -295,8 +281,6 @@ pub(crate) async fn spawn_runtime_tasks(
     RuntimeWatches {
         config_rx,
         log_level_rx,
-        detected_ip_v4,
-        detected_ip_v6,
     }
 }
 

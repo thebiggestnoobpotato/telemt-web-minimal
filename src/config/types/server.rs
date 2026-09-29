@@ -61,28 +61,12 @@ impl ConntrackPressureProfile {
     }
 }
 
-/// Per-listener SYN limiter mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum SynLimitMode {
-    /// Disable SYN limiting for this listener.
-    #[default]
-    Off,
-    /// Use iptables/ip6tables two-tier SYN-fix rules with the hashlimit match.
-    Iptables,
-    /// Use nftables two-tier SYN-fix rules with per-source token-bucket meters.
-    Nftables,
-    /// Use FreeBSD PF source tracking with connection-rate state limits.
-    Pf,
-}
-
 /// Application protocol accepted by one process-owned TCP listener.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ListenerTransport {
-    /// Existing MTProxy TCP listener behavior.
-    #[default]
-    Mtproxy,
     /// Plain HTTP WEB gateway behind a trusted TLS terminator.
+    #[default]
     Web,
 }
 
@@ -93,67 +77,6 @@ pub enum WebClientIpSource {
     /// Use one parseable `X-Forwarded-For` address or the trusted direct peer.
     #[default]
     XForwardedFor,
-}
-
-impl Serialize for SynLimitMode {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Self::Off => serializer.serialize_bool(false),
-            Self::Iptables => serializer.serialize_str("iptables"),
-            Self::Nftables => serializer.serialize_str("nftables"),
-            Self::Pf => serializer.serialize_str("pf"),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for SynLimitMode {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct SynLimitModeVisitor;
-
-        impl<'de> serde::de::Visitor<'de> for SynLimitModeVisitor {
-            type Value = SynLimitMode;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("false, iptables, nftables, or pf")
-            }
-
-            fn visit_bool<E>(self, value: bool) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                if value {
-                    Err(E::custom(
-                        "synlimit=true is ambiguous; use \"iptables\", \"nftables\", or \"pf\"",
-                    ))
-                } else {
-                    Ok(SynLimitMode::Off)
-                }
-            }
-
-            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                match value.trim().to_ascii_lowercase().as_str() {
-                    "false" | "off" | "disabled" | "none" => Ok(SynLimitMode::Off),
-                    "iptables" => Ok(SynLimitMode::Iptables),
-                    "nftables" => Ok(SynLimitMode::Nftables),
-                    "pf" => Ok(SynLimitMode::Pf),
-                    _ => Err(E::custom(
-                        "synlimit must be false, \"iptables\", \"nftables\", or \"pf\"",
-                    )),
-                }
-            }
-        }
-
-        deserializer.deserialize_any(SynLimitModeVisitor)
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -219,55 +142,6 @@ pub struct ServerConfig {
     #[serde(default = "default_port")]
     pub port: u16,
 
-    #[serde(default = "default_listen_addr_ipv4")]
-    pub listen_addr_ipv4: Option<String>,
-
-    #[serde(default = "default_listen_addr_ipv6_opt")]
-    pub listen_addr_ipv6: Option<String>,
-
-    #[serde(default)]
-    pub listen_unix_sock: Option<String>,
-
-    /// Unix socket file permissions (octal, e.g. "0666" or "0777").
-    /// Applied via chmod after bind. Default: no change (inherits umask).
-    #[serde(default)]
-    pub listen_unix_sock_perm: Option<String>,
-
-    /// Enable TCP listening. Default: true when no unix socket, false when
-    /// listen_unix_sock is set. Set explicitly to override auto-detection.
-    #[serde(default)]
-    pub listen_tcp: Option<bool>,
-
-    /// Client-facing TCP MSS preset or custom value for all TCP listeners.
-    /// Empty string or omitted value keeps the kernel default.
-    #[serde(default)]
-    pub client_mss: Option<String>,
-
-    /// Experimental Linux-only bulk MSS used with best-effort userspace
-    /// chunking of the authenticated FakeTLS response. TCP offloads, loss, and
-    /// retransmission may coalesce write boundaries. Empty or omitted keeps
-    /// `client_mss` connection-wide. Uses the same preset/integer grammar as
-    /// `client_mss`.
-    #[serde(default)]
-    pub client_mss_bulk: Option<String>,
-
-    /// Accept HAProxy PROXY protocol headers on incoming connections.
-    /// When enabled, real client IPs are extracted from PROXY v1/v2 headers.
-    #[serde(default)]
-    pub proxy_protocol: bool,
-
-    /// Timeout in milliseconds for reading and parsing PROXY protocol headers.
-    #[serde(default = "default_proxy_protocol_header_timeout_ms")]
-    pub proxy_protocol_header_timeout_ms: u64,
-
-    /// Trusted source CIDRs allowed to send incoming PROXY protocol headers.
-    ///
-    /// If this field is omitted in config, it defaults to trust-all CIDRs
-    /// (`0.0.0.0/0` and `::/0`). If it is explicitly set to an empty list,
-    /// all PROXY protocol headers are rejected.
-    #[serde(default = "default_proxy_protocol_trusted_cidrs")]
-    pub proxy_protocol_trusted_cidrs: Vec<IpNetwork>,
-
     /// Port for the Prometheus-compatible metrics endpoint.
     /// Enables metrics when set; binds on all interfaces (dual-stack) by default.
     #[serde(default)]
@@ -312,16 +186,6 @@ impl Default for ServerConfig {
     fn default() -> Self {
         Self {
             port: default_port(),
-            listen_addr_ipv4: default_listen_addr_ipv4(),
-            listen_addr_ipv6: default_listen_addr_ipv6_opt(),
-            listen_unix_sock: None,
-            listen_unix_sock_perm: None,
-            listen_tcp: None,
-            client_mss: None,
-            client_mss_bulk: None,
-            proxy_protocol: false,
-            proxy_protocol_header_timeout_ms: default_proxy_protocol_header_timeout_ms(),
-            proxy_protocol_trusted_cidrs: default_proxy_protocol_trusted_cidrs(),
             metrics_port: None,
             metrics_listen: None,
             metrics_whitelist: default_metrics_whitelist(),
@@ -346,24 +210,6 @@ pub struct TimeoutsConfig {
     #[serde(default = "default_handshake_timeout")]
     pub client_handshake: u64,
 
-    /// Enables soft/hard relay client idle policy for middle-relay sessions.
-    #[serde(default = "default_relay_idle_policy_v2_enabled")]
-    pub relay_idle_policy_v2_enabled: bool,
-
-    /// Soft idle threshold for middle-relay client uplink activity in seconds.
-    /// Hitting this threshold marks the session as idle-candidate, but does not close it.
-    #[serde(default = "default_relay_client_idle_soft_secs")]
-    pub relay_client_idle_soft_secs: u64,
-
-    /// Hard idle threshold for middle-relay client uplink activity in seconds.
-    /// Hitting this threshold closes the session.
-    #[serde(default = "default_relay_client_idle_hard_secs")]
-    pub relay_client_idle_hard_secs: u64,
-
-    /// Additional grace in seconds added to hard idle window after recent downstream activity.
-    #[serde(default = "default_relay_idle_grace_after_downstream_activity_secs")]
-    pub relay_idle_grace_after_downstream_activity_secs: u64,
-
     #[serde(default = "default_keepalive")]
     pub client_keepalive: u64,
 
@@ -376,11 +222,6 @@ impl Default for TimeoutsConfig {
         Self {
             client_first_byte_idle_secs: default_client_first_byte_idle_secs(),
             client_handshake: default_handshake_timeout(),
-            relay_idle_policy_v2_enabled: default_relay_idle_policy_v2_enabled(),
-            relay_client_idle_soft_secs: default_relay_client_idle_soft_secs(),
-            relay_client_idle_hard_secs: default_relay_client_idle_hard_secs(),
-            relay_idle_grace_after_downstream_activity_secs:
-                default_relay_idle_grace_after_downstream_activity_secs(),
             client_keepalive: default_keepalive(),
             client_ack: default_ack_timeout(),
         }
@@ -396,119 +237,10 @@ pub struct ListenerConfig {
     /// Per-listener TCP port. If omitted, falls back to legacy `server.port`.
     #[serde(default)]
     pub port: Option<u16>,
-    /// Per-listener client-facing TCP MSS preset or custom value.
-    /// Empty string disables MSS shaping for this listener.
-    #[serde(default)]
-    pub client_mss: Option<String>,
-    /// Per-listener SYN limiter mode.
-    #[serde(default)]
-    pub synlimit: SynLimitMode,
-    /// Generic SYN-fix token-bucket rate interval.
-    #[serde(default = "default_synlimit_seconds")]
-    pub synlimit_seconds: u32,
-    /// Generic SYN-fix token-bucket rate amount.
-    #[serde(default = "default_synlimit_hitcount")]
-    pub synlimit_hitcount: u32,
-    /// Generic SYN-fix token-bucket burst size.
-    #[serde(default = "default_synlimit_burst")]
-    pub synlimit_burst: u32,
-    /// iOS-like SYN-fix token-bucket rate interval.
-    #[serde(default = "default_synlimit_ios_seconds")]
-    pub synlimit_ios_seconds: u32,
-    /// iOS-like SYN-fix token-bucket rate amount.
-    #[serde(default = "default_synlimit_ios_hitcount")]
-    pub synlimit_ios_hitcount: u32,
-    /// iOS-like SYN-fix token-bucket burst size.
-    #[serde(default = "default_synlimit_ios_burst")]
-    pub synlimit_ios_burst: u32,
-    /// Hashlimit entry expiration in milliseconds for iptables/ip6tables rules.
-    #[serde(default = "default_synlimit_hashlimit_expire_ms")]
-    pub synlimit_hashlimit_expire_ms: u32,
-    /// Hashlimit table size for iptables/ip6tables rules.
-    #[serde(default = "default_synlimit_hashlimit_size")]
-    pub synlimit_hashlimit_size: u32,
-    /// IP address or hostname to announce in proxy links.
-    /// Takes precedence over `announce_ip` if both are set.
-    #[serde(default)]
-    pub announce: Option<String>,
-    /// Deprecated: Use `announce` instead. IP address to announce in proxy links.
-    /// Migrated to `announce` automatically if `announce` is not set.
-    #[serde(default)]
-    pub announce_ip: Option<IpAddr>,
-    /// Per-listener PROXY protocol override. When set, overrides global server.proxy_protocol.
-    #[serde(default)]
-    pub proxy_protocol: Option<bool>,
-    /// Allow multiple telemt instances to listen on the same IP:port (SO_REUSEPORT).
-    /// Default is false for safety.
-    #[serde(default)]
-    pub reuse_allow: bool,
-    /// L7 header policy used only by WEB listeners.
+    /// L7 header policy used by WEB listeners.
     #[serde(default)]
     pub web_client_ip_source: WebClientIpSource,
     /// Immediate socket peers allowed to provide the WEB client identity header.
     #[serde(default)]
     pub web_trusted_proxy_cidrs: Vec<IpNetwork>,
-}
-
-/// Client-facing TCP MSS preset for extreme-low fragmentation profiles.
-pub const CLIENT_MSS_EXTREME_LOW: u16 = 88;
-/// Client-facing TCP MSS preset matching TSPU-oriented deployments.
-pub const CLIENT_MSS_TSPU: u16 = 92;
-/// Client-facing TCP MSS preset for 2-in-8 segment shaping.
-pub const CLIENT_MSS_2IN8: u16 = 256;
-/// Minimum accepted custom client-facing TCP MSS value.
-pub const CLIENT_MSS_MIN: u16 = CLIENT_MSS_EXTREME_LOW;
-/// Maximum accepted custom client-facing TCP MSS value.
-pub const CLIENT_MSS_MAX: u16 = 4096;
-
-impl ServerConfig {
-    /// Resolves the global client-facing TCP MSS setting.
-    pub fn client_mss_value(&self) -> std::result::Result<Option<u16>, String> {
-        parse_client_mss(self.client_mss.as_deref())
-    }
-
-    /// Resolves the bulk-transfer client MSS, if configured.
-    pub fn client_mss_bulk_value(&self) -> std::result::Result<Option<u16>, String> {
-        parse_client_mss(self.client_mss_bulk.as_deref())
-    }
-}
-
-impl ListenerConfig {
-    /// Resolves the listener MSS override, falling back to the global server value.
-    pub fn effective_client_mss(
-        &self,
-        server: &ServerConfig,
-    ) -> std::result::Result<Option<u16>, String> {
-        match self.client_mss.as_deref() {
-            Some(value) => parse_client_mss(Some(value)),
-            None => server.client_mss_value(),
-        }
-    }
-}
-
-fn parse_client_mss(raw: Option<&str>) -> std::result::Result<Option<u16>, String> {
-    let Some(raw) = raw else {
-        return Ok(None);
-    };
-    let value = raw.trim();
-    if value.is_empty() {
-        return Ok(None);
-    }
-
-    match value.to_ascii_lowercase().as_str() {
-        "extreme-low" => return Ok(Some(CLIENT_MSS_EXTREME_LOW)),
-        "tspu" => return Ok(Some(CLIENT_MSS_TSPU)),
-        "2in8" => return Ok(Some(CLIENT_MSS_2IN8)),
-        _ => {}
-    }
-
-    let parsed = value
-        .parse::<u16>()
-        .map_err(|_| "must be \"\", extreme-low, tspu, 2in8, or a decimal value".to_string())?;
-    if !(CLIENT_MSS_MIN..=CLIENT_MSS_MAX).contains(&parsed) {
-        return Err(format!(
-            "custom value must be within [{CLIENT_MSS_MIN}, {CLIENT_MSS_MAX}]"
-        ));
-    }
-    Ok(Some(parsed))
 }

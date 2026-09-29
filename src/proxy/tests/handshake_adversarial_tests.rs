@@ -52,7 +52,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
         .users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
-    cfg.general.modes.secure = true;
     cfg
 }
 
@@ -247,7 +246,6 @@ async fn mtproto_handshake_preferred_user_mismatch_continues() {
         .users
         .insert("user2".to_string(), secret2_hex.to_string());
     config.access.ignore_time_skew = true;
-    config.general.modes.secure = true;
 
     let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.4:12345".parse().unwrap();

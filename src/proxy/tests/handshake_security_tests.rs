@@ -297,7 +297,6 @@ fn stress_decode_user_secrets_keeps_preferred_user_first_in_large_set() {
 #[tokio::test]
 async fn mtproto_runtime_snapshot_prefers_preferred_user_hint() {
     let mut config = ProxyConfig::default();
-    config.general.modes.secure = true;
     config.access.users.clear();
     config.access.ignore_time_skew = true;
     config.access.users.insert(
@@ -344,81 +343,6 @@ async fn mtproto_runtime_snapshot_prefers_preferred_user_hint() {
         1,
         "preferred user hint must produce single-candidate success in snapshot path"
     );
-}
-
-#[test]
-fn secure_tag_requires_tls_mode_on_tls_transport() {
-    let mut config = ProxyConfig::default();
-    config.general.modes.classic = false;
-    config.general.modes.secure = true;
-    config.general.modes.tls = false;
-
-    assert!(
-        !mode_enabled_for_proto(&config, ProtoTag::Secure, true),
-        "Secure tag over TLS must be rejected when tls mode is disabled"
-    );
-
-    config.general.modes.tls = true;
-    assert!(
-        mode_enabled_for_proto(&config, ProtoTag::Secure, true),
-        "Secure tag over TLS must be accepted when tls mode is enabled"
-    );
-}
-
-#[test]
-fn secure_tag_requires_secure_mode_on_direct_transport() {
-    let mut config = ProxyConfig::default();
-    config.general.modes.classic = false;
-    config.general.modes.secure = false;
-    config.general.modes.tls = true;
-
-    assert!(
-        !mode_enabled_for_proto(&config, ProtoTag::Secure, false),
-        "Secure tag without TLS must be rejected when secure mode is disabled"
-    );
-
-    config.general.modes.secure = true;
-    assert!(
-        mode_enabled_for_proto(&config, ProtoTag::Secure, false),
-        "Secure tag without TLS must be accepted when secure mode is enabled"
-    );
-}
-
-#[test]
-fn mode_policy_matrix_is_stable_for_all_tag_transport_mode_combinations() {
-    let tags = [ProtoTag::Secure, ProtoTag::Intermediate, ProtoTag::Abridged];
-
-    for classic in [false, true] {
-        for secure in [false, true] {
-            for tls in [false, true] {
-                let mut config = ProxyConfig::default();
-                config.general.modes.classic = classic;
-                config.general.modes.secure = secure;
-                config.general.modes.tls = tls;
-
-                for is_tls in [false, true] {
-                    for tag in tags {
-                        let expected = match (tag, is_tls) {
-                            (ProtoTag::Secure, true) => tls,
-                            (ProtoTag::Secure, false) => secure,
-                            (ProtoTag::Intermediate | ProtoTag::Abridged, _) => classic,
-                        };
-
-                        assert_eq!(
-                            mode_enabled_for_proto(&config, tag, is_tls),
-                            expected,
-                            "mode policy drifted for tag={:?}, transport_tls={}, modes=(classic={}, secure={}, tls={})",
-                            tag,
-                            is_tls,
-                            classic,
-                            secure,
-                            tls
-                        );
-                    }
-                }
-            }
-        }
-    }
 }
 
 #[test]
@@ -1302,7 +1226,6 @@ async fn saturation_allows_valid_mtproto_even_when_peer_ip_is_currently_throttle
 
     let secret_hex = "64646464646464646464646464646464";
     let mut config = test_config_with_secret_hex(secret_hex);
-    config.general.modes.secure = true;
     let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "198.51.100.106:45106".parse().unwrap();
     let now = Instant::now();

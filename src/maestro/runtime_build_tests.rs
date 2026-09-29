@@ -3,25 +3,25 @@ use super::*;
 fn test_listener(port: u16) -> crate::config::ListenerConfig {
     crate::config::ListenerConfig {
         ip: "127.0.0.1".parse().unwrap(),
-        transport: crate::config::ListenerTransport::Mtproxy,
+        transport: crate::config::ListenerTransport::Web,
         port: Some(port),
-        client_mss: None,
-        synlimit: crate::config::SynLimitMode::Off,
-        synlimit_seconds: 60,
-        synlimit_hitcount: 48,
-        synlimit_burst: 24,
-        synlimit_ios_seconds: 1,
-        synlimit_ios_hitcount: 12,
-        synlimit_ios_burst: 24,
-        synlimit_hashlimit_expire_ms: 60_000,
-        synlimit_hashlimit_size: 32_768,
-        announce: None,
-        announce_ip: None,
-        proxy_protocol: None,
-        reuse_allow: false,
         web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
-        web_trusted_proxy_cidrs: Vec::new(),
+        web_trusted_proxy_cidrs: vec!["127.0.0.1/32".parse().unwrap()],
     }
+}
+
+// WEB listeners require a vhost; the decoy target avoids every listener port.
+fn test_vhost() -> crate::config::WebVhostConfig {
+    serde_json::from_value(serde_json::json!({
+        "host": "proxy.example.com",
+        "public_addr": "203.0.113.10:443",
+        "decoy": {
+            "mode": "http_upstream",
+            "upstream": "http://127.0.0.1:18090"
+        },
+        "profiles": []
+    }))
+    .unwrap()
 }
 
 fn web_config_with_fasttrack(mode: &str) -> ProxyConfig {
@@ -36,7 +36,6 @@ alice = "000102030405060708090a0b0c0d0e0f"
 ip = "127.0.0.1"
 port = 18080
 transport = "web"
-proxy_protocol = false
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
@@ -71,27 +70,6 @@ fn process_socket_and_logging_changes_are_deferred() {
     let fields = deferred_process_fields(&old, &new).unwrap();
     assert!(fields.contains(&"server.listeners".to_string()));
     assert!(fields.contains(&"general.disable_colors".to_string()));
-}
-
-#[test]
-fn global_mss_profiles_are_deferred_with_the_listener_socket_group() {
-    let old = ProxyConfig::default();
-    let mut desired = old.clone();
-    desired.server.client_mss = Some("92".to_string());
-    desired.server.client_mss_bulk = Some("1400".to_string());
-
-    let resolved = resolve_reload_config(&old, &desired).unwrap();
-
-    assert_eq!(
-        resolved.deferred_process_fields,
-        vec!["server.listeners".to_string()]
-    );
-    assert_eq!(resolved.effective.server.client_mss, old.server.client_mss);
-    assert_eq!(
-        resolved.effective.server.client_mss_bulk,
-        old.server.client_mss_bulk
-    );
-    assert!(!resolved.runtime_changed);
 }
 
 #[test]
@@ -162,16 +140,13 @@ fn conntrack_control_policy_is_restart_only_as_one_process_owned_unit() {
 fn mixed_reload_retains_process_state_and_applies_runtime_state() {
     let old = ProxyConfig::default();
     let mut desired = old.clone();
-    desired.server.client_mss = Some("92".to_string());
-    desired.censorship.tls_domain = "reload.example".to_string();
+    desired.server.listen_backlog = desired.server.listen_backlog.saturating_add(1);
+    desired.web.carrier = crate::config::WebCarrier::Websocket;
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 
-    assert_eq!(resolved.effective.server.client_mss, old.server.client_mss);
-    assert_eq!(
-        resolved.effective.censorship.tls_domain,
-        desired.censorship.tls_domain
-    );
+    assert_eq!(resolved.effective.server.listen_backlog, old.server.listen_backlog);
+    assert_eq!(resolved.effective.web.carrier, desired.web.carrier);
     assert!(resolved.runtime_changed);
     assert_eq!(
         resolved.deferred_process_fields,
@@ -180,40 +155,34 @@ fn mixed_reload_retains_process_state_and_applies_runtime_state() {
 }
 
 #[test]
-fn listener_announcement_is_runtime_owned_when_bind_identity_is_stable() {
+fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
     let mut old = ProxyConfig::default();
     old.server.listeners.push(crate::config::ListenerConfig {
         ip: "0.0.0.0".parse().unwrap(),
-        transport: crate::config::ListenerTransport::Mtproxy,
+        transport: crate::config::ListenerTransport::Web,
         port: Some(443),
-        client_mss: None,
-        synlimit: crate::config::SynLimitMode::Off,
-        synlimit_seconds: 60,
-        synlimit_hitcount: 48,
-        synlimit_burst: 24,
-        synlimit_ios_seconds: 1,
-        synlimit_ios_hitcount: 12,
-        synlimit_ios_burst: 24,
-        synlimit_hashlimit_expire_ms: 60_000,
-        synlimit_hashlimit_size: 32_768,
-        announce: None,
-        announce_ip: None,
-        proxy_protocol: None,
-        reuse_allow: false,
         web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
-        web_trusted_proxy_cidrs: Vec::new(),
+        web_trusted_proxy_cidrs: vec!["127.0.0.1/32".parse().unwrap()],
     });
+    old.web.vhosts = vec![test_vhost()];
     let mut desired = old.clone();
-    desired.server.listeners[0].announce = Some("proxy.example".to_string());
+    desired
+        .server
+        .listeners[0]
+        .web_trusted_proxy_cidrs
+        .push("10.0.0.0/8".parse().unwrap());
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 
-    assert!(resolved.deferred_process_fields.is_empty());
     assert_eq!(
-        resolved.effective.server.listeners[0].announce.as_deref(),
-        Some("proxy.example")
+        resolved.deferred_process_fields,
+        vec!["server.listeners".to_string()]
     );
-    assert!(resolved.runtime_changed);
+    assert_eq!(
+        resolved.effective.server.listeners[0].web_trusted_proxy_cidrs.len(),
+        1
+    );
+    assert!(!resolved.runtime_changed);
 }
 
 #[test]
@@ -246,7 +215,7 @@ fn process_field_labels_are_stable_ordered_and_unique() {
 fn runtime_only_change_does_not_require_process_rebind() {
     let old = ProxyConfig::default();
     let mut new = old.clone();
-    new.censorship.tls_domain = "reload.example".to_string();
+    new.web.carrier = crate::config::WebCarrier::Websocket;
     assert!(deferred_process_fields(&old, &new).unwrap().is_empty());
 }
 
@@ -398,17 +367,21 @@ fn web_debug_prefix_dependent_on_new_capacity_is_deferred_with_limits() {
 }
 
 #[test]
-fn endpoint_only_listener_move_is_runtime_rebindable() {
+fn endpoint_only_listener_move_is_deferred_to_process_restart() {
     let mut old = ProxyConfig::default();
     old.server.listeners = vec![test_listener(443)];
+    old.web.vhosts = vec![test_vhost()];
     let mut desired = old.clone();
     desired.server.listeners[0].port = Some(8443);
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 
-    assert!(resolved.deferred_process_fields.is_empty());
-    assert_eq!(resolved.effective.server.listeners[0].port, Some(8443));
-    assert!(resolved.runtime_changed);
+    assert_eq!(
+        resolved.deferred_process_fields,
+        vec!["server.listeners".to_string()]
+    );
+    assert_eq!(resolved.effective.server.listeners[0].port, Some(443));
+    assert!(!resolved.runtime_changed);
 }
 
 

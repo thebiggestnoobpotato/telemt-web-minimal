@@ -13,16 +13,14 @@
 //! | `network` | `dns_overrides`                | Applied immediately                            |
 //! | `access`  | All user/quota fields          | Effective immediately                          |
 //! | `web`     | Carrier, timing, and debug policy | Applied to newly issued sessions             |
-//! Fields that require re-binding sockets (`server.listeners`, legacy
-//! `server.port`, `censorship.*`, `network.*`) are **not**
-//! applied; a warning is emitted. SYN limiter rules are process-owned and are
-//! reconciled only during privileged startup.
+//! Fields that require re-binding sockets (`server.listeners`,
+//! `server.port`, `network.*`) are **not**
+//! applied; a warning is emitted.
 //! `web.decoy_fasttrack_mode` is also restart-only so one process never mixes
 //! capability timing policies or process-lifetime counter semantics.
 //! Non-hot changes are never mixed into the runtime config snapshot.
 
 use std::collections::BTreeSet;
-use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock as StdRwLock};
 use std::time::Duration;
@@ -38,7 +36,7 @@ use crate::config::{
     web_debug_fits_limits,
 };
 #[cfg(test)]
-use crate::config::{ListenerConfig, SynLimitMode};
+use crate::config::ListenerConfig;
 
 const HOT_RELOAD_DEBOUNCE: Duration = Duration::from_millis(50);
 

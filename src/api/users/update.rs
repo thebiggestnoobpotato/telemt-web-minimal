@@ -218,16 +218,8 @@ async fn patch_user_to_completion(
         None => {}
     }
     drop(_guard);
-    let (detected_ip_v4, detected_ip_v6) = shared.detected_link_ips();
-    let users = users_from_config(
-        &cfg,
-        &shared.stats,
-        &shared.ip_tracker,
-        detected_ip_v4,
-        detected_ip_v6,
-        None,
-    )
-    .await;
+
+    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
     let user_info = users
         .into_iter()
         .find(|entry| entry.username == user)
@@ -296,16 +288,7 @@ async fn set_user_enabled_to_completion(
         .stage_user_credential(user, credential_id, enabled);
     drop(_guard);
 
-    let (detected_ip_v4, detected_ip_v6) = shared.detected_link_ips();
-    let users = users_from_config(
-        &cfg,
-        &shared.stats,
-        &shared.ip_tracker,
-        detected_ip_v4,
-        detected_ip_v6,
-        None,
-    )
-    .await;
+    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
     let user_info = users
         .into_iter()
         .find(|entry| entry.username == user)

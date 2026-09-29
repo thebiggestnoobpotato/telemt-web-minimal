@@ -24,69 +24,12 @@ pub(super) fn normalize_domain_to_ascii(domain: &str, field: &str) -> Result<Str
         ))
     })?;
     let host = parsed.host_str().ok_or_else(|| {
-        ProxyError::Config(format!("Invalid {field}: '{}'. Host is empty", domain))
-    })?;
-    Ok(host.to_ascii_lowercase())
-}
-
-pub(super) fn normalize_mask_host_to_ascii(host: &str, field: &str) -> Result<String> {
-    let host = host.trim();
-    if host.starts_with('[') && host.ends_with(']') {
-        let inner = &host[1..host.len() - 1];
-        let ip = inner.parse::<std::net::IpAddr>().map_err(|_| {
-            ProxyError::Config(format!(
-                "Invalid {field}: '{}'. IPv6 literal is invalid",
-                host
-            ))
-        })?;
-        return match ip {
-            std::net::IpAddr::V6(v6) => Ok(format!("[{v6}]")),
-            std::net::IpAddr::V4(v4) => Ok(v4.to_string()),
-        };
-    }
-    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
-        return match ip {
-            std::net::IpAddr::V4(v4) => Ok(v4.to_string()),
-            std::net::IpAddr::V6(v6) => Ok(format!("[{v6}]")),
-        };
-    }
-
-    normalize_domain_to_ascii(host, field)
-}
-
-pub(super) fn parse_exclusive_mask_target(target: &str) -> Option<(&str, u16)> {
-    let target = target.trim();
-    if target.is_empty() {
-        return None;
-    }
-
-    if target.starts_with('[') {
-        let end = target.find(']')?;
-        if target.get(end + 1..end + 2)? != ":" {
-            return None;
-        }
-        let host = &target[..=end];
-        let port = target[end + 2..].parse::<u16>().ok()?;
-        return (port > 0).then_some((host, port));
-    }
-
-    let (host, port) = target.rsplit_once(':')?;
-    if host.is_empty() || host.contains(':') {
-        return None;
-    }
-    let port = port.parse::<u16>().ok()?;
-    (port > 0).then_some((host, port))
-}
-
-pub(super) fn normalize_exclusive_mask_target(target: &str, field: &str) -> Result<String> {
-    let (host, port) = parse_exclusive_mask_target(target).ok_or_else(|| {
         ProxyError::Config(format!(
-            "Invalid {field}: '{}'. Expected host:port with port > 0",
-            target
+            "Invalid {field}: '{}'. Host is empty",
+            domain
         ))
     })?;
-    let host = normalize_mask_host_to_ascii(host, field)?;
-    Ok(format!("{host}:{port}"))
+    Ok(host.to_ascii_lowercase())
 }
 
 pub(super) fn is_valid_ad_tag(tag: &str) -> bool {

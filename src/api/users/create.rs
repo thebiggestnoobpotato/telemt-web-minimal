@@ -158,17 +158,8 @@ async fn create_user_to_completion(
             .await;
     }
     drop(_guard);
-    let (detected_ip_v4, detected_ip_v6) = shared.detected_link_ips();
 
-    let users = users_from_config(
-        &cfg,
-        &shared.stats,
-        &shared.ip_tracker,
-        detected_ip_v4,
-        detected_ip_v6,
-        None,
-    )
-    .await;
+    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
     let user = users
         .into_iter()
         .find(|entry| entry.username == body.username)
@@ -196,7 +187,7 @@ async fn create_user_to_completion(
             recent_unique_ips: 0,
             recent_unique_ips_list: Vec::new(),
             total_octets: 0,
-            links: build_user_links(&cfg, &secret, detected_ip_v4, detected_ip_v6),
+            links: build_user_links(&cfg, &body.username),
         });
 
     Ok((CreateUserResponse { user, secret }, revision))

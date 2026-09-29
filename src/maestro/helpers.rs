@@ -308,7 +308,7 @@ fn print_help() {
     eprintln!("Setup (fire-and-forget):");
     eprintln!("  --init                  Generate config, install systemd service, start");
     eprintln!("    --port <PORT>          Listen port (default: 443)");
-    eprintln!("    --domain <DOMAIN>      TLS domain for masking (default: www.google.com)");
+    eprintln!("    --domain <DOMAIN>      Public vhost hostname (default: proxy.example.com)");
     eprintln!("    --secret <HEX>         32-char hex secret (auto-generated if omitted)");
     eprintln!("    --user <NAME>          Username (default: user)");
     eprintln!("    --config-dir <DIR>     Config directory (default: /etc/telemt)");

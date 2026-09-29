@@ -65,7 +65,6 @@ async fn mtproto_user_scan_timing_manual_benchmark() {
     let target_secret_hex = "dededededededededededededededede";
 
     let mut config = ProxyConfig::default();
-    config.general.modes.secure = true;
     config.access.ignore_time_skew = true;
 
     for i in 0..DECOY_USERS {

@@ -330,7 +330,7 @@ impl ListenerManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{ListenerConfig, SynLimitMode};
+    use crate::config::ListenerConfig;
     use crate::maestro::generation::test_runtime_generation;
     use crate::transport::ListenOptions;
     use tokio::net::{TcpListener, TcpStream};
@@ -338,22 +338,8 @@ mod tests {
     fn listener_config(addr: SocketAddr) -> ListenerConfig {
         ListenerConfig {
             ip: addr.ip(),
-            transport: crate::config::ListenerTransport::Mtproxy,
+            transport: crate::config::ListenerTransport::Web,
             port: Some(addr.port()),
-            client_mss: None,
-            synlimit: SynLimitMode::Off,
-            synlimit_seconds: 60,
-            synlimit_hitcount: 48,
-            synlimit_burst: 24,
-            synlimit_ios_seconds: 1,
-            synlimit_ios_hitcount: 12,
-            synlimit_ios_burst: 24,
-            synlimit_hashlimit_expire_ms: 60_000,
-            synlimit_hashlimit_size: 32_768,
-            announce: None,
-            announce_ip: None,
-            proxy_protocol: None,
-            reuse_allow: false,
             web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
             web_trusted_proxy_cidrs: Vec::new(),
         }
@@ -364,13 +350,11 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let spec = ListenerBindSpec {
             addr,
-            transport: crate::config::ListenerTransport::Mtproxy,
+            transport: crate::config::ListenerTransport::Web,
             options: ListenOptions {
                 reuse_port: false,
                 ..Default::default()
             },
-            proxy_protocol: false,
-            tls_response_fragment_size: None,
             web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
             web_trusted_proxy_cidrs: Arc::from([]),
         };
@@ -410,44 +394,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn added_listener_is_dormant_until_transition_begins() {
+    async fn acceptor_liveness_counts_web_listeners() {
         let runtime = test_runtime_generation(1, ProxyConfig::default());
         let active_runtime = Arc::new(ArcSwap::from(runtime.clone()));
-        let (old_listener, _old_addr) = bound_listener().await;
+        let (first_listener, _first_addr) = bound_listener().await;
+        let (second_listener, _second_addr) = bound_listener().await;
         let bound = BoundListeners {
-            listeners: vec![old_listener],
-        };
-        let trace = WebTraceStore::new(
-            runtime.config().web.debug.clone(),
-            &runtime.config().web.limits,
-        );
-        let mut manager =
-            ListenerManager::start(bound, active_runtime, trace, WebRuntimeControl::new());
-        let reservation = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let new_addr = reservation.local_addr().unwrap();
-        drop(reservation);
-        let mut desired = ProxyConfig::default();
-        desired.server.listeners = vec![listener_config(new_addr)];
-
-        let prepared = manager.prepare_transition(&desired).unwrap().unwrap();
-        assert!(TcpStream::connect(new_addr).await.is_err());
-        let pending = manager.begin_transition(prepared).await.unwrap();
-        manager.finish_transition(pending);
-        TcpStream::connect(new_addr).await.unwrap();
-
-        manager.shutdown().await.unwrap();
-        runtime.stop_sessions().await;
-    }
-
-    #[tokio::test]
-    async fn acceptor_liveness_counts_only_web_listeners() {
-        let runtime = test_runtime_generation(1, ProxyConfig::default());
-        let active_runtime = Arc::new(ArcSwap::from(runtime.clone()));
-        let (native_listener, _native_addr) = bound_listener().await;
-        let (mut web_listener, _web_addr) = bound_listener().await;
-        web_listener.spec.transport = ListenerTransport::Web;
-        let bound = BoundListeners {
-            listeners: vec![native_listener, web_listener],
+            listeners: vec![first_listener, second_listener],
         };
         let trace = WebTraceStore::new(
             runtime.config().web.debug.clone(),
@@ -457,7 +410,7 @@ mod tests {
         let receiver = control.subscribe();
         let mut manager = ListenerManager::start(bound, active_runtime, trace, control);
 
-        assert_eq!(receiver.borrow().telemetry.live_acceptors(), 1);
+        assert_eq!(receiver.borrow().telemetry.live_acceptors(), 2);
 
         manager.shutdown().await.unwrap();
         runtime.stop_sessions().await;

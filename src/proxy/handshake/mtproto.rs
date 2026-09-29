@@ -127,7 +127,6 @@ where
 
     let throttle_now = Instant::now();
     if auth_probe_should_apply_preauth_throttle_in(shared, peer.ip(), throttle_now) {
-        maybe_apply_server_hello_delay(config).await;
         debug!(peer = %peer, "MTProto handshake rejected by pre-auth probe throttle");
         return HandshakeResult::BadClient { reader, writer };
     }
@@ -190,8 +189,6 @@ where
                         &enc_prekey,
                         enc_iv,
                         &entry.secret,
-                        config,
-                        is_tls,
                         mode_policy,
                     ) {
                         matched_user = entry.user.clone();
@@ -308,7 +305,6 @@ where
                 overload,
             );
             auth_probe_record_failure_in(shared, peer.ip(), failure_now);
-            maybe_apply_server_hello_delay(config).await;
             debug!(
                 peer = %peer,
                 budget_exhausted = budget_exhausted,
@@ -321,7 +317,6 @@ where
 
         let Some(validation) = matched_validation else {
             auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-            maybe_apply_server_hello_delay(config).await;
             warn!(
                 peer = %peer,
                 user = %matched_user,
@@ -335,7 +330,6 @@ where
             .is_user_source_ip_denied(matched_user.as_str(), peer.ip())
         {
             auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-            maybe_apply_server_hello_delay(config).await;
             warn!(
                 peer = %peer,
                 user = %matched_user,
@@ -352,7 +346,6 @@ where
         // authentication check first to avoid poisoning the replay cache.
         if replay_checker.check_and_add_handshake(dec_prekey_iv) {
             auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-            maybe_apply_server_hello_delay(config).await;
             warn!(peer = %peer, user = %matched_user, "MTProto replay attack detected");
             return HandshakeResult::BadClient { reader, writer };
         }
@@ -422,8 +415,6 @@ where
                 &enc_prekey,
                 enc_iv,
                 &secret_arr,
-                config,
-                is_tls,
                 mode_policy,
             ) else {
                 continue;
@@ -439,7 +430,6 @@ where
                 .is_user_source_ip_denied(user.as_str(), peer.ip())
             {
                 auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-                maybe_apply_server_hello_delay(config).await;
                 warn!(
                     peer = %peer,
                     user = %user,
@@ -456,7 +446,6 @@ where
             // authentication check first to avoid poisoning the replay cache.
             if replay_checker.check_and_add_handshake(dec_prekey_iv) {
                 auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-                maybe_apply_server_hello_delay(config).await;
                 warn!(peer = %peer, user = %user, "MTProto replay attack detected");
                 return HandshakeResult::BadClient { reader, writer };
             }
@@ -501,7 +490,6 @@ where
     }
 
     auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-    maybe_apply_server_hello_delay(config).await;
     debug!(peer = %peer, "MTProto handshake: no matching user found");
     HandshakeResult::BadClient { reader, writer }
 }

@@ -9,7 +9,6 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "server",
     "web",
     "timeouts",
-    "censorship",
     "access",
     "upstreams",
     "show_link",
@@ -26,7 +25,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "data_path",
     "quota_state_path",
     "config_strict",
-    "modes",
     "prefer_ipv6",
     "fast_mode",
     "ad_tag",
@@ -52,7 +50,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "disable_colors",
     "telemetry",
     "links",
-    "fast_mode_min_tls_record",
     "ntp_check",
     "ntp_servers",
     "rst_on_close",
@@ -72,16 +69,6 @@ const NETWORK_CONFIG_KEYS: &[&str] = &[
 
 const SERVER_CONFIG_KEYS: &[&str] = &[
     "port",
-    "listen_addr_ipv4",
-    "listen_addr_ipv6",
-    "listen_unix_sock",
-    "listen_unix_sock_perm",
-    "listen_tcp",
-    "client_mss",
-    "client_mss_bulk",
-    "proxy_protocol",
-    "proxy_protocol_header_timeout_ms",
-    "proxy_protocol_trusted_cidrs",
     "metrics_port",
     "metrics_listen",
     "metrics_whitelist",
@@ -125,20 +112,6 @@ const LISTENER_CONFIG_KEYS: &[&str] = &[
     "ip",
     "transport",
     "port",
-    "client_mss",
-    "synlimit",
-    "synlimit_seconds",
-    "synlimit_hitcount",
-    "synlimit_burst",
-    "synlimit_ios_seconds",
-    "synlimit_ios_hitcount",
-    "synlimit_ios_burst",
-    "synlimit_hashlimit_expire_ms",
-    "synlimit_hashlimit_size",
-    "announce",
-    "announce_ip",
-    "proxy_protocol",
-    "reuse_allow",
     "web_client_ip_source",
     "web_trusted_proxy_cidrs",
 ];
@@ -261,59 +234,8 @@ const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
 const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
     "client_first_byte_idle_secs",
     "client_handshake",
-    "relay_idle_policy_v2_enabled",
-    "relay_client_idle_soft_secs",
-    "relay_client_idle_hard_secs",
-    "relay_idle_grace_after_downstream_activity_secs",
     "client_keepalive",
     "client_ack",
-];
-
-const CENSORSHIP_CONFIG_KEYS: &[&str] = &[
-    "tls_domain",
-    "tls_domains",
-    "unknown_sni_action",
-    "tls_fetch_scope",
-    "tls_fetch",
-    "mask",
-    "mask_dynamic",
-    "mask_host",
-    "mask_port",
-    "exclusive_mask",
-    "mask_unix_sock",
-    "fake_cert_len",
-    "tls_emulation",
-    "tls_front_dir",
-    "server_hello_delay_min_ms",
-    "server_hello_delay_max_ms",
-    "tls_new_session_tickets",
-    "serverhello_compact",
-    "tls_full_cert_ttl_secs",
-    "alpn_enforce",
-    "mask_proxy_protocol",
-    "mask_shape_hardening",
-    "mask_shape_hardening_aggressive_mode",
-    "mask_shape_bucket_floor_bytes",
-    "mask_shape_bucket_cap_bytes",
-    "mask_shape_above_cap_blur",
-    "mask_shape_above_cap_blur_max_bytes",
-    "mask_relay_max_bytes",
-    "mask_relay_timeout_ms",
-    "mask_relay_idle_timeout_ms",
-    "mask_classifier_prefetch_timeout_ms",
-    "mask_timing_normalization_enabled",
-    "mask_timing_normalization_floor_ms",
-    "mask_timing_normalization_ceiling_ms",
-];
-
-const TLS_FETCH_CONFIG_KEYS: &[&str] = &[
-    "profiles",
-    "strict_route",
-    "attempt_timeout_ms",
-    "total_budget_ms",
-    "grease_enabled",
-    "deterministic",
-    "profile_cache_ttl_secs",
 ];
 
 const ACCESS_CONFIG_KEYS: &[&str] = &[
@@ -353,9 +275,9 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
     "scopes",
     "ipv4",
     "ipv6",
+    "prefer",
 ];
 
-const PROXY_MODES_CONFIG_KEYS: &[&str] = &["classic", "secure", "tls"];
 const TELEMETRY_CONFIG_KEYS: &[&str] = &["core_enabled", "user_enabled"];
 const LINKS_CONFIG_KEYS: &[&str] = &["show", "public_host", "public_port"];
 const LOGGING_CONFIG_KEYS: &[&str] = &[

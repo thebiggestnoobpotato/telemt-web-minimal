@@ -1,26 +1,6 @@
 use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProxyModes {
-    #[serde(default)]
-    pub classic: bool,
-    #[serde(default)]
-    pub secure: bool,
-    #[serde(default = "default_true")]
-    pub tls: bool,
-}
-
-impl Default for ProxyModes {
-    fn default() -> Self {
-        Self {
-            classic: false,
-            secure: false,
-            tls: default_true(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkConfig {
     #[serde(default = "default_true")]
     pub ipv4: bool,

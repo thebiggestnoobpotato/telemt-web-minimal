@@ -11,9 +11,8 @@ pub struct GeneralConfig {
     #[serde(default)]
     pub config_strict: bool,
     #[serde(default)]
-    pub modes: ProxyModes,
-    #[serde(default)]
     pub prefer_ipv6: bool,
+    /// Fast nonce mode: pre-fills the client enc key/iv into the relay nonce.
     #[serde(default = "default_true")]
     pub fast_mode: bool,
     /// Global ad_tag (32 hex chars from @MTProxybot). Fallback when user has no per-user tag in access.user_ad_tags.
@@ -93,9 +92,6 @@ pub struct GeneralConfig {
     /// [general.links] — proxy link generation overrides.
     #[serde(default)]
     pub links: LinksConfig,
-    /// Minimum TLS record size when fast_mode coalescing is enabled (0 = disabled).
-    #[serde(default = "default_fast_mode_min_tls_record")]
-    pub fast_mode_min_tls_record: usize,
     /// Enable NTP drift check at startup.
     #[serde(default = "default_ntp_check")]
     pub ntp_check: bool,

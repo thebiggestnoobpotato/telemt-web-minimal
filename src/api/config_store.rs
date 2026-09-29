@@ -315,7 +315,6 @@ pub(super) async fn save_config_to_disk(
 pub(super) const EDITABLE_SECTIONS: &[&str] = &[
     "general",
     "timeouts",
-    "censorship",
     "upstreams",
     "dc_overrides",
     "web",

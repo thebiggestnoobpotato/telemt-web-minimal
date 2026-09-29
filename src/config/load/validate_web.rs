@@ -45,16 +45,7 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         .count();
 
     for (idx, listener) in config.server.listeners.iter().enumerate() {
-        match listener.transport {
-            ListenerTransport::Mtproxy => {
-                if !listener.web_trusted_proxy_cidrs.is_empty() {
-                    return Err(ProxyError::Config(format!(
-                        "server.listeners[{idx}].web_trusted_proxy_cidrs is only valid for transport=web"
-                    )));
-                }
-            }
-            ListenerTransport::Web => validate_web_listener(config, idx, listener)?,
-        }
+        validate_web_listener(idx, listener)?;
     }
 
     if config.web.enabled && eligible_web_listener_count == 0 {
@@ -137,7 +128,6 @@ fn listener_covers(listener: SocketAddr, target: SocketAddr) -> bool {
 }
 
 fn validate_web_listener(
-    config: &ProxyConfig,
     idx: usize,
     listener: &ListenerConfig,
 ) -> Result<()> {
@@ -153,28 +143,6 @@ fn validate_web_listener(
     {
         return Err(ProxyError::Config(format!(
             "server.listeners[{idx}].web_trusted_proxy_cidrs must not contain a /0 network"
-        )));
-    }
-    let proxy_protocol = listener
-        .proxy_protocol
-        .unwrap_or(config.server.proxy_protocol);
-    if proxy_protocol {
-        return Err(ProxyError::Config(format!(
-            "server.listeners[{idx}].proxy_protocol must be false for transport=web; WEB identity is accepted only from the configured L7 header"
-        )));
-    }
-    if listener.reuse_allow {
-        return Err(ProxyError::Config(format!(
-            "server.listeners[{idx}].reuse_allow is not supported for transport=web without external session affinity"
-        )));
-    }
-    if listener.client_mss.is_some()
-        || listener.synlimit != SynLimitMode::Off
-        || listener.announce.is_some()
-        || listener.announce_ip.is_some()
-    {
-        return Err(ProxyError::Config(format!(
-            "server.listeners[{idx}] WEB transport does not accept client_mss, synlimit, announce, or announce_ip"
         )));
     }
     Ok(())

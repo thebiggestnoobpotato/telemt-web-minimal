@@ -9,7 +9,7 @@ use crate::util::trusted_command::trusted_helper_command;
 pub struct InitOptions {
     /// Public listener port.
     pub port: u16,
-    /// TLS camouflage domain.
+    /// Public vhost hostname for the WEB endpoint.
     pub domain: String,
     /// Optional pre-generated proxy secret.
     pub secret: Option<String>,
@@ -25,7 +25,7 @@ impl Default for InitOptions {
     fn default() -> Self {
         Self {
             port: 443,
-            domain: "www.google.com".to_string(),
+            domain: "proxy.example.com".to_string(),
             secret: None,
             username: "user".to_string(),
             config_dir: PathBuf::from("/etc/telemt"),
@@ -150,7 +150,7 @@ pub fn run_init(opts: InitOptions) -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("{}", service_content);
             eprintln!();
             eprintln!("{}", service::installation_instructions(init_system));
-            print_links(&opts.username, &secret, opts.port, &opts.domain);
+            print_links(&opts.username, &secret, &opts.domain);
             return Ok(());
         }
     }
@@ -214,7 +214,7 @@ pub fn run_init(opts: InitOptions) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     eprintln!();
-    print_links(&opts.username, &secret, opts.port, &opts.domain);
+    print_links(&opts.username, &secret, &opts.domain);
     Ok(())
 }
 
@@ -241,7 +241,7 @@ fn generate_secret() -> String {
 
 fn generate_config(username: &str, secret: &str, port: u16, domain: &str) -> String {
     format!(
-        r#"# Telemt MTProxy — auto-generated config
+        r#"# Telemt WEB MTProxy — auto-generated config
 # Re-run `telemt --init` to regenerate
 
 show_link = ["{username}"]
@@ -258,23 +258,22 @@ ipv4 = true
 ipv6 = true
 prefer = 4
 
-[general.modes]
-classic = false
-secure = false
-tls = true
-
 [server]
-listen_addr_ipv4 = "0.0.0.0"
-listen_addr_ipv6 = "::"
+port = {port}
 
 [[server.listeners]]
 ip = "0.0.0.0"
 port = {port}
-# reuse_allow = false # Set true only when intentionally running multiple telemt instances on same port
+transport = "web"
+# Trusted L7 reverse proxies allowed to supply the client IP header.
+# /0 networks are rejected; extend only with your own fronting proxies.
+web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [[server.listeners]]
 ip = "::"
 port = {port}
+transport = "web"
+web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [timeouts]
 client_first_byte_idle_secs = 300
@@ -282,13 +281,21 @@ client_handshake = 60
 client_keepalive = 60
 client_ack = 300
 
-[censorship]
-tls_domain = "{domain}"
-mask = true
-mask_port = 443
-fake_cert_len = 2048
-serverhello_compact = false
-tls_full_cert_ttl_secs = 90
+[web]
+enabled = true
+
+[[web.vhosts]]
+host = "{domain}"
+# Replace with this server's public IP and port.
+public_addr = "203.0.113.1:443"
+
+[web.vhosts.decoy]
+mode = "http_upstream"
+upstream = "http://127.0.0.1:80"
+
+[[web.vhosts.profiles]]
+user = "{username}"
+secret_mode = "plain"
 
 [access]
 user_max_tcp_conns_global_each = 0
@@ -332,17 +339,20 @@ fn run_cmd(cmd: &str, args: &[&str]) {
     }
 }
 
-fn print_links(username: &str, secret: &str, port: u16, domain: &str) {
-    let domain_hex = hex::encode(domain);
+fn print_links(username: &str, secret: &str, domain: &str) {
+    let link = crate::web::links::format_web_proxy_link(
+        domain,
+        "",
+        secret,
+        crate::config::WebSecretMode::Plain,
+    )
+    .unwrap_or_else(|| format!("tg://webproxy?server={domain}&secret={secret}"));
 
     println!("=== Proxy Links ===");
     println!("[{}]", username);
-    println!(
-        "  EE-TLS:  tg://proxy?server=YOUR_SERVER_IP&port={}&secret=ee{}{}",
-        port, secret, domain_hex
-    );
+    println!("  WEB:     {}", link);
     println!();
-    println!("Replace YOUR_SERVER_IP with your server's public IP.");
+    println!("The vhost domain must resolve to your reverse proxy's public IP.");
     println!("The proxy will auto-detect and display the correct link on startup.");
     println!("Check: journalctl -u telemt.service | head -30");
     println!("===================");

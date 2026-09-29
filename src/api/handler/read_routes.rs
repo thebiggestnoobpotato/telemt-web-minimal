@@ -145,13 +145,10 @@ pub(super) async fn handle(
             let revision = current_revision(&shared.config_path).await?;
             let disk_cfg = load_config_from_disk(&shared.config_path).await?;
             let runtime_cfg = config_rx.borrow().clone();
-            let (detected_ip_v4, detected_ip_v6) = shared.detected_link_ips();
             let users = users_from_config(
                 &disk_cfg,
                 &shared.stats,
                 &shared.ip_tracker,
-                detected_ip_v4,
-                detected_ip_v6,
                 Some(runtime_cfg.as_ref()),
             )
             .await;

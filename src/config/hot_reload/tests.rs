@@ -7,9 +7,6 @@ fn sample_config() -> ProxyConfig {
 fn write_reload_config(path: &Path, ad_tag: Option<&str>, server_port: Option<u16>) {
     let mut config = String::from(
         r#"
-                [censorship]
-                tls_domain = "example.com"
-
                 [access.users]
                 user = "00000000000000000000000000000000"
             "#,
@@ -33,9 +30,6 @@ fn write_reload_config(path: &Path, ad_tag: Option<&str>, server_port: Option<u1
 fn write_web_reload_config(path: &Path, carriers: &str, carrier_learning: bool) {
     let config = format!(
         r#"
-                [censorship]
-                tls_domain = "example.com"
-
                 [access.users]
                 user = "00000000000000000000000000000000"
 
@@ -60,7 +54,6 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, ad_tag: &str) {
                 ip = "127.0.0.1"
                 port = 18080
                 transport = "web"
-                proxy_protocol = false
                 web_client_ip_source = "x_forwarded_for"
                 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
@@ -238,59 +231,25 @@ fn mixed_hot_and_non_hot_change_applies_only_hot_subset() {
 }
 
 #[test]
-fn listener_synlimit_fields_are_process_owned() {
+fn listener_web_policy_fields_are_process_owned() {
     let mut old = sample_config();
     old.server.listeners.push(ListenerConfig {
         ip: "0.0.0.0".parse().unwrap(),
-        transport: crate::config::ListenerTransport::Mtproxy,
+        transport: crate::config::ListenerTransport::Web,
         port: Some(443),
-        client_mss: None,
-        synlimit: SynLimitMode::Iptables,
-        synlimit_seconds: 60,
-        synlimit_hitcount: 48,
-        synlimit_burst: 1,
-        synlimit_ios_seconds: 1,
-        synlimit_ios_hitcount: 12,
-        synlimit_ios_burst: 24,
-        synlimit_hashlimit_expire_ms: 60_000,
-        synlimit_hashlimit_size: 32_768,
-        announce: None,
-        announce_ip: None,
-        proxy_protocol: None,
-        reuse_allow: false,
         web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
         web_trusted_proxy_cidrs: Vec::new(),
     });
     let mut new = old.clone();
     new.server.port = 8443;
-    new.server.listeners[0].synlimit_seconds = 120;
-    new.server.listeners[0].synlimit_hitcount = 96;
-    new.server.listeners[0].synlimit_burst = 2;
-    new.server.listeners[0].synlimit_ios_seconds = 2;
-    new.server.listeners[0].synlimit_ios_hitcount = 18;
-    new.server.listeners[0].synlimit_ios_burst = 36;
-    new.server.listeners[0].synlimit_hashlimit_expire_ms = 90_000;
-    new.server.listeners[0].synlimit_hashlimit_size = 65_536;
+    new.server.listeners[0]
+        .web_trusted_proxy_cidrs
+        .push("127.0.0.1/32".parse().unwrap());
 
     let applied = overlay_hot_fields(&old, &new);
     let listener = &applied.server.listeners[0];
     assert_eq!(applied.server.port, old.server.port);
-    assert_eq!(
-        listener.synlimit_seconds,
-        old.server.listeners[0].synlimit_seconds
-    );
-    assert_eq!(
-        listener.synlimit_hitcount,
-        old.server.listeners[0].synlimit_hitcount
-    );
-    assert_eq!(
-        listener.synlimit_burst,
-        old.server.listeners[0].synlimit_burst
-    );
-    assert_eq!(
-        listener.synlimit_hashlimit_size,
-        old.server.listeners[0].synlimit_hashlimit_size
-    );
+    assert!(listener.web_trusted_proxy_cidrs.is_empty());
     assert!(classify_config_changes(&old, &new).restart_required);
 }
 
@@ -310,7 +269,7 @@ fn reload_applies_hot_change_on_first_observed_snapshot() {
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_reload_config(&path, Some(final_tag), None);
-    reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state).unwrap();
+    reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
     assert_eq!(
         config_tx.borrow().general.ad_tag.as_deref(),
         Some(final_tag)
@@ -332,8 +291,6 @@ async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
     let (mut config_rx, _log_rx, watcher) = spawn_config_watcher(
         path.clone(),
         initial,
-        None,
-        None,
         cancellation.clone(),
         None,
         Some(activation_rx),
@@ -376,7 +333,7 @@ fn reload_keeps_hot_apply_when_non_hot_fields_change() {
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_reload_config(&path, Some(final_tag), Some(initial_cfg.server.port + 1));
-    reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state).unwrap();
+    reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
     assert_eq!(applied.general.ad_tag.as_deref(), Some(final_tag));
@@ -401,7 +358,7 @@ fn reload_rebuilds_vhosts_with_the_effective_fasttrack_mode() {
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_web_fasttrack_reload_config(&path, "enforce", final_tag);
-    reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state).unwrap();
+    reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
     assert_eq!(applied.general.ad_tag.as_deref(), Some(final_tag));
@@ -432,25 +389,13 @@ fn reload_publishes_web_negotiation_policy_outside_hot_field_reporting() {
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_web_reload_config(&path, "[\"websocket\", \"https\"]", false);
-    reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state).unwrap();
+    reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
     assert!(applied.web.carrier_negotiation_enabled());
     assert!(!applied.web.carrier_learning);
 
     let _ = std::fs::remove_file(path);
-}
-
-#[test]
-fn classify_sni_change_requires_restart() {
-    // censorship.* is not in overlay_hot_fields -> restart.
-    let old = ProxyConfig::default();
-    let mut new = ProxyConfig::default();
-    new.censorship.tls_domain = "front.example".to_string();
-
-    let class = classify_config_changes(&old, &new);
-    assert!(class.restart_required);
-    assert!(class.changed.iter().any(|c| c == "censorship"));
 }
 
 #[test]
@@ -492,14 +437,14 @@ fn reload_recovers_after_parse_error_on_next_attempt() {
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     std::fs::write(&path, "[access.users\nuser = \"broken\"\n").unwrap();
-    assert!(reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state).is_none());
+    assert!(reload_config(&path, &config_tx, &log_tx, &mut reload_state).is_none());
     assert_eq!(
         config_tx.borrow().general.ad_tag.as_deref(),
         Some(initial_tag)
     );
 
     write_reload_config(&path, Some(final_tag), None);
-    reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state).unwrap();
+    reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
     assert_eq!(
         config_tx.borrow().general.ad_tag.as_deref(),
         Some(final_tag)

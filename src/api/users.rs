@@ -15,7 +15,7 @@ use super::config_store::{
 };
 use super::model::{
     ApiFailure, CreateUserRequest, CreateUserResponse, PatchUserRequest, RotateSecretRequest,
-    TlsDomainLink, UserInfo, UserLinks, UserQuotaEntry, UserQuotaListData, is_valid_ad_tag,
+    UserInfo, UserLinks, UserQuotaEntry, UserQuotaListData, is_valid_ad_tag,
     is_valid_user_secret, is_valid_username, parse_optional_expiration, parse_patch_expiration,
     random_user_secret,
 };
@@ -29,7 +29,7 @@ mod view;
 
 pub(super) use create::create_user;
 pub(super) use lifecycle::{delete_user, rotate_secret};
-use links::{build_user_links, empty_user_links};
+use links::build_user_links;
 pub(super) use update::{patch_user, set_user_enabled};
 pub(super) use view::{build_user_quota_list, users_from_config};
 

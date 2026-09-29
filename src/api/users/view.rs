@@ -4,8 +4,6 @@ pub(in crate::api) async fn users_from_config(
     cfg: &ProxyConfig,
     stats: &Stats,
     ip_tracker: &UserIpTracker,
-    startup_detected_ip_v4: Option<IpAddr>,
-    startup_detected_ip_v6: Option<IpAddr>,
     runtime_cfg: Option<&ProxyConfig>,
 ) -> Vec<UserInfo> {
     let mut names = cfg.access.users.keys().cloned().collect::<Vec<_>>();
@@ -23,14 +21,7 @@ pub(in crate::api) async fn users_from_config(
             .get(&username)
             .cloned()
             .unwrap_or_else(Vec::new);
-        let links = cfg
-            .access
-            .users
-            .get(&username)
-            .map(|secret| {
-                build_user_links(cfg, secret, startup_detected_ip_v4, startup_detected_ip_v6)
-            })
-            .unwrap_or_else(empty_user_links);
+        let links = build_user_links(cfg, &username);
         users.push(UserInfo {
             enabled: cfg.access.is_user_enabled(&username),
             in_runtime: runtime_cfg

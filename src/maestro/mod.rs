@@ -34,8 +34,6 @@ mod shutdown;
 
 use tracing::error;
 
-use crate::config::{ProxyConfig, SynLimitMode};
-
 #[cfg(unix)]
 use crate::daemon::{DaemonOptions, PidFile, drop_privileges};
 
@@ -65,24 +63,6 @@ pub async fn run() -> std::result::Result<(), Box<dyn std::error::Error>> {
     {
         run_inner().await
     }
-}
-
-fn validate_synlimit_privilege_drop(
-    config: &ProxyConfig,
-    privilege_drop_requested: bool,
-) -> std::io::Result<()> {
-    if privilege_drop_requested
-        && config
-            .server
-            .listeners
-            .iter()
-            .any(|listener| listener.synlimit != SynLimitMode::Off)
-    {
-        return Err(std::io::Error::other(
-            "SYN limiter cannot be combined with --run-as-user or --run-as-group without a privileged firewall helper",
-        ));
-    }
-    Ok(())
 }
 
 #[cfg(unix)]
@@ -119,48 +99,4 @@ async fn run_inner(
 #[cfg(not(unix))]
 async fn run_inner() -> std::result::Result<(), Box<dyn std::error::Error>> {
     orchestrator::run_telemt_core(false, || {}).await
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::ListenerConfig;
-
-    fn listener_with_synlimit(synlimit: SynLimitMode) -> ListenerConfig {
-        ListenerConfig {
-            ip: "127.0.0.1".parse().unwrap(),
-            transport: crate::config::ListenerTransport::Mtproxy,
-            port: Some(443),
-            client_mss: None,
-            synlimit,
-            synlimit_seconds: 60,
-            synlimit_hitcount: 48,
-            synlimit_burst: 24,
-            synlimit_ios_seconds: 1,
-            synlimit_ios_hitcount: 12,
-            synlimit_ios_burst: 24,
-            synlimit_hashlimit_expire_ms: 60_000,
-            synlimit_hashlimit_size: 32_768,
-            announce: None,
-            announce_ip: None,
-            proxy_protocol: None,
-            reuse_allow: false,
-            web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
-            web_trusted_proxy_cidrs: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn privilege_drop_rejects_enabled_synlimit_only() {
-        let mut config = ProxyConfig::default();
-        config
-            .server
-            .listeners
-            .push(listener_with_synlimit(SynLimitMode::Iptables));
-
-        assert!(validate_synlimit_privilege_drop(&config, true).is_err());
-        assert!(validate_synlimit_privilege_drop(&config, false).is_ok());
-        config.server.listeners[0].synlimit = SynLimitMode::Off;
-        assert!(validate_synlimit_privilege_drop(&config, true).is_ok());
-    }
 }

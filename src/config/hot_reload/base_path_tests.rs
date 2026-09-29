@@ -17,7 +17,6 @@ alice = "000102030405060708090a0b0c0d0e0f"
 ip = "127.0.0.1"
 port = 18080
 transport = "web"
-proxy_protocol = false
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
@@ -55,7 +54,7 @@ fn reload_rejects_invalid_base_then_publishes_route_identity_together() {
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_base_path_config(&path, "/invalid");
-    reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state);
+    reload_config(&path, &config_tx, &log_tx, &mut reload_state);
     let unchanged = config_tx.borrow().clone();
     assert!(Arc::ptr_eq(&unchanged, &initial));
     assert_eq!(unchanged.web.vhosts[0].base_path, "");
@@ -65,7 +64,7 @@ fn reload_rejects_invalid_base_then_publishes_route_identity_together() {
     );
 
     write_base_path_config(&path, "dobry-cola-super-app");
-    reload_config(&path, &config_tx, &log_tx, None, None, &mut reload_state);
+    reload_config(&path, &config_tx, &log_tx, &mut reload_state);
     let applied = config_tx.borrow().clone();
     let runtime = applied.web.runtime.as_ref().unwrap();
     let vhost = &runtime.vhosts["proxy.example.com"];

@@ -1,77 +1,11 @@
 use super::*;
 
-fn resolve_default_link_port(cfg: &ProxyConfig) -> u16 {
-    cfg.server
-        .listeners
-        .first()
-        .and_then(|listener| listener.port)
-        .unwrap_or(cfg.server.port)
-}
-
-fn resolve_link_host(
-    cfg: &ProxyConfig,
-    detected_ip_v4: Option<IpAddr>,
-    detected_ip_v6: Option<IpAddr>,
-) -> String {
-    if let Some(ref h) = cfg.general.links.public_host {
-        return h.clone();
-    }
-    detected_ip_v4
-        .or(detected_ip_v6)
-        .map(|ip| ip.to_string())
-        .unwrap_or_else(|| {
-            warn!(
-                "config reload: could not determine public IP for proxy links. \
-                 Set [general.links] public_host in config."
-            );
-            "UNKNOWN".to_string()
-        })
-}
-
-/// Print TG proxy links for a single user — mirrors print_proxy_links() in main.rs.
-fn print_user_links(user: &str, secret: &str, host: &str, port: u16, cfg: &ProxyConfig) {
-    info!(target: "telemt::links", "--- New user: {} ---", user);
-    if cfg.general.modes.classic {
-        info!(
-            target: "telemt::links",
-            "  Classic: tg://proxy?server={}&port={}&secret={}",
-            host, port, secret
-        );
-    }
-    if cfg.general.modes.secure {
-        info!(
-            target: "telemt::links",
-            "  DD:      tg://proxy?server={}&port={}&secret=dd{}",
-            host, port, secret
-        );
-    }
-    if cfg.general.modes.tls {
-        let mut domains = vec![cfg.censorship.tls_domain.clone()];
-        for d in &cfg.censorship.tls_domains {
-            if !domains.contains(d) {
-                domains.push(d.clone());
-            }
-        }
-        for domain in &domains {
-            let domain_hex = hex::encode(domain.as_bytes());
-            info!(
-                target: "telemt::links",
-                "  EE-TLS:  tg://proxy?server={}&port={}&secret=ee{}{}",
-                host, port, secret, domain_hex
-            );
-        }
-    }
-    info!(target: "telemt::links", "--------------------");
-}
-
-/// Log all detected changes and emit TG links for new users.
+/// Log all detected changes and emit WEB links for new users.
 pub(super) fn log_changes(
     old_hot: &HotFields,
     new_hot: &HotFields,
     new_cfg: &ProxyConfig,
     log_tx: &watch::Sender<LogLevel>,
-    detected_ip_v4: Option<IpAddr>,
-    detected_ip_v6: Option<IpAddr>,
 ) {
     if old_hot.log_level != new_hot.log_level {
         info!(
@@ -158,16 +92,19 @@ pub(super) fn log_changes(
                     .collect::<Vec<_>>()
                     .join(", ")
             );
-            let host = resolve_link_host(new_cfg, detected_ip_v4, detected_ip_v6);
-            let port = new_cfg
-                .general
-                .links
-                .public_port
-                .unwrap_or(resolve_default_link_port(new_cfg));
             for user in &added {
-                if let Some(secret) = new_hot.users.get(*user) {
-                    print_user_links(user, secret, &host, port, new_cfg);
+                info!(target: "telemt::links", "--- New user: {user} ---");
+                let links = crate::web::links::web_links_for_user(new_cfg, user);
+                if links.is_empty() {
+                    info!(
+                        target: "telemt::links",
+                        "  (no WEB links: user is not assigned to a [web] profile)"
+                    );
                 }
+                for link in links {
+                    info!(target: "telemt::links", "  WEB: {link}");
+                }
+                info!(target: "telemt::links", "--------------------");
             }
         }
         if !removed.is_empty() {

@@ -1,4 +1,3 @@
-use std::net::IpAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -33,8 +32,6 @@ use super::runtime_tasks;
 pub(crate) struct PreparedRuntime {
     /// Candidate generation ready for publication.
     pub(crate) generation: Arc<RuntimeGeneration>,
-    /// Detected public addresses associated with the candidate.
-    pub(crate) detected_ips: (Option<IpAddr>, Option<IpAddr>),
     /// Gate opened only after the candidate becomes the active generation.
     pub(crate) config_watcher_activation: watch::Sender<bool>,
     /// User-authority epoch captured before candidate construction.
@@ -115,7 +112,6 @@ pub(crate) async fn prepare_runtime(
         generation_id,
         &config,
         config_path,
-        &probe,
         prefer_ipv6,
         decision.ipv4_dc,
         decision.ipv6_dc,
@@ -174,10 +170,6 @@ pub(crate) async fn prepare_runtime(
         generation,
         config_watcher_activation,
         user_admission_epoch,
-        detected_ips: (
-            probe.detected_ipv4.map(IpAddr::V4),
-            probe.detected_ipv6.map(IpAddr::V6),
-        ),
     })
 }
 
@@ -199,12 +191,6 @@ pub(crate) fn resolve_reload_config(
     let mut fields = Vec::new();
     let listener_identity_matches = listeners_have_same_bind_identity(&old.server, &desired.server);
     let global_listener_policy_changed = old.server.port != desired.server.port
-        || old.server.listen_addr_ipv4 != desired.server.listen_addr_ipv4
-        || old.server.listen_addr_ipv6 != desired.server.listen_addr_ipv6
-        || old.server.listen_tcp != desired.server.listen_tcp
-        || old.server.client_mss != desired.server.client_mss
-        || old.server.client_mss_bulk != desired.server.client_mss_bulk
-        || old.server.proxy_protocol != desired.server.proxy_protocol
         || old.server.listen_backlog != desired.server.listen_backlog;
     let listener_policy_changed =
         listener_identity_matches && !listener_process_fields_equal(&old.server, &desired.server);
@@ -213,25 +199,8 @@ pub(crate) fn resolve_reload_config(
     if global_listener_policy_changed || listener_policy_changed || unsupported_identity_change {
         fields.push("server.listeners".to_string());
         effective.server.port = old.server.port;
-        effective.server.listen_addr_ipv4 = old.server.listen_addr_ipv4.clone();
-        effective.server.listen_addr_ipv6 = old.server.listen_addr_ipv6.clone();
-        effective.server.listen_tcp = old.server.listen_tcp;
-        effective.server.client_mss = old.server.client_mss.clone();
-        effective.server.client_mss_bulk = old.server.client_mss_bulk.clone();
-        effective.server.proxy_protocol = old.server.proxy_protocol;
         effective.server.listen_backlog = old.server.listen_backlog;
         effective.server.listeners = old.server.listeners.clone();
-        if listener_identity_matches {
-            for (effective_listener, desired_listener) in effective
-                .server
-                .listeners
-                .iter_mut()
-                .zip(&desired.server.listeners)
-            {
-                effective_listener.announce = desired_listener.announce.clone();
-                effective_listener.announce_ip = desired_listener.announce_ip;
-            }
-        }
     }
     if old.server.api.listen != desired.server.api.listen
         || old.server.api.enabled != desired.server.api.enabled
@@ -342,18 +311,10 @@ fn listeners_have_same_bind_identity(old: &ServerConfig, desired: &ServerConfig)
             })
 }
 
+// Every remaining listener field is process-bound (the accept loop reads its
+// policy from the bind-time spec), so the whole listener list is compared.
 fn listener_process_fields_equal(old: &ServerConfig, desired: &ServerConfig) -> bool {
-    let mut old_listeners = old.listeners.clone();
-    let mut desired_listeners = desired.listeners.clone();
-    for listener in &mut old_listeners {
-        listener.announce = None;
-        listener.announce_ip = None;
-    }
-    for listener in &mut desired_listeners {
-        listener.announce = None;
-        listener.announce_ip = None;
-    }
-    serde_json::to_value(old_listeners).ok() == serde_json::to_value(desired_listeners).ok()
+    serde_json::to_value(&old.listeners).ok() == serde_json::to_value(&desired.listeners).ok()
 }
 
 /// Returns process-owned fields that cannot change in the current generation.

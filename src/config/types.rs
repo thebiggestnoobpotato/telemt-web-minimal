@@ -15,7 +15,6 @@ use super::defaults::*;
 
 mod access;
 mod api;
-mod censorship;
 mod general;
 mod general_impl;
 mod links;
@@ -33,20 +32,15 @@ pub use access::{AccessConfig, CidrRateLimitKey, RateLimitBps};
 #[allow(unused_imports)]
 pub(crate) use access::{CidrAutoTemplate, CidrAutoTemplateFamily, MAX_RATE_LIMIT_BPS};
 pub use api::{ApiConfig, ApiGrayAction};
-pub use censorship::{
-    AntiCensorshipConfig, ExclusiveMaskTarget, TlsFetchConfig, TlsFetchProfile, UnknownSniAction,
-};
 pub use general::GeneralConfig;
 pub use links::{LinksConfig, ShowLink};
 pub use logging::{LogLevel, LogRotation, LoggingConfig, LoggingDestination};
-pub use network::{NetworkConfig, ProxyModes, UpstreamConfig, UpstreamType};
+pub use network::{NetworkConfig, UpstreamConfig, UpstreamType};
 pub use policies::{RstOnCloseMode, TelemetryConfig, UserMaxUniqueIpsMode};
 #[allow(unused_imports)]
 pub use server::{
-    CLIENT_MSS_2IN8, CLIENT_MSS_EXTREME_LOW, CLIENT_MSS_MAX, CLIENT_MSS_MIN, CLIENT_MSS_TSPU,
     ConntrackBackend, ConntrackControlConfig, ConntrackMode, ConntrackPressureProfile,
-    ListenerConfig, ListenerTransport, ServerConfig, SynLimitMode, TimeoutsConfig,
-    WebClientIpSource,
+    ListenerConfig, ListenerTransport, ServerConfig, TimeoutsConfig, WebClientIpSource,
 };
 #[allow(unused_imports)]
 pub use web::{

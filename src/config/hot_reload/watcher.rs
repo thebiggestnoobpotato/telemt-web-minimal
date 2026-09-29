@@ -137,8 +137,6 @@ fn reload_config_with_resolver(
     config_path: &PathBuf,
     config_tx: &watch::Sender<Arc<ProxyConfig>>,
     log_tx: &watch::Sender<LogLevel>,
-    detected_ip_v4: Option<IpAddr>,
-    detected_ip_v6: Option<IpAddr>,
     reload_state: &mut ReloadState,
     dns_resolver: Option<&crate::network::dns_overrides::GenerationDnsResolver>,
 ) -> Option<WatchManifest> {
@@ -206,14 +204,7 @@ fn reload_config_with_resolver(
         return Some(next_manifest);
     }
 
-    log_changes(
-        &old_hot,
-        &applied_hot,
-        &applied_cfg,
-        log_tx,
-        detected_ip_v4,
-        detected_ip_v6,
-    );
+    log_changes(&old_hot, &applied_hot, &applied_cfg, log_tx);
     config_tx.send(Arc::new(applied_cfg)).ok();
     reload_state.mark_applied(rendered_hash);
     Some(next_manifest)
@@ -224,19 +215,9 @@ pub(super) fn reload_config(
     config_path: &PathBuf,
     config_tx: &watch::Sender<Arc<ProxyConfig>>,
     log_tx: &watch::Sender<LogLevel>,
-    detected_ip_v4: Option<IpAddr>,
-    detected_ip_v6: Option<IpAddr>,
     reload_state: &mut ReloadState,
 ) -> Option<WatchManifest> {
-    reload_config_with_resolver(
-        config_path,
-        config_tx,
-        log_tx,
-        detected_ip_v4,
-        detected_ip_v6,
-        reload_state,
-        None,
-    )
+    reload_config_with_resolver(config_path, config_tx, log_tx, reload_state, None)
 }
 
 /// Spawn the hot-reload watcher task.
@@ -244,15 +225,10 @@ pub(super) fn reload_config(
 /// Uses `notify` (inotify on Linux) to detect file changes instantly.
 /// SIGHUP is also handled on Unix as an additional manual trigger.
 ///
-/// `detected_ip_v4` / `detected_ip_v6` are the IPs discovered during the
-/// startup probe — used when generating proxy links for newly added users,
-/// matching the same logic as the startup output.
 /// The watcher releases its notify and signal resources when `cancellation` fires.
 pub fn spawn_config_watcher(
     config_path: PathBuf,
     initial: Arc<ProxyConfig>,
-    detected_ip_v4: Option<IpAddr>,
-    detected_ip_v6: Option<IpAddr>,
     cancellation: tokio_util::sync::CancellationToken,
     dns_resolver: Option<Arc<crate::network::dns_overrides::GenerationDnsResolver>>,
     mut activation: Option<watch::Receiver<bool>>,
@@ -410,8 +386,6 @@ pub fn spawn_config_watcher(
                 &config_path,
                 &config_tx,
                 &log_tx,
-                detected_ip_v4,
-                detected_ip_v6,
                 &mut reload_state,
                 dns_resolver.as_deref(),
             );
@@ -422,8 +396,6 @@ pub fn spawn_config_watcher(
                     &config_path,
                     &config_tx,
                     &log_tx,
-                    detected_ip_v4,
-                    detected_ip_v6,
                     &mut reload_state,
                     dns_resolver.as_deref(),
                 );

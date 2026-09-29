@@ -15,9 +15,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
         .users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
-    cfg.general.modes.secure = true;
-    cfg.general.modes.classic = true;
-    cfg.general.modes.tls = true;
     cfg
 }
 
@@ -176,8 +173,6 @@ async fn classic_mode_over_tls_transport_protocol_confusion() {
 
     let secret_hex = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let mut config = test_config_with_secret_hex(secret_hex);
-    config.general.modes.classic = true;
-    config.general.modes.tls = true;
 
     let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.11:12345".parse().unwrap();

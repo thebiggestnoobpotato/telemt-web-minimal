@@ -14,7 +14,7 @@ async fn users_from_config_reports_effective_tcp_limit_with_global_fallback() {
     let stats = Stats::new();
     let tracker = UserIpTracker::new();
 
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
+    let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let alice = users
         .iter()
         .find(|entry| entry.username == "alice")
@@ -23,7 +23,7 @@ async fn users_from_config_reports_effective_tcp_limit_with_global_fallback() {
     assert_eq!(alice.max_tcp_conns, Some(7));
 
     cfg.access.user_max_tcp_conns.insert("alice".to_string(), 5);
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
+    let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let alice = users
         .iter()
         .find(|entry| entry.username == "alice")
@@ -32,7 +32,7 @@ async fn users_from_config_reports_effective_tcp_limit_with_global_fallback() {
     assert_eq!(alice.max_tcp_conns, Some(5));
 
     cfg.access.user_max_tcp_conns.insert("alice".to_string(), 0);
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
+    let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let alice = users
         .iter()
         .find(|entry| entry.username == "alice")
@@ -41,7 +41,7 @@ async fn users_from_config_reports_effective_tcp_limit_with_global_fallback() {
     assert_eq!(alice.max_tcp_conns, Some(7));
 
     cfg.access.user_max_tcp_conns_global_each = 0;
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
+    let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let alice = users
         .iter()
         .find(|entry| entry.username == "alice")
@@ -68,7 +68,7 @@ async fn users_from_config_reports_user_rate_limits() {
     let stats = Stats::new();
     let tracker = UserIpTracker::new();
 
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
+    let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let alice = users
         .iter()
         .find(|entry| entry.username == "alice")
@@ -93,7 +93,7 @@ async fn users_from_config_reports_user_enabled_default_and_override() {
 
     let stats = Stats::new();
     let tracker = UserIpTracker::new();
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
+    let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let alice = users
         .iter()
         .find(|entry| entry.username == "alice")
@@ -107,7 +107,7 @@ async fn users_from_config_reports_user_enabled_default_and_override() {
     assert!(!bob.enabled);
 
     cfg.access.user_enabled.insert("bob".to_string(), true);
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
+    let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let bob = users
         .iter()
         .find(|entry| entry.username == "bob")
@@ -136,7 +136,7 @@ async fn users_from_config_marks_runtime_membership_when_snapshot_is_provided() 
     let stats = Stats::new();
     let tracker = UserIpTracker::new();
     let users =
-        users_from_config(&disk_cfg, &stats, &tracker, None, None, Some(&runtime_cfg)).await;
+        users_from_config(&disk_cfg, &stats, &tracker, Some(&runtime_cfg)).await;
 
     let alice = users
         .iter()
@@ -149,82 +149,6 @@ async fn users_from_config_marks_runtime_membership_when_snapshot_is_provided() 
 
     assert!(alice.in_runtime);
     assert!(!bob.in_runtime);
-}
-
-#[tokio::test]
-async fn users_from_config_returns_tls_link_for_each_tls_domain() {
-    let mut cfg = ProxyConfig::default();
-    cfg.access.users.insert(
-        "alice".to_string(),
-        "0123456789abcdef0123456789abcdef".to_string(),
-    );
-    cfg.general.modes.classic = false;
-    cfg.general.modes.secure = false;
-    cfg.general.modes.tls = true;
-    cfg.general.links.public_host = Some("proxy.example.net".to_string());
-    cfg.general.links.public_port = Some(443);
-    cfg.censorship.tls_domain = "front-a.example.com".to_string();
-    cfg.censorship.tls_domains = vec![
-        "front-b.example.com".to_string(),
-        "front-c.example.com".to_string(),
-        "front-b.example.com".to_string(),
-        "front-a.example.com".to_string(),
-    ];
-
-    let stats = Stats::new();
-    let tracker = UserIpTracker::new();
-    let users = users_from_config(&cfg, &stats, &tracker, None, None, None).await;
-    let alice = users
-        .iter()
-        .find(|entry| entry.username == "alice")
-        .expect("alice must be present");
-
-    assert_eq!(alice.links.tls.len(), 3);
-    assert!(
-        alice
-            .links
-            .tls
-            .iter()
-            .any(|link| link.ends_with(&hex::encode("front-a.example.com")))
-    );
-    assert!(
-        alice
-            .links
-            .tls
-            .iter()
-            .any(|link| link.ends_with(&hex::encode("front-b.example.com")))
-    );
-    assert!(
-        alice
-            .links
-            .tls
-            .iter()
-            .any(|link| link.ends_with(&hex::encode("front-c.example.com")))
-    );
-    assert_eq!(alice.links.tls_domains.len(), 2);
-    assert!(
-        alice
-            .links
-            .tls_domains
-            .iter()
-            .any(|entry| entry.domain == "front-b.example.com"
-                && entry.link.ends_with(&hex::encode("front-b.example.com")))
-    );
-    assert!(
-        alice
-            .links
-            .tls_domains
-            .iter()
-            .any(|entry| entry.domain == "front-c.example.com"
-                && entry.link.ends_with(&hex::encode("front-c.example.com")))
-    );
-    assert!(
-        !alice
-            .links
-            .tls_domains
-            .iter()
-            .any(|entry| entry.domain == "front-a.example.com")
-    );
 }
 
 #[test]

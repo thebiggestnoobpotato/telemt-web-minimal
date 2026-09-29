@@ -8,8 +8,8 @@ fn api_minimal_runtime_cache_ttl_out_of_range_is_rejected() {
         listen = "127.0.0.1:9091"
         minimal_runtime_cache_ttl_ms = 70000
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -30,8 +30,8 @@ fn api_runtime_edge_cache_ttl_out_of_range_is_rejected() {
         listen = "127.0.0.1:9091"
         runtime_edge_cache_ttl_ms = 70000
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -52,8 +52,8 @@ fn api_runtime_edge_top_n_out_of_range_is_rejected() {
         listen = "127.0.0.1:9091"
         runtime_edge_top_n = 0
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -74,8 +74,8 @@ fn api_runtime_edge_events_capacity_out_of_range_is_rejected() {
         listen = "127.0.0.1:9091"
         runtime_edge_events_capacity = 8
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"

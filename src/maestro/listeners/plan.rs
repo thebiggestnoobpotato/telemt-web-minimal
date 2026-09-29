@@ -5,16 +5,12 @@ use std::sync::Arc;
 use crate::config::{ListenerTransport, ProxyConfig, ServerConfig, WebClientIpSource};
 use crate::transport::ListenOptions;
 
-use super::tcp_mss_runtime_profile;
-
 /// Immutable socket and connection policy for one listener endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ListenerBindSpec {
     pub(super) addr: SocketAddr,
     pub(super) transport: ListenerTransport,
     pub(super) options: ListenOptions,
-    pub(super) proxy_protocol: bool,
-    pub(super) tls_response_fragment_size: Option<u16>,
     pub(super) web_client_ip_source: WebClientIpSource,
     pub(super) web_trusted_proxy_cidrs: Arc<[ipnetwork::IpNetwork]>,
 }
@@ -28,10 +24,6 @@ pub(crate) fn listener_bind_plan(
     config: &ProxyConfig,
 ) -> Result<BTreeMap<SocketAddr, ListenerBindSpec>, String> {
     let mut plan = BTreeMap::new();
-    let bulk_client_mss = config
-        .server
-        .client_mss_bulk_value()
-        .map_err(|error| format!("invalid server.client_mss_bulk: {error}"))?;
 
     for listener in &config.server.listeners {
         let addr = SocketAddr::new(
@@ -44,35 +36,17 @@ pub(crate) fn listener_bind_plan(
         if addr.is_ipv6() && config.network.ipv6 == Some(false) {
             continue;
         }
-        let configured_client_mss = if listener.transport == ListenerTransport::Web {
-            None
-        } else {
-            listener
-                .effective_client_mss(&config.server)
-                .map_err(|error| format!("invalid client MSS for listener {addr}: {error}"))?
-        };
-        let listener_bulk_mss = (listener.transport != ListenerTransport::Web)
-            .then_some(bulk_client_mss)
-            .flatten();
-        #[cfg(target_os = "linux")]
-        let (client_mss, tls_response_fragment_size) =
-            tcp_mss_runtime_profile(configured_client_mss, listener_bulk_mss);
-        #[cfg(not(target_os = "linux"))]
-        let (client_mss, tls_response_fragment_size) = (configured_client_mss, None);
         let spec = ListenerBindSpec {
             addr,
             transport: listener.transport,
             options: ListenOptions {
-                reuse_port: listener.reuse_allow,
+                // WEB listeners rely on the external TLS terminator for session
+                // affinity, so multi-instance SO_REUSEPORT is never applied here.
+                reuse_port: false,
                 ipv6_only: listener.ip.is_ipv6(),
                 backlog: config.server.listen_backlog,
-                client_mss,
                 ..Default::default()
             },
-            proxy_protocol: listener
-                .proxy_protocol
-                .unwrap_or(config.server.proxy_protocol),
-            tls_response_fragment_size,
             web_client_ip_source: listener.web_client_ip_source,
             web_trusted_proxy_cidrs: Arc::from(listener.web_trusted_proxy_cidrs.clone()),
         };
@@ -127,22 +101,8 @@ mod tests {
     fn listener(ip: &str, port: u16) -> ListenerConfig {
         ListenerConfig {
             ip: ip.parse().unwrap(),
-            transport: crate::config::ListenerTransport::Mtproxy,
+            transport: crate::config::ListenerTransport::Web,
             port: Some(port),
-            client_mss: None,
-            synlimit: crate::config::SynLimitMode::Off,
-            synlimit_seconds: 60,
-            synlimit_hitcount: 48,
-            synlimit_burst: 24,
-            synlimit_ios_seconds: 1,
-            synlimit_ios_hitcount: 12,
-            synlimit_ios_burst: 24,
-            synlimit_hashlimit_expire_ms: 60_000,
-            synlimit_hashlimit_size: 32_768,
-            announce: None,
-            announce_ip: None,
-            proxy_protocol: None,
-            reuse_allow: false,
             web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
             web_trusted_proxy_cidrs: Vec::new(),
         }
@@ -177,18 +137,22 @@ mod tests {
         let mut old = ProxyConfig::default();
         old.server.listeners = vec![listener("127.0.0.1", 443)];
         let mut desired = old.clone();
-        desired.server.listeners[0].proxy_protocol = Some(true);
+        desired
+            .server
+            .listeners[0]
+            .web_trusted_proxy_cidrs
+            .push("127.0.0.1/32".parse().unwrap());
 
         assert!(!listener_rebind_supported(&old, &desired));
     }
 
     #[test]
-    fn endpoint_move_without_synlimit_is_rebindable() {
+    fn endpoint_move_is_not_rebindable() {
         let mut old = ProxyConfig::default();
         old.server.listeners = vec![listener("127.0.0.1", 443)];
         let mut desired = old.clone();
         desired.server.listeners[0].port = Some(444);
 
-        assert!(listener_rebind_supported(&old, &desired));
+        assert!(!listener_rebind_supported(&old, &desired));
     }
 }

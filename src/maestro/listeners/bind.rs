@@ -1,18 +1,18 @@
 use std::error::Error;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use socket2::Socket;
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
-use crate::config::{ListenerTransport, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::startup::{COMPONENT_LISTENERS_BIND, StartupTracker};
 use crate::transport::find_listener_processes;
 use crate::transport::socket::{activate_listener_socket, bind_listener_socket};
 
 use super::plan::{ListenerBindSpec, listener_bind_plan};
-use crate::maestro::helpers::{print_proxy_links, print_web_proxy_links};
+use crate::maestro::helpers::print_web_proxy_links;
 
 /// Owns sockets bound before process accept loops start.
 pub(crate) struct BoundListeners {
@@ -37,21 +37,7 @@ pub(super) struct PreparedTcpListener {
     spec: ListenerBindSpec,
 }
 
-fn mss_segment_multiplier(client_mss: u16) -> u16 {
-    1460u16.div_ceil(client_mss)
-}
-
-fn default_link_port(config: &ProxyConfig) -> u16 {
-    config
-        .server
-        .listeners
-        .iter()
-        .find(|listener| listener.transport == ListenerTransport::Mtproxy)
-        .and_then(|listener| listener.port)
-        .unwrap_or(config.server.port)
-}
-
-fn log_bind_error(addr: SocketAddr, reuse_allow: bool, error_value: &std::io::Error) {
+fn log_bind_error(addr: SocketAddr, error_value: &std::io::Error) {
     if error_value.kind() == std::io::ErrorKind::AddrInUse {
         let owners = find_listener_processes(addr);
         if owners.is_empty() {
@@ -66,12 +52,6 @@ fn log_bind_error(addr: SocketAddr, reuse_allow: bool, error_value: &std::io::Er
                 );
             }
         }
-        if !reuse_allow {
-            error!(
-                %addr,
-                "reuse_allow=false; set [[server.listeners]].reuse_allow=true to allow multi-instance listening"
-            );
-        }
     } else {
         error!(%addr, error = %error_value, "Failed to bind listener");
     }
@@ -81,7 +61,7 @@ pub(super) fn prepare_listener(spec: ListenerBindSpec) -> std::io::Result<Prepar
     match bind_listener_socket(spec.addr, &spec.options) {
         Ok(socket) => Ok(PreparedTcpListener { socket, spec }),
         Err(error_value) => {
-            log_bind_error(spec.addr, spec.options.reuse_port, &error_value);
+            log_bind_error(spec.addr, &error_value);
             Err(error_value)
         }
     }
@@ -100,86 +80,11 @@ impl PreparedTcpListener {
 
 fn log_listener_profile(spec: &ListenerBindSpec) {
     info!(addr = %spec.addr, transport = ?spec.transport, "Listening on TCP endpoint");
-    if let Some(client_mss) = spec.options.client_mss {
-        info!(
-            addr = %spec.addr,
-            client_mss,
-            segment_multiplier = mss_segment_multiplier(client_mss),
-            "Client-facing TCP MSS configured"
-        );
-    }
-    if let Some(fragment_size) = spec.tls_response_fragment_size {
-        info!(
-            addr = %spec.addr,
-            fragment_size,
-            bulk_mss = spec.options.client_mss,
-            "Initial FakeTLS response best-effort chunking configured"
-        );
-    }
-}
-
-fn print_configured_links(
-    config: &ProxyConfig,
-    plan: &std::collections::BTreeMap<SocketAddr, ListenerBindSpec>,
-    detected_ip_v4: Option<IpAddr>,
-    detected_ip_v6: Option<IpAddr>,
-) {
-    print_web_proxy_links(config);
-    for listener in &config.server.listeners {
-        if listener.transport != ListenerTransport::Mtproxy {
-            continue;
-        }
-        let port = listener.port.unwrap_or(config.server.port);
-        let addr = SocketAddr::new(listener.ip, port);
-        if !plan.contains_key(&addr) || config.general.links.public_host.is_some() {
-            continue;
-        }
-        let public_host = if let Some(announce) = &listener.announce {
-            announce.clone()
-        } else if listener.ip.is_unspecified() {
-            if listener.ip.is_ipv4() {
-                detected_ip_v4
-            } else {
-                detected_ip_v6
-            }
-            .map(|ip| ip.to_string())
-            .unwrap_or_else(|| listener.ip.to_string())
-        } else {
-            listener.ip.to_string()
-        };
-        if !config.general.links.show.is_empty() {
-            let link_port = config.general.links.public_port.unwrap_or(port);
-            print_proxy_links(&public_host, link_port, config);
-        }
-    }
-
-    if config.general.links.show.is_empty()
-        || config.general.links.public_host.is_none()
-        || !plan
-            .values()
-            .any(|spec| spec.transport == ListenerTransport::Mtproxy)
-    {
-        return;
-    }
-    let host = config
-        .general
-        .links
-        .public_host
-        .as_deref()
-        .unwrap_or_default();
-    let port = config
-        .general
-        .links
-        .public_port
-        .unwrap_or_else(|| default_link_port(config));
-    print_proxy_links(host, port, config);
 }
 
 /// Binds every eligible configured listener or fails without a partial inventory.
 pub(crate) async fn bind_listeners(
     config: &Arc<ProxyConfig>,
-    detected_ip_v4: Option<IpAddr>,
-    detected_ip_v6: Option<IpAddr>,
     startup_tracker: &Arc<StartupTracker>,
 ) -> Result<BoundListeners, Box<dyn Error>> {
     startup_tracker
@@ -199,7 +104,7 @@ pub(crate) async fn bind_listeners(
         log_listener_profile(&bound.spec);
         listeners.push(bound);
     }
-    print_configured_links(config, &plan, detected_ip_v4, detected_ip_v6);
+    print_web_proxy_links(config);
 
     startup_tracker
         .complete_component(

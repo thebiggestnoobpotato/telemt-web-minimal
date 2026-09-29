@@ -31,14 +31,6 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
         default_upstream_connect_failfast_hard_errors()
     );
     assert_eq!(cfg.general.beobachten_file, default_beobachten_file());
-    assert_eq!(cfg.server.listen_addr_ipv4, default_listen_addr_ipv4());
-    assert_eq!(cfg.server.listen_addr_ipv6, default_listen_addr_ipv6_opt());
-    assert_eq!(cfg.server.client_mss_value(), Ok(None));
-    assert_eq!(
-        cfg.server.proxy_protocol_trusted_cidrs,
-        default_proxy_protocol_trusted_cidrs()
-    );
-    assert_eq!(cfg.censorship.unknown_sni_action, UnknownSniAction::Drop);
     assert_eq!(cfg.server.api.listen, default_api_listen());
     assert_eq!(cfg.server.api.whitelist, default_api_whitelist());
     assert_eq!(cfg.server.api.gray_action, ApiGrayAction::Drop);
@@ -117,11 +109,6 @@ fn logging_config_is_loaded_from_strict_config() {
             [general]
             config_strict = true
 
-            [general.modes]
-            classic = false
-            secure = false
-            tls = true
-
             [logging]
             destination = "file"
             path = "/tmp/telemt.log"
@@ -129,9 +116,6 @@ fn logging_config_is_loaded_from_strict_config() {
             max_size_bytes = 1024
             max_files = 3
             max_age_secs = 60
-
-            [censorship]
-            tls_domain = "example.com"
 
             [access.users]
             user = "00000000000000000000000000000000"
@@ -152,9 +136,6 @@ fn cidr_rate_limits_accept_auto_templates_in_strict_config() {
         r#"
             [general]
             config_strict = true
-
-            [censorship]
-            tls_domain = "example.com"
 
             [access.users]
             user = "00000000000000000000000000000000"
@@ -187,9 +168,6 @@ fn cidr_rate_limits_accept_auto_templates_in_strict_config() {
 fn cidr_rate_limits_reject_invalid_auto_template_prefix() {
     let error = load_config_error_from_temp_toml(
         r#"
-            [censorship]
-            tls_domain = "example.com"
-
             [access.users]
             user = "00000000000000000000000000000000"
 
@@ -205,9 +183,6 @@ fn cidr_rate_limits_reject_invalid_auto_template_prefix() {
 fn cidr_rate_limits_reject_duplicate_normalized_auto_templates() {
     let error = load_config_error_from_temp_toml(
         r#"
-            [censorship]
-            tls_domain = "example.com"
-
             [access.users]
             user = "00000000000000000000000000000000"
 
@@ -224,9 +199,6 @@ fn cidr_rate_limits_reject_duplicate_normalized_auto_templates() {
 fn rate_limits_accept_the_packed_counter_maximum() {
     let cfg = load_config_from_temp_toml(
         r#"
-            [censorship]
-            tls_domain = "example.com"
-
             [access.users]
             user = "00000000000000000000000000000000"
 
@@ -250,9 +222,6 @@ fn rate_limits_accept_the_packed_counter_maximum() {
 fn user_rate_limits_reject_values_above_the_packed_counter_maximum() {
     let error = load_config_error_from_temp_toml(
         r#"
-            [censorship]
-            tls_domain = "example.com"
-
             [access.users]
             user = "00000000000000000000000000000000"
 
@@ -268,9 +237,6 @@ fn user_rate_limits_reject_values_above_the_packed_counter_maximum() {
 fn cidr_rate_limits_reject_values_above_the_packed_counter_maximum() {
     let error = load_config_error_from_temp_toml(
         r#"
-            [censorship]
-            tls_domain = "example.com"
-
             [access.users]
             user = "00000000000000000000000000000000"
 
@@ -286,16 +252,8 @@ fn cidr_rate_limits_reject_values_above_the_packed_counter_maximum() {
 fn file_logging_requires_path() {
     let error = load_config_error_from_temp_toml(
         r#"
-            [general.modes]
-            classic = false
-            secure = false
-            tls = true
-
             [logging]
             destination = "file"
-
-            [censorship]
-            tls_domain = "example.com"
 
             [access.users]
             user = "00000000000000000000000000000000"
@@ -332,15 +290,6 @@ fn impl_defaults_are_sourced_from_default_helpers() {
     assert_eq!(general.beobachten_file, default_beobachten_file());
 
     let server = ServerConfig::default();
-    assert_eq!(server.listen_addr_ipv6, Some(default_listen_addr_ipv6()));
-    assert_eq!(
-        server.proxy_protocol_trusted_cidrs,
-        default_proxy_protocol_trusted_cidrs()
-    );
-    assert_eq!(
-        AntiCensorshipConfig::default().unknown_sni_action,
-        UnknownSniAction::Drop
-    );
     assert_eq!(server.api.listen, default_api_listen());
     assert_eq!(server.api.whitelist, default_api_whitelist());
     assert_eq!(server.api.gray_action, ApiGrayAction::Drop);

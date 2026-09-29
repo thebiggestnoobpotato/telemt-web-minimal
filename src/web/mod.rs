@@ -8,6 +8,8 @@ pub(crate) mod control;
 pub(crate) mod frame;
 /// Plain HTTP ingress and decoy routing behind external TLS termination.
 pub(crate) mod http;
+/// Operator-facing `tg://webproxy` link formatting.
+pub(crate) mod links;
 /// Process-wide credentials, quotas, memory budgets, and shutdown ownership.
 pub(crate) mod manager;
 /// Resumable carrier sessions and logical-stream state machines.

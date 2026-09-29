@@ -1,4 +1,3 @@
-use std::net::IpAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -10,7 +9,7 @@ use crate::config::{LogLevel, ProxyConfig};
 use crate::conntrack_control;
 use crate::crypto::SecureRandom;
 use crate::ip_tracker::UserIpTracker;
-use crate::network::probe::{NetworkDecision, NetworkProbe};
+use crate::network::probe::NetworkDecision;
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, run_direct_buffer_budget_controller};
 use crate::proxy::shared_state::ProxySharedState;
 use crate::startup::{
@@ -35,8 +34,6 @@ pub(super) struct RuntimeStartupState {
     pub(super) replay_checker: Arc<ReplayChecker>,
     pub(super) buffer_pool: Arc<BufferPool>,
     pub(super) config_rx: watch::Receiver<Arc<ProxyConfig>>,
-    pub(super) detected_ip_v4: Option<IpAddr>,
-    pub(super) detected_ip_v6: Option<IpAddr>,
     pub(super) admission_tx: watch::Sender<bool>,
 }
 
@@ -44,7 +41,6 @@ pub(super) struct RuntimeStartupState {
 pub(super) async fn prepare_runtime(
     config: ProxyConfig,
     config_path: &Path,
-    probe: &NetworkProbe,
     decision: &NetworkDecision,
     process_started_at: Instant,
     startup_tracker: &Arc<StartupTracker>,
@@ -124,7 +120,6 @@ pub(super) async fn prepare_runtime(
         1,
         &config,
         config_path,
-        probe,
         prefer_ipv6,
         decision.ipv4_dc,
         decision.ipv6_dc,
@@ -141,8 +136,6 @@ pub(super) async fn prepare_runtime(
     .await;
     let config_rx = runtime_watches.config_rx;
     let log_level_rx = runtime_watches.log_level_rx;
-    let detected_ip_v4 = runtime_watches.detected_ip_v4;
-    let detected_ip_v6 = runtime_watches.detected_ip_v6;
     runtime_log_filter.start(
         has_rust_log,
         effective_log_level,
@@ -180,8 +173,6 @@ pub(super) async fn prepare_runtime(
         replay_checker,
         buffer_pool,
         config_rx,
-        detected_ip_v4,
-        detected_ip_v6,
         admission_tx,
     }
 }

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 use std::io::{Error as IoError, ErrorKind};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -107,7 +107,6 @@ pub(super) struct ApiShared {
     pub(super) upstream_manager: Arc<UpstreamManager>,
     pub(super) config_path: PathBuf,
     pub(super) quota_state: Arc<QuotaStateOwner>,
-    pub(super) detected_ips_rx: watch::Receiver<(Option<IpAddr>, Option<IpAddr>)>,
     pub(super) mutation_lock: Arc<Mutex<()>>,
     pub(super) runtime_edge_connections_cache: Arc<Mutex<Option<EdgeConnectionsCacheEntry>>>,
     pub(super) runtime_edge_recompute_lock: Arc<Mutex<()>>,
@@ -129,10 +128,6 @@ impl ApiShared {
         self.request_id.fetch_add(1, Ordering::Relaxed)
     }
 
-    fn detected_link_ips(&self) -> (Option<IpAddr>, Option<IpAddr>) {
-        *self.detected_ips_rx.borrow()
-    }
-
     fn for_runtime(&self, runtime: &RuntimeGeneration) -> Self {
         Self {
             stats: runtime.stats.clone(),
@@ -140,7 +135,6 @@ impl ApiShared {
             upstream_manager: runtime.upstream_manager.clone(),
             config_path: self.config_path.clone(),
             quota_state: self.quota_state.clone(),
-            detected_ips_rx: self.detected_ips_rx.clone(),
             mutation_lock: self.mutation_lock.clone(),
             runtime_edge_connections_cache: self.runtime_edge_connections_cache.clone(),
             runtime_edge_recompute_lock: self.runtime_edge_recompute_lock.clone(),
@@ -295,7 +289,6 @@ pub(crate) async fn serve(
     upstream_manager: Arc<UpstreamManager>,
     config_path: PathBuf,
     quota_state: Arc<QuotaStateOwner>,
-    detected_ips_rx: watch::Receiver<(Option<IpAddr>, Option<IpAddr>)>,
     process_started_at_epoch_secs: u64,
     startup_tracker: Arc<StartupTracker>,
     reload_control: ReloadControl,
@@ -342,7 +335,6 @@ pub(crate) async fn serve(
         upstream_manager,
         config_path,
         quota_state,
-        detected_ips_rx,
         mutation_lock: Arc::new(Mutex::new(())),
         runtime_edge_connections_cache: Arc::new(Mutex::new(None)),
         runtime_edge_recompute_lock: Arc::new(Mutex::new(())),

@@ -2,16 +2,7 @@ use super::*;
 
 #[derive(Serialize)]
 pub(in crate::api) struct UserLinks {
-    pub(in crate::api) classic: Vec<String>,
-    pub(in crate::api) secure: Vec<String>,
-    pub(in crate::api) tls: Vec<String>,
-    pub(in crate::api) tls_domains: Vec<TlsDomainLink>,
-}
-
-#[derive(Serialize)]
-pub(in crate::api) struct TlsDomainLink {
-    pub(in crate::api) domain: String,
-    pub(in crate::api) link: String,
+    pub(in crate::api) web: Vec<String>,
 }
 
 #[derive(Serialize)]

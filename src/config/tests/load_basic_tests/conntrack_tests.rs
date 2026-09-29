@@ -6,8 +6,8 @@ fn conntrack_pressure_high_watermark_out_of_range_is_rejected() {
         [server.conntrack_control]
         pressure_high_watermark_pct = 0
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -31,8 +31,8 @@ fn conntrack_pressure_low_watermark_must_be_below_high() {
         pressure_high_watermark_pct = 50
         pressure_low_watermark_pct = 50
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -53,8 +53,8 @@ fn conntrack_delete_budget_zero_is_rejected() {
         [server.conntrack_control]
         delete_budget_per_sec = 0
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -73,8 +73,8 @@ fn conntrack_hybrid_mode_requires_listener_allow_list() {
         [server.conntrack_control]
         mode = "hybrid"
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -97,8 +97,8 @@ fn conntrack_profile_is_loaded_from_config() {
         [server.conntrack_control]
         profile = "aggressive"
 
-        [censorship]
-        tls_domain = "example.com"
+        [general]
+        prefer_ipv6 = false
 
         [access.users]
         user = "00000000000000000000000000000000"

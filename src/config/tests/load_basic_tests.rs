@@ -41,10 +41,6 @@ mod defaults_access_tests;
 mod legacy_policy_tests;
 #[path = "load_basic_tests/source_security_tests.rs"]
 mod source_security_tests;
-#[path = "load_basic_tests/synlimit_mss_tests.rs"]
-mod synlimit_mss_tests;
-#[path = "load_basic_tests/tls_fetch_tests.rs"]
-mod tls_fetch_tests;
 #[path = "load_basic_tests/upstream_tests.rs"]
 mod upstream_tests;
 #[path = "load_basic_tests/web_tests.rs"]

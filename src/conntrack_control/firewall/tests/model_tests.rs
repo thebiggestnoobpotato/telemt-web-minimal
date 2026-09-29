@@ -1,4 +1,7 @@
-use crate::config::{ConntrackBackend, ConntrackMode, ProxyConfig};
+use crate::config::{
+    ConntrackBackend, ConntrackMode, ListenerConfig, ListenerTransport, ProxyConfig,
+    WebClientIpSource,
+};
 
 use super::super::command::is_not_found_error;
 use super::super::iptables::{self, is_chain_exists_error};
@@ -10,8 +13,22 @@ use super::target;
 fn desired_policy_derives_exact_listener_targets() {
     let mut config = ProxyConfig::default();
     config.server.port = 8443;
-    config.server.listen_addr_ipv4 = Some("0.0.0.0".to_string());
-    config.server.listen_addr_ipv6 = Some("2001:db8::10".to_string());
+    config.server.listeners = vec![
+        ListenerConfig {
+            ip: "0.0.0.0".parse().unwrap(),
+            transport: ListenerTransport::Web,
+            port: Some(8443),
+            web_client_ip_source: WebClientIpSource::XForwardedFor,
+            web_trusted_proxy_cidrs: vec![],
+        },
+        ListenerConfig {
+            ip: "2001:db8::10".parse().unwrap(),
+            transport: ListenerTransport::Web,
+            port: Some(8443),
+            web_client_ip_source: WebClientIpSource::XForwardedFor,
+            web_trusted_proxy_cidrs: vec![],
+        },
+    ];
     config.server.conntrack_control.inline_conntrack_control = true;
     config.server.conntrack_control.mode = ConntrackMode::Notrack;
     config.server.conntrack_control.backend = ConntrackBackend::Iptables;

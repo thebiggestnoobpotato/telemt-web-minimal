@@ -61,16 +61,7 @@ async fn rotate_secret_to_completion(
     );
     drop(_guard);
 
-    let (detected_ip_v4, detected_ip_v6) = shared.detected_link_ips();
-    let users = users_from_config(
-        &cfg,
-        &shared.stats,
-        &shared.ip_tracker,
-        detected_ip_v4,
-        detected_ip_v6,
-        None,
-    )
-    .await;
+    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
     let user_info = users
         .into_iter()
         .find(|entry| entry.username == user)

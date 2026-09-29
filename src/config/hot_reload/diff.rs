@@ -72,15 +72,8 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: server.api changed; restart required");
     }
-    if old.server.proxy_protocol != new.server.proxy_protocol
-        || !listeners_equal(&old.server.listeners, &new.server.listeners)
+    if !listeners_equal(&old.server.listeners, &new.server.listeners)
         || old.server.listen_backlog != new.server.listen_backlog
-        || old.server.listen_addr_ipv4 != new.server.listen_addr_ipv4
-        || old.server.listen_addr_ipv6 != new.server.listen_addr_ipv6
-        || old.server.listen_tcp != new.server.listen_tcp
-        || old.server.client_mss != new.server.client_mss
-        || old.server.listen_unix_sock != new.server.listen_unix_sock
-        || old.server.listen_unix_sock_perm != new.server.listen_unix_sock_perm
     {
         warned = true;
         warn!("config reload: server listener settings changed; restart required");
@@ -88,54 +81,6 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
     if old.web.decoy_fasttrack_mode != new.web.decoy_fasttrack_mode {
         warned = true;
         warn!("config reload: web.decoy_fasttrack_mode changed; restart required");
-    }
-    if old.censorship.tls_domain != new.censorship.tls_domain
-        || old.censorship.tls_domains != new.censorship.tls_domains
-        || old.censorship.tls_fetch_scope != new.censorship.tls_fetch_scope
-        || old.censorship.mask != new.censorship.mask
-        || old.censorship.mask_dynamic != new.censorship.mask_dynamic
-        || old.censorship.mask_host != new.censorship.mask_host
-        || old.censorship.mask_port != new.censorship.mask_port
-        || old.censorship.exclusive_mask != new.censorship.exclusive_mask
-        || old.censorship.mask_unix_sock != new.censorship.mask_unix_sock
-        || old.censorship.fake_cert_len != new.censorship.fake_cert_len
-        || old.censorship.tls_emulation != new.censorship.tls_emulation
-        || old.censorship.tls_front_dir != new.censorship.tls_front_dir
-        || old.censorship.server_hello_delay_min_ms != new.censorship.server_hello_delay_min_ms
-        || old.censorship.server_hello_delay_max_ms != new.censorship.server_hello_delay_max_ms
-        || old.censorship.tls_new_session_tickets != new.censorship.tls_new_session_tickets
-        || old.censorship.serverhello_compact != new.censorship.serverhello_compact
-        || old.censorship.tls_full_cert_ttl_secs != new.censorship.tls_full_cert_ttl_secs
-        || old.censorship.alpn_enforce != new.censorship.alpn_enforce
-        || old.censorship.mask_proxy_protocol != new.censorship.mask_proxy_protocol
-        || old.censorship.mask_shape_hardening != new.censorship.mask_shape_hardening
-        || old.censorship.mask_shape_bucket_floor_bytes
-            != new.censorship.mask_shape_bucket_floor_bytes
-        || old.censorship.mask_shape_bucket_cap_bytes != new.censorship.mask_shape_bucket_cap_bytes
-        || old.censorship.mask_shape_above_cap_blur != new.censorship.mask_shape_above_cap_blur
-        || old.censorship.mask_shape_above_cap_blur_max_bytes
-            != new.censorship.mask_shape_above_cap_blur_max_bytes
-        || old.censorship.mask_relay_max_bytes != new.censorship.mask_relay_max_bytes
-        || old.censorship.mask_relay_timeout_ms != new.censorship.mask_relay_timeout_ms
-        || old.censorship.mask_relay_idle_timeout_ms != new.censorship.mask_relay_idle_timeout_ms
-        || old.censorship.mask_classifier_prefetch_timeout_ms
-            != new.censorship.mask_classifier_prefetch_timeout_ms
-        || old.censorship.mask_timing_normalization_enabled
-            != new.censorship.mask_timing_normalization_enabled
-        || old.censorship.mask_timing_normalization_floor_ms
-            != new.censorship.mask_timing_normalization_floor_ms
-        || old.censorship.mask_timing_normalization_ceiling_ms
-            != new.censorship.mask_timing_normalization_ceiling_ms
-    {
-        warned = true;
-        warn!("config reload: censorship settings changed; restart required");
-    }
-    if old.censorship.tls_domain != new.censorship.tls_domain {
-        warned = true;
-        warn!(
-            "config reload: censorship.tls_domain changed ('{}' → '{}'); restart required",
-            old.censorship.tls_domain, new.censorship.tls_domain
-        );
     }
     if old.network.ipv4 != new.network.ipv4 || old.network.ipv6 != new.network.ipv6 {
         warned = true;

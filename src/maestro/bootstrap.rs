@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use tracing::{info, warn};
+use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*, reload as tracing_reload};
 
 use crate::config::{LogLevel, ProxyConfig};
@@ -13,7 +13,6 @@ use super::helpers::{
     set_maestro_colors_enabled,
 };
 use super::runtime_tasks;
-use super::validate_synlimit_privilege_drop;
 
 pub(super) struct BootstrapState {
     pub(super) process_started_at: Instant,
@@ -28,7 +27,6 @@ pub(super) struct BootstrapState {
 }
 
 pub(super) async fn bootstrap(
-    privilege_drop_requested: bool,
 ) -> std::result::Result<BootstrapState, Box<dyn std::error::Error>> {
     let process_started_at = Instant::now();
     let process_started_at_epoch_secs = SystemTime::now()
@@ -192,7 +190,6 @@ pub(super) async fn bootstrap(
         eprintln!("[telemt] Invalid config: {}", e);
         std::process::exit(1);
     }
-    validate_synlimit_privilege_drop(&config, privilege_drop_requested)?;
 
     if let Some(p) = data_path {
         config.general.data_path = Some(p);
@@ -295,37 +292,12 @@ pub(super) async fn bootstrap(
     if config.general.disable_colors {
         info!("Colors: disabled");
     }
-    info!(
-        "Modes: classic={} secure={} tls={}",
-        config.general.modes.classic, config.general.modes.secure, config.general.modes.tls
-    );
-    if config.general.modes.classic {
-        warn!("Classic mode is vulnerable to DPI detection; enable only for legacy clients");
-    }
-    info!("TLS domain: {}", config.censorship.tls_domain);
-    if let Some(ref sock) = config.censorship.mask_unix_sock {
-        info!("Mask: {} -> unix:{}", config.censorship.mask, sock);
-        if !std::path::Path::new(sock).exists() {
-            warn!(
-                "Unix socket '{}' does not exist yet. Masking will fail until it appears.",
-                sock
-            );
-        }
-    } else {
+    if config.web.enabled {
         info!(
-            "Mask: {} -> {}:{}",
-            config.censorship.mask,
-            config
-                .censorship
-                .mask_host
-                .as_deref()
-                .unwrap_or(&config.censorship.tls_domain),
-            config.censorship.mask_port
+            "WEB: enabled ({} vhost(s), carrier={:?})",
+            config.web.vhosts.len(),
+            config.web.carrier
         );
-    }
-
-    if config.censorship.tls_domain == "www.google.com" {
-        warn!("Using default tls_domain. Consider setting a custom domain.");
     }
 
     Ok(BootstrapState {
