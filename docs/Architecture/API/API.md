@@ -14,7 +14,7 @@ API runtime is configured in `[server.api]`.
 | `whitelist` | `CIDR[]` | `127.0.0.0/8` | Source IP allowlist. Empty list means allow all. |
 | `auth_header` | `string` | `""` | Exact value for `Authorization` header. Empty disables header auth. |
 | `request_body_limit_bytes` | `usize` | `65536` | Maximum request body size. Must be within `[1, 1048576]`. |
-| `minimal_runtime_enabled` | `bool` | `true` | Enables runtime snapshot endpoints requiring ME pool read-lock aggregation. |
+| `minimal_runtime_enabled` | `bool` | `true` | Enables the runtime upstream snapshot rows in `/v1/stats/upstreams`. |
 | `minimal_runtime_cache_ttl_ms` | `u64` | `1000` | Cache TTL for minimal snapshots. `0` disables cache; valid range is `[0, 60000]`. |
 | `runtime_edge_enabled` | `bool` | `false` | Enables runtime edge endpoints with cached aggregation payloads. |
 | `runtime_edge_cache_ttl_ms` | `u64` | `1000` | Cache TTL for runtime edge summary payloads. `0` disables cache. |
@@ -93,17 +93,9 @@ Notes:
 | `GET` | `/v1/stats/summary` | none | `200` | `SummaryData` |
 | `GET` | `/v1/stats/zero/all` | none | `200` | `ZeroAllData` |
 | `GET` | `/v1/stats/upstreams` | none | `200` | `UpstreamsData` |
-| `GET` | `/v1/stats/minimal/all` | none | `200` | `MinimalAllData` |
-| `GET` | `/v1/stats/me-writers` | none | `200` | `MeWritersData` |
-| `GET` | `/v1/stats/dcs` | none | `200` | `DcStatusData` |
-| `GET` | `/v1/runtime/me_pool_state` | none | `200` | `RuntimeMePoolStateData` |
-| `GET` | `/v1/runtime/me_quality` | none | `200` | `RuntimeMeQualityData` |
 | `GET` | `/v1/runtime/upstream_quality` | none | `200` | `RuntimeUpstreamQualityData` |
-| `GET` | `/v1/runtime/nat_stun` | none | `200` | `RuntimeNatStunData` |
-| `GET` | `/v1/runtime/me-selftest` | none | `200` | `RuntimeMeSelftestData` |
 | `GET` | `/v1/runtime/connections/summary` | none | `200` | `RuntimeEdgeConnectionsSummaryData` |
 | `GET` | `/v1/runtime/events/recent` | none | `200` | `RuntimeEdgeEventsData` |
-| `GET` | `/v1/runtime/tls-fingerprints` | optional `limit=1..1000` | `200` | `RuntimeEdgeTlsFingerprintsData` |
 | `GET` | `/v1/runtime/web/status` | none | `200` | `WebStatusData` |
 | `GET` | `/v1/runtime/web/sessions` | bounded query | `200` | `SessionPage` |
 | `GET` | `/v1/runtime/web/sessions/{session_ref}` | none | `200` or `410` | `SessionRow` or closed tombstone |
@@ -137,22 +129,15 @@ Notes:
 | `GET /v1/health` | Returns basic API liveness and current `read_only` flag. |
 | `GET /v1/health/ready` | Returns readiness based on admission state and upstream health; returns `503` when not ready. |
 | `GET /v1/system/info` | Returns binary/build metadata, process uptime, config path/hash, and reload counters. |
-| `GET /v1/runtime/gates` | Returns admission, ME readiness, fallback/reroute, and startup gate state. |
-| `GET /v1/runtime/initialization` | Returns startup progress, ME initialization status, and per-component timeline. |
-| `GET /v1/limits/effective` | Returns effective timeout, upstream, ME, unique-IP, and TCP policy values after config defaults/resolution. |
+| `GET /v1/runtime/gates` | Returns the admission-gate state and startup gate progress. |
+| `GET /v1/runtime/initialization` | Returns startup progress and the per-component timeline. |
+| `GET /v1/limits/effective` | Returns effective timeout, upstream, unique-IP, and TCP policy values after config defaults/resolution. |
 | `GET /v1/security/posture` | Returns current API/security/telemetry posture flags. |
 | `GET /v1/security/whitelist` | Returns configured API whitelist CIDRs. |
 | `GET /v1/stats/summary` | Returns compact core counters and classed failure counters. |
-| `GET /v1/stats/zero/all` | Returns zero-cost core, upstream, ME, pool, and desync counters. |
+| `GET /v1/stats/zero/all` | Returns zero-cost core and upstream counters. |
 | `GET /v1/stats/upstreams` | Returns upstream zero counters and, when enabled/available, runtime upstream health rows. |
-| `GET /v1/stats/minimal/all` | Returns cached minimal ME writer/DC/runtime/network-path snapshot. |
-| `GET /v1/stats/me-writers` | Returns cached ME writer coverage and per-writer status rows. |
-| `GET /v1/stats/dcs` | Returns cached per-DC endpoint/writer/load status rows. |
-| `GET /v1/runtime/me_pool_state` | Returns active/warm/pending/draining generation state, writer contour/health, and refill state. |
-| `GET /v1/runtime/me_quality` | Returns ME lifecycle counters, route-drop counters, family states, drain gate, and per-DC RTT/coverage. |
 | `GET /v1/runtime/upstream_quality` | Returns upstream policy/counters plus runtime upstream health rows when available. |
-| `GET /v1/runtime/nat_stun` | Returns NAT/STUN runtime flags, configured/live STUN servers, reflection cache, and backoff. |
-| `GET /v1/runtime/me-selftest` | Returns ME self-test state for KDF, time skew, IP family, PID, and SOCKS BND observations. |
 | `GET /v1/runtime/connections/summary` | Returns runtime-edge connection totals and top-N users by connections/throughput. |
 | `GET /v1/runtime/events/recent` | Returns recent API/runtime event records with optional `limit` query. |
 | `GET /v1/runtime/web/status` | Returns WEB listener lifecycle and a non-blocking, plane-local snapshot of the process-owned WEB runtime when available. |
@@ -290,7 +275,7 @@ bob = ["198.51.100.42/32"]
 
 ### `PatchConfigRequest`
 
-A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `timeouts`, `censorship`, `upstreams`, `dc_overrides`, `web`) or the partially editable `server` object (only `listeners` is allowed under `server`; see below). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
+A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `timeouts`, `upstreams`, `dc_overrides`, `web`) or the partially editable `server` object (only `listeners` is allowed under `server`; see below). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
 
 **Rejected keys:**
 - `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
@@ -298,14 +283,14 @@ A sparse JSON object containing only the top-level config sections to modify. Ea
 - `server` with any key other than `listeners` (e.g. `port`, `api`, `admin_api`) → `400 field_not_editable`.
 - An object with no editable keys → `400 bad_request` (empty patch).
 
-Example — patch only the SNI domain:
+Example — patch one `general` field:
 ```json
-{"censorship": {"tls_domain": "front.example.com"}}
+{"general": {"log_level": "verbose"}}
 ```
 
 Example — replace `[[server.listeners]]` (other `[server]` fields including `[server.api]` are preserved):
 ```json
-{"server": {"listeners": [{"ip": "0.0.0.0", "port": 443, "client_mss": "92"}]}}
+{"server": {"listeners": [{"ip": "0.0.0.0", "port": 443, "transport": "web", "web_trusted_proxy_cidrs": ["127.0.0.1/32"]}]}}
 ```
 
 ### `RotateSecretRequest`
@@ -325,7 +310,6 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | --- | --- | --- |
 | `general` | `object` | Complete normalized `[general]` section, including defaults. |
 | `timeouts` | `object` | Complete normalized `[timeouts]` section, including defaults. |
-| `censorship` | `object` | Complete normalized `[censorship]` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
 | `dc_overrides` | `object` | Complete normalized DC override map, including the synthesized DC 203 endpoint when it is not authored. |
 | `web` | `object` | Complete normalized `[web]` section, including defaults. Each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
@@ -468,7 +452,7 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `runtime_reload_required` | `bool` | `true` when effective runtime-owned state differs and must be activated. With a reload query an operation is enqueued; without one, supported hot fields may be applied by the file watcher. |
 | `process_restart_required` | `bool` | `true` when a process-owned field changed and remains deferred after an in-process reload. |
 | `deferred_process_fields` | `string[]` | Process-owned sockets, paths, capacities, or policies retained by the active process. |
-| `changed` | `string[]` | Top-level section names that differed between the old and new config (e.g. `["censorship"]`). |
+| `changed` | `string[]` | Top-level section names that differed between the old and new config (e.g. `["general"]`). |
 | `reload` | `ReloadAccepted?` | Present only when the patch included a valid reload query and Maestro accepted the operation. |
 
 ### `HealthData`
@@ -525,16 +509,7 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | Field | Type | Description |
 | --- | --- | --- |
 | `accepting_new_connections` | `bool` | Current admission-gate state for new listener accepts. |
-| `conditional_cast_enabled` | `bool` | Whether conditional ME admission logic is enabled (`general.use_middle_proxy`). |
-| `me_runtime_ready` | `bool` | Current ME runtime readiness status used for conditional gate decisions. |
-| `me2dc_fallback_enabled` | `bool` | Whether ME -> direct fallback is enabled. |
-| `me2dc_fast_enabled` | `bool` | Whether fast ME -> direct fallback is enabled. |
-| `use_middle_proxy` | `bool` | Current transport mode preference. |
-| `route_mode` | `string` | Current route mode label from route runtime controller. |
-| `reroute_active` | `bool` | `true` when ME fallback currently routes new sessions to Direct-DC. |
-| `reroute_to_direct_at_epoch_secs` | `u64?` | Unix timestamp when current direct reroute began. |
-| `reroute_reason` | `string?` | `startup_direct_fallback`, `fast_not_ready_fallback`, or `strict_grace_fallback` while reroute is active. |
-| `startup_status` | `string` | Startup status (`pending`, `initializing`, `ready`, `failed`, `skipped`). |
+| `startup_status` | `string` | Startup status (`pending`, `initializing`, `ready`, `failed`). |
 | `startup_stage` | `string` | Current startup stage identifier. |
 | `startup_progress_pct` | `f64` | Startup progress percentage (`0..100`). |
 
@@ -548,19 +523,7 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `started_at_epoch_secs` | `u64` | Process start timestamp (Unix seconds). |
 | `ready_at_epoch_secs` | `u64?` | Timestamp when startup reached ready state; absent until ready. |
 | `total_elapsed_ms` | `u64` | Elapsed startup duration in milliseconds. |
-| `transport_mode` | `string` | Startup transport mode (`middle_proxy` or `direct`). |
-| `me` | `RuntimeInitializationMeData` | ME startup substate snapshot. |
 | `components` | `RuntimeInitializationComponentData[]` | Per-component startup timeline and status. |
-
-#### `RuntimeInitializationMeData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | `string` | ME startup status (`pending`, `initializing`, `ready`, `failed`, `skipped`). |
-| `current_stage` | `string` | Current ME startup stage identifier. |
-| `progress_pct` | `f64` | ME startup progress percentage (`0..100`). |
-| `init_attempt` | `u32` | Current ME init attempt counter. |
-| `retry_limit` | `string` | Retry limit (`"unlimited"` or numeric string). |
-| `last_error` | `string?` | Last ME initialization error text when present. |
 
 #### `RuntimeInitializationComponentData`
 | Field | Type | Description |
@@ -577,12 +540,8 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 ### `EffectiveLimitsData`
 | Field | Type | Description |
 | --- | --- | --- |
-| `update_every_secs` | `u64` | Effective unified updater interval. |
-| `me_reinit_every_secs` | `u64` | Effective ME periodic reinit interval. |
-| `me_pool_force_close_secs` | `u64` | Effective stale-writer force-close timeout. |
 | `timeouts` | `EffectiveTimeoutLimits` | Effective timeout policy snapshot. |
 | `upstream` | `EffectiveUpstreamLimits` | Effective upstream connect/retry limits. |
-| `middle_proxy` | `EffectiveMiddleProxyLimits` | Effective ME pool/floor/reconnect limits. |
 | `user_ip_policy` | `EffectiveUserIpPolicyLimits` | Effective unique-IP policy mode/window. |
 | `user_tcp_policy` | `EffectiveUserTcpPolicyLimits` | Effective per-user TCP connection policy. |
 
@@ -594,8 +553,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `tg_connect_secs` | `u64` | Upstream Telegram connect timeout. |
 | `client_keepalive_secs` | `u64` | Client keepalive interval. |
 | `client_ack_secs` | `u64` | ACK timeout. |
-| `me_one_retry` | `u8` | Fast retry count for single-endpoint ME DC. |
-| `me_one_timeout_ms` | `u64` | Fast retry timeout per attempt for single-endpoint ME DC. |
 
 #### `EffectiveUpstreamLimits`
 | Field | Type | Description |
@@ -605,31 +562,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `connect_budget_ms` | `u64` | Total connect wall-clock budget across retries. |
 | `unhealthy_fail_threshold` | `u32` | Consecutive fail threshold for unhealthy marking. |
 | `connect_failfast_hard_errors` | `bool` | Whether hard errors skip additional retries. |
-
-#### `EffectiveMiddleProxyLimits`
-| Field | Type | Description |
-| --- | --- | --- |
-| `floor_mode` | `string` | Effective floor mode (`static` or `adaptive`). |
-| `adaptive_floor_idle_secs` | `u64` | Adaptive floor idle threshold. |
-| `adaptive_floor_min_writers_single_endpoint` | `u8` | Adaptive floor minimum for single-endpoint DCs. |
-| `adaptive_floor_min_writers_multi_endpoint` | `u8` | Adaptive floor minimum for multi-endpoint DCs. |
-| `adaptive_floor_recover_grace_secs` | `u64` | Adaptive floor recovery grace period. |
-| `adaptive_floor_writers_per_core_total` | `u16` | Target total writers-per-core budget in adaptive mode. |
-| `adaptive_floor_cpu_cores_override` | `u16` | Manual CPU core override (`0` means auto-detect). |
-| `adaptive_floor_max_extra_writers_single_per_core` | `u16` | Extra per-core adaptive headroom for single-endpoint DCs. |
-| `adaptive_floor_max_extra_writers_multi_per_core` | `u16` | Extra per-core adaptive headroom for multi-endpoint DCs. |
-| `adaptive_floor_max_active_writers_per_core` | `u16` | Active writer cap per CPU core. |
-| `adaptive_floor_max_warm_writers_per_core` | `u16` | Warm writer cap per CPU core. |
-| `adaptive_floor_max_active_writers_global` | `u32` | Global active writer cap. |
-| `adaptive_floor_max_warm_writers_global` | `u32` | Global warm writer cap. |
-| `reconnect_max_concurrent_per_dc` | `u32` | Max concurrent reconnects per DC. |
-| `reconnect_backoff_base_ms` | `u64` | Reconnect base backoff. |
-| `reconnect_backoff_cap_ms` | `u64` | Reconnect backoff cap. |
-| `reconnect_fast_retry_count` | `u32` | Number of fast retries before standard backoff strategy. |
-| `writer_pick_mode` | `string` | Writer picker mode (`sorted_rr`, `p2c`). |
-| `writer_pick_sample_size` | `u8` | Candidate sample size for `p2c` picker mode. |
-| `me2dc_fallback` | `bool` | Effective ME -> direct fallback flag. |
-| `me2dc_fast` | `bool` | Effective fast fallback flag. |
 
 #### `EffectiveUserIpPolicyLimits`
 | Field | Type | Description |
@@ -650,11 +582,9 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `api_whitelist_enabled` | `bool` | Whether whitelist filtering is active. |
 | `api_whitelist_entries` | `usize` | Number of configured whitelist CIDRs. |
 | `api_auth_header_enabled` | `bool` | Whether `Authorization` header validation is active. |
-| `proxy_protocol_enabled` | `bool` | Global PROXY protocol accept setting. |
 | `log_level` | `string` | Effective log level (`debug`, `verbose`, `normal`, `silent`). |
 | `telemetry_core_enabled` | `bool` | Core telemetry toggle. |
 | `telemetry_user_enabled` | `bool` | Per-user telemetry toggle. |
-| `telemetry_me_level` | `string` | ME telemetry level (`silent`, `normal`, `debug`). |
 
 ### `SecurityWhitelistData`
 | Field | Type | Description |
@@ -663,152 +593,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `enabled` | `bool` | `true` when whitelist has at least one CIDR entry. |
 | `entries_total` | `usize` | Number of whitelist CIDR entries. |
 | `entries` | `string[]` | Whitelist CIDR entries as strings. |
-
-### `RuntimeMePoolStateData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `enabled` | `bool` | Runtime payload availability. |
-| `reason` | `string?` | `source_unavailable` when ME pool snapshot is unavailable. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation timestamp. |
-| `data` | `RuntimeMePoolStatePayload?` | Null when unavailable. |
-
-#### `RuntimeMePoolStatePayload`
-| Field | Type | Description |
-| --- | --- | --- |
-| `generations` | `RuntimeMePoolStateGenerationData` | Active/warm/pending/draining generation snapshot. |
-| `hardswap` | `RuntimeMePoolStateHardswapData` | Hardswap state flags. |
-| `writers` | `RuntimeMePoolStateWriterData` | Writer total/contour/health counters. |
-| `refill` | `RuntimeMePoolStateRefillData` | In-flight refill counters by DC/family. |
-
-#### `RuntimeMePoolStateGenerationData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `active_generation` | `u64` | Active pool generation id. |
-| `warm_generation` | `u64` | Warm pool generation id. |
-| `warm_generations` | `u64[]` | All concurrently warming generation ids in ascending order. |
-| `pending_hardswap_generation` | `u64` | Pending hardswap generation id (`0` when none). |
-| `pending_hardswap_age_secs` | `u64?` | Age of pending hardswap generation in seconds. |
-| `reinit_inflight` | `usize` | Generation warmups currently in flight. |
-| `reinit_max_concurrency_effective` | `usize` | Effective bounded warmup concurrency. |
-| `draining_generations` | `u64[]` | Distinct generation ids currently draining. |
-
-#### `RuntimeMePoolStateHardswapData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `enabled` | `bool` | Hardswap feature toggle. |
-| `pending` | `bool` | `true` when pending generation is non-zero. |
-| `pending_writers_current` | `usize` | Authoritative warm writers owned by the pending generation. |
-| `pending_writer_deficit` | `usize` | Writers still required to satisfy the pending generation floor. |
-| `pending_missing_dc_groups` | `usize` | Desired DC-family groups below the pending generation floor. |
-| `pending_map_current` | `bool?` | Whether the pending generation targets the current endpoint map; serialized as `null` when no comparison is available. |
-| `orphan_warm_writers_current` | `usize` | Warm writers not owned by the pending generation. |
-| `replacement_preparing_current` | `usize` | Writer replacements preparing a successor. |
-| `replacement_retiring_current` | `usize` | Writer replacements retiring a predecessor. |
-
-With no pending generation, `pending_map_current` is `null`. When it is `false`, the pending writer, deficit, and missing-group coverage fields are intentionally zero rather than computed against stale ownership. `orphan_warm_writers_current` counts non-draining Warm writers not owned by a current-map pending generation, so every Warm writer is orphaned when pending ownership is absent or stale. Replacement counts are independent of pending state.
-
-#### `RuntimeMePoolStateWriterData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `total` | `usize` | Total writer rows in snapshot. |
-| `alive_non_draining` | `usize` | Alive writers excluding draining ones. |
-| `draining` | `usize` | Writers marked draining. |
-| `degraded` | `usize` | Non-draining degraded writers. |
-| `contour` | `RuntimeMePoolStateWriterContourData` | Counts by contour state. |
-| `health` | `RuntimeMePoolStateWriterHealthData` | Counts by health bucket. |
-
-#### `RuntimeMePoolStateWriterContourData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `warm` | `usize` | Writers in warm contour. |
-| `active` | `usize` | Writers in active contour. |
-| `draining` | `usize` | Writers in draining contour. |
-
-#### `RuntimeMePoolStateWriterHealthData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `healthy` | `usize` | Non-draining non-degraded writers. |
-| `degraded` | `usize` | Non-draining degraded writers. |
-| `draining` | `usize` | Draining writers. |
-
-#### `RuntimeMePoolStateRefillData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `inflight_endpoints_total` | `usize` | Total in-flight endpoint refill operations. |
-| `inflight_dc_total` | `usize` | Number of distinct DC+family keys with refill in flight. |
-| `running_dc_total` | `usize` | DC+family refill workers currently running. |
-| `pending_dc_total` | `usize` | Running DC+family workers with one coalesced pending endpoint. |
-| `by_dc` | `RuntimeMePoolStateRefillDcData[]` | Per-DC refill rows. |
-
-#### `RuntimeMePoolStateRefillDcData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `dc` | `i16` | Telegram DC id. |
-| `family` | `string` | Address family label (`V4`, `V6`). |
-| `inflight` | `usize` | In-flight refill operations for this row. |
-
-### `RuntimeMeQualityData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `enabled` | `bool` | Runtime payload availability. |
-| `reason` | `string?` | `source_unavailable` when ME pool snapshot is unavailable. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation timestamp. |
-| `data` | `RuntimeMeQualityPayload?` | Null when unavailable. |
-
-#### `RuntimeMeQualityPayload`
-| Field | Type | Description |
-| --- | --- | --- |
-| `counters` | `RuntimeMeQualityCountersData` | Key ME lifecycle/error counters. |
-| `route_drops` | `RuntimeMeQualityRouteDropData` | Route drop counters by reason. |
-| `family_states` | `RuntimeMeQualityFamilyStateData[]` | Per-family ME route/recovery state rows. |
-| `drain_gate` | `RuntimeMeQualityDrainGateData` | Current ME drain-gate decision state. |
-| `dc_rtt` | `RuntimeMeQualityDcRttData[]` | Per-DC RTT and writer coverage rows. |
-
-#### `RuntimeMeQualityCountersData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `idle_close_by_peer_total` | `u64` | Peer-initiated idle closes. |
-| `reader_eof_total` | `u64` | Reader EOF events. |
-| `kdf_drift_total` | `u64` | KDF drift detections. |
-| `kdf_port_only_drift_total` | `u64` | KDF port-only drift detections. |
-| `reconnect_attempt_total` | `u64` | Reconnect attempts. |
-| `reconnect_success_total` | `u64` | Successful reconnects. |
-
-#### `RuntimeMeQualityRouteDropData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `no_conn_total` | `u64` | Route drops with no connection mapping. |
-| `channel_closed_total` | `u64` | Route drops because destination channel is closed. |
-| `queue_full_total` | `u64` | Route drops due queue backpressure (aggregate). |
-| `queue_full_base_total` | `u64` | Route drops in base-queue path. |
-| `queue_full_high_total` | `u64` | Route drops in high-priority queue path. |
-
-#### `RuntimeMeQualityFamilyStateData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `family` | `string` | Address family label. |
-| `state` | `string` | Current family state label. |
-| `state_since_epoch_secs` | `u64` | Unix timestamp when current state began. |
-| `suppressed_until_epoch_secs` | `u64?` | Unix timestamp until suppression remains active. |
-| `fail_streak` | `u32` | Consecutive failure count. |
-| `recover_success_streak` | `u32` | Consecutive recovery success count. |
-
-#### `RuntimeMeQualityDrainGateData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `route_quorum_ok` | `bool` | Whether route quorum condition allows drain. |
-| `redundancy_ok` | `bool` | Whether redundancy condition allows drain. |
-| `block_reason` | `string` | Current drain block reason label. |
-| `updated_at_epoch_secs` | `u64` | Unix timestamp of the latest gate update. |
-
-#### `RuntimeMeQualityDcRttData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `dc` | `i16` | Telegram DC id. |
-| `rtt_ema_ms` | `f64?` | RTT EMA for this DC. |
-| `alive_writers` | `usize` | Alive writers currently mapped to this DC. |
-| `required_writers` | `usize` | Target writer floor for this DC. |
-| `coverage_pct` | `f64` | `alive_writers / required_writers * 100`. |
 
 ### `RuntimeUpstreamQualityData`
 | Field | Type | Description |
@@ -847,13 +631,12 @@ With no pending generation, `pending_map_current` is `null`. When it is `false`,
 | `direct_total` | `usize` | Direct-route upstream entries. |
 | `socks4_total` | `usize` | SOCKS4 upstream entries. |
 | `socks5_total` | `usize` | SOCKS5 upstream entries. |
-| `shadowsocks_total` | `usize` | Shadowsocks upstream entries. |
 
 #### `RuntimeUpstreamQualityUpstreamData`
 | Field | Type | Description |
 | --- | --- | --- |
 | `upstream_id` | `usize` | Runtime upstream index. |
-| `route_kind` | `string` | `direct`, `socks4`, `socks5`, `shadowsocks`. |
+| `route_kind` | `string` | `direct`, `socks4`, `socks5`. |
 | `address` | `string` | Upstream address (`direct` literal for direct route kind, `host:port` only for proxied upstreams). |
 | `weight` | `u16` | Selection weight. |
 | `scopes` | `string` | Configured scope selector. |
@@ -869,109 +652,6 @@ With no pending generation, `pending_map_current` is `null`. When it is `false`,
 | `dc` | `i16` | Telegram DC id. |
 | `latency_ema_ms` | `f64?` | Per-DC latency EMA. |
 | `ip_preference` | `string` | `unknown`, `prefer_v4`, `prefer_v6`, `both_work`, `unavailable`. |
-
-### `RuntimeNatStunData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `enabled` | `bool` | Runtime payload availability. |
-| `reason` | `string?` | `source_unavailable` when shared STUN state is unavailable. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation timestamp. |
-| `data` | `RuntimeNatStunPayload?` | Null when unavailable. |
-
-#### `RuntimeNatStunPayload`
-| Field | Type | Description |
-| --- | --- | --- |
-| `flags` | `RuntimeNatStunFlagsData` | NAT probe runtime flags. |
-| `servers` | `RuntimeNatStunServersData` | Configured/live STUN server lists. |
-| `reflection` | `RuntimeNatStunReflectionBlockData` | Reflection cache data for v4/v6. |
-| `stun_backoff_remaining_ms` | `u64?` | Remaining retry backoff (milliseconds). |
-
-#### `RuntimeNatStunFlagsData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `nat_probe_enabled` | `bool` | Current NAT probe enable state. |
-| `nat_probe_disabled_runtime` | `bool` | Runtime disable flag due failures/conditions. |
-| `nat_probe_attempts` | `u8` | Configured NAT probe attempt count. |
-
-#### `RuntimeNatStunServersData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `configured` | `string[]` | Configured STUN server entries. |
-| `live` | `string[]` | Runtime live STUN server entries. |
-| `live_total` | `usize` | Number of live STUN entries. |
-
-#### `RuntimeNatStunReflectionBlockData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `v4` | `RuntimeNatStunReflectionData?` | IPv4 reflection data. |
-| `v6` | `RuntimeNatStunReflectionData?` | IPv6 reflection data. |
-
-#### `RuntimeNatStunReflectionData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `addr` | `string` | Reflected public endpoint (`ip:port`). |
-| `age_secs` | `u64` | Reflection value age in seconds. |
-
-### `RuntimeMeSelftestData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `enabled` | `bool` | Runtime payload availability. |
-| `reason` | `string?` | `source_unavailable` when ME pool is unavailable. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation timestamp. |
-| `data` | `RuntimeMeSelftestPayload?` | Null when unavailable. |
-
-#### `RuntimeMeSelftestPayload`
-| Field | Type | Description |
-| --- | --- | --- |
-| `kdf` | `RuntimeMeSelftestKdfData` | KDF EWMA health state. |
-| `timeskew` | `RuntimeMeSelftestTimeskewData` | Date-header skew health state. |
-| `ip` | `RuntimeMeSelftestIpData` | Interface IP family classification. |
-| `pid` | `RuntimeMeSelftestPidData` | Process PID marker (`one` or `non-one`). |
-| `bnd` | `RuntimeMeSelftestBndData` | SOCKS BND.ADDR/BND.PORT health state. |
-
-#### `RuntimeMeSelftestKdfData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | `string` | `ok` or `error` based on EWMA threshold. |
-| `ewma_errors_per_min` | `f64` | EWMA KDF error rate per minute. |
-| `threshold_errors_per_min` | `f64` | Threshold used for `error` decision. |
-| `errors_total` | `u64` | Total source errors (`kdf_drift + socks_kdf_strict_reject`). |
-
-#### `RuntimeMeSelftestTimeskewData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | `string` | `ok` or `error` (`max_skew_secs_15m > 60` => `error`). |
-| `max_skew_secs_15m` | `u64?` | Maximum observed skew in the last 15 minutes. |
-| `samples_15m` | `usize` | Number of skew samples in the last 15 minutes. |
-| `last_skew_secs` | `u64?` | Latest observed skew value. |
-| `last_source` | `string?` | Latest skew source marker. |
-| `last_seen_age_secs` | `u64?` | Age of the latest skew sample. |
-
-#### `RuntimeMeSelftestIpData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `v4` | `RuntimeMeSelftestIpFamilyData?` | IPv4 interface probe result; absent when unknown. |
-| `v6` | `RuntimeMeSelftestIpFamilyData?` | IPv6 interface probe result; absent when unknown. |
-
-#### `RuntimeMeSelftestIpFamilyData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `addr` | `string` | Detected interface IP. |
-| `state` | `string` | `good`, `bogon`, or `loopback`. |
-
-#### `RuntimeMeSelftestPidData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `pid` | `u32` | Current process PID. |
-| `state` | `string` | `one` when PID=1, otherwise `non-one`. |
-
-#### `RuntimeMeSelftestBndData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `addr_state` | `string` | `ok`, `bogon`, or `error`. |
-| `port_state` | `string` | `ok`, `zero`, or `error`. |
-| `last_addr` | `string?` | Latest observed SOCKS BND address. |
-| `last_seen_age_secs` | `u64?` | Age of latest BND sample. |
 
 ### `RuntimeEdgeConnectionsSummaryData`
 | Field | Type | Description |
@@ -1000,8 +680,7 @@ With no pending generation, `pending_map_current` is `null`. When it is `false`,
 | Field | Type | Description |
 | --- | --- | --- |
 | `current_connections` | `u64` | Current global live connections. |
-| `current_connections_me` | `u64` | Current live connections routed through ME. |
-| `current_connections_direct` | `u64` | Current live connections routed through direct path. |
+| `current_connections_direct` | `u64` | Current live connections routed through the direct-to-DC relay path. |
 | `active_users` | `usize` | Users with `current_connections > 0`. |
 
 #### `RuntimeEdgeConnectionTopData`
@@ -1047,52 +726,12 @@ With no pending generation, `pending_map_current` is `null`. When it is `false`,
 | `event_type` | `string` | Event kind identifier. |
 | `context` | `string` | Context text (truncated to implementation-defined max length). |
 
-### `RuntimeEdgeTlsFingerprintsData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `enabled` | `bool` | Endpoint availability under `runtime_edge_enabled`. |
-| `reason` | `string?` | `feature_disabled` when endpoint is disabled. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation timestamp. |
-| `data` | `RuntimeEdgeTlsFingerprintsPayload?` | Null when unavailable. |
-
-#### `RuntimeEdgeTlsFingerprintsPayload`
-| Field | Type | Description |
-| --- | --- | --- |
-| `limit` | `usize` | Effective Top-N row count. |
-| `retention_secs` | `u64` | In-memory retention window, derived from `general.beobachten_minutes`. |
-| `capacity` | `usize` | Maximum retained fingerprint buckets. |
-| `dropped_total` | `u64` | Buckets dropped because the collector was full. |
-| `parse_error_total` | `u64` | Complete ClientHello records that could not be fingerprinted. |
-| `by_fingerprint` | `RuntimeEdgeTlsFingerprintRow[]` | Global JA3/JA4 leaderboard. |
-| `by_ip` | `RuntimeEdgeTlsFingerprintRow[]` | Source-IP scoped leaderboard. |
-| `by_cidr` | `RuntimeEdgeTlsFingerprintRow[]` | Source CIDR scoped leaderboard (`/24` for IPv4, `/56` for IPv6). |
-| `by_user` | `RuntimeEdgeTlsFingerprintRow[]` | Authenticated user scoped leaderboard. |
-
-#### `RuntimeEdgeTlsFingerprintRow`
-| Field | Type | Description |
-| --- | --- | --- |
-| `scope` | `string?` | IP, CIDR, or username; absent in `by_fingerprint`. |
-| `ja3` | `string` | JA3 MD5 hash. |
-| `ja3_raw` | `string` | Raw JA3 field string. |
-| `ja4` | `string` | JA4 TLS client fingerprint. |
-| `ja4_raw` | `string` | Raw JA4 material used for the hashed parts. |
-| `total` | `u64` | Complete ClientHello observations for this bucket. |
-| `auth_success` | `u64` | TLS-authenticated observations for this bucket. |
-| `bad_or_probe` | `u64` | Complete ClientHello observations later classified as bad/probe. |
-| `first_seen_epoch_secs` | `u64` | First observation timestamp. |
-| `last_seen_epoch_secs` | `u64` | Last observation timestamp. |
-
-JA3 follows the Salesforce ClientHello field order. JA4 follows the FoxIO TLS-client `a_b_c` format; GREASE values are excluded and no high-cardinality Prometheus labels are emitted for fingerprints.
-
 ### `ZeroAllData`
 | Field | Type | Description |
 | --- | --- | --- |
 | `generated_at_epoch_secs` | `u64` | Snapshot time (Unix epoch seconds). |
 | `core` | `ZeroCoreData` | Core counters and telemetry policy snapshot. |
 | `upstream` | `ZeroUpstreamData` | Upstream connect counters/histogram buckets. |
-| `middle_proxy` | `ZeroMiddleProxyData` | ME protocol/health counters. |
-| `pool` | `ZeroPoolData` | ME pool lifecycle counters. |
-| `desync` | `ZeroDesyncData` | Frame desync counters. |
 
 #### `ZeroCoreData`
 | Field | Type | Description |
@@ -1107,7 +746,6 @@ JA3 follows the Salesforce ClientHello field order. JA4 follows the FoxIO TLS-cl
 | `configured_users` | `usize` | Configured user count. |
 | `telemetry_core_enabled` | `bool` | Core telemetry toggle. |
 | `telemetry_user_enabled` | `bool` | User telemetry toggle. |
-| `telemetry_me_level` | `string` | ME telemetry level (`silent`, `normal`, or `debug`). |
 | `conntrack_control_enabled` | `bool` | Whether conntrack control is enabled by policy. |
 | `conntrack_control_available` | `bool` | Whether conntrack control backend is currently available. |
 | `conntrack_pressure_active` | `bool` | Current conntrack pressure flag. |
@@ -1162,14 +800,13 @@ JA3 follows the Salesforce ClientHello field order. JA4 follows the FoxIO TLS-cl
 | `direct_total` | `usize` | Number of direct upstream entries. |
 | `socks4_total` | `usize` | Number of SOCKS4 upstream entries. |
 | `socks5_total` | `usize` | Number of SOCKS5 upstream entries. |
-| `shadowsocks_total` | `usize` | Number of Shadowsocks upstream entries. |
 
 #### `UpstreamStatus`
 | Field | Type | Description |
 | --- | --- | --- |
 | `upstream_id` | `usize` | Runtime upstream index. |
-| `route_kind` | `string` | Upstream route kind: `direct`, `socks4`, `socks5`, `shadowsocks`. |
-| `address` | `string` | Upstream address (`direct` for direct route kind, `host:port` for Shadowsocks). Authentication fields are intentionally omitted. |
+| `route_kind` | `string` | Upstream route kind: `direct`, `socks4`, `socks5`. |
+| `address` | `string` | Upstream address (`direct` for the direct route kind, `host:port` for SOCKS upstreams). Authentication fields are intentionally omitted. |
 | `weight` | `u16` | Selection weight. |
 | `scopes` | `string` | Configured scope selector string. |
 | `healthy` | `bool` | Current health flag. |
@@ -1184,267 +821,6 @@ JA3 follows the Salesforce ClientHello field order. JA4 follows the FoxIO TLS-cl
 | `dc` | `i16` | Telegram DC id. |
 | `latency_ema_ms` | `f64?` | Per-DC latency EMA value. |
 | `ip_preference` | `string` | Per-DC IP family preference: `unknown`, `prefer_v4`, `prefer_v6`, `both_work`, `unavailable`. |
-
-#### `ZeroMiddleProxyData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `keepalive_sent_total` | `u64` | ME keepalive packets sent. |
-| `keepalive_failed_total` | `u64` | ME keepalive send failures. |
-| `keepalive_pong_total` | `u64` | Keepalive pong responses received. |
-| `keepalive_timeout_total` | `u64` | Keepalive timeout events. |
-| `rpc_proxy_req_signal_sent_total` | `u64` | RPC proxy activity signals sent. |
-| `rpc_proxy_req_signal_failed_total` | `u64` | RPC proxy activity signal failures. |
-| `rpc_proxy_req_signal_skipped_no_meta_total` | `u64` | Signals skipped due to missing metadata. |
-| `rpc_proxy_req_signal_response_total` | `u64` | RPC proxy signal responses received. |
-| `rpc_proxy_req_signal_close_sent_total` | `u64` | RPC proxy close signals sent. |
-| `reconnect_attempt_total` | `u64` | ME reconnect attempts. |
-| `reconnect_success_total` | `u64` | Successful reconnects. |
-| `handshake_reject_total` | `u64` | ME handshake rejects. |
-| `handshake_error_codes` | `ZeroCodeCount[]` | Handshake rejects grouped by code. |
-| `handshake_error_code_overflow_total` | `u64` | Handshake rejects whose new error code exceeded the bounded 64-code breakdown. |
-| `reader_eof_total` | `u64` | ME reader EOF events. |
-| `idle_close_by_peer_total` | `u64` | Idle closes initiated by peer. |
-| `route_drop_no_conn_total` | `u64` | Route drops due to missing bound connection. |
-| `route_drop_channel_closed_total` | `u64` | Route drops due to closed channel. |
-| `route_drop_queue_full_total` | `u64` | Route drops due to full queue (total). |
-| `route_drop_queue_full_base_total` | `u64` | Route drops in base queue mode. |
-| `route_drop_queue_full_high_total` | `u64` | Route drops in high queue mode. |
-| `d2c_batches_total` | `u64` | ME D->C batch flushes. |
-| `d2c_batch_frames_total` | `u64` | ME D->C frames included in batches. |
-| `d2c_batch_bytes_total` | `u64` | ME D->C payload bytes included in batches. |
-| `d2c_flush_reason_queue_drain_total` | `u64` | Flushes caused by queue drain. |
-| `d2c_flush_reason_batch_frames_total` | `u64` | Flushes caused by frame-count batch limit. |
-| `d2c_flush_reason_batch_bytes_total` | `u64` | Flushes caused by byte-count batch limit. |
-| `d2c_flush_reason_max_delay_total` | `u64` | Flushes caused by max-delay budget. |
-| `d2c_flush_reason_ack_immediate_total` | `u64` | Flushes caused by immediate ACK policy. |
-| `d2c_flush_reason_close_total` | `u64` | Flushes caused by close path. |
-| `d2c_data_frames_total` | `u64` | ME D->C data frames. |
-| `d2c_ack_frames_total` | `u64` | ME D->C ACK frames. |
-| `d2c_payload_bytes_total` | `u64` | ME D->C payload bytes. |
-| `d2c_write_mode_coalesced_total` | `u64` | Coalesced D->C writes. |
-| `d2c_write_mode_split_total` | `u64` | Split D->C writes. |
-| `d2c_quota_reject_pre_write_total` | `u64` | D->C quota rejects before write. |
-| `d2c_quota_reject_post_write_total` | `u64` | D->C quota rejects after write. |
-| `d2c_frame_buf_shrink_total` | `u64` | D->C frame-buffer shrink operations. |
-| `d2c_frame_buf_shrink_bytes_total` | `u64` | Bytes released by D->C frame-buffer shrink operations. |
-| `socks_kdf_strict_reject_total` | `u64` | SOCKS KDF strict rejects. |
-| `socks_kdf_compat_fallback_total` | `u64` | SOCKS KDF compat fallbacks. |
-| `endpoint_quarantine_total` | `u64` | Endpoint quarantine activations. |
-| `kdf_drift_total` | `u64` | KDF drift detections. |
-| `kdf_port_only_drift_total` | `u64` | KDF port-only drift detections. |
-| `hardswap_pending_reuse_total` | `u64` | Pending hardswap reused events. |
-| `hardswap_pending_ttl_expired_total` | `u64` | Pending hardswap TTL expiry events. |
-| `single_endpoint_outage_enter_total` | `u64` | Entered single-endpoint outage mode. |
-| `single_endpoint_outage_exit_total` | `u64` | Exited single-endpoint outage mode. |
-| `single_endpoint_outage_reconnect_attempt_total` | `u64` | Reconnect attempts in outage mode. |
-| `single_endpoint_outage_reconnect_success_total` | `u64` | Reconnect successes in outage mode. |
-| `single_endpoint_quarantine_bypass_total` | `u64` | Quarantine bypasses in outage mode. |
-| `single_endpoint_shadow_rotate_total` | `u64` | Shadow writer rotations. |
-| `single_endpoint_shadow_rotate_skipped_quarantine_total` | `u64` | Shadow rotations skipped because of quarantine. |
-| `floor_mode_switch_total` | `u64` | Total floor mode switches. |
-| `floor_mode_switch_static_to_adaptive_total` | `u64` | Static -> adaptive switches. |
-| `floor_mode_switch_adaptive_to_static_total` | `u64` | Adaptive -> static switches. |
-
-#### `ZeroCodeCount`
-| Field | Type | Description |
-| --- | --- | --- |
-| `code` | `i32` | Handshake error code. |
-| `total` | `u64` | Events with this code. |
-
-#### `ZeroPoolData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `pool_swap_total` | `u64` | Pool swap count. |
-| `pool_drain_active` | `u64` | Current active draining pools. |
-| `pool_force_close_total` | `u64` | Forced pool closes by timeout. |
-| `pool_stale_pick_total` | `u64` | Stale writer picks for binding. |
-| `writer_removed_total` | `u64` | Writer removals total. |
-| `writer_removed_unexpected_total` | `u64` | Unexpected writer removals. |
-| `refill_triggered_total` | `u64` | Refill triggers. |
-| `refill_skipped_inflight_total` | `u64` | Refill skipped because refill already in-flight. |
-| `refill_failed_total` | `u64` | Refill failures. |
-| `writer_restored_same_endpoint_total` | `u64` | Restores on same endpoint. |
-| `writer_restored_fallback_total` | `u64` | Restores on fallback endpoint. |
-
-#### `ZeroDesyncData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `secure_padding_invalid_total` | `u64` | Invalid secure padding events. |
-| `desync_total` | `u64` | Desync events total. |
-| `desync_full_logged_total` | `u64` | Fully logged desync events. |
-| `desync_suppressed_total` | `u64` | Suppressed desync logs. |
-| `desync_frames_bucket_0` | `u64` | Desync frames bucket 0. |
-| `desync_frames_bucket_1_2` | `u64` | Desync frames bucket 1-2. |
-| `desync_frames_bucket_3_10` | `u64` | Desync frames bucket 3-10. |
-| `desync_frames_bucket_gt_10` | `u64` | Desync frames bucket >10. |
-
-### `MinimalAllData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `enabled` | `bool` | Whether minimal runtime snapshots are enabled by config. |
-| `reason` | `string?` | `feature_disabled` or `source_unavailable` when applicable. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation time. |
-| `data` | `MinimalAllPayload?` | Null when disabled; fallback payload when source unavailable. |
-
-#### `MinimalAllPayload`
-| Field | Type | Description |
-| --- | --- | --- |
-| `me_writers` | `MeWritersData` | ME writer status block. |
-| `dcs` | `DcStatusData` | DC aggregate status block. |
-| `me_runtime` | `MinimalMeRuntimeData?` | Runtime ME control snapshot. |
-| `network_path` | `MinimalDcPathData[]` | Active IP path selection per DC. |
-
-#### `MinimalMeRuntimeData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `active_generation` | `u64` | Active pool generation. |
-| `warm_generation` | `u64` | Warm pool generation. |
-| `warm_generations` | `u64[]` | All concurrently warming generation ids in ascending order. |
-| `pending_hardswap_generation` | `u64` | Pending hardswap generation. |
-| `pending_hardswap_age_secs` | `u64?` | Pending hardswap age in seconds. |
-| `reinit_inflight` | `usize` | Generation warmups currently in flight. |
-| `reinit_max_concurrency_effective` | `usize` | Effective bounded warmup concurrency. |
-| `hardswap_enabled` | `bool` | Hardswap mode toggle. |
-| `floor_mode` | `string` | Writer floor mode. |
-| `adaptive_floor_idle_secs` | `u64` | Idle threshold for adaptive floor. |
-| `adaptive_floor_min_writers_single_endpoint` | `u8` | Minimum writers for single-endpoint DC in adaptive mode. |
-| `adaptive_floor_min_writers_multi_endpoint` | `u8` | Minimum writers for multi-endpoint DC in adaptive mode. |
-| `adaptive_floor_recover_grace_secs` | `u64` | Grace period for floor recovery. |
-| `adaptive_floor_writers_per_core_total` | `u16` | Target total writers-per-core budget in adaptive mode. |
-| `adaptive_floor_cpu_cores_override` | `u16` | CPU core override (`0` means auto-detect). |
-| `adaptive_floor_max_extra_writers_single_per_core` | `u16` | Extra single-endpoint writers budget per core. |
-| `adaptive_floor_max_extra_writers_multi_per_core` | `u16` | Extra multi-endpoint writers budget per core. |
-| `adaptive_floor_max_active_writers_per_core` | `u16` | Active writer cap per core. |
-| `adaptive_floor_max_warm_writers_per_core` | `u16` | Warm writer cap per core. |
-| `adaptive_floor_max_active_writers_global` | `u32` | Global active writer cap. |
-| `adaptive_floor_max_warm_writers_global` | `u32` | Global warm writer cap. |
-| `adaptive_floor_cpu_cores_detected` | `u32` | Runtime-detected CPU cores. |
-| `adaptive_floor_cpu_cores_effective` | `u32` | Effective core count used for adaptive caps. |
-| `adaptive_floor_global_cap_raw` | `u64` | Raw global cap before clamping. |
-| `adaptive_floor_global_cap_effective` | `u64` | Effective global cap after clamping. |
-| `adaptive_floor_target_writers_total` | `u64` | Current adaptive total writer target. |
-| `adaptive_floor_active_cap_configured` | `u64` | Configured global active cap. |
-| `adaptive_floor_active_cap_effective` | `u64` | Effective global active cap. |
-| `adaptive_floor_warm_cap_configured` | `u64` | Configured global warm cap. |
-| `adaptive_floor_warm_cap_effective` | `u64` | Effective global warm cap. |
-| `adaptive_floor_active_writers_current` | `u64` | Current active writers count. |
-| `adaptive_floor_warm_writers_current` | `u64` | Current warm writers count. |
-| `me_keepalive_enabled` | `bool` | ME keepalive toggle. |
-| `me_keepalive_interval_secs` | `u64` | Keepalive period. |
-| `me_keepalive_jitter_secs` | `u64` | Keepalive jitter. |
-| `me_keepalive_payload_random` | `bool` | Randomized keepalive payload toggle. |
-| `rpc_proxy_req_every_secs` | `u64` | Period for RPC proxy request signal. |
-| `me_reconnect_max_concurrent_per_dc` | `u32` | Reconnect concurrency per DC. |
-| `me_reconnect_backoff_base_ms` | `u64` | Base reconnect backoff. |
-| `me_reconnect_backoff_cap_ms` | `u64` | Max reconnect backoff. |
-| `me_reconnect_fast_retry_count` | `u32` | Fast retry attempts before normal backoff. |
-| `me_pool_drain_ttl_secs` | `u64` | Pool drain TTL. |
-| `me_pool_force_close_secs` | `u64` | Hard close timeout for draining writers. |
-| `me_pool_min_fresh_ratio` | `f32` | Minimum fresh ratio before swap. |
-| `me_bind_stale_mode` | `string` | Stale writer bind policy. |
-| `me_bind_stale_ttl_secs` | `u64` | Stale writer TTL. |
-| `me_single_endpoint_shadow_writers` | `u8` | Shadow writers for single-endpoint DCs. |
-| `me_single_endpoint_outage_mode_enabled` | `bool` | Outage mode toggle for single-endpoint DCs. |
-| `me_single_endpoint_outage_disable_quarantine` | `bool` | Quarantine behavior in outage mode. |
-| `me_single_endpoint_outage_backoff_min_ms` | `u64` | Outage mode min reconnect backoff. |
-| `me_single_endpoint_outage_backoff_max_ms` | `u64` | Outage mode max reconnect backoff. |
-| `me_single_endpoint_shadow_rotate_every_secs` | `u64` | Shadow rotation interval. |
-| `me_deterministic_writer_sort` | `bool` | Deterministic writer ordering toggle. |
-| `me_writer_pick_mode` | `string` | Writer picker mode (`sorted_rr`, `p2c`). |
-| `me_writer_pick_sample_size` | `u8` | Candidate sample size for `p2c` picker mode. |
-| `me_socks_kdf_policy` | `string` | Current SOCKS KDF policy mode. |
-| `quarantined_endpoints_total` | `usize` | Total quarantined endpoints. |
-| `quarantined_endpoints` | `MinimalQuarantineData[]` | Quarantine details. |
-
-#### `MinimalQuarantineData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `endpoint` | `string` | Endpoint (`ip:port`). |
-| `remaining_ms` | `u64` | Remaining quarantine duration. |
-
-#### `MinimalDcPathData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `dc` | `i16` | Telegram DC identifier. |
-| `ip_preference` | `string?` | Runtime IP family preference. |
-| `selected_addr_v4` | `string?` | Selected IPv4 endpoint for this DC. |
-| `selected_addr_v6` | `string?` | Selected IPv6 endpoint for this DC. |
-
-### `MeWritersData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `middle_proxy_enabled` | `bool` | `false` when minimal runtime is disabled or source unavailable. |
-| `reason` | `string?` | `feature_disabled` or `source_unavailable` when not fully available. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation time. |
-| `summary` | `MeWritersSummary` | Coverage/availability summary. |
-| `writers` | `MeWriterStatus[]` | Per-writer statuses. |
-
-#### `MeWritersSummary`
-| Field | Type | Description |
-| --- | --- | --- |
-| `configured_dc_groups` | `usize` | Number of configured DC groups. |
-| `configured_endpoints` | `usize` | Total configured ME endpoints. |
-| `available_endpoints` | `usize` | Endpoints currently available. |
-| `available_pct` | `f64` | `available_endpoints / configured_endpoints * 100`. |
-| `required_writers` | `usize` | Required writers based on current floor policy. |
-| `alive_writers` | `usize` | Writers currently alive. |
-| `coverage_pct` | `f64` | `alive_writers / required_writers * 100`. |
-| `fresh_alive_writers` | `usize` | Alive writers that match freshness requirements. |
-| `fresh_coverage_pct` | `f64` | `fresh_alive_writers / required_writers * 100`. |
-
-#### `MeWriterStatus`
-| Field | Type | Description |
-| --- | --- | --- |
-| `writer_id` | `u64` | Runtime writer identifier. |
-| `dc` | `i16?` | DC id if mapped. |
-| `endpoint` | `string` | Endpoint (`ip:port`). |
-| `generation` | `u64` | Pool generation owning this writer. |
-| `state` | `string` | Writer state (`warm`, `active`, `draining`). |
-| `draining` | `bool` | Draining flag. |
-| `degraded` | `bool` | Degraded flag. |
-| `bound_clients` | `usize` | Number of currently bound clients. |
-| `idle_for_secs` | `u64?` | Idle age in seconds if idle. |
-| `rtt_ema_ms` | `f64?` | RTT exponential moving average. |
-| `matches_active_generation` | `bool` | Whether this writer belongs to the active pool generation. |
-| `in_desired_map` | `bool` | Whether this writer's endpoint remains in desired topology. |
-| `allow_drain_fallback` | `bool` | Whether drain fallback is allowed for this writer. |
-| `drain_started_at_epoch_secs` | `u64?` | Unix timestamp when drain started. |
-| `drain_deadline_epoch_secs` | `u64?` | Unix timestamp of drain deadline. |
-| `drain_over_ttl` | `bool` | Whether drain has exceeded its TTL. |
-
-### `DcStatusData`
-| Field | Type | Description |
-| --- | --- | --- |
-| `middle_proxy_enabled` | `bool` | `false` when minimal runtime is disabled or source unavailable. |
-| `reason` | `string?` | `feature_disabled` or `source_unavailable` when not fully available. |
-| `generated_at_epoch_secs` | `u64` | Snapshot generation time. |
-| `dcs` | `DcStatus[]` | Per-DC status rows. |
-
-#### `DcStatus`
-| Field | Type | Description |
-| --- | --- | --- |
-| `dc` | `i16` | Telegram DC id. |
-| `endpoints` | `string[]` | Endpoints in this DC (`ip:port`). |
-| `endpoint_writers` | `DcEndpointWriters[]` | Active writer counts grouped by endpoint. |
-| `available_endpoints` | `usize` | Endpoints currently available in this DC. |
-| `available_pct` | `f64` | `available_endpoints / endpoints_total * 100`. |
-| `required_writers` | `usize` | Required writer count for this DC. |
-| `floor_min` | `usize` | Floor lower bound for this DC. |
-| `floor_target` | `usize` | Floor target writer count for this DC. |
-| `floor_max` | `usize` | Floor upper bound for this DC. |
-| `floor_capped` | `bool` | `true` when computed floor target was capped by active limits. |
-| `alive_writers` | `usize` | Alive writers in this DC. |
-| `coverage_pct` | `f64` | `alive_writers / required_writers * 100`. |
-| `fresh_alive_writers` | `usize` | Fresh alive writers in this DC. |
-| `fresh_coverage_pct` | `f64` | `fresh_alive_writers / required_writers * 100`. |
-| `rtt_ms` | `f64?` | Aggregated RTT for DC. |
-| `load` | `usize` | Active client sessions bound to this DC. |
-
-#### `DcEndpointWriters`
-| Field | Type | Description |
-| --- | --- | --- |
-| `endpoint` | `string` | Endpoint (`ip:port`). |
-| `active_writers` | `usize` | Active writers currently mapped to endpoint. |
 
 ### `UserInfo`
 | Field | Type | Description |
@@ -1475,31 +851,17 @@ JA3 follows the Salesforce ClientHello field order. JA4 follows the FoxIO TLS-cl
 
 #### `UserLinks`
 
-`UserLinks` contains only native MTProxy links. It never contains a WEB `tg://webproxy` link; WEB links use a separate startup-only derivation contract based on `web.vhosts[].host`, `base_path`, and profile secret mode.
+`UserLinks` contains `tg://webproxy` links only. One link is derived for every runtime profile that belongs to the user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `classic` | `string[]` | Active `tg://proxy` links for classic mode. |
-| `secure` | `string[]` | Active `tg://proxy` links for secure/DD mode. |
-| `tls` | `string[]` | Active `tg://proxy` links for EE-TLS mode (for each host+TLS domain). |
-| `tls_domains` | `TlsDomainLink[]` | Extra TLS-domain links as explicit domain/link pairs for `censorship.tls_domains`. |
+| `web` | `string[]` | Active `tg://webproxy` links for the user's runtime profiles. |
 
-#### `TlsDomainLink`
-| Field | Type | Description |
-| --- | --- | --- |
-| `domain` | `string` | TLS domain represented by the link. |
-| `link` | `string` | `tg://proxy` link for this domain. |
-
-Link generation uses active config and enabled modes:
-- Link port is `general.links.public_port` when configured; otherwise `server.port`.
-- If `general.links.public_host` is non-empty, it is used as the single link host override.
-- If `public_host` is not set, hosts are resolved from `server.listeners` in order:
-  `announce` -> `announce_ip` -> listener bind `ip`.
-- For wildcard listener IPs (`0.0.0.0` / `::`), startup-detected external IP of the same family is used when available.
-- Listener-derived hosts are de-duplicated while preserving first-seen order.
-- If multiple hosts are resolved, API returns links for all resolved hosts in every enabled mode.
-- If no host can be resolved from listeners, fallback is startup-detected `IPv4 -> IPv6`.
-- Final compatibility fallback uses `listen_addr_ipv4`/`listen_addr_ipv6` when routable, otherwise `"UNKNOWN"`.
+Link generation:
+- Each runtime profile contributes one link with its vhost `host` and the vhost `base_path`.
+- With an empty `base_path`, plain secret mode keeps the bare hex secret and DD mode prefixes it with `dd`.
+- With a non-empty `base_path`, the link uses the TDesktop marker form: `server` is the percent-encoded `host/base_path` and `secret` is the URL-safe base64 of `0x70` (plus `0xdd` in DD mode) followed by the decoded hex secret.
+- Users without runtime profiles have an empty `web` list.
 - User rows are sorted by `username` in ascending lexical order.
 
 ### `CreateUserResponse`
@@ -1534,8 +896,8 @@ Returns the current editable config sections as TOML-shaped JSON, plus the curre
 {
   "ok": true,
   "data": {
-    "censorship": {"tls_domain": "front.example.com"},
-    "general": {"log_level": "normal"}
+    "general": {"log_level": "normal"},
+    "web": {"enabled": true}
   },
   "revision": "<sha256-hex>"
 }
@@ -1559,7 +921,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | `Content-Type: application/json` | recommended | Not enforced, but body must be valid JSON. |
 | `If-Match: <revision>` | no | Optimistic concurrency. `<revision>` is the `revision` value from `GET /v1/config` or `config_hash` from `GET /v1/system/info`. It covers the complete recursive include graph. If supplied and it does not match the current source manifest, returns `409 revision_conflict`. Omitting it removes the caller precondition, but the internal graph/owner race fence can still return the same conflict. |
 
-**Editable sections:** `general`, `timeouts`, `censorship`, `upstreams`, `dc_overrides`, `web`, plus partially editable `server` (only nested `listeners`).
+**Editable sections:** `general`, `timeouts`, `upstreams`, `dc_overrides`, `web`, plus partially editable `server` (only nested `listeners`).
 
 **Rejected keys and their error codes:**
 
@@ -1595,7 +957,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
   "runtime_reload_required": true,
   "process_restart_required": false,
   "deferred_process_fields": [],
-  "changed": ["censorship"],
+  "changed": ["web"],
   "reload": {
     "reload_id": 7,
     "target_generation": 2,
@@ -1610,7 +972,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `restart_required` — legacy file-watcher classification retained for compatibility.
 - `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned sockets, paths, capacities, or policies that remain unchanged by an in-process reload, including `web.decoy_fasttrack_mode`. A native-listener endpoint-only move is reloadable only when the complete WEB listener plan remains identical, every retained endpoint keeps identical bind policy, and neither the active nor desired listener set uses SYN limiting; same-address MSS, PROXY protocol, backlog, reuse, or SYN-limit changes remain deferred.
+- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `server.metrics_listen`, `server.metrics_port`, `server.max_connections`, `server.conntrack_control`, `logging`, `general.data_path`, `general.quota_state_path`, `general.disable_colors`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 
@@ -1655,10 +1017,10 @@ A valid base-path-only change reports `restart_required=false`, `runtime_reload_
 # get current revision
 curl -s -H "Authorization: <token>" http://127.0.0.1:<api>/v1/system/info | jq -r .config_hash
 
-# patch the SNI domain with optimistic concurrency
+# patch the log level with optimistic concurrency
 curl -s -X PATCH -H "Authorization: <token>" -H "If-Match: <revision>" \
   -H "Content-Type: application/json" \
-  -d '{"censorship":{"tls_domain":"front.example.com"}}' \
+  -d '{"general":{"log_level":"verbose"}}' \
   'http://127.0.0.1:<api>/v1/config?reload=instant'
 ```
 
@@ -1682,9 +1044,7 @@ The endpoint returns `202` with `ReloadAccepted`. A concurrent non-terminal relo
 
 Returns `ReloadStatus` with `state` equal to `accepted`, `preparing`, `activating`, `draining`, `succeeded`, `rolled_back`, or `failed`. Terminal statuses include `finished_at_epoch_secs`; failures include `error`. Successful activation may include `warnings` for old-generation cleanup failures and `deferred_process_fields` for process-owned settings.
 
-Runtime generation activation rebuilds statistics, upstream routing, replay and buffer state, TLS-front cache, IP tracking, admission/route state, and Middle-End orchestration. Per-user quota accounting is process-scoped and remains continuous across generations. A process-owned listener manager can prepare new endpoint sockets without calling `listen(2)`, stop removed acceptors before the runtime swap, and start new acceptors only after the swap. Inbound listener planning depends on normalized config and explicit IPv4/IPv6 policy, never transient outbound connectivity-probe results. Retained endpoints are not rebound, and unsupported same-address policy changes are overlaid with active values and reported as deferred. API, metrics, Unix listeners, PID ownership, and logging remain process-scoped. Maestro does not invoke systemd, containerd, or another process supervisor.
-
-Reload preparation requires every configured TLS-front domain to have a non-default cached profile and requires a ready Middle-End pool when direct fallback is disabled. A candidate that does not satisfy either readiness condition fails without replacing the active generation.
+Runtime generation activation rebuilds statistics, upstream routing, replay and buffer state, IP tracking, admission state, and the WEB runtime (vhost and carrier profiles). Per-user quota accounting is process-scoped and remains continuous across generations. All `server.listeners` fields, including the bound sockets and their acceptors, are process-scoped: any listener change (including endpoint moves) is deferred to process restart and reported as a deferred field. API, metrics, PID ownership, and logging remain process-scoped. Maestro does not invoke systemd, containerd, or another process supervisor.
 
 The revision is verified again after preparation. With `failure_policy=rollback`, a changed revision or revision read failure rolls the candidate back; with `failure_policy=keep_new`, the condition is reported in `warnings` and activation continues.
 
@@ -1695,9 +1055,9 @@ The API exposes WEB desired configuration through the common config resource, pr
 | Operation | Current contract |
 | --- | --- |
 | Read or patch `[web]`, vhosts, profiles, decoys, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge, arrays replace wholesale; changing one `web.vhosts[].base_path` therefore requires the complete vhost array. `web.limits` and `web.decoy_fasttrack_mode` remain process-deferred. |
-| Persist `server.listeners` | Supported through `PATCH /v1/config`; arrays replace wholesale. A native endpoint-only change may rebind in-process under the constraints above. Any WEB listener-plan change and unsupported native policy change remain deferred until process restart. |
+| Persist `server.listeners` | Supported through `PATCH /v1/config`; arrays replace wholesale. All listener fields are process-bound: any change (including endpoint moves) remains deferred until process restart. |
 | Apply an externally edited WEB config | Update the owning TOML source, call `POST /v1/system/reload`, then poll `GET /v1/system/reload/{id}`. |
-| Inspect restart requirements | Read `deferred_process_fields` from reload status. Unsupported `server.listeners` changes, `web.limits`, and `web.decoy_fasttrack_mode` require process restart. |
+| Inspect restart requirements | Read `deferred_process_fields` from reload status. Every `server.listeners` change, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings require process restart. |
 | Inspect WEB lifecycle, capacity, sessions, operations, learning, and debug state | Use the authenticated `GET /v1/runtime/web/*` routes documented above. |
 | Pause, drain, or resume new WEB work | Use `POST /v1/runtime/web/lifecycle/pause`, `/drain`, or `/resume` with the current `runtime_instance`. |
 | Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`; close-all first requires effective issuance to be disabled. |
@@ -1757,45 +1117,23 @@ Delete path cleanup guarantees:
 
 | Endpoint | `minimal_runtime_enabled=false` | `minimal_runtime_enabled=true` + source unavailable | `minimal_runtime_enabled=true` + source available |
 | --- | --- | --- | --- |
-| `/v1/stats/minimal/all` | `enabled=false`, `reason=feature_disabled`, `data=null` | `enabled=true`, `reason=source_unavailable`, fallback `data` with disabled ME blocks | `enabled=true`, `reason` omitted, full payload |
-| `/v1/stats/me-writers` | `middle_proxy_enabled=false`, `reason=feature_disabled` | `middle_proxy_enabled=false`, `reason=source_unavailable` | `middle_proxy_enabled=true`, runtime snapshot |
-| `/v1/stats/dcs` | `middle_proxy_enabled=false`, `reason=feature_disabled` | `middle_proxy_enabled=false`, `reason=source_unavailable` | `middle_proxy_enabled=true`, runtime snapshot |
 | `/v1/stats/upstreams` | `enabled=false`, `reason=feature_disabled`, `summary/upstreams` omitted, `zero` still present | `enabled=true`, `reason=source_unavailable`, `summary/upstreams` omitted, `zero` present | `enabled=true`, `reason` omitted, `summary/upstreams` present, `zero` present |
 
-`source_unavailable` conditions:
-- ME endpoints: ME pool is absent (for example direct-only mode or failed ME initialization).
+`source_unavailable` condition:
 - Upstreams endpoint: non-blocking upstream snapshot lock is unavailable at request time.
 
 Additional runtime endpoint behavior:
 
 | Endpoint | Disabled by feature flag | `source_unavailable` condition | Normal mode |
 | --- | --- | --- | --- |
-| `/v1/runtime/me_pool_state` | No | ME pool snapshot unavailable | `enabled=true`, full payload |
-| `/v1/runtime/me_quality` | No | ME pool snapshot unavailable | `enabled=true`, full payload |
 | `/v1/runtime/upstream_quality` | No | Upstream runtime snapshot unavailable | `enabled=true`, full payload |
-| `/v1/runtime/nat_stun` | No | STUN shared state unavailable | `enabled=true`, full payload |
-| `/v1/runtime/me-selftest` | No | ME pool unavailable => `enabled=false`, `reason=source_unavailable` | `enabled=true`, full payload |
 | `/v1/runtime/connections/summary` | `runtime_edge_enabled=false` => `enabled=false`, `reason=feature_disabled` | Recompute lock contention with no cache entry => `enabled=true`, `reason=source_unavailable` | `enabled=true`, full payload |
 | `/v1/runtime/events/recent` | `runtime_edge_enabled=false` => `enabled=false`, `reason=feature_disabled` | Not used in current implementation | `enabled=true`, full payload |
-| `/v1/runtime/tls-fingerprints` | `runtime_edge_enabled=false` => `enabled=false`, `reason=feature_disabled` | Not used in current implementation | `enabled=true`, full payload |
-
-## ME Fallback Behavior Exposed Via API
-
-When `general.use_middle_proxy=true` and `general.me2dc_fallback=true`:
-- Startup opens Direct-DC routing first, then initializes ME in background and switches new sessions to Middle mode after ME readiness is observed.
-- Runtime initialization payload can expose ME stage `background_init` until pool becomes ready.
-- Admission/routing decision uses two readiness grace windows for "ME not ready" periods:
-  direct startup fallback before first-ever readiness is observed,
-  `6s` after readiness has been observed at least once (runtime failover timeout).
-- While fallback is active, new sessions are routed via Direct-DC; when ME becomes ready, routing returns to Middle mode. Direct sessions affected by the cutover are closed with the existing staggered delay so clients reconnect through the current route.
 
 ## Additional Runtime Metrics
 
 The current runtime exports these additional bounded-cardinality families. All use closed labels except the explicitly capped per-user family described below:
 
-- `telemt_me_hardswap_pending`, `telemt_me_hardswap_pending_age_seconds`, `telemt_me_hardswap_pending_writers_current`, `telemt_me_hardswap_pending_writer_deficit`, `telemt_me_hardswap_pending_missing_dc_groups`, `telemt_me_hardswap_pending_map_current`, and `telemt_me_hardswap_orphan_warm_writers_current` describe the authoritative pending generation. They render zero when ME telemetry is `silent` or the active ME snapshot is unavailable. Prometheus `pending_map_current=0` represents both no pending generation and a stale pending map, so pair it with `telemt_me_hardswap_pending`; the API distinguishes no pending generation with `null`.
-- `telemt_me_hardswap_pending_reuse_total` is emitted at debug ME telemetry and counts reuse of matching pending ownership; `telemt_me_hardswap_pending_ttl_expired_total` is emitted at normal telemetry and counts 1800-second pending expiry.
-- `telemt_me_writer_replacement_current{state="preparing"|"retiring"}` describes transactional writer replacement phases.
 - `telemt_conntrack_rule_reconcile_total{result="success"|"error"}` and `telemt_conntrack_rule_rollback_total{result="success"|"error"}` describe process-owned firewall reconcile and best-effort rollback attempts.
 - The conntrack reconcile/rollback counters and rate-limiter CAS samples render zero while core telemetry is disabled; conntrack control-state gauges continue to report their effective state.
 - `telemt_rate_limiter_cas_retry_exhausted_total{scope,direction,operation}` uses the closed labels `scope=user|cidr`, `direction=up|down`, and `operation=reserve|refund`. Reserve exhaustion returns a zero grant without classifying it as configured throttling; refund exhaustion retains the charge. Neither outcome is a connection-drop counter.
@@ -1817,7 +1155,6 @@ The current runtime exports these additional bounded-cardinality families. All u
 | API startup | API listener is spawned only when `[server.api].enabled=true`. |
 | `listen` port `0` | API spawn is skipped when parsed listen port is `0` (treated as disabled bind target). |
 | Bind failure | Failed API bind logs warning and API task exits (no auto-retry loop). |
-| ME runtime status endpoints | `/v1/stats/me-writers`, `/v1/stats/dcs`, `/v1/stats/minimal/all` require `[server.api].minimal_runtime_enabled=true`; otherwise they return disabled payload with `reason=feature_disabled`. |
 | Upstream runtime endpoint | `/v1/stats/upstreams` always returns `zero`, but runtime fields (`summary`, `upstreams`) require `[server.api].minimal_runtime_enabled=true`. |
 | Restart requirements | `server.api` changes are restart-required for predictable behavior. |
 | Hot-reload nuance | A pure `server.api`-only config change may not propagate through watcher broadcast; a mixed change (with hot fields) may propagate API flags while still warning that restart is required. |

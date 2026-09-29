@@ -1,7 +1,5 @@
 # WEB proxy mode
 
-[English](WEB_PROXY.en.md) | [Русский](WEB_PROXY.ru.md) | [Deutsch](WEB_PROXY.de.md)
-
 WEB mode carries ordinary MTProxy streams through bounded HTTPS or WebSocket carriers compatible with Telegram Desktop's `WEB` proxy type. Telemt does not terminate TLS: NGINX or HAProxy owns the public certificate and forwards plain HTTP/1.1 to a private Telemt listener.
 
 > [!IMPORTANT]
@@ -45,7 +43,7 @@ Let `BASE` mean `/` for an empty `base_path`, or `/<base_path>/` otherwise. The 
 - Native clients without canonical carrier-negotiation headers use the configured fixed `carrier`, even when `carriers` enables negotiation for capable clients. Current Telegram iOS supports only `https`, so an operator serving metadata-free iOS clients must set `web.carrier = "https"`; it does not support `https-lanes`. User-Agent values, including CFNetwork or Darwin, never infer capabilities. When a native iOS request does send explicit negotiation metadata, Telemt intersects it with the server-authoritative `{https}` ceiling and rejects an empty result; other explicit clients use their advertised capability set.
 - Capability, bootstrap, and session credentials are separate bounded-lifetime values. Carrier credentials must be treated as secrets and must not appear in access logs.
 - A bootstrap is a bearer credential, not a source-address-bound token. The client address and IP family may change between bridge loading and session creation. The issuing address retains unused-bootstrap accounting, while the address on the first valid creation request owns the session.
-- Inner MTProxy authentication is restricted to the user and secret mode selected by the vhost profile. Invalid inner handshakes close only their logical stream and never enter the TCP masking path.
+- Inner MTProxy authentication is restricted to the user and secret mode selected by the vhost profile. Invalid inner handshakes close only their logical stream and never affect other sessions or the decoy path.
 
 Telegram Desktop WEB links omit a port because the client requires port 443:
 
@@ -82,7 +80,6 @@ web-user = "0123456789abcdef0123456789abcdef"
 ip = "127.0.0.1"
 port = 18080
 transport = "web"
-proxy_protocol = false
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
@@ -173,7 +170,7 @@ WebSocket codec buffers and in-flight read/write messages share the process-owne
 
 Every pre-Upgrade authentication, shape, lane-reservation, or capacity failure follows the sanitized decoy path instead of exposing a WebSocket-specific status. The exact subprotocol contains the session bearer and must not be logged.
 
-The WEB listener must use `proxy_protocol = false` and `reuse_allow = false`. It cannot use `client_mss`, `synlimit`, `announce`, or `announce_ip`. `web_trusted_proxy_cidrs` must be non-empty and must contain only the immediate NGINX or HAProxy peers; `/0` networks are rejected.
+A WEB listener's `web_trusted_proxy_cidrs` must be non-empty and must contain only the immediate NGINX or HAProxy peers; `/0` networks are rejected.
 
 The HTTP decoy origin must be a loopback, link-local, or private IP literal. Telemt preserves ordinary request method, path, query, headers, streamed body, response status, headers, and body while removing hop-by-hop headers. Malformed carrier requests have carrier credentials and bodies removed before falling back to the decoy. A literal decoy endpoint that exactly matches an effective WEB listener, or is covered by its same-family wildcard address on the same port, is rejected. Indirect loops through DNS, NGINX, HAProxy, or another forwarding layer cannot be proven from Telemt configuration and must be excluded operationally.
 
@@ -282,7 +279,7 @@ The frontend or `defaults` section must also set `timeout client 65s` or longer 
 | Existing HTTP connections and WEB sessions | Keep their acquisition-time HTTP idle limit, carrier candidates, limits, body timeout, closed-token replay lifetime, and absolute session/negotiation deadlines; each issued bridge embeds its request, retry, recovery, and probe-coalescing values. A recovery epoch freezes its current bridge budget, while a successful recovery representation refreshes the policy used by later epochs and the fresh session. WebSocket upgrade, open, write, backpressure, and eviction operations use the parent session's frozen deadlines. Newly issued bridges use the active policy, while new logical streams use the active relay generation. |
 | Process shutdown | Captures the latest reloaded `web.timeouts.shutdown_secs` once and shares that single absolute deadline across listener acceptors and connections plus WEB sessions and auxiliary tasks. The waits do not receive sequential per-component budgets. |
 
-Each logical stream keeps its session's creation-time client IP and owns a process-unique, non-zero synthetic source port for the complete relay lifetime. This preserves one stable, non-colliding source/destination tuple for Direct and Middle-End KDF routing.
+Each logical stream keeps its session's creation-time client IP and owns a process-unique, non-zero synthetic source port for the complete relay lifetime. This preserves one stable, non-colliding source/destination tuple for the direct-relay KDF routing.
 
 HTTP idle accounting protects only explicitly bounded request-body, long-poll, decoy connect/response-head, and pending-Upgrade phases. The operation's own deadline remains exact; if its lease is still present at that instant, the connection watchdog allows at most one connection-idle interval for the scheduled task to publish its timeout/result before forcing closure. Between exchanges, and after a response head is ready, progress resets the idle clock while a stalled response body remains idle-bounded. Completion of an older phase cannot release the deadline protection owned by a newer phase.
 
@@ -339,7 +336,7 @@ Every runtime POST requires `Content-Type: application/json` exactly, rejects un
 
 For a deterministic close-all, patch `{"web":{"enabled":false}}` with runtime reload enabled, wait until `runtime.manager.issuance_enabled` is `false`, submit the `all` selector using that same `runtime_instance`, and poll the operation to a terminal state. Disabling WEB stops new bootstrap/session issuance but never implicitly closes existing sessions.
 
-Operator lifecycle is WEB-only and does not change global readiness, liveness, native TCP/Unix listeners, TLS-fronting, or fallback behavior. A pre-pause WebSocket lane reservation is already admitted logical work: it may finish opening and remains included in drain accounting. Lifecycle rejection consumes no rate/quota tokens and adds no hot-path relay lock.
+Operator lifecycle is WEB-only and does not change global readiness, liveness, or any other process-scoped state. A pre-pause WebSocket lane reservation is already admitted logical work: it may finish opening and remains included in drain accounting. Lifecycle rejection consumes no rate/quota tokens and adds no hot-path relay lock.
 
 ### Server-side WEB debug view
 

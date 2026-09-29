@@ -1,14 +1,6 @@
-# Telemt - MTProxy on Rust + Tokio
+# Telemt - WEB MTProxy on Rust + Tokio
 
 [![Latest Release](https://img.shields.io/github/v/release/telemt/telemt?color=neon)](https://github.com/telemt/telemt/releases/latest) [![Stars](https://img.shields.io/github/stars/telemt/telemt?style=social)](https://github.com/telemt/telemt/stargazers) [![Forks](https://img.shields.io/github/forks/telemt/telemt?style=social)](https://github.com/telemt/telemt/network/members)
-
-[🇷🇺 README на русском](https://github.com/telemt/telemt/blob/main/README.ru.md)
-
-> [!NOTE]
->
-> From August 22nd, 2026: we're drafting MTProxy WEB Implementation in Telemt!
-> 
-> It uses WebView on your device to create a datachannel!
 
 <p align="center">
   <a href="https://t.me/telemtrs">
@@ -16,45 +8,55 @@
   </a>
 </p>
 
-**Telemt** is a fast, secure, and feature-rich server written in Rust: it fully implements the official Telegram proxy algo and adds many production-ready improvements
+**Telemt** is a fast, secure, production-grade Telegram **MTProxy WEB** server written in Rust. It serves Telegram clients through a public web vhost (HTTPS or WebSocket carrier) and relays every authenticated logical stream to the Telegram datacenters over the direct MTProxy relay path.
 
-### One-command Install and Update
-```bash
-curl -fsSL https://raw.githubusercontent.com/telemt/telemt/main/install.sh | sh
-```
 - [Quick Start Guide](docs/Quick_start/QUICK_START_GUIDE.en.md)
-- [Инструкция по быстрому запуску](docs/Quick_start/QUICK_START_GUIDE.ru.md)
+- [WEB Proxy Guide](docs/WEB/WEB_PROXY.en.md)
 
 ## Features
-Our implementation of **TLS-fronting** is one of the most deeply debugged, focused, advanced and *almost* **"behaviorally consistent to real"**:  we are confident we have it right - [see evidence on our validation and traces](docs/FAQ.en.md#recognizability-for-dpi-and-crawler)
 
-Our ***Middle-End Pool*** is fastest by design in standard scenarios, compared to other implementations of connecting to the Middle-End Proxy: non dramatically, but usual
+- WEB carrier proxying: `https`, `https-lanes`, `websocket`, and `websocket-lanes` carriers
+- Multi-vhost setup with decoy responses for unrecognized web traffic
+- Per-user profiles with `plain` and `dd` 16-byte MTProxy secrets, `tg://webproxy` link generation
+- Direct-to-DC MTProxy relay with replay protection, configurable keepalives, timeouts, IPv6, and "Fast Mode"
+- Upstream manager: direct, SOCKS4, and SOCKS5 upstreams with weights and health tracking
+- Graceful hot-reload for runtime fields; explicit deferral of process-owned fields
+- Control API (`/v1/*`) for users, config, reloads, and WEB runtime management
+- Prometheus metrics, per-user ad tags, quotas, and rate limits
+- Graceful shutdown on Ctrl+C; extensive logging via `trace` and `debug` with `RUST_LOG`
 
-- Full support for all official MTProto proxy modes:
-  - Classic;
-  - Secure - with `dd` prefix;
-  - Fake TLS - with `ee` prefix + SNI fronting;
-- Replay attack protection;
-- Optional traffic masking: forward unrecognized connections to a real web server, e.g. GitHub 🤪;
-- Configurable keepalives + timeouts + IPv6 and "Fast Mode";
-- Graceful shutdown on Ctrl+C;
-- Extensive logging via `trace` and `debug` with `RUST_LOG` method.
+## Quick start
 
-## FAQ
-- [FAQ RU](docs/FAQ.ru.md)
-- [FAQ EN](docs/FAQ.en.md)
+```bash
+# Build
+git clone https://github.com/telemt/telemt
+cd telemt
+cargo build --release
 
-# Learn more about Telemt
-- [Our Architecture](docs/Architecture)
-- [All Config Options](docs/Config_params)
-- [How to build your own Telemt?](#build)
-- [Running on BSD](docs/Quick_start/OPENBSD_QUICK_START_GUIDE.en.md)
+# Generate a WEB config for your public vhost
+./target/release/telemt --init --domain proxy.example.com
+
+# Run
+./target/release/telemt config.toml
+```
+
+`--init` prints the ready-to-use `tg://webproxy` links for the configured user.
+
+## Learn more about Telemt
+
+- [WEB Proxy Guide](docs/WEB/WEB_PROXY.en.md)
+- [Quick Start Guide](docs/Quick_start/QUICK_START_GUIDE.en.md)
+- [Control API](docs/Architecture/API/API.md)
+- [All Config Options](docs/Config_params/CONFIG_PARAMS.en.md)
+- [FAQ](docs/FAQ.en.md)
+- [Running on OpenBSD](docs/Quick_start/OPENBSD_QUICK_START_GUIDE.en.md)
 - [Why Rust?](#why-rust)
 
 ## Build
+
 ```bash
 # Cloning repo
-git clone https://github.com/telemt/telemt 
+git clone https://github.com/telemt/telemt
 # Changing Directory to telemt
 cd telemt
 # Starting Release Build
@@ -72,8 +74,9 @@ telemt config.toml
 ```
 
 ## Why Rust?
+
 - Long-running reliability and idempotent behavior
-- Rust's deterministic resource management - RAII 
+- Rust's deterministic resource management - RAII
 - No garbage collector
 - Memory safety and reduced attack surface
 - Tokio's asynchronous architecture
@@ -98,6 +101,5 @@ Monero (XMR) directly:
 ```
 
 All donations go toward infrastructure, development and research
-
 
 ![telemt_scheme](docs/assets/telemt.png)

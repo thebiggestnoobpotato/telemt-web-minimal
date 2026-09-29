@@ -15,8 +15,7 @@ doas pkg_add rust git
 ```
 
 Notes:
-- Telemt release installer (`install.sh`) is Linux-only.
-- On OpenBSD, use source build with `cargo`.
+- OpenBSD has no release installer; use the source build with `cargo` below.
 
 ## 2. Build from source
 
@@ -50,10 +49,25 @@ If `_telemt` already exists, continue.
 
 ## 5. Install rc.d service
 
-Install the provided script:
+Write the following to `/etc/rc.d/telemt` (mode `0555`):
 
-```sh
-doas install -m 0555 ./contrib/openbsd/telemt.rcd /etc/rc.d/telemt
+```ksh
+#!/bin/ksh
+# /etc/rc.d/telemt
+#
+# rc.d(8) script for the Telemt MTProxy daemon.
+# The Tokio runtime does not daemonize itself, so rc_bg=YES is used.
+
+daemon="/usr/local/bin/telemt"
+daemon_user="_telemt"
+daemon_flags="/etc/telemt/config.toml"
+
+. /etc/rc.d/rc.subr
+
+rc_bg=YES
+rc_reload=NO
+
+rc_cmd $1
 ```
 
 Enable and start:

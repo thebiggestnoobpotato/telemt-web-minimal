@@ -1,291 +1,186 @@
-# Installation Options 
-There are three options for installing Telemt:
- - [Automated installation using a script](#very-quick-start).
- - [Manual installation of Telemt as a service](#telemt-via-systemd).
- - [Installation using Docker Compose](#telemt-via-docker-compose).
+# Quick Start Guide
+
+Telemt is a WEB MTProxy server: Telegram clients connect to your public vhost
+(`tg://webproxy` links) and every authenticated stream is relayed to the
+Telegram datacenters over the direct MTProxy relay path.
+
+# Build
+
+```bash
+git clone https://github.com/telemt/telemt
+cd telemt
+cargo build --release
+./target/release/telemt --version
+```
+
+The release profile uses `lto = "fat"` for maximum optimization.
+On low-RAM systems (~1 GB) you can override it to `thin`.
 
 # Very quick start
 
-### One-command installation / update on re-run
+Generate a WEB config and install the service (run as root):
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/telemt/telemt/main/install.sh | sh
+./target/release/telemt --init --domain proxy.example.com
 ```
 
-After starting, the script will prompt for:
- - Your language (1 - English, 2 - Russian);
- - Your server port (press Enter for 443);
- - Your TLS domain (press Enter for petrovich.ru).
+Options: `--port` (default `443`), `--user` (default `user`), `--secret`
+(32 hex chars; generated when omitted), `--config-dir` (default
+`/etc/telemt`), `--no-start` (write files without starting the service).
 
-The script checks if the port (default **443**) is free. If the port is already in use, installation will fail. You need to free up the port or use the **-p** flag with a different port to retry the installation.
+The command writes `/etc/telemt/config.toml` and a service file, starts the
+service, and prints the `tg://webproxy` links. Adjust `public_addr` in
+`[[web.vhosts]]` to this server's public IP and port, then reload:
 
-To modify the script’s startup parameters, you can use the following flags:
- - **-d, --domain** - TLS domain;
- - **-p, --port** - server port (1–65535);
- - **-s, --secret** - 32 hex secret;
- - **-a, --ad-tag** - ad_tag;
- - **-l, --lang** - language (1/en or 2/ru);
-
-Providing all options skips interactive prompts.
-
-After completion, the script will provide a link for client connections:
 ```bash
-tg://proxy?server=IP&port=PORT&secret=SECRET
-```
-
-### Installing a specific version
-```bash
-TELEMT_VERSION=3.5.7
-curl -fsSL https://raw.githubusercontent.com/telemt/telemt/main/install.sh | sh -s -- "$TELEMT_VERSION"
-```
-
-### Uninstall with full cleanup
-```bash
-curl -fsSL https://raw.githubusercontent.com/telemt/telemt/main/install.sh | sh -s -- purge
+systemctl reload-or-restart telemt   # or `./target/release/telemt config.toml` to run in the foreground
 ```
 
 # Telemt via Systemd
 
-## Installation
+Manual installation (alternative to `telemt --init`, which also generates the
+service file):
 
-This software is designed for Debian-based OS: in addition to Debian, these are Ubuntu, Mint, Kali, MX and many other Linux
-
-**1. Download**
 ```bash
-wget -qO- "https://github.com/telemt/telemt/releases/latest/download/telemt-$(uname -m)-linux-$(ldd --version 2>&1 | grep -iq musl && echo musl || echo gnu).tar.gz" | tar -xz
-```
-**2. Move to the Bin folder**
-```bash
-mv telemt /bin
-```
-**3. Make the file executable**
-```bash
+mv ./target/release/telemt /bin
 chmod +x /bin/telemt
+mkdir -p /etc/telemt
+./telemt --init --domain proxy.example.com --no-start
 ```
 
-## How to use?
+`/etc/systemd/system/telemt.service`:
 
-**This guide "assumes" that you:**
-- logged in as root or executed `su -` / `sudo su`
-- Already have the "telemt" executable file in the /bin folder. Read the **[Installation](#installation)** section.
-
----
-
-**0. Check port and generate secrets**
-
-The port you have selected for use should not be in the list:
-```bash
-netstat -lnp
-```
-
-Generate 16 bytes/32 characters in HEX format with OpenSSL or another way:
-```bash
-openssl rand -hex 16
-```
-OR
-```bash
-xxd -l 16 -p /dev/urandom
-```
-OR
-```bash
-python3 -c 'import os; print(os.urandom(16).hex())'
-```
-Save the obtained result somewhere. You will need it later!
-
----
-
-**1. Place your config to /etc/telemt/telemt.toml**
-
-Create the config directory:
-```bash
-mkdir /etc/telemt
-```
-
-Open nano
-```bash
-nano /etc/telemt/telemt.toml
-```
-Insert your configuration:
-
-```toml
-# Minimal Telemt configuration
-# These settings are sufficient for most deployments that do not require
-# advanced methods, parameters, or specialized solutions.
-
-# General settings
-[general]
-use_middle_proxy = true
-# Global ad_tag fallback when user has no per-user tag in [access.user_ad_tags]
-# ad_tag = "00000000000000000000000000000000"
-# Per-user ad_tag in [access.user_ad_tags] (32 hex from @MTProxybot)
-
-# Logging
-# Log level: debug | verbose | normal | silent
-# Can be overridden with --silent or --log-level CLI flags
-# RUST_LOG env var takes absolute priority over all of these
-log_level = "normal"
-
-[general.modes]
-classic = false
-secure = false
-tls = true
-
-[general.links]
-show = "*"
-# Only show links for alice and bob
-# show = ["alice", "bob"]
-# Show links for all users
-# show = "*"
-# Host (IP or domain) for tg:// links
-# public_host = "proxy.example.com"
-# Port for tg:// links; defaults to server.port
-# public_port = 443
-
-# Server binding
-[server]
-port = 443
-# Enable behind HAProxy/nginx with PROXY protocol
-# proxy_protocol = false
-# metrics_port = 9090
-# Listen address for metrics; overrides metrics_port
-# metrics_listen = "127.0.0.1:9090"
-# metrics_whitelist = ["127.0.0.1/32", "::1/128"]
-
-[server.api]
-enabled = true
-listen = "127.0.0.1:9091"
-whitelist = ["127.0.0.1/32", "::1/128"]
-minimal_runtime_enabled = false
-minimal_runtime_cache_ttl_ms = 1000
-
-# Listen on multiple interfaces/IPs - IPv4
-[[server.listeners]]
-ip = "0.0.0.0"
-
-# Anti-censorship and masking
-[censorship]
-# Fake-TLS/SNI masking domain used in generated ee links.
-tls_domain = "petrovich.ru"
-mask = true
-# Fetch real certificate lengths and emulate TLS records.
-tls_emulation = true
-# Cache directory for TLS emulation.
-tls_front_dir = "tlsfront"
-
-[access.users]
-# format: "username" = "32_hex_chars_secret"
-hello = "00000000000000000000000000000000"
-```
-
-then Ctrl+S -> Ctrl+X to save
-
-> [!WARNING]
-> Replace the value of the `hello` parameter with the value you obtained in step 0.  
-> Additionally, change the value of the `tls_domain` parameter to a different website.
-> Changing the `tls_domain` parameter will break all links that use the old domain!
-
----
-
-**2. Create telemt user**
-
-```bash
-useradd -d /opt/telemt -m -r -U telemt
-chown -R telemt:telemt /etc/telemt
-```
-
-**3. Create service in /etc/systemd/system/telemt.service**
-
-Open nano
-```bash
-nano /etc/systemd/system/telemt.service
-```
-
-Insert this Systemd module:
-```bash
+```ini
 [Unit]
-Description=Telemt
-After=network-online.target
-Wants=network-online.target
+Description=Telemt WEB MTProxy
+After=network.target
 
 [Service]
-Type=simple
-User=telemt
-Group=telemt
-WorkingDirectory=/opt/telemt
-ExecStart=/bin/telemt /etc/telemt/telemt.toml
+ExecStart=/bin/telemt /etc/telemt/config.toml
 Restart=on-failure
-LimitNOFILE=65536
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-NoNewPrivileges=true
+User=telemt
 
 [Install]
 WantedBy=multi-user.target
 ```
-then Ctrl+S -> Ctrl+X to save
 
-reload systemd units
 ```bash
 systemctl daemon-reload
+systemctl enable --now telemt
+journalctl -u telemt -f
 ```
 
-**4.** To start it, enter the command `systemctl start telemt`
+The service file generated by `--init` points to `/etc/telemt/config.toml`.
 
-**5.** To get status information, enter `systemctl status telemt`
+## How to use?
 
-**6.** For automatic startup at system boot, enter `systemctl enable telemt`
-
-**7.** To get the link(s), enter:
 ```bash
-curl -s http://127.0.0.1:9091/v1/users | jq -r '.data[] | "[\(.username)]", (.links.classic[]? | "classic: \(.)"), (.links.secure[]? | "secure: \(.)"), (.links.tls[]? | "tls: \(.)"), ""'
+systemctl status telemt
+journalctl -u telemt
 ```
 
-> Any number of people can use one link.
+# Minimal Telemt configuration
 
-> [!WARNING]
-> Only the command from step 7 can provide a working link. Do not try to create it yourself or copy it from anywhere if you are not sure what you are doing!
+The following is the minimal WEB configuration (what `telemt --init` generates):
 
----
+```toml
+show_link = ["user"]
 
-# Telemt via Docker Compose
+[general]
+# prefer_ipv6 is deprecated; use [network].prefer
+prefer_ipv6 = false
+fast_mode = true
+log_level = "normal"
+tg_connect = 10
 
-**1. Create `config/` in the repository root and place the edited `config.toml` there (at least: port, user secrets, and `tls_domain`):**
-```bash
-mkdir -p config
-mv config.toml config/
+[network]
+ipv4 = true
+ipv6 = true
+prefer = 4
+
+[server]
+port = 443
+
+[[server.listeners]]
+ip = "0.0.0.0"
+port = 443
+transport = "web"
+# Trusted L7 reverse proxies allowed to supply the client IP header.
+# /0 networks are rejected; extend only with your own fronting proxies.
+web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
+
+[[server.listeners]]
+ip = "::"
+port = 443
+transport = "web"
+web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
+
+[timeouts]
+client_first_byte_idle_secs = 300
+client_handshake = 60
+client_keepalive = 60
+client_ack = 300
+
+[web]
+enabled = true
+
+[[web.vhosts]]
+host = "proxy.example.com"
+# Replace with this server's public IP and port.
+public_addr = "203.0.113.1:443"
+
+[web.vhosts.decoy]
+mode = "http_upstream"
+upstream = "http://127.0.0.1:80"
+
+[[web.vhosts.profiles]]
+user = "user"
+secret_mode = "plain"
+
+[access.users]
+# format: "username" = "32_hex_chars_secret"
+user = "11111111111111111111111111111111"
 ```
-**2. Start the container:**
-```bash
-docker compose up -d --build
-```
-**3. Check logs:**
-```bash
-docker compose logs -f telemt
-```
-**4. Stop:**
-```bash
-docker compose down
-```
-> [!NOTE]
-> - `docker-compose.yml` mounts `./config/` at `/etc/telemt/` read-write and starts Telemt with `/etc/telemt/config.toml`.
-> - The directory mount is required for mutating Control API endpoints: Telemt persists the complete configuration source graph with same-directory temporary files and atomic renames. Do not replace it with a single-file bind mount.
-> - The host `./config/` directory and its source files must be writable by the container user (UID/GID `65532` in the production image) when configuration mutations are enabled.
-> - `/run/telemt` is a small writable `tmpfs`; the rest of the container filesystem remains read-only.
-> - By default only `443:443` is public. The published Metrics and Control API ports are restricted to host loopback, and all capabilities except `NET_BIND_SERVICE` are dropped.
-> - Port publishing does not enable a service or make a container-loopback listener reachable. The bundled `config.toml` leaves Metrics disabled and binds the Control API to `127.0.0.1` inside the container. To use either host mapping, explicitly bind that service to a container-reachable address and whitelist only the immediate Docker peer/network; keep the host-side mapping on loopback.
 
-**Run without Compose**
+Notes:
+
+- Every listener is a WEB listener and needs a non-empty
+  `web_trusted_proxy_cidrs` list (no `/0` networks).
+- At least one `[[web.vhosts]]` entry is required whenever listeners exist.
+- Every vhost needs a `decoy` (what browsers and scanners see) and one or
+  more `profiles` binding an `[access]` user to the vhost.
+- See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.
+
+# Telemt via Docker
+
 ```bash
-docker build -t telemt:local .
-docker run --name telemt --restart unless-stopped \
+git clone https://github.com/telemt/telemt
+cd telemt
+cargo build --release
+mkdir -p ./config
+# Copy a prepared config.toml into ./config, or generate one locally:
+./target/release/telemt --init --domain proxy.example.com --config-dir ./config --no-start
+
+docker build -t telemt .
+docker run -d --name telemt \
   -p 443:443 \
-  -p 127.0.0.1:9090:9090 \
-  -p 127.0.0.1:9091:9091 \
-  -e RUST_LOG=info \
-  -v "$PWD/config:/etc/telemt:rw" \
-  --tmpfs /run/telemt:rw,mode=1777,size=4m \
-  -w /run/telemt \
-  --read-only \
-  --cap-drop ALL --cap-add NET_BIND_SERVICE \
-  --ulimit nofile=65536:65536 \
-  telemt:local /etc/telemt/config.toml
+  -v $(pwd)/config:/etc/telemt:rw \
+  telemt /etc/telemt/config.toml
+```
+
+Do not mount `config.toml` as a single bind-mounted file when API mutations
+are enabled; atomic `tmp + rename` writes can fail with `Device or resource busy`.
+Mount the config directory instead.
+
+# Verify
+
+```bash
+# Public web surface (decoy) must answer on the vhost
+curl -sI https://proxy.example.com/ | head -3
+
+# Read-only WEB diagnostics (API must be enabled on a private bind)
+curl -s -H "Authorization: <token>" http://127.0.0.1:9091/web-status | head
+
+# Real client check: open the printed tg://webproxy link in Telegram and
+# confirm that chats load and calls work.
 ```

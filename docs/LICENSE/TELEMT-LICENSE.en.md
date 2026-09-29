@@ -7,13 +7,10 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 ### Official Translations
 
 The canonical version of this License is the English version.
-Official translations are provided for informational purposes only and for convenience, and do not have legal force. In case of any discrepancy, the English version of this License shall prevail.
 
 | Language    | Location |
 |-------------|----------|
 | English     | [docs/LICENSE/TELEMT-LICENSE.en.md](https://github.com/telemt/telemt/tree/main/docs/LICENSE/TELEMT-LICENSE.en.md)|
-| German      | [docs/LICENSE/TELEMT-LICENSE.de.md](https://github.com/telemt/telemt/tree/main/docs/LICENSE/TELEMT-LICENSE.de.md)|
-| Russian     | [docs/LICENSE/TELEMT-LICENSE.ru.md](https://github.com/telemt/telemt/tree/main/docs/LICENSE/TELEMT-LICENSE.ru.md)|
 
 ### License Versioning Policy
 

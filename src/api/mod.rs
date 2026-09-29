@@ -256,7 +256,6 @@ fn allowed_methods_for_path(path: &str) -> Option<&'static str> {
         | "/v1/runtime/upstream_quality"
         | "/v1/runtime/connections/summary"
         | "/v1/runtime/events/recent"
-        | "/v1/runtime/tls-fingerprints"
         | "/v1/stats/users/active-ips"
         | "/v1/stats/users/quota"
         | "/v1/stats/users"
