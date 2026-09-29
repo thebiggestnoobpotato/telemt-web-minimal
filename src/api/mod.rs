@@ -69,7 +69,7 @@ use model::{
 };
 use runtime_edge::{
     EdgeConnectionsCacheEntry, build_runtime_connections_summary_data,
-    build_runtime_events_recent_data, build_runtime_tls_fingerprints_data,
+    build_runtime_events_recent_data,
 };
 use runtime_init::build_runtime_initialization_data;
 use runtime_min::{build_runtime_upstream_quality_data, build_security_whitelist_data};

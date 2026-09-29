@@ -17,7 +17,8 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    handle_via_direct_with_shared(
+    let quota_handle = stats.current_user_quota_handle(&success.user);
+    handle_via_direct_with_shared_and_conntrack(
         client_reader,
         client_writer,
         success,
@@ -30,44 +31,7 @@ where
         SocketAddr::from(([0, 0, 0, 0], config.server.port)),
         CancellationToken::new(),
         ProxySharedState::new(),
-    )
-    .await
-}
-
-/// Runs Direct relay for a kernel-backed TCP client tuple.
-pub(crate) async fn handle_via_direct_with_shared<R, W>(
-    client_reader: CryptoReader<R>,
-    client_writer: CryptoWriter<W>,
-    success: HandshakeSuccess,
-    upstream_manager: Arc<UpstreamManager>,
-    stats: Arc<Stats>,
-    config: Arc<ProxyConfig>,
-    buffer_pool: Arc<BufferPool>,
-    rng: Arc<SecureRandom>,
-    session_id: u64,
-    local_addr: SocketAddr,
-    session_cancel: CancellationToken,
-    shared: Arc<ProxySharedState>,
-) -> Result<()>
-where
-    R: AsyncRead + Unpin + Send + 'static,
-    W: AsyncWrite + Unpin + Send + 'static,
-{
-    let quota_handle = stats.current_user_quota_handle(&success.user);
-    handle_via_direct_with_shared_and_conntrack(
-        client_reader,
-        client_writer,
-        success,
-        upstream_manager,
-        stats,
-        config,
-        buffer_pool,
-        rng,
-        session_id,
-        local_addr,
-        session_cancel,
-        shared,
-        ConntrackClosePolicy::Publish,
+        ConntrackClosePolicy::Suppress,
         quota_handle,
     )
     .await

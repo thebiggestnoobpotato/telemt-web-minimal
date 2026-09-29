@@ -31,16 +31,11 @@ mod slot_budget;
 mod startup;
 mod stats;
 mod stream;
-mod synlimit_control;
-mod tls_front;
 mod transport;
 mod util;
 mod web;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    // Install rustls crypto provider early
-    let _ = rustls::crypto::ring::default_provider().install_default();
-
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cmd = cli::parse_command(&args);
 

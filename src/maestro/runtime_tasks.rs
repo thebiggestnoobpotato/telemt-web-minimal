@@ -316,7 +316,6 @@ pub(crate) async fn spawn_metrics_if_configured(
     startup_tracker: &Arc<StartupTracker>,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
     web_runtime_rx: tokio::sync::watch::Receiver<crate::web::control::WebRuntimePublication>,
-    tls_full_cert_budget: Arc<crate::tls_front::cache::TlsFullCertBudget>,
     control_plane: ProcessControlPlane,
 ) -> std::io::Result<()> {
     // metrics_listen takes precedence; fall back to metrics_port for backward compat.
@@ -367,7 +366,6 @@ pub(crate) async fn spawn_metrics_if_configured(
             bound,
             active_runtime,
             web_runtime_rx,
-            tls_full_cert_budget,
             control_plane,
         );
         startup_tracker

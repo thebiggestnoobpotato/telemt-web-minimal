@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
 
 use crate::crypto::sha256;
 use crate::error::{ProxyError, Result};
@@ -13,8 +11,6 @@ pub(crate) struct UserAuthSnapshot {
     entries: Vec<UserAuthEntry>,
     by_name: HashMap<String, u32>,
     by_hint_key: HashMap<u64, Vec<u32>>,
-    sni_index: HashMap<u64, Vec<u32>>,
-    sni_initial_index: HashMap<u8, Vec<u32>>,
 }
 
 #[derive(Debug, Clone)]
@@ -32,8 +28,6 @@ impl UserAuthSnapshot {
         let mut entries = Vec::with_capacity(users.len());
         let mut by_name = HashMap::with_capacity(users.len());
         let mut by_hint_key = HashMap::with_capacity(users.len());
-        let mut sni_index = HashMap::with_capacity(users.len());
-        let mut sni_initial_index = HashMap::with_capacity(users.len());
 
         let mut ordered_users = users.iter().collect::<Vec<_>>();
         ordered_users.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
@@ -79,28 +73,12 @@ impl UserAuthSnapshot {
                 .entry(hint_key)
                 .or_insert_with(Vec::new)
                 .push(user_id);
-            sni_index
-                .entry(Self::sni_lookup_hash(user))
-                .or_insert_with(Vec::new)
-                .push(user_id);
-            if let Some(initial) = user
-                .as_bytes()
-                .first()
-                .map(|byte| byte.to_ascii_lowercase())
-            {
-                sni_initial_index
-                    .entry(initial)
-                    .or_insert_with(Vec::new)
-                    .push(user_id);
-            }
         }
 
         Ok(Self {
             entries,
             by_name,
             by_hint_key,
-            sni_index,
-            sni_initial_index,
         })
     }
 
@@ -127,28 +105,6 @@ impl UserAuthSnapshot {
     /// Returns every bounded authentication candidate sharing a stable hint key.
     pub(crate) fn candidate_ids_by_hint_key(&self, hint_key: u64) -> Option<&[u32]> {
         self.by_hint_key.get(&hint_key).map(Vec::as_slice)
-    }
-
-    pub(crate) fn sni_candidates(&self, sni: &str) -> Option<&[u32]> {
-        self.sni_index
-            .get(&Self::sni_lookup_hash(sni))
-            .map(Vec::as_slice)
-    }
-
-    pub(crate) fn sni_initial_candidates(&self, sni: &str) -> Option<&[u32]> {
-        let initial = sni
-            .as_bytes()
-            .first()
-            .map(|byte| byte.to_ascii_lowercase())?;
-        self.sni_initial_index.get(&initial).map(Vec::as_slice)
-    }
-
-    fn sni_lookup_hash(value: &str) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        for byte in value.bytes() {
-            hasher.write_u8(byte.to_ascii_lowercase());
-        }
-        hasher.finish()
     }
 }
 

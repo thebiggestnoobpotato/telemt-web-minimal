@@ -3,10 +3,9 @@ use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
 use dashmap::DashMap;
-use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
+use tokio::sync::{Semaphore, mpsc};
 
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, fallback_direct_buffer_hard_limit};
 use crate::proxy::handshake::{AuthProbeSaturationState, AuthProbeState};
@@ -18,7 +17,6 @@ use crate::proxy::user_admission::{
 use crate::slot_budget::SlotBudget;
 
 const HANDSHAKE_RECENT_USER_RING_LEN: usize = 64;
-const MASKING_FALLBACK_MAX_CONCURRENT: usize = 512;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ConntrackCloseReason {
@@ -60,7 +58,6 @@ pub(crate) struct HandshakeSharedState {
     pub(crate) auth_probe_saturation: Mutex<Option<AuthProbeSaturationState>>,
     pub(crate) auth_probe_eviction_hasher: RandomState,
     pub(crate) invalid_secret_warned: Mutex<HashSet<(String, String)>>,
-    pub(crate) unknown_sni_warn_next_allowed: Mutex<Option<Instant>>,
     /// Stable credential hints keyed by exact peer IP.
     pub(crate) sticky_user_by_ip: DashMap<IpAddr, u64>,
     /// Exact capacity authority for peer-IP credential hints.
@@ -87,7 +84,6 @@ pub(crate) struct ProxySharedState {
     user_admission: Arc<UserAdmissionAuthority>,
     pub(crate) conntrack_pressure_active: AtomicBool,
     pub(crate) conntrack_close_tx: Mutex<Option<mpsc::Sender<ConntrackCloseEvent>>>,
-    masking_fallback_permits: Arc<Semaphore>,
 }
 
 impl ProxySharedState {
@@ -134,7 +130,6 @@ impl ProxySharedState {
                 auth_probe_saturation: Mutex::new(None),
                 auth_probe_eviction_hasher: RandomState::new(),
                 invalid_secret_warned: Mutex::new(HashSet::new()),
-                unknown_sni_warn_next_allowed: Mutex::new(None),
                 sticky_user_by_ip: DashMap::new(),
                 sticky_user_by_ip_slots: SlotBudget::new(
                     crate::proxy::handshake::STICKY_HINT_MAX_ENTRIES,
@@ -160,16 +155,7 @@ impl ProxySharedState {
             user_admission,
             conntrack_pressure_active: AtomicBool::new(false),
             conntrack_close_tx: Mutex::new(None),
-            masking_fallback_permits: Arc::new(Semaphore::new(MASKING_FALLBACK_MAX_CONCURRENT)),
         })
-    }
-
-    /// Attempts to reserve one masking fallback slot for a pre-auth connection.
-    pub(crate) fn try_acquire_masking_fallback_permit(&self) -> Option<OwnedSemaphorePermit> {
-        self.masking_fallback_permits
-            .clone()
-            .try_acquire_owned()
-            .ok()
     }
 
     pub(crate) fn is_user_enabled(&self, user: &str) -> bool {

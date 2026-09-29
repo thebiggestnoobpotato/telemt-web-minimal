@@ -17,15 +17,13 @@ use crate::proxy::user_connection_authority::UserConnectionAuthority;
 use crate::startup::{COMPONENT_API_BOOTSTRAP, COMPONENT_NETWORK_PROBE};
 use crate::stats::telemetry::TelemetryPolicy;
 use crate::stats::{QuotaStore, Stats};
-use crate::synlimit_control;
-use crate::tls_front::cache::TlsFullCertBudget;
 use crate::transport::UpstreamManager;
 use crate::web::control::WebRuntimeControl;
 use crate::web::trace::WebTraceStore;
 
 use super::{
     bootstrap, control_plane, generation, listeners, reload, reload_supervisor, runtime_startup,
-    runtime_tasks, shutdown, tls_bootstrap,
+    runtime_tasks, shutdown,
 };
 
 // Shared maestro startup and main loop. `drop_after_bind` runs on Unix after listeners are bound
@@ -57,7 +55,6 @@ pub(super) async fn run_telemt_core(
         quota_store.clone(),
         connection_authority,
     ));
-    let tls_full_cert_budget = Arc::new(TlsFullCertBudget::new());
     let process_control_plane = control_plane::ProcessControlPlane::new();
     let runtime_task_scope = generation::RuntimeTaskScope::new();
     let runtime_task_scope_guard =
@@ -250,25 +247,6 @@ pub(super) async fn run_telemt_core(
             .await;
     }
 
-    let mut tls_domains = Vec::with_capacity(1 + config.censorship.tls_domains.len());
-    tls_domains.push(config.censorship.tls_domain.clone());
-    for domain in &config.censorship.tls_domains {
-        if !tls_domains.contains(domain) {
-            tls_domains.push(domain.clone());
-        }
-    }
-
-    let tls_cache = tls_bootstrap::bootstrap_tls_front(
-        &config,
-        &tls_domains,
-        upstream_manager.clone(),
-        &startup_tracker,
-        runtime_task_scope.clone(),
-        tls_full_cert_budget.clone(),
-        tls_bootstrap::TlsBootstrapPolicy::BestEffort,
-    )
-    .await?;
-
     startup_tracker
         .start_component(
             COMPONENT_NETWORK_PROBE,
@@ -325,7 +303,6 @@ pub(super) async fn run_telemt_core(
         runtime.replay_checker,
         runtime.buffer_pool,
         runtime.rng,
-        tls_cache,
         ip_tracker,
         runtime.beobachten,
         shared_state,
@@ -345,10 +322,6 @@ pub(super) async fn run_telemt_core(
         error!("No listeners. Exiting.");
         std::process::exit(1);
     }
-
-    synlimit_control::reconcile_synlimit_rules(&runtime.config)
-        .await
-        .map_err(std::io::Error::other)?;
 
     #[cfg(target_os = "linux")]
     let conntrack_firewall = {
@@ -374,7 +347,6 @@ pub(super) async fn run_telemt_core(
         &startup_tracker,
         active_runtime.clone(),
         web_runtime_control.subscribe(),
-        tls_full_cert_budget.clone(),
         process_control_plane.clone(),
     )
     .await
@@ -403,7 +375,6 @@ pub(super) async fn run_telemt_core(
         reload_commands,
         config_path,
         quota_store,
-        tls_full_cert_budget,
         detected_ips_tx,
         runtime_log_filter,
         runtime_watch_tx,

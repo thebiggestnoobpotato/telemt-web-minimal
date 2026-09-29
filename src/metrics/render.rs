@@ -14,8 +14,6 @@ pub(super) async fn render_metrics(
     shared_state: &ProxySharedState,
     config: &ProxyConfig,
     ip_tracker: &UserIpTracker,
-    tls_cache: Option<&TlsFrontCache>,
-    tls_full_cert_budget: &TlsFullCertBudget,
     web_publication: &crate::web::control::WebRuntimePublication,
 ) -> String {
     let mut out = String::with_capacity(4096);
@@ -23,14 +21,7 @@ pub(super) async fn render_metrics(
     let core_enabled = telemetry.core_enabled;
     let user_enabled = telemetry.user_enabled;
 
-    process::render(
-        &mut out,
-        stats,
-        shared_state,
-        telemetry,
-        tls_full_cert_budget,
-    );
-    super::render_tls_front_profile_health(&mut out, config, tls_cache).await;
+    process::render(&mut out, stats, shared_state, telemetry);
     connections::render(&mut out, stats, shared_state, core_enabled);
     traffic::render(&mut out, stats, shared_state, config, core_enabled);
     users::render(

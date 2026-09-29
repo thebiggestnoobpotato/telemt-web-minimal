@@ -1,12 +1,8 @@
 use super::*;
 use http_body_util::BodyExt;
 use std::net::IpAddr;
-use std::time::SystemTime;
 
 use crate::stats::telemetry::TelemetryPolicy;
-use crate::tls_front::types::{
-    CachedTlsData, ParsedServerHello, TlsBehaviorProfile, TlsCertPayload, TlsProfileSource,
-};
 
 const CAS_CONTENTION_SERIES: [(&str, &str, &str, u64); 8] = [
     ("user", "up", "reserve", 1),
@@ -84,8 +80,6 @@ async fn test_render_metrics_format() {
         shared_state.as_ref(),
         &config,
         &tracker,
-        None,
-        &TlsFullCertBudget::new(),
         &test_web_publication(),
     )
     .await;
@@ -145,152 +139,6 @@ async fn test_render_metrics_format() {
 }
 
 #[tokio::test]
-async fn test_render_tls_front_profile_health() {
-    let stats = Stats::new();
-    let shared_state = ProxySharedState::new();
-    let tracker = UserIpTracker::new();
-    let mut config = ProxyConfig::default();
-    config.censorship.tls_domain = "primary.example".to_string();
-    config.censorship.tls_domains = vec!["fallback.example".to_string()];
-
-    let cache = TlsFrontCache::new(
-        &[
-            "primary.example".to_string(),
-            "fallback.example".to_string(),
-        ],
-        1024,
-        "tlsfront-profile-health-test",
-    );
-    cache
-        .set(
-            "primary.example",
-            CachedTlsData {
-                server_hello_template: ParsedServerHello {
-                    version: [0x03, 0x03],
-                    random: [0u8; 32],
-                    session_id: Vec::new(),
-                    cipher_suite: [0x13, 0x01],
-                    compression: 0,
-                    extensions: {
-                        let mut key_share = vec![0x00, 0x1d, 0x00, 0x20];
-                        key_share.resize(36, 0x42);
-                        vec![
-                            crate::tls_front::types::TlsExtension {
-                                ext_type: 0x002b,
-                                data: vec![0x03, 0x04],
-                            },
-                            crate::tls_front::types::TlsExtension {
-                                ext_type: 0x0033,
-                                data: key_share,
-                            },
-                        ]
-                    },
-                },
-                cert_info: None,
-                cert_payload: Some(TlsCertPayload {
-                    cert_chain_der: vec![vec![0x30, 0x01]],
-                    certificate_message: vec![0x0b, 0x00, 0x00, 0x00],
-                }),
-                app_data_records_sizes: vec![1024, 512],
-                total_app_data_len: 1536,
-                behavior_profile: TlsBehaviorProfile {
-                    change_cipher_spec_count: 1,
-                    app_data_record_sizes: vec![1024, 512],
-                    ticket_record_sizes: vec![69],
-                    source: TlsProfileSource::Merged,
-                    ..TlsBehaviorProfile::default()
-                },
-                fetched_at: SystemTime::now(),
-                domain: "primary.example".to_string(),
-            },
-        )
-        .await;
-
-    let output = render_metrics(
-        &stats,
-        &shared_state,
-        &config,
-        &tracker,
-        Some(&cache),
-        &TlsFullCertBudget::new(),
-        &test_web_publication(),
-    )
-    .await;
-
-    assert!(output.contains("telemt_tls_front_profile_domains{status=\"configured\"} 2"));
-    assert!(output.contains("telemt_tls_front_profile_domains{status=\"emitted\"} 2"));
-    assert!(output.contains("telemt_tls_front_profile_domains{status=\"suppressed\"} 0"));
-    assert!(
-        output.contains("telemt_tls_front_profile_info{domain=\"primary.example\",source=\"merged\",is_default=\"false\",has_cert_info=\"false\",has_cert_payload=\"true\"} 1")
-    );
-    assert!(
-        output.contains("telemt_tls_front_profile_info{domain=\"fallback.example\",source=\"default\",is_default=\"true\",has_cert_info=\"false\",has_cert_payload=\"false\"} 1")
-    );
-    assert!(
-        output.contains("telemt_tls_front_profile_quality_info{domain=\"primary.example\",quality=\"raw_strict\",key_share_group=\"x25519\"} 1")
-    );
-    assert!(
-        output.contains("telemt_tls_front_profile_quality_info{domain=\"fallback.example\",quality=\"fallback\",key_share_group=\"none\"} 1")
-    );
-    assert!(
-        output
-            .contains("telemt_tls_front_profile_server_hello_bytes{domain=\"primary.example\"} 90")
-    );
-    assert!(output.contains(
-        "telemt_tls_front_profile_server_hello_extensions{domain=\"primary.example\"} 2"
-    ));
-    assert!(
-        output.contains("telemt_tls_front_profile_app_data_records{domain=\"primary.example\"} 2")
-    );
-    assert!(
-        output.contains("telemt_tls_front_profile_ticket_records{domain=\"primary.example\"} 1")
-    );
-    assert!(output.contains(
-        "telemt_tls_front_profile_change_cipher_spec_records{domain=\"primary.example\"} 1"
-    ));
-    assert!(
-        output.contains("telemt_tls_front_profile_app_data_bytes{domain=\"primary.example\"} 1536")
-    );
-}
-
-#[tokio::test]
-async fn process_tls_budget_metrics_survive_a_generation_without_tls_cache() {
-    let stats = Stats::new();
-    let shared_state = ProxySharedState::new();
-    let tracker = UserIpTracker::new();
-    let config = ProxyConfig::default();
-    let budget = Arc::new(TlsFullCertBudget::new());
-    let cache = TlsFrontCache::new_with_full_cert_budget(
-        &["example.com".to_string()],
-        1024,
-        "tlsfront-test-cache",
-        Arc::clone(&budget),
-    );
-    assert!(
-        cache
-            .take_full_cert_budget_for_ip(
-                "example.com",
-                "127.0.0.1".parse().unwrap(),
-                Duration::from_secs(60),
-            )
-            .await
-    );
-
-    let output = render_metrics(
-        &stats,
-        &shared_state,
-        &config,
-        &tracker,
-        None,
-        budget.as_ref(),
-        &test_web_publication(),
-    )
-    .await;
-
-    assert!(output.contains("telemt_tls_front_full_cert_budget_entries 1"));
-}
-
-#[tokio::test]
 async fn test_render_empty_stats() {
     let stats = Stats::new();
     let shared_state = ProxySharedState::new();
@@ -308,8 +156,6 @@ async fn test_render_empty_stats() {
         &shared_state,
         &config,
         &tracker,
-        None,
-        &TlsFullCertBudget::new(),
         &test_web_publication(),
     )
     .await;
@@ -346,8 +192,6 @@ async fn test_render_uses_global_each_unique_ip_limit() {
         &shared_state,
         &config,
         &tracker,
-        None,
-        &TlsFullCertBudget::new(),
         &test_web_publication(),
     )
     .await;
@@ -367,8 +211,6 @@ async fn test_render_has_type_annotations() {
         &shared_state,
         &config,
         &tracker,
-        None,
-        &TlsFullCertBudget::new(),
         &test_web_publication(),
     )
     .await;
@@ -392,20 +234,6 @@ async fn test_render_has_type_annotations() {
     assert!(output.contains("# TYPE telemt_ip_tracker_cleanup_queue_len gauge"));
     assert!(output.contains("# TYPE telemt_ip_tracker_cleanup_total counter"));
     assert!(output.contains("# TYPE telemt_ip_tracker_cap_rejects_total counter"));
-    assert!(output.contains("# TYPE telemt_tls_fetch_profile_cache_entries gauge"));
-    assert!(output.contains("# TYPE telemt_tls_fetch_profile_cache_cap_drops_total counter"));
-    assert!(output.contains("# TYPE telemt_tls_front_full_cert_budget_entries gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_full_cert_budget_cap_drops_total counter"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_domains gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_info gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_quality_info gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_age_seconds gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_server_hello_bytes gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_server_hello_extensions gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_app_data_records gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_ticket_records gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_change_cipher_spec_records gauge"));
-    assert!(output.contains("# TYPE telemt_tls_front_profile_app_data_bytes gauge"));
 }
 
 #[tokio::test]
@@ -415,15 +243,12 @@ async fn test_endpoint_integration() {
     config.general.beobachten_minutes = 10;
     let runtime = crate::maestro::generation::test_runtime_generation(1, config);
     let web_publication = test_web_publication();
-    let tls_full_cert_budget = TlsFullCertBudget::new();
     runtime.stats.increment_connects_all();
     runtime.stats.increment_connects_all();
     runtime.stats.increment_connects_all();
 
     let req = Request::builder().uri("/metrics").body(()).unwrap();
-    let resp = handle(req, &runtime, &web_publication, &tls_full_cert_budget)
-        .await
-        .unwrap();
+    let resp = handle(req, &runtime, &web_publication).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let body = resp.into_body().collect().await.unwrap().to_bytes();
     assert!(
@@ -446,9 +271,7 @@ async fn test_endpoint_integration() {
         Duration::from_secs(600),
     );
     let req_beob = Request::builder().uri("/beobachten").body(()).unwrap();
-    let resp_beob = handle(req_beob, &runtime, &web_publication, &tls_full_cert_budget)
-        .await
-        .unwrap();
+    let resp_beob = handle(req_beob, &runtime, &web_publication).await.unwrap();
     assert_eq!(resp_beob.status(), StatusCode::OK);
     let body_beob = resp_beob.into_body().collect().await.unwrap().to_bytes();
     let beob_text = std::str::from_utf8(body_beob.as_ref()).unwrap();
@@ -456,8 +279,6 @@ async fn test_endpoint_integration() {
     assert!(beob_text.contains("203.0.113.10-1"));
 
     let req404 = Request::builder().uri("/other").body(()).unwrap();
-    let resp404 = handle(req404, &runtime, &web_publication, &tls_full_cert_budget)
-        .await
-        .unwrap();
+    let resp404 = handle(req404, &runtime, &web_publication).await.unwrap();
     assert_eq!(resp404.status(), StatusCode::NOT_FOUND);
 }

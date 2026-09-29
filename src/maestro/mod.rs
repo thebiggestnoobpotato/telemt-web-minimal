@@ -17,7 +17,6 @@
 // - runtime_startup: initial runtime generation preparation.
 // - runtime_tasks: hot-reload and background task orchestration.
 // - shutdown: graceful shutdown sequence and uptime logging.
-// - tls_bootstrap: TLS front cache bootstrap and refresh tasks.
 mod admission;
 mod bootstrap;
 mod connectivity;
@@ -32,7 +31,6 @@ pub(crate) mod runtime_build;
 mod runtime_startup;
 mod runtime_tasks;
 mod shutdown;
-mod tls_bootstrap;
 
 use tracing::error;
 

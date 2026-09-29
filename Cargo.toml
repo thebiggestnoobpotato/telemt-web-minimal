@@ -24,11 +24,9 @@ sha1 = "0.10.7"
 md-5 = "0.10.6"
 hmac = "0.12.1"
 crc32fast = "1.5.1"
-crc32c = "0.6.8"
 zeroize = { version = "1.9.0", features = ["derive"] }
 subtle = "2.6.1"
 static_assertions = "1.1.0"
-ml-kem = { version = "0.3.2", default-features = false, features = ["alloc", "zeroize"] }
 
 # Network
 socket2 = { version = "0.6.5", features = ["all"] }
@@ -45,7 +43,6 @@ nix = { version = "0.31.3", default-features = false, features = [
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 toml = "1.1.5"
-x509-parser = "0.18.1"
 
 # Utils
 bytes = "1.12.1"
@@ -66,7 +63,6 @@ regex = "1.13.1"
 crossbeam-queue = "0.3.14"
 num-bigint = "0.4.8"
 num-traits = "0.2.19"
-x25519-dalek = "2.0.1"
 anyhow = "1.0.104"
 
 # HTTP
@@ -79,15 +75,6 @@ http-body-util = "0.1.5"
 httpdate = "1.0.3"
 tokio-tungstenite = { version = "0.30.0", default-features = false }
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
-tokio-rustls = { version = "0.26.5", default-features = false, features = [
-  "tls12",
-] }
-rustls = { version = "0.23.43", default-features = false, features = [
-  "std",
-  "tls12",
-  "ring",
-] }
-webpki-roots = "1.0.9"
 
 [dev-dependencies]
 tokio-test = "0.4.5"

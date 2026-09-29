@@ -222,12 +222,6 @@ pub enum ProxyError {
     #[error("Proxy error: {0}")]
     Proxy(String),
 
-    #[error("ME connection lost")]
-    MiddleConnectionLost,
-
-    #[error("Session terminated")]
-    RouteSwitched,
-
     #[error("Traffic budget wait cancelled")]
     TrafficBudgetWaitCancelled,
 

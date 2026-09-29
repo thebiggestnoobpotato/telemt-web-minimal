@@ -9,7 +9,6 @@ mod helpers;
 mod quota_store;
 mod replay;
 pub mod telemetry;
-pub mod tls_fingerprints;
 mod users;
 mod writer_counters;
 
@@ -23,7 +22,6 @@ pub(crate) use self::quota_store::{QuotaReservation, QuotaStore, UserQuotaHandle
 #[allow(unused_imports)]
 pub use self::replay::{ReplayChecker, ReplayStats};
 use self::telemetry::TelemetryPolicy;
-pub use self::tls_fingerprints::TlsFingerprintSnapshotRow;
 pub(crate) use self::users::UserConnectionObservation;
 use crate::proxy::user_connection_authority::UserConnectionAuthority;
 
@@ -123,7 +121,6 @@ pub struct Stats {
     telemetry_core_enabled: AtomicBool,
     telemetry_user_enabled: AtomicBool,
     cached_epoch_secs: AtomicU64,
-    tls_fingerprints: tls_fingerprints::TlsFingerprintCollector,
     user_stats: DashMap<String, Arc<UserStats>>,
     quota_store: Arc<QuotaStore>,
     connection_authority: Arc<UserConnectionAuthority>,

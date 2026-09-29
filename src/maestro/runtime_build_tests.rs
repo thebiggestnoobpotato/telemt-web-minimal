@@ -411,23 +411,6 @@ fn endpoint_only_listener_move_is_runtime_rebindable() {
     assert!(resolved.runtime_changed);
 }
 
-#[test]
-fn synlimited_endpoint_move_remains_restart_only() {
-    let mut old = ProxyConfig::default();
-    old.server.listeners = vec![test_listener(443)];
-    old.server.listeners[0].synlimit = crate::config::SynLimitMode::Nftables;
-    let mut desired = old.clone();
-    desired.server.listeners[0].port = Some(8443);
-
-    let resolved = resolve_reload_config(&old, &desired).unwrap();
-
-    assert_eq!(
-        resolved.deferred_process_fields,
-        vec!["server.listeners".to_string()]
-    );
-    assert_eq!(resolved.effective.server.listeners[0].port, Some(443));
-    assert!(!resolved.runtime_changed);
-}
 
 #[test]
 fn deferred_listener_identity_cannot_create_an_effective_decoy_loop() {

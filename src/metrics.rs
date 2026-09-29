@@ -22,9 +22,6 @@ use crate::maestro::generation::RuntimeGeneration;
 use crate::proxy::shared_state::ProxySharedState;
 use crate::stats::Stats;
 use crate::stats::beobachten::BeobachtenStore;
-use crate::tls_front::TlsFrontCache;
-use crate::tls_front::cache::TlsFullCertBudget;
-use crate::tls_front::fetcher;
 use crate::transport::{ListenOptions, create_listener};
 
 // Process-owned WEB metrics stay isolated from the legacy renderer body.
@@ -32,8 +29,6 @@ mod web;
 
 // Keeps `/metrics` response size bounded when per-user telemetry is enabled.
 const USER_LABELED_METRICS_MAX_USERS: usize = 4096;
-// Keeps TLS-front per-domain health series bounded for large generated configs.
-const TLS_FRONT_PROFILE_HEALTH_MAX_DOMAINS: usize = 256;
 const METRICS_MAX_CONTROL_CONNECTIONS: usize = 512;
 const METRICS_HTTP_CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -101,24 +96,15 @@ pub(crate) fn serve(
     bound: BoundMetricsListeners,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
     web_runtime_rx: tokio::sync::watch::Receiver<crate::web::control::WebRuntimePublication>,
-    tls_full_cert_budget: Arc<TlsFullCertBudget>,
     control_plane: ProcessControlPlane,
 ) {
     for (listener, addr) in bound.listeners {
         info!("Metrics endpoint: http://{}/metrics and /beobachten", addr);
         let active_runtime = active_runtime.clone();
         let web_runtime_rx = web_runtime_rx.clone();
-        let tls_full_cert_budget = Arc::clone(&tls_full_cert_budget);
         let listener_scope = control_plane.clone();
         let _ = control_plane.spawn(async move {
-            serve_listener(
-                listener,
-                active_runtime,
-                web_runtime_rx,
-                tls_full_cert_budget,
-                listener_scope,
-            )
-            .await;
+            serve_listener(listener, active_runtime, web_runtime_rx, listener_scope).await;
         });
     }
 }
@@ -142,7 +128,6 @@ async fn serve_listener(
     listener: TcpListener,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
     web_runtime_rx: tokio::sync::watch::Receiver<crate::web::control::WebRuntimePublication>,
-    tls_full_cert_budget: Arc<TlsFullCertBudget>,
     control_plane: ProcessControlPlane,
 ) {
     let connection_permits = Arc::new(Semaphore::new(METRICS_MAX_CONTROL_CONNECTIONS));
@@ -183,22 +168,12 @@ async fn serve_listener(
 
         let active_runtime = active_runtime.clone();
         let web_runtime_rx = web_runtime_rx.clone();
-        let tls_full_cert_budget = Arc::clone(&tls_full_cert_budget);
         let _ = control_plane.spawn(async move {
             let _connection_permit = connection_permit;
             let svc = service_fn(move |req| {
                 let runtime = active_runtime.load_full();
                 let web_publication = web_runtime_rx.borrow().clone();
-                let tls_full_cert_budget = Arc::clone(&tls_full_cert_budget);
-                async move {
-                    handle(
-                        req,
-                        &runtime,
-                        &web_publication,
-                        tls_full_cert_budget.as_ref(),
-                    )
-                    .await
-                }
+                async move { handle(req, &runtime, &web_publication).await }
             });
             match timeout(
                 METRICS_HTTP_CONNECTION_TIMEOUT,
@@ -226,26 +201,15 @@ async fn handle<B>(
     req: Request<B>,
     runtime: &RuntimeGeneration,
     web_publication: &crate::web::control::WebRuntimePublication,
-    tls_full_cert_budget: &TlsFullCertBudget,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     let stats = &runtime.stats;
     let beobachten = &runtime.beobachten;
     let shared_state = &runtime.proxy_shared;
     let ip_tracker = &runtime.ip_tracker;
-    let tls_cache = runtime.tls_cache.as_deref();
     let config = runtime.config();
 
     if req.uri().path() == "/metrics" {
-        let body = render_metrics(
-            stats,
-            shared_state,
-            &config,
-            ip_tracker,
-            tls_cache,
-            tls_full_cert_budget,
-            web_publication,
-        )
-        .await;
+        let body = render_metrics(stats, shared_state, &config, ip_tracker, web_publication).await;
         let resp = Response::builder()
             .status(StatusCode::OK)
             .header("content-type", "text/plain; version=0.0.4; charset=utf-8")
@@ -255,7 +219,7 @@ async fn handle<B>(
     }
 
     if req.uri().path() == "/beobachten" {
-        let body = render_beobachten(stats, beobachten, &config);
+        let body = render_beobachten(beobachten, &config);
         let resp = Response::builder()
             .status(StatusCode::OK)
             .header("content-type", "text/plain; charset=utf-8")
@@ -271,184 +235,13 @@ async fn handle<B>(
     Ok(resp)
 }
 
-fn render_beobachten(stats: &Stats, beobachten: &BeobachtenStore, config: &ProxyConfig) -> String {
+fn render_beobachten(beobachten: &BeobachtenStore, config: &ProxyConfig) -> String {
     if !config.general.beobachten {
         return "beobachten disabled\n".to_string();
     }
 
     let ttl = Duration::from_secs(config.general.beobachten_minutes.saturating_mul(60));
-    let mut body = beobachten.snapshot_text(ttl);
-    let tls_text = stats.tls_fingerprint_snapshot_text(ttl, 20);
-    if !tls_text.is_empty() {
-        if !body.ends_with('\n') {
-            body.push('\n');
-        }
-        body.push('\n');
-        body.push_str(&tls_text);
-    }
-    body
-}
-
-fn tls_front_domains(config: &ProxyConfig) -> Vec<String> {
-    let mut domains = Vec::with_capacity(1 + config.censorship.tls_domains.len());
-    if !config.censorship.tls_domain.is_empty() {
-        domains.push(config.censorship.tls_domain.clone());
-    }
-    for domain in &config.censorship.tls_domains {
-        if !domain.is_empty() && !domains.contains(domain) {
-            domains.push(domain.clone());
-        }
-    }
-    domains
-}
-
-fn prometheus_label_value(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
-}
-
-async fn render_tls_front_profile_health(
-    out: &mut String,
-    config: &ProxyConfig,
-    tls_cache: Option<&TlsFrontCache>,
-) {
-    use std::fmt::Write;
-
-    let domains = tls_front_domains(config);
-    let (health, suppressed) = match (config.censorship.tls_emulation, tls_cache) {
-        (true, Some(cache)) => {
-            cache
-                .profile_health_snapshot(&domains, TLS_FRONT_PROFILE_HEALTH_MAX_DOMAINS)
-                .await
-        }
-        _ => (Vec::new(), domains.len()),
-    };
-
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_domains TLS front configured profile domains by export status"
-    );
-    let _ = writeln!(out, "# TYPE telemt_tls_front_profile_domains gauge");
-    let _ = writeln!(
-        out,
-        "telemt_tls_front_profile_domains{{status=\"configured\"}} {}",
-        domains.len()
-    );
-    let _ = writeln!(
-        out,
-        "telemt_tls_front_profile_domains{{status=\"emitted\"}} {}",
-        health.len()
-    );
-    let _ = writeln!(
-        out,
-        "telemt_tls_front_profile_domains{{status=\"suppressed\"}} {}",
-        suppressed
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_info TLS front profile source and feature flags per configured domain"
-    );
-    let _ = writeln!(out, "# TYPE telemt_tls_front_profile_info gauge");
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_quality_info TLS front profile quality and key-share group per configured domain"
-    );
-    let _ = writeln!(out, "# TYPE telemt_tls_front_profile_quality_info gauge");
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_age_seconds Age of cached TLS front profile data per configured domain"
-    );
-    let _ = writeln!(out, "# TYPE telemt_tls_front_profile_age_seconds gauge");
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_server_hello_bytes TLS front cached ServerHello record body bytes per configured domain"
-    );
-    let _ = writeln!(
-        out,
-        "# TYPE telemt_tls_front_profile_server_hello_bytes gauge"
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_server_hello_extensions TLS front cached visible ServerHello extension count per configured domain"
-    );
-    let _ = writeln!(
-        out,
-        "# TYPE telemt_tls_front_profile_server_hello_extensions gauge"
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_app_data_records TLS front cached app-data record count per configured domain"
-    );
-    let _ = writeln!(
-        out,
-        "# TYPE telemt_tls_front_profile_app_data_records gauge"
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_ticket_records TLS front cached ticket-like tail record count per configured domain"
-    );
-    let _ = writeln!(out, "# TYPE telemt_tls_front_profile_ticket_records gauge");
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_change_cipher_spec_records TLS front cached ChangeCipherSpec record count per configured domain"
-    );
-    let _ = writeln!(
-        out,
-        "# TYPE telemt_tls_front_profile_change_cipher_spec_records gauge"
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_profile_app_data_bytes TLS front cached total app-data bytes per configured domain"
-    );
-    let _ = writeln!(out, "# TYPE telemt_tls_front_profile_app_data_bytes gauge");
-
-    for item in health {
-        let domain = prometheus_label_value(&item.domain);
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_info{{domain=\"{}\",source=\"{}\",is_default=\"{}\",has_cert_info=\"{}\",has_cert_payload=\"{}\"}} 1",
-            domain, item.source, item.is_default, item.has_cert_info, item.has_cert_payload
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_quality_info{{domain=\"{}\",quality=\"{}\",key_share_group=\"{}\"}} 1",
-            domain, item.quality, item.key_share_group
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_age_seconds{{domain=\"{}\"}} {}",
-            domain, item.age_seconds
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_server_hello_bytes{{domain=\"{}\"}} {}",
-            domain, item.server_hello_record_len
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_server_hello_extensions{{domain=\"{}\"}} {}",
-            domain, item.server_hello_extensions
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_app_data_records{{domain=\"{}\"}} {}",
-            domain, item.app_data_records
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_ticket_records{{domain=\"{}\"}} {}",
-            domain, item.ticket_records
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_change_cipher_spec_records{{domain=\"{}\"}} {}",
-            domain, item.change_cipher_spec_count
-        );
-        let _ = writeln!(
-            out,
-            "telemt_tls_front_profile_app_data_bytes{{domain=\"{}\"}} {}",
-            domain, item.total_app_data_len
-        );
-    }
+    beobachten.snapshot_text(ttl)
 }
 
 // Ordered Prometheus text rendering split by bounded metric families.

@@ -12,8 +12,6 @@ mod accept;
 mod bind;
 mod control;
 mod plan;
-#[cfg(unix)]
-mod unix;
 mod web_overload;
 
 pub(crate) use bind::bind_listeners;

@@ -6,7 +6,6 @@ pub(super) fn render(
     stats: &Stats,
     shared_state: &ProxySharedState,
     telemetry: crate::stats::telemetry::TelemetryPolicy,
-    tls_full_cert_budget: &TlsFullCertBudget,
 ) {
     let core_enabled = telemetry.core_enabled;
     let user_enabled = telemetry.user_enabled;
@@ -148,54 +147,4 @@ pub(super) fn render(
             tier, value
         );
     }
-
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_fetch_profile_cache_entries Current adaptive TLS fetch profile-cache entries"
-    );
-    let _ = writeln!(out, "# TYPE telemt_tls_fetch_profile_cache_entries gauge");
-    let _ = writeln!(
-        out,
-        "telemt_tls_fetch_profile_cache_entries {}",
-        fetcher::profile_cache_entries_for_metrics()
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_fetch_profile_cache_cap_drops_total Profile-cache winner inserts skipped because the cache cap was reached"
-    );
-    let _ = writeln!(
-        out,
-        "# TYPE telemt_tls_fetch_profile_cache_cap_drops_total counter"
-    );
-    let _ = writeln!(
-        out,
-        "telemt_tls_fetch_profile_cache_cap_drops_total {}",
-        fetcher::profile_cache_cap_drops_for_metrics()
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_full_cert_budget_entries Current domain and IP entries tracked by the process-owned TLS full-cert budget"
-    );
-    let _ = writeln!(
-        out,
-        "# TYPE telemt_tls_front_full_cert_budget_entries gauge"
-    );
-    let _ = writeln!(
-        out,
-        "telemt_tls_front_full_cert_budget_entries {}",
-        tls_full_cert_budget.entries_for_metrics()
-    );
-    let _ = writeln!(
-        out,
-        "# HELP telemt_tls_front_full_cert_budget_cap_drops_total New domain and IP entries denied full-cert budget tracking because a bound was reached"
-    );
-    let _ = writeln!(
-        out,
-        "# TYPE telemt_tls_front_full_cert_budget_cap_drops_total counter"
-    );
-    let _ = writeln!(
-        out,
-        "telemt_tls_front_full_cert_budget_cap_drops_total {}",
-        tls_full_cert_budget.cap_drops_for_metrics()
-    );
 }

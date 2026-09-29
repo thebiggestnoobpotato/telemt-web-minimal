@@ -12,27 +12,6 @@ pub(crate) struct AuthProbeSaturationState {
     pub(super) blocked_until: Instant,
     pub(super) last_seen: Instant,
 }
-pub(super) fn unknown_sni_warn_state_lock_in(
-    shared: &ProxySharedState,
-) -> std::sync::MutexGuard<'_, Option<Instant>> {
-    shared
-        .handshake
-        .unknown_sni_warn_next_allowed
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
-
-pub(super) fn should_emit_unknown_sni_warn_in(shared: &ProxySharedState, now: Instant) -> bool {
-    let mut guard = unknown_sni_warn_state_lock_in(shared);
-    if let Some(next_allowed) = *guard
-        && now < next_allowed
-    {
-        return false;
-    }
-    *guard = Some(now + Duration::from_secs(UNKNOWN_SNI_WARN_COOLDOWN_SECS));
-    true
-}
-
 pub(super) fn normalize_auth_probe_ip(peer_ip: IpAddr) -> IpAddr {
     match peer_ip {
         IpAddr::V4(ip) => IpAddr::V4(ip),
@@ -443,21 +422,6 @@ mod testing;
 #[cfg(test)]
 pub(crate) use testing::*;
 
-#[inline]
-pub(super) fn find_matching_tls_domain<'a>(config: &'a ProxyConfig, sni: &str) -> Option<&'a str> {
-    if config.censorship.tls_domain.eq_ignore_ascii_case(sni) {
-        return Some(config.censorship.tls_domain.as_str());
-    }
-
-    for domain in &config.censorship.tls_domains {
-        if domain.eq_ignore_ascii_case(sni) {
-            return Some(domain.as_str());
-        }
-    }
-
-    None
-}
-
 pub(super) async fn maybe_apply_server_hello_delay(config: &ProxyConfig) {
     if config.censorship.server_hello_delay_max_ms == 0 {
         return;
@@ -468,10 +432,43 @@ pub(super) async fn maybe_apply_server_hello_delay(config: &ProxyConfig) {
     let delay_ms = if max == min {
         max
     } else {
-        crate::proxy::masking::sample_lognormal_percentile_bounded(min, max, &mut rand::rng())
+        sample_lognormal_percentile_bounded(min, max, &mut rand::rng())
     };
 
     if delay_ms > 0 {
         tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+    }
+}
+
+// Lognormal sample bounded to [floor, ceiling]; keeps scanner-delay timing
+// statistically identical to the removed masking hardening distribution.
+fn sample_lognormal_percentile_bounded(
+    floor: u64,
+    ceiling: u64,
+    rng: &mut impl rand::RngExt,
+) -> u64 {
+    if ceiling == 0 && floor == 0 {
+        return 0;
+    }
+    if floor > ceiling {
+        return ceiling;
+    }
+    if floor == ceiling {
+        return floor;
+    }
+    let floor_f = floor.max(1) as f64;
+    let ceiling_f = ceiling.max(1) as f64;
+    let mu = (floor_f.ln() + ceiling_f.ln()) / 2.0;
+    // 4.65 ≈ 2 * 2.326 (double-sided z-score for 99th percentile)
+    let sigma = ((ceiling_f / floor_f).ln() / 4.65).max(0.01);
+    // Box-Muller transform: two uniform samples to one standard normal sample
+    let u1: f64 = rng.random_range(f64::MIN_POSITIVE..1.0);
+    let u2: f64 = rng.random_range(0.0_f64..std::f64::consts::TAU);
+    let normal_sample = (-2.0_f64 * u1.ln()).sqrt() * u2.cos();
+    let raw = (mu + sigma * normal_sample).exp();
+    if raw.is_finite() {
+        (raw as u64).clamp(floor, ceiling)
+    } else {
+        ((floor_f * ceiling_f).sqrt()) as u64
     }
 }

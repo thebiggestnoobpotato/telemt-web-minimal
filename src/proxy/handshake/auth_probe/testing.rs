@@ -93,24 +93,6 @@ pub(crate) fn auth_probe_saturation_state_lock_for_testing_in_shared(
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// Resets the isolated unknown-SNI warning rate limiter.
-pub(crate) fn clear_unknown_sni_warn_state_for_testing_in_shared(shared: &ProxySharedState) {
-    let mut guard = shared
-        .handshake
-        .unknown_sni_warn_next_allowed
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    *guard = None;
-}
-
-/// Evaluates unknown-SNI warning admission at a deterministic instant.
-pub(crate) fn should_emit_unknown_sni_warn_for_testing_in_shared(
-    shared: &ProxySharedState,
-    now: Instant,
-) -> bool {
-    should_emit_unknown_sni_warn_in(shared, now)
-}
-
 /// Clears the isolated invalid-secret warning deduplication set.
 pub(crate) fn clear_warned_secrets_for_testing_in_shared(shared: &ProxySharedState) {
     if let Ok(mut guard) = shared.handshake.invalid_secret_warned.lock() {

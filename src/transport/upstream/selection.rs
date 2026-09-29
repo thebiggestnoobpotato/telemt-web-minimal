@@ -139,47 +139,4 @@ impl UpstreamManager {
             .await?;
         Ok(stream)
     }
-
-    /// Connect to target through a selected upstream and return egress details.
-    pub async fn connect_with_details(
-        &self,
-        target: SocketAddr,
-        dc_idx: Option<i16>,
-        scope: Option<&str>,
-    ) -> Result<(TcpStream, UpstreamEgressInfo)> {
-        let idx = self
-            .select_upstream(dc_idx, scope)
-            .await
-            .ok_or_else(|| ProxyError::Config("No upstreams available".to_string()))?;
-
-        let (mut upstream, bind_rr, dc_preference) = {
-            let guard = self.upstreams.read().await;
-            let state = &guard[idx];
-            let dc_preference = dc_idx
-                .and_then(UpstreamState::dc_array_idx)
-                .map(|dc_array_idx| state.dc_ip_pref[dc_array_idx])
-                .unwrap_or(IpPreference::Unknown);
-            (
-                state.config.clone(),
-                Some(state.bind_rr.clone()),
-                dc_preference,
-            )
-        };
-
-        // Set scope for configuration copy
-        if let Some(s) = scope {
-            upstream.selected_scope = s.to_string();
-        }
-
-        let target = if dc_idx.is_some() {
-            Self::resolve_runtime_dc_target(target, dc_idx, &upstream, dc_preference)?
-        } else {
-            target
-        };
-
-        let (stream, egress) = self
-            .connect_selected_upstream(idx, upstream, target, dc_idx, bind_rr)
-            .await?;
-        Ok((stream.into_tcp()?, egress))
-    }
 }

@@ -15,7 +15,6 @@ use crate::proxy::shared_state::ProxySharedState;
 use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::{ReplayChecker, Stats};
 use crate::stream::BufferPool;
-use crate::tls_front::TlsFrontCache;
 use crate::transport::UpstreamManager;
 
 // Cancellation guards preserve runtime ownership across preparation and drain futures.
@@ -171,7 +170,6 @@ pub(crate) struct RuntimeGeneration {
     pub(crate) replay_checker: Arc<ReplayChecker>,
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) rng: Arc<SecureRandom>,
-    pub(crate) tls_cache: Option<Arc<TlsFrontCache>>,
     pub(crate) ip_tracker: Arc<UserIpTracker>,
     pub(crate) beobachten: Arc<BeobachtenStore>,
     pub(crate) proxy_shared: Arc<ProxySharedState>,
@@ -194,7 +192,6 @@ impl RuntimeGeneration {
         replay_checker: Arc<ReplayChecker>,
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
-        tls_cache: Option<Arc<TlsFrontCache>>,
         ip_tracker: Arc<UserIpTracker>,
         beobachten: Arc<BeobachtenStore>,
         proxy_shared: Arc<ProxySharedState>,
@@ -210,7 +207,6 @@ impl RuntimeGeneration {
             replay_checker,
             buffer_pool,
             rng,
-            tls_cache,
             ip_tracker,
             beobachten,
             proxy_shared,
@@ -361,7 +357,6 @@ pub(crate) fn test_runtime_generation_with_admission(
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::with_config(4096, 16)),
         Arc::new(SecureRandom::new()),
-        None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
         ProxySharedState::new(),

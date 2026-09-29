@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 ///
 /// `copy_bidirectional` requires `AsyncRead + AsyncWrite` on each side,
 /// but the handshake layer produces split reader/writer pairs
-/// (e.g. `CryptoReader<FakeTlsReader<OwnedReadHalf>>` + `CryptoWriter<...>`).
+/// (e.g. `CryptoReader<OwnedReadHalf>` + `CryptoWriter<OwnedWriteHalf>`).
 ///
 /// This wrapper reunifies them with zero overhead — each trait method
 /// delegates directly to the corresponding half. No buffering, no copies.

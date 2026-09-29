@@ -12,8 +12,6 @@ use crate::maestro::generation::RuntimeGeneration;
 use super::accept::ListenerSlot;
 use super::bind::{BoundListeners, BoundTcpListener, PreparedTcpListener, prepare_listener};
 use super::plan::{ListenerBindSpec, listener_bind_plan};
-#[cfg(unix)]
-use super::unix::UnixAcceptHandle;
 use crate::web::control::{WebRuntimeControl, WebRuntimeLifecycle};
 use crate::web::manager::{WebProcessRuntime, WebShutdownOutcome};
 use crate::web::trace::WebTraceStore;
@@ -25,8 +23,6 @@ pub(crate) struct ListenerManager {
     web_runtime: Option<Arc<WebProcessRuntime>>,
     web_control: WebRuntimeControl,
     web_listeners: Arc<[SocketAddr]>,
-    #[cfg(unix)]
-    unix: Option<UnixAcceptHandle>,
 }
 
 /// Socket changes prepared without activating or stopping accept loops.
@@ -73,10 +69,6 @@ impl ListenerManager {
                 ListenerSlot::start(listener, active_runtime.clone(), web_runtime.clone()),
             );
         }
-        #[cfg(unix)]
-        let unix = bound
-            .unix_listener
-            .map(|listener| UnixAcceptHandle::start(listener, active_runtime.clone()));
         web_control.publish(
             if has_web {
                 WebRuntimeLifecycle::Running
@@ -94,8 +86,6 @@ impl ListenerManager {
             web_runtime,
             web_control,
             web_listeners,
-            #[cfg(unix)]
-            unix,
         }
     }
 
@@ -113,8 +103,6 @@ impl ListenerManager {
             web_runtime: None,
             web_control,
             web_listeners: Arc::from([]),
-            #[cfg(unix)]
-            unix: None,
         }
     }
 
@@ -276,17 +264,7 @@ impl ListenerManager {
                     errors.push(error_value);
                 }
             }
-            #[cfg(unix)]
-            if let Some(unix) = &mut self.unix
-                && let Err(error_value) = unix.stop().await
-            {
-                errors.push(error_value);
-            }
             self.slots.clear();
-            #[cfg(unix)]
-            {
-                self.unix = None;
-            }
             self.web_control.publish(
                 WebRuntimeLifecycle::Drained,
                 Arc::clone(&self.web_listeners),
@@ -312,10 +290,6 @@ impl ListenerManager {
         for slot in self.slots.values() {
             slot.request_stop();
         }
-        #[cfg(unix)]
-        if let Some(unix) = &self.unix {
-            unix.request_stop();
-        }
         let Some(web_runtime) = self.web_runtime.take() else {
             return Err("WEB runtime disappeared during shutdown orchestration".to_string());
         };
@@ -332,20 +306,10 @@ impl ListenerManager {
                 errors.push(error_value);
             }
         }
-        #[cfg(unix)]
-        if let Some(unix) = &mut self.unix
-            && let Err(error_value) = unix.stop_until(deadline).await
-        {
-            errors.push(error_value);
-        }
         if web_outcome == WebShutdownOutcome::DeadlineExceeded {
             errors.push("WEB ingress shutdown deadline exceeded".to_string());
         }
         self.slots.clear();
-        #[cfg(unix)]
-        {
-            self.unix = None;
-        }
         self.web_control.publish(
             if web_outcome == WebShutdownOutcome::DeadlineExceeded {
                 WebRuntimeLifecycle::DeadlineExceeded
@@ -426,8 +390,6 @@ mod tests {
         let (old_listener, old_addr) = bound_listener().await;
         let bound = BoundListeners {
             listeners: vec![old_listener],
-            #[cfg(unix)]
-            unix_listener: None,
         };
         let trace = WebTraceStore::new(
             runtime.config().web.debug.clone(),
@@ -454,8 +416,6 @@ mod tests {
         let (old_listener, _old_addr) = bound_listener().await;
         let bound = BoundListeners {
             listeners: vec![old_listener],
-            #[cfg(unix)]
-            unix_listener: None,
         };
         let trace = WebTraceStore::new(
             runtime.config().web.debug.clone(),
@@ -488,8 +448,6 @@ mod tests {
         web_listener.spec.transport = ListenerTransport::Web;
         let bound = BoundListeners {
             listeners: vec![native_listener, web_listener],
-            #[cfg(unix)]
-            unix_listener: None,
         };
         let trace = WebTraceStore::new(
             runtime.config().web.debug.clone(),

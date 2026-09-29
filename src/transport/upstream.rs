@@ -184,13 +184,6 @@ impl std::fmt::Debug for UpstreamStream {
     }
 }
 
-impl UpstreamStream {
-    pub fn into_tcp(self) -> Result<TcpStream> {
-        match self {
-            Self::Tcp(stream) => Ok(stream),
-        }
-    }
-}
 
 impl AsyncRead for UpstreamStream {
     fn poll_read(

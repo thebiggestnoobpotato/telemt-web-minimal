@@ -54,11 +54,6 @@ pub fn crc32(data: &[u8]) -> u32 {
     crc32fast::hash(data)
 }
 
-/// CRC32C (Castagnoli)
-pub fn crc32c(data: &[u8]) -> u32 {
-    crc32c::crc32c(data)
-}
-
 /// Build the exact prekey buffer used by Telegram Middle Proxy KDF.
 ///
 /// Returned buffer layout (IPv4):

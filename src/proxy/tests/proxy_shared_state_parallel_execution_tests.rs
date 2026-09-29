@@ -2,8 +2,6 @@
 use crate::proxy::handshake::{
     auth_probe_fail_streak_for_testing_in_shared, auth_probe_record_failure_for_testing,
     clear_auth_probe_state_for_testing_in_shared,
-    clear_unknown_sni_warn_state_for_testing_in_shared,
-    should_emit_unknown_sni_warn_for_testing_in_shared,
 };
 use crate::proxy::shared_state::ProxySharedState;
 use rand::RngExt;
@@ -66,30 +64,6 @@ async fn proxy_shared_state_dual_instance_same_ip_high_contention_no_counter_ble
     );
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn proxy_shared_state_unknown_sni_parallel_instances_no_cross_cooldown() {
-    let mut handles = Vec::new();
-    let now = Instant::now();
-
-    for _ in 0..32 {
-        handles.push(tokio::spawn(async move {
-            let shared = ProxySharedState::new();
-            clear_unknown_sni_warn_state_for_testing_in_shared(shared.as_ref());
-            let first = should_emit_unknown_sni_warn_for_testing_in_shared(shared.as_ref(), now);
-            let second = should_emit_unknown_sni_warn_for_testing_in_shared(
-                shared.as_ref(),
-                now + std::time::Duration::from_millis(1),
-            );
-            (first, second)
-        }));
-    }
-
-    for handle in handles {
-        let (first, second) = handle.await.expect("task join failed");
-        assert!(first);
-        assert!(!second);
-    }
-}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn proxy_shared_state_auth_probe_high_contention_increments_are_lossless() {

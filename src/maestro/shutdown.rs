@@ -26,7 +26,6 @@ use super::reload_supervisor::ReloadSupervisorHandle;
 use crate::conntrack_control::FirewallAuthority;
 use crate::quota_state::QuotaStateOwner;
 use crate::stats::Stats;
-use crate::synlimit_control;
 
 /// Signal that triggered shutdown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -128,10 +127,6 @@ async fn perform_shutdown(
         && !conntrack_firewall.shutdown_and_clear().await
     {
         warn!("Conntrack firewall cleanup did not complete successfully");
-    }
-
-    if let Err(error) = synlimit_control::clear_synlimit_rules_all_backends().await {
-        warn!(error = %error, "Failed to clear SYN limiter rules during shutdown");
     }
 
     if !process_control_plane.shutdown(Duration::from_secs(5)).await {

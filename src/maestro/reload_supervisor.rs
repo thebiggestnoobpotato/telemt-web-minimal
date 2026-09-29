@@ -10,7 +10,6 @@ use tracing::{info, warn};
 
 use crate::conntrack_control::FirewallAuthority;
 use crate::stats::QuotaStore;
-use crate::tls_front::cache::TlsFullCertBudget;
 use crate::web::trace::WebTraceStore;
 
 use super::generation::{RuntimeGeneration, RuntimeWatchState};
@@ -28,7 +27,6 @@ pub(crate) struct ReloadSupervisor {
     commands: ReloadCommandReceiver,
     config_path: PathBuf,
     quota_store: Arc<QuotaStore>,
-    tls_full_cert_budget: Arc<TlsFullCertBudget>,
     detected_ips_tx: watch::Sender<(Option<std::net::IpAddr>, Option<std::net::IpAddr>)>,
     runtime_log_filter: RuntimeLogFilter,
     runtime_watch_tx: watch::Sender<Option<RuntimeWatchState>>,
@@ -97,7 +95,6 @@ impl ReloadSupervisor {
         commands: ReloadCommandReceiver,
         config_path: PathBuf,
         quota_store: Arc<QuotaStore>,
-        tls_full_cert_budget: Arc<TlsFullCertBudget>,
         detected_ips_tx: watch::Sender<(Option<std::net::IpAddr>, Option<std::net::IpAddr>)>,
         runtime_log_filter: RuntimeLogFilter,
         runtime_watch_tx: watch::Sender<Option<RuntimeWatchState>>,
@@ -112,7 +109,6 @@ impl ReloadSupervisor {
             commands,
             config_path,
             quota_store,
-            tls_full_cert_budget,
             detected_ips_tx,
             runtime_log_filter,
             runtime_watch_tx,
@@ -176,7 +172,6 @@ impl ReloadSupervisor {
             self.quota_store.clone(),
             old_runtime.stats.connection_authority(),
             self.runtime_log_filter.clone(),
-            self.tls_full_cert_budget.clone(),
             old_runtime.proxy_shared.user_admission(),
             old_runtime.ip_tracker.clone(),
             old_runtime.proxy_shared.traffic_limiter.clone(),

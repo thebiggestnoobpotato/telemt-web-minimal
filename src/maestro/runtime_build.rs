@@ -21,14 +21,13 @@ use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::telemetry::TelemetryPolicy;
 use crate::stats::{QuotaStore, ReplayChecker, Stats};
 use crate::stream::BufferPool;
-use crate::tls_front::cache::TlsFullCertBudget;
 use crate::transport::UpstreamManager;
 
 use super::admission;
 use super::generation::{RuntimeGeneration, RuntimeTaskScope, RuntimeTaskScopePreparationGuard};
 use super::listeners::listener_rebind_supported;
 use super::runtime_tasks::RuntimeLogFilter;
-use super::{runtime_tasks, tls_bootstrap};
+use super::runtime_tasks;
 
 /// Fully prepared candidate runtime and its activation-gated config watcher.
 pub(crate) struct PreparedRuntime {
@@ -49,7 +48,6 @@ pub(crate) async fn prepare_runtime(
     quota_store: Arc<QuotaStore>,
     connection_authority: Arc<UserConnectionAuthority>,
     runtime_log_filter: RuntimeLogFilter,
-    tls_full_cert_budget: Arc<TlsFullCertBudget>,
     user_admission: Arc<UserAdmissionAuthority>,
     ip_tracker: Arc<UserIpTracker>,
     traffic_limiter: Arc<TrafficLimiter>,
@@ -102,25 +100,6 @@ pub(crate) async fn prepare_runtime(
     .map_err(|error| format!("network probe failed: {}", error))?;
     let decision = decide_network_capabilities(&config.network, &probe);
     let prefer_ipv6 = decision.prefer_ipv6();
-
-    let mut tls_domains = Vec::with_capacity(1 + config.censorship.tls_domains.len());
-    tls_domains.push(config.censorship.tls_domain.clone());
-    for domain in &config.censorship.tls_domains {
-        if !tls_domains.contains(domain) {
-            tls_domains.push(domain.clone());
-        }
-    }
-    let tls_cache = tls_bootstrap::bootstrap_tls_front(
-        &config,
-        &tls_domains,
-        upstream_manager.clone(),
-        &startup_tracker,
-        task_scope.clone(),
-        tls_full_cert_budget,
-        tls_bootstrap::TlsBootstrapPolicy::RequireReady,
-    )
-    .await
-    .map_err(|error| error.to_string())?;
 
     let beobachten = Arc::new(BeobachtenStore::new());
     let rng = Arc::new(SecureRandom::new());
@@ -182,7 +161,6 @@ pub(crate) async fn prepare_runtime(
         replay_checker,
         buffer_pool,
         rng,
-        tls_cache,
         ip_tracker,
         beobachten,
         proxy_shared,
@@ -254,13 +232,6 @@ pub(crate) fn resolve_reload_config(
                 effective_listener.announce_ip = desired_listener.announce_ip;
             }
         }
-    }
-    if old.server.listen_unix_sock != desired.server.listen_unix_sock
-        || old.server.listen_unix_sock_perm != desired.server.listen_unix_sock_perm
-    {
-        fields.push("server.listen_unix_sock".to_string());
-        effective.server.listen_unix_sock = old.server.listen_unix_sock.clone();
-        effective.server.listen_unix_sock_perm = old.server.listen_unix_sock_perm.clone();
     }
     if old.server.api.listen != desired.server.api.listen
         || old.server.api.enabled != desired.server.api.enabled

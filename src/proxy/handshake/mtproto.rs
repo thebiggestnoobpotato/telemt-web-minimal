@@ -33,7 +33,8 @@ where
     .await
 }
 
-/// Handles an MTProto obfuscation handshake with process-shared defenses.
+/// Test-only MTProto handshake entry with process-shared defenses.
+#[cfg(test)]
 pub async fn handle_mtproto_handshake_with_shared<R, W>(
     handshake: &[u8; HANDSHAKE_LEN],
     reader: R,

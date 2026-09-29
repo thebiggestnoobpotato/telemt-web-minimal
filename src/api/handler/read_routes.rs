@@ -126,11 +126,6 @@ pub(super) async fn handle(
             let data = build_runtime_events_recent_data(shared, cfg, query);
             Ok(success_response(StatusCode::OK, data, revision))
         }
-        ("GET", "/v1/runtime/tls-fingerprints") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_runtime_tls_fingerprints_data(shared, cfg, query);
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
         ("GET", "/v1/stats/users/active-ips") => {
             let revision = current_revision(&shared.config_path).await?;
             let usernames: Vec<_> = cfg.access.users.keys().cloned().collect();

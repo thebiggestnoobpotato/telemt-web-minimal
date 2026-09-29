@@ -12,9 +12,7 @@ use tokio::net::TcpStream;
 use tracing::{debug, warn};
 
 #[cfg(target_os = "linux")]
-mod fragmented_send;
 #[cfg(target_os = "linux")]
-pub(crate) use fragmented_send::send_tcp_fragmented_fd;
 
 const DEFAULT_SOCKET_BUFFER_BYTES: usize = 256 * 1024;
 

@@ -5,7 +5,6 @@ pub mod crypto_stream;
 pub mod frame;
 pub mod frame_codec;
 pub mod state;
-pub mod tls_stream;
 pub mod traits;
 
 #[cfg(test)]
@@ -16,9 +15,7 @@ pub mod frame_stream;
 
 // Re-export state machine types
 #[allow(unused_imports)]
-pub use state::{
-    HeaderBuffer, PollResult, ReadBuffer, StreamState, Transition, WriteBuffer, YieldBuffer,
-};
+pub use state::{StreamState, YieldBuffer};
 
 // Re-export buffer pool
 #[allow(unused_imports)]
@@ -27,7 +24,6 @@ pub use buffer_pool::{BufferPool, PoolStats, PooledBuffer};
 // Re-export stream implementations
 #[allow(unused_imports)]
 pub use crypto_stream::{CryptoReader, CryptoWriter, PassthroughStream};
-pub use tls_stream::{FakeTlsReader, FakeTlsWriter};
 
 // Re-export frame types
 #[allow(unused_imports)]

@@ -2,9 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use crate::config::{
-    ListenerTransport, ProxyConfig, ServerConfig, SynLimitMode, WebClientIpSource,
-};
+use crate::config::{ListenerTransport, ProxyConfig, ServerConfig, WebClientIpSource};
 use crate::transport::ListenOptions;
 
 use super::tcp_mss_runtime_profile;
@@ -86,14 +84,6 @@ pub(crate) fn listener_bind_plan(
     Ok(plan)
 }
 
-fn any_synlimit_enabled(config: &ProxyConfig) -> bool {
-    config
-        .server
-        .listeners
-        .iter()
-        .any(|listener| listener.synlimit != SynLimitMode::Off)
-}
-
 /// Returns whether an endpoint-only change can use coordinated process rebind.
 pub(crate) fn listener_rebind_supported(old: &ProxyConfig, desired: &ProxyConfig) -> bool {
     let Ok(old_plan) = listener_bind_plan(old) else {
@@ -111,9 +101,6 @@ pub(crate) fn listener_rebind_supported(old: &ProxyConfig, desired: &ProxyConfig
         .filter(|(_, spec)| spec.transport == ListenerTransport::Web)
         .collect::<BTreeMap<_, _>>();
     if old_web != desired_web {
-        return false;
-    }
-    if any_synlimit_enabled(old) || any_synlimit_enabled(desired) {
         return false;
     }
     let Ok(old_plan) = listener_bind_plan(old) else {
@@ -143,7 +130,7 @@ mod tests {
             transport: crate::config::ListenerTransport::Mtproxy,
             port: Some(port),
             client_mss: None,
-            synlimit: SynLimitMode::Off,
+            synlimit: crate::config::SynLimitMode::Off,
             synlimit_seconds: 60,
             synlimit_hitcount: 48,
             synlimit_burst: 24,
