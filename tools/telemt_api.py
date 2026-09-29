@@ -203,7 +203,7 @@ class TelemtAPI:
     # ------------------------------------------------------------------
 
     def limits_effective(self) -> APIResponse:
-        """GET /v1/limits/effective — effective timeout/upstream/ME limits."""
+        """GET /v1/limits/effective — effective timeout/upstream limits."""
         return self._get("/v1/limits/effective")
 
     def security_posture(self) -> APIResponse:
@@ -223,48 +223,20 @@ class TelemtAPI:
         return self._get("/v1/stats/summary")
 
     def stats_zero_all(self) -> APIResponse:
-        """GET /v1/stats/zero/all — zero-cost counters (core, upstream, ME, pool, desync)."""
+        """GET /v1/stats/zero/all — zero-cost counters (core, upstream)."""
         return self._get("/v1/stats/zero/all")
 
     def stats_upstreams(self) -> APIResponse:
         """GET /v1/stats/upstreams — upstream health + zero counters."""
         return self._get("/v1/stats/upstreams")
 
-    def stats_minimal_all(self) -> APIResponse:
-        """GET /v1/stats/minimal/all — ME writers + DC snapshot (requires minimal_runtime_enabled)."""
-        return self._get("/v1/stats/minimal/all")
-
-    def stats_me_writers(self) -> APIResponse:
-        """GET /v1/stats/me-writers — per-writer ME status (requires minimal_runtime_enabled)."""
-        return self._get("/v1/stats/me-writers")
-
-    def stats_dcs(self) -> APIResponse:
-        """GET /v1/stats/dcs — per-DC coverage and writer counts (requires minimal_runtime_enabled)."""
-        return self._get("/v1/stats/dcs")
-
     # ------------------------------------------------------------------
     # Runtime deep-dive
     # ------------------------------------------------------------------
 
-    def runtime_me_pool_state(self) -> APIResponse:
-        """GET /v1/runtime/me_pool_state — ME pool generation/writer/refill snapshot."""
-        return self._get("/v1/runtime/me_pool_state")
-
-    def runtime_me_quality(self) -> APIResponse:
-        """GET /v1/runtime/me_quality — ME KDF, route-drop, and per-DC RTT counters."""
-        return self._get("/v1/runtime/me_quality")
-
     def runtime_upstream_quality(self) -> APIResponse:
         """GET /v1/runtime/upstream_quality — per-upstream health, latency, DC preferences."""
         return self._get("/v1/runtime/upstream_quality")
-
-    def runtime_nat_stun(self) -> APIResponse:
-        """GET /v1/runtime/nat_stun — NAT probe state, STUN servers, reflected IPs."""
-        return self._get("/v1/runtime/nat_stun")
-
-    def runtime_me_selftest(self) -> APIResponse:
-        """GET /v1/runtime/me-selftest — KDF/timeskew/IP/PID/BND health state."""
-        return self._get("/v1/runtime/me-selftest")
 
     def runtime_connections_summary(self) -> APIResponse:
         """GET /v1/runtime/connections/summary — live connection totals + top-N users (requires runtime_edge_enabled)."""
@@ -399,9 +371,6 @@ class TelemtAPI:
         """
         return self._delete(f"/v1/users/{_safe(username)}", if_match=if_match)
 
-    # NOTE: POST /v1/users/{username}/rotate-secret currently returns 404
-    # in the route matcher (documented limitation). The method is provided
-    # for completeness and future compatibility.
     def rotate_secret(
             self,
             username: str,
@@ -410,11 +379,6 @@ class TelemtAPI:
             if_match: str | None = None,
     ) -> APIResponse:
         """POST /v1/users/{username}/rotate-secret — rotate user secret.
-
-        .. warning::
-            This endpoint currently returns ``404 not_found`` in all released
-            versions (documented route matcher limitation). The method is
-            included for future compatibility.
 
         Parameters
         ----------
@@ -476,20 +440,13 @@ COMMANDS (read)
   info                            System info (version, uptime, config hash)
   status                          Runtime gates + startup progress
   init                            Runtime initialization timeline
-  limits                          Effective limits (timeouts, upstream, ME)
+  limits                          Effective limits (timeouts, upstream)
   posture                         Security posture summary
   whitelist                       IP whitelist entries
   summary                         Stats summary (conns, uptime, users)
-  zero                            Zero-cost counters (core/upstream/ME/pool/desync)
+  zero                            Zero-cost counters (core/upstream)
   upstreams                       Upstream health + zero counters
-  minimal                         ME writers + DC snapshot  [minimal_runtime_enabled]
-  me-writers                      Per-writer ME status      [minimal_runtime_enabled]
-  dcs                             Per-DC coverage           [minimal_runtime_enabled]
-  me-pool                         ME pool generation/writer/refill snapshot
-  me-quality                      ME KDF, route-drops, per-DC RTT
   upstream-quality                Per-upstream health + latency
-  nat-stun                        NAT probe state + STUN servers
-  me-selftest                     KDF/timeskew/IP/PID/BND health
   connections                     Live connection totals + top-N  [runtime_edge_enabled]
   events [--limit N]              Recent ring-buffer events       [runtime_edge_enabled]
 
@@ -499,7 +456,7 @@ COMMANDS (users)
   create <username> [OPTIONS]     Create user
   patch  <username> [OPTIONS]     Partial update user
   delete <username>               Delete user
-  secret <username> [--secret S]  Rotate secret (reserved; returns 404 in current release)
+  secret <username> [--secret S]  Rotate secret
   gen-secret                      Print a random 32-hex secret and exit
 
 USER OPTIONS (for create / patch)
@@ -601,29 +558,8 @@ if __name__ == "__main__":
         elif cmd == "upstreams":
             _print(api.stats_upstreams())
 
-        elif cmd == "minimal":
-            _print(api.stats_minimal_all())
-
-        elif cmd == "me-writers":
-            _print(api.stats_me_writers())
-
-        elif cmd == "dcs":
-            _print(api.stats_dcs())
-
-        elif cmd == "me-pool":
-            _print(api.runtime_me_pool_state())
-
-        elif cmd == "me-quality":
-            _print(api.runtime_me_quality())
-
         elif cmd == "upstream-quality":
             _print(api.runtime_upstream_quality())
-
-        elif cmd == "nat-stun":
-            _print(api.runtime_nat_stun())
-
-        elif cmd == "me-selftest":
-            _print(api.runtime_me_selftest())
 
         elif cmd == "connections":
             _print(api.runtime_connections_summary())
@@ -643,9 +579,7 @@ if __name__ == "__main__":
                 print("-" * 72)
                 for u in users:
                     links = (u.get("links") or {})
-                    all_links = (links.get("classic") or []) + \
-                                (links.get("secure") or []) + \
-                                (links.get("tls") or [])
+                    all_links = links.get("web") or []
                     link_str = all_links[0] if all_links else "-"
                     print(fmt.format(
                         u["username"],
