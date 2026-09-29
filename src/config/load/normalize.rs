@@ -89,16 +89,6 @@ pub(super) fn normalize_exclusive_mask_target(target: &str, field: &str) -> Resu
     Ok(format!("{host}:{port}"))
 }
 
-pub(super) fn push_unique_nonempty(target: &mut Vec<String>, value: String) {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return;
-    }
-    if !target.iter().any(|existing| existing == trimmed) {
-        target.push(trimmed.to_string());
-    }
-}
-
 pub(super) fn is_valid_ad_tag(tag: &str) -> bool {
     tag.len() == 32 && tag.chars().all(|ch| ch.is_ascii_hexdigit())
 }

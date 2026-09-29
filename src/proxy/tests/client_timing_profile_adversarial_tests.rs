@@ -1,3 +1,4 @@
+
 //! Differential timing-profile adversarial tests.
 //! Compare malformed in-range TLS truncation probes with plain web baselines,
 //! ensuring masking behavior stays in similar latency buckets.
@@ -112,7 +113,6 @@ async fn run_generic_once(class: ProbeClass) -> u128 {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -128,8 +128,7 @@ async fn run_generic_once(class: ProbeClass) -> u128 {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -207,7 +206,6 @@ async fn run_client_handler_once(class: ProbeClass) -> u128 {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -218,7 +216,6 @@ async fn run_client_handler_once(class: ProbeClass) -> u128 {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -234,8 +231,7 @@ async fn run_client_handler_once(class: ProbeClass) -> u128 {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,

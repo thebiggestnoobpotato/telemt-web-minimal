@@ -1,3 +1,4 @@
+
 use crate::proxy::client::handle_client_stream_with_shared;
 use crate::proxy::handshake::{
     auth_probe_fail_streak_for_testing_in_shared, auth_probe_is_throttled_for_testing_in_shared,
@@ -5,14 +6,6 @@ use crate::proxy::handshake::{
     clear_unknown_sni_warn_state_for_testing_in_shared, clear_warned_secrets_for_testing_in_shared,
     should_emit_unknown_sni_warn_for_testing_in_shared, warned_secrets_for_testing_in_shared,
 };
-use crate::proxy::middle_relay::{
-    clear_desync_dedup_for_testing_in_shared, clear_relay_idle_candidate_for_testing,
-    clear_relay_idle_pressure_state_for_testing_in_shared, mark_relay_idle_candidate_for_testing,
-    maybe_evict_idle_candidate_on_pressure_for_testing, note_relay_pressure_event_for_testing,
-    oldest_relay_idle_candidate_for_testing, relay_idle_mark_seq_for_testing,
-    relay_pressure_event_seq_for_testing, should_emit_full_desync_for_testing,
-};
-use crate::proxy::route_mode::{RelayRouteMode, RouteRuntimeController};
 use crate::proxy::shared_state::ProxySharedState;
 use crate::{
     config::{ProxyConfig, UpstreamConfig, UpstreamType},
@@ -35,7 +28,6 @@ struct ClientHarness {
     replay_checker: Arc<ReplayChecker>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_runtime: Arc<RouteRuntimeController>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
 }
@@ -79,7 +71,6 @@ fn new_client_harness() -> ClientHarness {
         replay_checker: Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     }
@@ -102,8 +93,7 @@ async fn drive_invalid_mtproto_handshake(
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -142,42 +132,6 @@ fn proxy_shared_state_two_instances_do_not_share_auth_probe_state() {
         auth_probe_fail_streak_for_testing_in_shared(b.as_ref(), ip),
         None
     );
-}
-
-#[test]
-fn proxy_shared_state_two_instances_do_not_share_desync_dedup() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_desync_dedup_for_testing_in_shared(a.as_ref());
-
-    let now = Instant::now();
-    let key = 0xA5A5_u64;
-    assert!(should_emit_full_desync_for_testing(
-        a.as_ref(),
-        key,
-        false,
-        now
-    ));
-    assert!(should_emit_full_desync_for_testing(
-        b.as_ref(),
-        key,
-        false,
-        now
-    ));
-}
-
-#[test]
-fn proxy_shared_state_two_instances_do_not_share_idle_registry() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_relay_idle_pressure_state_for_testing_in_shared(a.as_ref());
-
-    assert!(mark_relay_idle_candidate_for_testing(a.as_ref(), 111));
-    assert_eq!(
-        oldest_relay_idle_candidate_for_testing(a.as_ref()),
-        Some(111)
-    );
-    assert_eq!(oldest_relay_idle_candidate_for_testing(b.as_ref()), None);
 }
 
 #[test]
@@ -454,25 +408,6 @@ fn proxy_shared_state_warned_secret_cache_does_not_bleed_across_instances() {
 }
 
 #[test]
-fn proxy_shared_state_idle_mark_seq_is_per_instance() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_relay_idle_pressure_state_for_testing_in_shared(a.as_ref());
-    clear_relay_idle_pressure_state_for_testing_in_shared(b.as_ref());
-
-    assert_eq!(relay_idle_mark_seq_for_testing(a.as_ref()), 0);
-    assert_eq!(relay_idle_mark_seq_for_testing(b.as_ref()), 0);
-
-    assert!(mark_relay_idle_candidate_for_testing(a.as_ref(), 9001));
-    assert_eq!(relay_idle_mark_seq_for_testing(a.as_ref()), 1);
-    assert_eq!(relay_idle_mark_seq_for_testing(b.as_ref()), 0);
-
-    assert!(mark_relay_idle_candidate_for_testing(b.as_ref(), 9002));
-    assert_eq!(relay_idle_mark_seq_for_testing(a.as_ref()), 1);
-    assert_eq!(relay_idle_mark_seq_for_testing(b.as_ref()), 1);
-}
-
-#[test]
 fn proxy_shared_state_unknown_sni_clear_in_one_instance_does_not_reset_other() {
     let a = ProxySharedState::new();
     let b = ProxySharedState::new();
@@ -546,133 +481,3 @@ fn proxy_shared_state_warned_secret_clear_in_one_instance_does_not_clear_other()
     assert!(has_b);
 }
 
-#[test]
-fn proxy_shared_state_desync_duplicate_suppression_is_instance_scoped() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_desync_dedup_for_testing_in_shared(a.as_ref());
-    clear_desync_dedup_for_testing_in_shared(b.as_ref());
-
-    let now = Instant::now();
-    let key = 0xBEEF_0000_0000_0001u64;
-    assert!(should_emit_full_desync_for_testing(
-        a.as_ref(),
-        key,
-        false,
-        now
-    ));
-    assert!(!should_emit_full_desync_for_testing(
-        a.as_ref(),
-        key,
-        false,
-        now + Duration::from_millis(1)
-    ));
-    assert!(should_emit_full_desync_for_testing(
-        b.as_ref(),
-        key,
-        false,
-        now
-    ));
-}
-
-#[test]
-fn proxy_shared_state_desync_clear_in_one_instance_does_not_clear_other() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_desync_dedup_for_testing_in_shared(a.as_ref());
-    clear_desync_dedup_for_testing_in_shared(b.as_ref());
-
-    let now = Instant::now();
-    let key = 0xCAFE_0000_0000_0001u64;
-    assert!(should_emit_full_desync_for_testing(
-        a.as_ref(),
-        key,
-        false,
-        now
-    ));
-    assert!(should_emit_full_desync_for_testing(
-        b.as_ref(),
-        key,
-        false,
-        now
-    ));
-
-    clear_desync_dedup_for_testing_in_shared(a.as_ref());
-
-    assert!(should_emit_full_desync_for_testing(
-        a.as_ref(),
-        key,
-        false,
-        now + Duration::from_millis(2)
-    ));
-    assert!(!should_emit_full_desync_for_testing(
-        b.as_ref(),
-        key,
-        false,
-        now + Duration::from_millis(2)
-    ));
-}
-
-#[test]
-fn proxy_shared_state_idle_candidate_clear_in_one_instance_does_not_affect_other() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_relay_idle_pressure_state_for_testing_in_shared(a.as_ref());
-    clear_relay_idle_pressure_state_for_testing_in_shared(b.as_ref());
-
-    assert!(mark_relay_idle_candidate_for_testing(a.as_ref(), 1001));
-    assert!(mark_relay_idle_candidate_for_testing(b.as_ref(), 2002));
-    clear_relay_idle_candidate_for_testing(a.as_ref(), 1001);
-
-    assert_eq!(oldest_relay_idle_candidate_for_testing(a.as_ref()), None);
-    assert_eq!(
-        oldest_relay_idle_candidate_for_testing(b.as_ref()),
-        Some(2002)
-    );
-}
-
-#[test]
-fn proxy_shared_state_pressure_seq_increments_are_instance_scoped() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_relay_idle_pressure_state_for_testing_in_shared(a.as_ref());
-    clear_relay_idle_pressure_state_for_testing_in_shared(b.as_ref());
-
-    assert_eq!(relay_pressure_event_seq_for_testing(a.as_ref()), 0);
-    assert_eq!(relay_pressure_event_seq_for_testing(b.as_ref()), 0);
-
-    note_relay_pressure_event_for_testing(a.as_ref());
-    note_relay_pressure_event_for_testing(a.as_ref());
-
-    assert_eq!(relay_pressure_event_seq_for_testing(a.as_ref()), 2);
-    assert_eq!(relay_pressure_event_seq_for_testing(b.as_ref()), 0);
-}
-
-#[test]
-fn proxy_shared_state_pressure_consumption_does_not_cross_instances() {
-    let a = ProxySharedState::new();
-    let b = ProxySharedState::new();
-    clear_relay_idle_pressure_state_for_testing_in_shared(a.as_ref());
-    clear_relay_idle_pressure_state_for_testing_in_shared(b.as_ref());
-
-    assert!(mark_relay_idle_candidate_for_testing(a.as_ref(), 7001));
-    assert!(mark_relay_idle_candidate_for_testing(b.as_ref(), 7001));
-    note_relay_pressure_event_for_testing(a.as_ref());
-
-    let stats = Stats::new();
-    let mut seen_a = 0u64;
-    let mut seen_b = 0u64;
-
-    assert!(maybe_evict_idle_candidate_on_pressure_for_testing(
-        a.as_ref(),
-        7001,
-        &mut seen_a,
-        &stats
-    ));
-    assert!(!maybe_evict_idle_candidate_on_pressure_for_testing(
-        b.as_ref(),
-        7001,
-        &mut seen_b,
-        &stats
-    ));
-}

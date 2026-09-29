@@ -40,10 +40,6 @@ nix = { version = "0.31.3", default-features = false, features = [
   "fs",
   "signal",
 ] }
-shadowsocks = { version = "1.24.0", default-features = false, features = [
-  "aead-cipher",
-  "aead-cipher-2022",
-] }
 
 # Serialization
 serde = { version = "1.0.229", features = ["derive"] }

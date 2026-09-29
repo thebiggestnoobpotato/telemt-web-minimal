@@ -2,29 +2,16 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::config::MeTelemetryLevel;
 
 use super::*;
 
 impl Stats {
-    pub(super) fn telemetry_me_level(&self) -> MeTelemetryLevel {
-        MeTelemetryLevel::from_u8(self.telemetry_me_level.load(Ordering::Relaxed))
-    }
-
     pub(super) fn telemetry_core_enabled(&self) -> bool {
         self.telemetry_core_enabled.load(Ordering::Relaxed)
     }
 
     pub(super) fn telemetry_user_enabled(&self) -> bool {
         self.telemetry_user_enabled.load(Ordering::Relaxed)
-    }
-
-    pub(super) fn telemetry_me_allows_normal(&self) -> bool {
-        self.telemetry_me_level().allows_normal()
-    }
-
-    pub(super) fn telemetry_me_allows_debug(&self) -> bool {
-        self.telemetry_me_level().allows_debug()
     }
 
     pub(super) fn decrement_atomic_saturating(counter: &AtomicU64) {

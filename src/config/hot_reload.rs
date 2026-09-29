@@ -9,16 +9,12 @@
 //! | `general` | `log_level`                    | Filter updated via `log_level_tx`              |
 //! | `access`  | `user_ad_tags`                 | Passed on next connection                      |
 //! | `general` | `ad_tag`                       | Passed on next connection (fallback per-user)  |
-//! | `general` | `desync_all_full`              | Applied immediately                            |
-//! | `general` | `update_every`                 | Applied to ME updater immediately              |
-//! | `general` | `me_reinit_*`                  | Applied to ME reinit scheduler immediately     |
-//! | `general` | `hardswap` / `me_*_reinit`     | Applied on next ME map update                  |
-//! | `general` | `telemetry` / `me_*_policy`    | Applied immediately                            |
+//! | `general` | `telemetry`                    | Applied immediately                            |
 //! | `network` | `dns_overrides`                | Applied immediately                            |
 //! | `access`  | All user/quota fields          | Effective immediately                          |
 //! | `web`     | Carrier, timing, and debug policy | Applied to newly issued sessions             |
 //! Fields that require re-binding sockets (`server.listeners`, legacy
-//! `server.port`, `censorship.*`, `network.*`, `use_middle_proxy`) are **not**
+//! `server.port`, `censorship.*`, `network.*`) are **not**
 //! applied; a warning is emitted. SYN limiter rules are process-owned and are
 //! reconciled only during privileged startup.
 //! `web.decoy_fasttrack_mode` is also restart-only so one process never mixes
@@ -38,8 +34,8 @@ use tracing::{error, info, warn};
 use super::load::{LoadedConfig, ProxyConfig};
 #[allow(unused_imports)]
 use crate::config::{
-    CidrRateLimitKey, LogLevel, MeBindStaleMode, MeFloorMode, MeSocksKdfPolicy, MeTelemetryLevel,
-    MeWriterPickMode, WEB_CARRIER_LEARNING_MIN_ENTRIES, WebDebugConfig, web_debug_fits_limits,
+    CidrRateLimitKey, LogLevel, WEB_CARRIER_LEARNING_MIN_ENTRIES, WebDebugConfig,
+    web_debug_fits_limits,
 };
 #[cfg(test)]
 use crate::config::{ListenerConfig, SynLimitMode};

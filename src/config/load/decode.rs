@@ -20,16 +20,10 @@ pub(super) fn decode_source_graph(graph: ConfigSourceGraph) -> Result<DecodedSou
     let general_table = parsed_toml
         .get("general")
         .and_then(|value| value.as_table());
-    let network_table = parsed_toml
-        .get("network")
-        .and_then(|value| value.as_table());
     let server_table = parsed_toml.get("server").and_then(|value| value.as_table());
     let conntrack_control_table = server_table
         .and_then(|table| table.get("conntrack_control"))
         .and_then(|value| value.as_table());
-    let update_every_is_explicit = general_table
-        .map(|table| table.contains_key("update_every"))
-        .unwrap_or(false);
     let beobachten_is_explicit = general_table
         .map(|table| table.contains_key("beobachten"))
         .unwrap_or(false);
@@ -42,19 +36,10 @@ pub(super) fn decode_source_graph(graph: ConfigSourceGraph) -> Result<DecodedSou
     let beobachten_file_is_explicit = general_table
         .map(|table| table.contains_key("beobachten_file"))
         .unwrap_or(false);
-    let legacy_secret_is_explicit = general_table
-        .map(|table| table.contains_key("proxy_secret_auto_reload_secs"))
-        .unwrap_or(false);
-    let legacy_config_is_explicit = general_table
-        .map(|table| table.contains_key("proxy_config_auto_reload_secs"))
-        .unwrap_or(false);
     let legacy_top_level_beobachten = parsed_toml.get("beobachten").cloned();
     let legacy_top_level_beobachten_minutes = parsed_toml.get("beobachten_minutes").cloned();
     let legacy_top_level_beobachten_flush_secs = parsed_toml.get("beobachten_flush_secs").cloned();
     let legacy_top_level_beobachten_file = parsed_toml.get("beobachten_file").cloned();
-    let stun_servers_is_explicit = network_table
-        .map(|table| table.contains_key("stun_servers"))
-        .unwrap_or(false);
     let inline_conntrack_control_is_explicit = conntrack_control_table
         .map(|table| table.contains_key("inline_conntrack_control"))
         .unwrap_or(false);
@@ -66,10 +51,6 @@ pub(super) fn decode_source_graph(graph: ConfigSourceGraph) -> Result<DecodedSou
         .server
         .conntrack_control
         .inline_conntrack_control_explicit = inline_conntrack_control_is_explicit;
-
-    if !update_every_is_explicit && (legacy_secret_is_explicit || legacy_config_is_explicit) {
-        config.general.update_every = None;
-    }
 
     // Backward compatibility: legacy top-level beobachten* keys.
     // Prefer `[general].*` when both are present.
@@ -118,40 +99,6 @@ pub(super) fn decode_source_graph(graph: ConfigSourceGraph) -> Result<DecodedSou
     }
     if legacy_beobachten_applied {
         warn!("top-level beobachten* keys are deprecated; use general.beobachten* instead");
-    }
-
-    let legacy_nat_stun = config.general.middle_proxy_nat_stun.take();
-    let legacy_nat_stun_servers = std::mem::take(&mut config.general.middle_proxy_nat_stun_servers);
-    let legacy_nat_stun_used = legacy_nat_stun.is_some() || !legacy_nat_stun_servers.is_empty();
-    if stun_servers_is_explicit {
-        let mut explicit_stun_servers = Vec::new();
-        for stun in std::mem::take(&mut config.network.stun_servers) {
-            push_unique_nonempty(&mut explicit_stun_servers, stun);
-        }
-        config.network.stun_servers = explicit_stun_servers;
-
-        if legacy_nat_stun_used {
-            warn!(
-                "general.middle_proxy_nat_stun and general.middle_proxy_nat_stun_servers are ignored because network.stun_servers is explicitly set"
-            );
-        }
-    } else {
-        // Keep the default STUN pool unless network.stun_servers is explicitly overridden.
-        let mut unified_stun_servers = default_stun_servers();
-        if let Some(stun) = legacy_nat_stun {
-            push_unique_nonempty(&mut unified_stun_servers, stun);
-        }
-        for stun in legacy_nat_stun_servers {
-            push_unique_nonempty(&mut unified_stun_servers, stun);
-        }
-
-        config.network.stun_servers = unified_stun_servers;
-
-        if legacy_nat_stun_used {
-            warn!(
-                "general.middle_proxy_nat_stun and general.middle_proxy_nat_stun_servers are deprecated; use network.stun_servers"
-            );
-        }
     }
 
     sanitize_ad_tag(&mut config.general.ad_tag);

@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::sha256_hmac;
@@ -14,7 +15,6 @@ struct RedTeamHarness {
     replay_checker: Arc<ReplayChecker>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_runtime: Arc<RouteRuntimeController>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
 }
@@ -65,7 +65,6 @@ fn build_harness(secret_hex: &str, mask_port: u16) -> RedTeamHarness {
         replay_checker: Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     }
@@ -196,8 +195,7 @@ async fn run_tls_success_mtproto_fail_session(
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -305,7 +303,6 @@ async fn redteam_03_masking_duration_must_be_less_than_1ms_when_backend_down() {
         replay_checker: Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     };
@@ -323,8 +320,7 @@ async fn redteam_03_masking_duration_must_be_less_than_1ms_when_backend_down() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -475,8 +471,7 @@ async fn redteam_16_timing_delta_between_paths_must_be_sub_1ms_under_concurrency
             harness.replay_checker,
             harness.buffer_pool,
             harness.rng,
-            None,
-            harness.route_runtime,
+
             None,
             harness.ip_tracker,
             harness.beobachten,
@@ -550,8 +545,7 @@ async fn measure_invalid_probe_duration_ms(delay_ms: u64, tls_len: u16, body_sen
         Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -628,8 +622,7 @@ async fn capture_forwarded_probe_len(tls_len: u16, body_sent: usize) -> usize {
         Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),

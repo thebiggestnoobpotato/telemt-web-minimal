@@ -163,20 +163,6 @@ async fn current_me_pool_stage_progress(shared: &ApiShared) -> Option<f64> {
     if snapshot.me.status != StartupMeStatus::Initializing {
         return None;
     }
-
-    let pool = shared.me_pool.read().await.clone()?;
-    let status = pool.api_status_snapshot().await;
-    let configured_dc_groups = status.configured_dc_groups;
-    let covered_dc_groups = status.dcs.iter().filter(|dc| dc.alive_writers > 0).count();
-
-    let dc_coverage = ratio_01(covered_dc_groups, configured_dc_groups);
-    let writer_coverage = ratio_01(status.alive_writers, status.required_writers);
-    Some((0.7 * dc_coverage + 0.3 * writer_coverage).clamp(0.0, 1.0))
-}
-
-fn ratio_01(part: usize, total: usize) -> f64 {
-    if total == 0 {
-        return 0.0;
-    }
-    ((part as f64) / (total as f64)).clamp(0.0, 1.0)
+    // This build has no Middle-End pool, so stage progress is never reported.
+    None
 }

@@ -80,9 +80,6 @@ async fn run_unix_accept_loop(
                 let replay_checker = runtime.replay_checker.clone();
                 let buffer_pool = runtime.buffer_pool.clone();
                 let rng = runtime.rng.clone();
-                let me_pool = runtime.me_pool.clone();
-                let me_pool_runtime = runtime.me_pool_runtime.clone();
-                let route_runtime = runtime.route_runtime.clone();
                 let tls_cache = runtime.tls_cache.clone();
                 let ip_tracker = runtime.ip_tracker.clone();
                 let beobachten = runtime.beobachten.clone();
@@ -101,9 +98,6 @@ async fn run_unix_accept_loop(
                             replay_checker,
                             buffer_pool,
                             rng,
-                            me_pool,
-                            Some(me_pool_runtime),
-                            route_runtime,
                             tls_cache,
                             ip_tracker,
                             beobachten,

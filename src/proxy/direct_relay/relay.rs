@@ -11,8 +11,6 @@ pub(crate) async fn handle_via_direct<R, W>(
     config: Arc<ProxyConfig>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_rx: watch::Receiver<RouteCutoverState>,
-    route_snapshot: RouteCutoverState,
     session_id: u64,
 ) -> Result<()>
 where
@@ -28,8 +26,6 @@ where
         config.clone(),
         buffer_pool,
         rng,
-        route_rx,
-        route_snapshot,
         session_id,
         SocketAddr::from(([0, 0, 0, 0], config.server.port)),
         CancellationToken::new(),
@@ -48,8 +44,6 @@ pub(crate) async fn handle_via_direct_with_shared<R, W>(
     config: Arc<ProxyConfig>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_rx: watch::Receiver<RouteCutoverState>,
-    route_snapshot: RouteCutoverState,
     session_id: u64,
     local_addr: SocketAddr,
     session_cancel: CancellationToken,
@@ -69,8 +63,6 @@ where
         config,
         buffer_pool,
         rng,
-        route_rx,
-        route_snapshot,
         session_id,
         local_addr,
         session_cancel,
@@ -91,8 +83,6 @@ pub(crate) async fn handle_via_direct_with_shared_and_conntrack<R, W>(
     config: Arc<ProxyConfig>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    mut route_rx: watch::Receiver<RouteCutoverState>,
-    route_snapshot: RouteCutoverState,
     session_id: u64,
     local_addr: SocketAddr,
     session_cancel: CancellationToken,
@@ -182,36 +172,12 @@ where
         Arc::clone(&shared.direct_buffer_budget),
     );
     tokio::pin!(relay_result);
-    let relay_result = loop {
-        if let Some(cutover) =
-            affected_cutover_state(&route_rx, RelayRouteMode::Direct, route_snapshot.generation)
-        {
-            let delay = cutover_stagger_delay(session_id, cutover.generation);
-            warn!(
-                user = %user,
-                target_mode = cutover.mode.as_str(),
-                cutover_generation = cutover.generation,
-                delay_ms = delay.as_millis() as u64,
-                "Cutover affected direct session, closing client connection"
-            );
-            let _cutover_park_lease = stats.acquire_direct_cutover_park_lease();
-            tokio::time::sleep(delay).await;
-            break Err(ProxyError::RouteSwitched);
-        }
-        tokio::select! {
-            result = &mut relay_result => {
-                break result;
-            }
-            changed = route_rx.changed() => {
-                if changed.is_err() {
-                    break relay_result.await;
-                }
-            }
-            _ = session_cancel.cancelled() => {
-                break Err(ProxyError::UserDisabled {
-                    user: user.to_string(),
-                });
-            }
+    let relay_result = tokio::select! {
+        result = &mut relay_result => result,
+        _ = session_cancel.cancelled() => {
+            Err(ProxyError::UserDisabled {
+                user: user.to_string(),
+            })
         }
     };
 

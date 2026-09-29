@@ -40,10 +40,7 @@ pub use general::GeneralConfig;
 pub use links::{LinksConfig, ShowLink};
 pub use logging::{LogLevel, LogRotation, LoggingConfig, LoggingDestination};
 pub use network::{NetworkConfig, ProxyModes, UpstreamConfig, UpstreamType};
-pub use policies::{
-    MeBindStaleMode, MeFloorMode, MeRouteNoWriterMode, MeSocksKdfPolicy, MeTelemetryLevel,
-    MeWriterPickMode, RstOnCloseMode, TelemetryConfig, UserMaxUniqueIpsMode,
-};
+pub use policies::{RstOnCloseMode, TelemetryConfig, UserMaxUniqueIpsMode};
 #[allow(unused_imports)]
 pub use server::{
     CLIENT_MSS_2IN8, CLIENT_MSS_EXTREME_LOW, CLIENT_MSS_MAX, CLIENT_MSS_MIN, CLIENT_MSS_TSPU,

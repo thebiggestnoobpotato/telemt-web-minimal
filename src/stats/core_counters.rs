@@ -6,15 +6,12 @@ impl Stats {
             .store(policy.core_enabled, Ordering::Relaxed);
         self.telemetry_user_enabled
             .store(policy.user_enabled, Ordering::Relaxed);
-        self.telemetry_me_level
-            .store(policy.me_level.as_u8(), Ordering::Relaxed);
     }
 
     pub fn telemetry_policy(&self) -> TelemetryPolicy {
         TelemetryPolicy {
             core_enabled: self.telemetry_core_enabled(),
             user_enabled: self.telemetry_user_enabled(),
-            me_level: self.telemetry_me_level(),
         }
     }
 
@@ -57,46 +54,11 @@ impl Stats {
     pub fn decrement_current_connections_direct(&self) {
         Self::decrement_atomic_saturating(&self.current_connections_direct);
     }
-    pub fn increment_current_connections_me(&self) {
-        self.current_connections_me.fetch_add(1, Ordering::Relaxed);
-    }
-    pub fn decrement_current_connections_me(&self) {
-        Self::decrement_atomic_saturating(&self.current_connections_me);
-    }
-
     pub fn acquire_direct_connection_lease(self: &Arc<Self>) -> RouteConnectionLease {
         self.increment_current_connections_direct();
         RouteConnectionLease::new(self.clone(), RouteConnectionGauge::Direct)
     }
 
-    pub fn acquire_me_connection_lease(self: &Arc<Self>) -> RouteConnectionLease {
-        self.increment_current_connections_me();
-        RouteConnectionLease::new(self.clone(), RouteConnectionGauge::Middle)
-    }
-
-    pub(super) fn decrement_route_cutover_parked_direct(&self) {
-        Self::decrement_atomic_saturating(&self.route_cutover_parked_direct_current);
-    }
-
-    pub(super) fn decrement_route_cutover_parked_middle(&self) {
-        Self::decrement_atomic_saturating(&self.route_cutover_parked_middle_current);
-    }
-
-    pub fn acquire_direct_cutover_park_lease(self: &Arc<Self>) -> RouteCutoverParkLease {
-        self.route_cutover_parked_direct_current
-            .fetch_add(1, Ordering::Relaxed);
-        self.route_cutover_parked_direct_total
-            .fetch_add(1, Ordering::Relaxed);
-        RouteCutoverParkLease::new(self.clone(), RouteCutoverParkGauge::Direct)
-    }
-
-    pub fn acquire_middle_cutover_park_lease(self: &Arc<Self>) -> RouteCutoverParkLease {
-        self.route_cutover_parked_middle_current
-            .fetch_add(1, Ordering::Relaxed);
-        self.route_cutover_parked_middle_total
-            .fetch_add(1, Ordering::Relaxed);
-        RouteCutoverParkLease::new(self.clone(), RouteCutoverParkGauge::Middle)
-    }
     pub fn increment_handshake_timeouts(&self) {
         if self.telemetry_core_enabled() {
             self.handshake_timeouts.fetch_add(1, Ordering::Relaxed);

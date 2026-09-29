@@ -393,21 +393,7 @@ impl UpstreamManager {
                     },
                 ))
             }
-            UpstreamType::Shadowsocks { url, interface } => {
-                let stream = connect_shadowsocks(url, interface, target, connect_timeout).await?;
-                let local_addr = stream.get_ref().local_addr().ok();
-                Ok((
-                    UpstreamStream::Shadowsocks(Box::new(stream)),
-                    UpstreamEgressInfo {
-                        upstream_id,
-                        route_kind: UpstreamRouteKind::Shadowsocks,
-                        local_addr,
-                        direct_bind_ip: None,
-                        socks_bound_addr: None,
-                        socks_proxy_addr: None,
-                    },
-                ))
-            }
+
         }
     }
 }

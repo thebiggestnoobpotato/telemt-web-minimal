@@ -55,39 +55,6 @@ pub(super) fn render(
 
     let _ = writeln!(
         out,
-        "# HELP telemt_telemetry_me_level Runtime ME telemetry level flag"
-    );
-    let _ = writeln!(out, "# TYPE telemt_telemetry_me_level gauge");
-    let _ = writeln!(
-        out,
-        "telemt_telemetry_me_level{{level=\"silent\"}} {}",
-        if matches!(telemetry.me_level, crate::config::MeTelemetryLevel::Silent) {
-            1
-        } else {
-            0
-        }
-    );
-    let _ = writeln!(
-        out,
-        "telemt_telemetry_me_level{{level=\"normal\"}} {}",
-        if matches!(telemetry.me_level, crate::config::MeTelemetryLevel::Normal) {
-            1
-        } else {
-            0
-        }
-    );
-    let _ = writeln!(
-        out,
-        "telemt_telemetry_me_level{{level=\"debug\"}} {}",
-        if matches!(telemetry.me_level, crate::config::MeTelemetryLevel::Debug) {
-            1
-        } else {
-            0
-        }
-    );
-
-    let _ = writeln!(
-        out,
         "# HELP telemt_buffer_pool_buffers_total Snapshot of pooled and allocated buffers"
     );
     let _ = writeln!(out, "# TYPE telemt_buffer_pool_buffers_total gauge");

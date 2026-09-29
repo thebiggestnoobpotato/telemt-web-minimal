@@ -5,7 +5,6 @@ pub(super) fn load_source_graph(graph: ConfigSourceGraph) -> Result<LoadedConfig
         decode::decode_source_graph(graph)?;
     validate_core::validate(&mut config)?;
     validate_runtime::validate(&mut config)?;
-    validate_me::validate(&mut config)?;
     validate_server::validate(&mut config)?;
     validate_web::validate(&mut config)?;
     effective::apply(&mut config)?;

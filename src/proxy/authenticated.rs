@@ -2,7 +2,6 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::sync::RwLock;
 use tracing::warn;
 
 use crate::config::ProxyConfig;
@@ -11,15 +10,12 @@ use crate::error::{ProxyError, Result};
 use crate::ip_tracker::UserIpTracker;
 use crate::proxy::direct_relay::handle_via_direct_with_shared_and_conntrack;
 use crate::proxy::handshake::HandshakeSuccess;
-use crate::proxy::middle_relay::{handle_via_middle_proxy, handle_via_middle_proxy_with_conntrack};
-use crate::proxy::route_mode::{RelayRouteMode, RouteRuntimeController};
 use crate::proxy::shared_state::{ConntrackClosePolicy, ProxySharedState};
 use crate::proxy::user_admission::UserIncarnation;
 use crate::proxy::user_connection_authority::UserConnectionPermit;
 use crate::stats::{Stats, UserConnectionObservation, UserQuotaHandle};
 use crate::stream::{BufferPool, CryptoReader, CryptoWriter};
 use crate::transport::UpstreamManager;
-use crate::transport::middle_proxy::MePool;
 
 /// Immutable dependency snapshot pinned by one authenticated client stream.
 #[derive(Clone)]
@@ -34,12 +30,6 @@ pub(crate) struct ClientRuntimeDeps {
     pub(crate) buffer_pool: Arc<BufferPool>,
     /// Process cryptographic random source.
     pub(crate) rng: Arc<SecureRandom>,
-    /// Startup Middle-End pool, when immediately available.
-    pub(crate) me_pool: Option<Arc<MePool>>,
-    /// Hot-swappable Middle-End pool holder.
-    pub(crate) me_pool_runtime: Option<Arc<RwLock<Option<Arc<MePool>>>>>,
-    /// Route-mode controller shared by active generations.
-    pub(crate) route_runtime: Arc<RouteRuntimeController>,
     /// Per-user source-IP admission tracker.
     pub(crate) ip_tracker: Arc<UserIpTracker>,
     /// Process-shared admission and relay coordination state.
@@ -88,7 +78,6 @@ where
     })?;
     let quota_handle = user_reservation.quota_handle();
 
-    let route_snapshot = deps.route_runtime.snapshot();
     let session_id = deps.rng.u64();
     let Some(user_session) = deps
         .shared
@@ -105,95 +94,19 @@ where
         return Err(ProxyError::UserDisabled { user });
     }
     let session_cancel = user_session.token();
-    let selected_me_pool = if deps.config.general.use_middle_proxy
-        && matches!(route_snapshot.mode, RelayRouteMode::Middle)
-    {
-        if let Some(pool) = &deps.me_pool {
-            Some(Arc::clone(pool))
-        } else if let Some(pool_runtime) = &deps.me_pool_runtime {
-            pool_runtime.read().await.clone()
-        } else {
-            None
-        }
-    } else {
-        None
-    };
 
-    let relay_result = if deps.config.general.use_middle_proxy
-        && matches!(route_snapshot.mode, RelayRouteMode::Middle)
-    {
-        if let Some(pool) = selected_me_pool {
-            if conntrack_close_policy == ConntrackClosePolicy::Publish {
-                handle_via_middle_proxy(
-                    client_reader,
-                    client_writer,
-                    success,
-                    pool,
-                    Arc::clone(&deps.stats),
-                    Arc::clone(&deps.config),
-                    Arc::clone(&deps.buffer_pool),
-                    local_addr,
-                    Arc::clone(&deps.rng),
-                    deps.route_runtime.subscribe(),
-                    route_snapshot,
-                    session_id,
-                    session_cancel.clone(),
-                    Arc::clone(&deps.shared),
-                    quota_handle.clone(),
-                )
-                .await
-            } else {
-                handle_via_middle_proxy_with_conntrack(
-                    client_reader,
-                    client_writer,
-                    success,
-                    pool,
-                    Arc::clone(&deps.stats),
-                    Arc::clone(&deps.config),
-                    Arc::clone(&deps.buffer_pool),
-                    local_addr,
-                    Arc::clone(&deps.rng),
-                    deps.route_runtime.subscribe(),
-                    route_snapshot,
-                    session_id,
-                    session_cancel.clone(),
-                    Arc::clone(&deps.shared),
-                    ConntrackClosePolicy::Suppress,
-                    quota_handle.clone(),
-                )
-                .await
-            }
-        } else {
-            warn!("use_middle_proxy=true but MePool not initialized, falling back to direct");
-            run_direct(
-                client_reader,
-                client_writer,
-                success,
-                &deps,
-                route_snapshot,
-                session_id,
-                local_addr,
-                session_cancel.clone(),
-                conntrack_close_policy,
-                quota_handle.clone(),
-            )
-            .await
-        }
-    } else {
-        run_direct(
-            client_reader,
-            client_writer,
-            success,
-            &deps,
-            route_snapshot,
-            session_id,
-            local_addr,
-            session_cancel,
-            conntrack_close_policy,
-            quota_handle,
-        )
-        .await
-    };
+    let relay_result = run_direct(
+        client_reader,
+        client_writer,
+        success,
+        &deps,
+        session_id,
+        local_addr,
+        session_cancel,
+        conntrack_close_policy,
+        quota_handle,
+    )
+    .await;
     user_reservation.release().await;
     relay_result
 }
@@ -203,7 +116,6 @@ async fn run_direct<R, W>(
     client_writer: CryptoWriter<W>,
     success: HandshakeSuccess,
     deps: &ClientRuntimeDeps,
-    route_snapshot: crate::proxy::route_mode::RouteCutoverState,
     session_id: u64,
     local_addr: SocketAddr,
     session_cancel: tokio_util::sync::CancellationToken,
@@ -223,8 +135,6 @@ where
         Arc::clone(&deps.config),
         Arc::clone(&deps.buffer_pool),
         Arc::clone(&deps.rng),
-        deps.route_runtime.subscribe(),
-        route_snapshot,
         session_id,
         local_addr,
         session_cancel,

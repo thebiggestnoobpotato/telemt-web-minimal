@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use std::sync::Arc;
@@ -69,8 +70,7 @@ async fn fragmented_connect_probe_is_classified_as_http_via_prefetch_window() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         beobachten.clone(),

@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{ProxyConfig, UpstreamConfig, UpstreamType};
 use crate::protocol::constants::{MAX_TLS_PLAINTEXT_SIZE, MIN_TLS_CLIENT_HELLO_SIZE};
@@ -102,8 +103,7 @@ async fn adversarial_tls_handshake_timeout_during_masking_delay() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -150,8 +150,7 @@ async fn blackhat_proxy_protocol_slowloris_timeout() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -203,8 +202,7 @@ async fn negative_proxy_protocol_enabled_but_client_sends_tls_hello() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -250,8 +248,7 @@ async fn edge_client_stream_exactly_4_bytes_eof() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         beobachten.clone(),
@@ -294,8 +291,7 @@ async fn edge_client_stream_tls_header_valid_but_body_1_byte_short_eof() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -341,8 +337,7 @@ async fn integration_non_tls_modes_disabled_immediately_masks() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),

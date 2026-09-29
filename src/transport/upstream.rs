@@ -23,9 +23,6 @@ use crate::error::{ProxyError, Result};
 use crate::network::dns_overrides::{GenerationDnsResolver, split_host_port};
 use crate::protocol::constants::{TG_DATACENTER_PORT, TG_DATACENTERS_V4, TG_DATACENTERS_V6};
 use crate::stats::Stats;
-use crate::transport::shadowsocks::{
-    ShadowsocksStream, connect_shadowsocks, sanitize_shadowsocks_url,
-};
 use crate::transport::socket::{
     bind_outgoing_socket_to_device, create_outgoing_socket_bound, resolve_interface_ip,
 };
@@ -177,14 +174,12 @@ pub struct StartupPingResult {
 
 pub enum UpstreamStream {
     Tcp(TcpStream),
-    Shadowsocks(Box<ShadowsocksStream>),
 }
 
 impl std::fmt::Debug for UpstreamStream {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Tcp(_) => f.write_str("UpstreamStream::Tcp(..)"),
-            Self::Shadowsocks(_) => f.write_str("UpstreamStream::Shadowsocks(..)"),
         }
     }
 }
@@ -193,10 +188,6 @@ impl UpstreamStream {
     pub fn into_tcp(self) -> Result<TcpStream> {
         match self {
             Self::Tcp(stream) => Ok(stream),
-            Self::Shadowsocks(_) => Err(ProxyError::Config(
-                "shadowsocks upstreams are not supported when general.use_middle_proxy = true"
-                    .to_string(),
-            )),
         }
     }
 }
@@ -209,7 +200,6 @@ impl AsyncRead for UpstreamStream {
     ) -> Poll<std::io::Result<()>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_read(cx, buf),
-            Self::Shadowsocks(stream) => Pin::new(stream.as_mut()).poll_read(cx, buf),
         }
     }
 }
@@ -222,21 +212,18 @@ impl AsyncWrite for UpstreamStream {
     ) -> Poll<std::io::Result<usize>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_write(cx, buf),
-            Self::Shadowsocks(stream) => Pin::new(stream.as_mut()).poll_write(cx, buf),
         }
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_flush(cx),
-            Self::Shadowsocks(stream) => Pin::new(stream.as_mut()).poll_flush(cx),
         }
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         match self.get_mut() {
             Self::Tcp(stream) => Pin::new(stream).poll_shutdown(cx),
-            Self::Shadowsocks(stream) => Pin::new(stream.as_mut()).poll_shutdown(cx),
         }
     }
 }
@@ -246,7 +233,6 @@ pub enum UpstreamRouteKind {
     Direct,
     Socks4,
     Socks5,
-    Shadowsocks,
 }
 
 #[derive(Debug, Clone)]
@@ -278,7 +264,6 @@ pub struct UpstreamApiSummarySnapshot {
     pub direct_total: usize,
     pub socks4_total: usize,
     pub socks5_total: usize,
-    pub shadowsocks_total: usize,
 }
 
 #[derive(Debug, Clone, Copy, Default)]

@@ -111,44 +111,9 @@ pub(super) async fn handle(
             let data = build_upstreams_data(shared, api_cfg);
             Ok(success_response(StatusCode::OK, data, revision))
         }
-        ("GET", "/v1/stats/minimal/all") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_minimal_all_data(shared, api_cfg).await;
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
-        ("GET", "/v1/stats/me-writers") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_me_writers_data(shared, api_cfg).await;
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
-        ("GET", "/v1/stats/dcs") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_dcs_data(shared, api_cfg).await;
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
-        ("GET", "/v1/runtime/me-pool-state") | ("GET", "/v1/runtime/me_pool_state") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_runtime_me_pool_state_data(shared).await;
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
-        ("GET", "/v1/runtime/me-quality") | ("GET", "/v1/runtime/me_quality") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_runtime_me_quality_data(shared).await;
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
         ("GET", "/v1/runtime/upstream-quality") | ("GET", "/v1/runtime/upstream_quality") => {
             let revision = current_revision(&shared.config_path).await?;
             let data = build_runtime_upstream_quality_data(shared).await;
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
-        ("GET", "/v1/runtime/nat-stun") | ("GET", "/v1/runtime/nat_stun") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_runtime_nat_stun_data(shared).await;
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
-        ("GET", "/v1/runtime/me-selftest") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let data = build_runtime_me_selftest_data(shared, cfg).await;
             Ok(success_response(StatusCode::OK, data, revision))
         }
         ("GET", "/v1/runtime/connections/summary") => {

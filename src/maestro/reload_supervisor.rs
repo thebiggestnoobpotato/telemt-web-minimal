@@ -83,14 +83,9 @@ fn revision_gate_action(
     }
 }
 
-async fn stop_background_and_middle_end(generation: &RuntimeGeneration) -> bool {
-    generation.stop_background_tasks().await;
-    !generation.stop_middle_end(Duration::from_secs(5)).await
-}
-
-async fn cleanup_candidate(generation: &RuntimeGeneration) -> bool {
+async fn cleanup_candidate(generation: &RuntimeGeneration) {
     generation.stop_sessions().await;
-    stop_background_and_middle_end(generation).await
+    generation.stop_background_tasks().await;
 }
 
 impl ReloadSupervisor {
@@ -205,7 +200,7 @@ impl ReloadSupervisor {
         {
             Ok(transition) => transition,
             Err(error) => {
-                let _ = cleanup_candidate(&prepared.generation).await;
+                cleanup_candidate(&prepared.generation).await;
                 self.runtime_log_filter
                     .apply_reload(&old_runtime.config().general.log_level);
                 self.control.fail(command.reload_id, error).await;
@@ -243,7 +238,7 @@ impl ReloadSupervisor {
         {
             Ok(transition) => transition,
             Err(error) => {
-                let _ = cleanup_candidate(&prepared.generation).await;
+                cleanup_candidate(&prepared.generation).await;
                 self.control.fail(command.reload_id, error).await;
                 return;
             }
@@ -272,7 +267,7 @@ impl ReloadSupervisor {
                 self.control.add_warning(command.reload_id, warning).await;
             }
             RevisionGateAction::Rollback(warning) => {
-                let _ = cleanup_candidate(&prepared.generation).await;
+                cleanup_candidate(&prepared.generation).await;
                 self.runtime_log_filter
                     .apply_reload(&old_runtime.config().general.log_level);
                 self.control.rolled_back(command.reload_id, warning).await;
@@ -299,7 +294,7 @@ impl ReloadSupervisor {
             {
                 Ok(pending) => Some(pending),
                 Err(error) => {
-                    let _ = cleanup_candidate(&new_runtime).await;
+                    cleanup_candidate(&new_runtime).await;
                     self.runtime_log_filter
                         .apply_reload(&old_runtime.config().general.log_level);
                     self.control.fail(command.reload_id, error).await;
@@ -405,14 +400,7 @@ impl ReloadSupervisor {
             }
         }
 
-        if stop_background_and_middle_end(&replaced).await {
-            let warning = format!(
-                "generation {} Middle-End lifecycle shutdown timed out",
-                replaced.id
-            );
-            warn!(reload_id = command.reload_id, warning = %warning);
-            self.control.add_warning(command.reload_id, warning).await;
-        }
+        replaced.stop_background_tasks().await;
         self.control
             .succeed(command.reload_id, new_runtime.id)
             .await;

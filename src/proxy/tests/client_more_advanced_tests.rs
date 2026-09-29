@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::ProxyConfig;
 use crate::stats::Stats;
@@ -108,8 +109,7 @@ async fn blackhat_proxy_protocol_massive_garbage_rejected_quickly() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -155,8 +155,7 @@ async fn edge_tls_body_immediate_eof_triggers_masking_and_bad_connect() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         beobachten.clone(),
@@ -205,8 +204,7 @@ async fn security_classic_mode_disabled_masks_valid_length_payload() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),

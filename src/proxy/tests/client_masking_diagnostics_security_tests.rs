@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use std::sync::Arc;
@@ -63,8 +64,7 @@ async fn measure_reject_duration_ms(body_sent: usize) -> u128 {
         Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -120,8 +120,7 @@ async fn capture_forwarded_len(body_sent: usize) -> usize {
         Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),

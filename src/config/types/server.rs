@@ -369,14 +369,6 @@ pub struct TimeoutsConfig {
 
     #[serde(default = "default_ack_timeout")]
     pub client_ack: u64,
-
-    /// Number of quick ME reconnect attempts for single-address DC.
-    #[serde(default = "default_me_one_retry")]
-    pub me_one_retry: u8,
-
-    /// Timeout per quick attempt in milliseconds for single-address DC.
-    #[serde(default = "default_me_one_timeout")]
-    pub me_one_timeout_ms: u64,
 }
 
 impl Default for TimeoutsConfig {
@@ -391,8 +383,6 @@ impl Default for TimeoutsConfig {
                 default_relay_idle_grace_after_downstream_activity_secs(),
             client_keepalive: default_keepalive(),
             client_ack: default_ack_timeout(),
-            me_one_retry: default_me_one_retry(),
-            me_one_timeout_ms: default_me_one_timeout(),
         }
     }
 }

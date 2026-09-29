@@ -152,18 +152,6 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    if config.general.effective_me_pool_force_close_secs() > 0
-        && config.general.effective_me_pool_force_close_secs()
-            < config.general.me_pool_drain_ttl_secs
-    {
-        warn!(
-            me_pool_drain_ttl_secs = config.general.me_pool_drain_ttl_secs,
-            me_reinit_drain_timeout_secs = config.general.effective_me_pool_force_close_secs(),
-            "force-close timeout is lower than drain TTL; bumping force-close timeout to TTL"
-        );
-        config.general.me_reinit_drain_timeout_secs = config.general.me_pool_drain_ttl_secs;
-    }
-
     // Validate secrets.
     for (user, secret) in &config.access.users {
         if !secret.chars().all(|c| c.is_ascii_hexdigit()) || secret.len() != 32 {

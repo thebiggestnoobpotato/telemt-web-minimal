@@ -128,7 +128,6 @@ impl UpstreamManager {
                 UpstreamRouteKind::Direct => summary.direct_total += 1,
                 UpstreamRouteKind::Socks4 => summary.socks4_total += 1,
                 UpstreamRouteKind::Socks5 => summary.socks5_total += 1,
-                UpstreamRouteKind::Shadowsocks => summary.shadowsocks_total += 1,
             }
 
             let mut dc = Vec::with_capacity(NUM_DCS);
@@ -176,10 +175,6 @@ impl UpstreamManager {
             UpstreamType::Direct { .. } => (UpstreamRouteKind::Direct, "direct".to_string()),
             UpstreamType::Socks4 { address, .. } => (UpstreamRouteKind::Socks4, address.clone()),
             UpstreamType::Socks5 { address, .. } => (UpstreamRouteKind::Socks5, address.clone()),
-            UpstreamType::Shadowsocks { url, .. } => (
-                UpstreamRouteKind::Shadowsocks,
-                sanitize_shadowsocks_url(url).unwrap_or_else(|_| "invalid".to_string()),
-            ),
         }
     }
 

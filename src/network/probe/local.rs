@@ -121,12 +121,9 @@ pub fn log_probe_result(probe: &NetworkProbe, decision: &NetworkDecision) {
             .unwrap_or_else(|| "-".into()),
         ipv4_bogon = probe.ipv4_is_bogon,
         ipv6_bogon = probe.ipv6_is_bogon,
-        ipv4_me = decision.ipv4_me,
-        ipv6_me = decision.ipv6_me,
         ipv4_dc = decision.ipv4_dc,
         ipv6_dc = decision.ipv6_dc,
         prefer = decision.effective_prefer,
-        multipath = decision.effective_multipath,
         "Network capabilities resolved"
     );
 }

@@ -121,14 +121,8 @@ async fn perform_shutdown(
         warn!(error = %error, "Failed to stop one or more listener tasks cleanly");
     }
 
-    // Graceful ME pool shutdown
     runtime.stop_sessions().await;
     runtime.stop_background_tasks().await;
-    if runtime.stop_middle_end(Duration::from_secs(5)).await {
-        info!("ME shutdown: pool lifecycle completed");
-    } else {
-        warn!("ME shutdown: pool lifecycle deadline expired");
-    }
 
     if let Some(conntrack_firewall) = conntrack_firewall
         && !conntrack_firewall.shutdown_and_clear().await
@@ -184,30 +178,13 @@ fn dump_stats(stats: &Stats, process_started_at: Instant) {
 
     // Connection stats
     info!(
-        "Connections: total={}, current={} (direct={}, me={}), bad={}",
+        "Connections: total={}, current={} (direct={}), bad={}",
         stats.get_connects_all(),
         stats.get_current_connections_total(),
         stats.get_current_connections_direct(),
-        stats.get_current_connections_me(),
         stats.get_connects_bad(),
     );
 
-    // ME pool stats
-    info!(
-        "ME keepalive: sent={}, pong={}, failed={}, timeout={}",
-        stats.get_me_keepalive_sent(),
-        stats.get_me_keepalive_pong(),
-        stats.get_me_keepalive_failed(),
-        stats.get_me_keepalive_timeout(),
-    );
-
-    // Relay stats
-    info!(
-        "Relay idle: soft_mark={}, hard_close={}, pressure_evict={}",
-        stats.get_relay_idle_soft_mark_total(),
-        stats.get_relay_idle_hard_close_total(),
-        stats.get_relay_pressure_evict_total(),
-    );
 
     info!("=== End Statistics Dump ===");
 }

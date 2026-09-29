@@ -10,7 +10,6 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
 
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, fallback_direct_buffer_hard_limit};
 use crate::proxy::handshake::{AuthProbeSaturationState, AuthProbeState};
-use crate::proxy::middle_relay::{DesyncDedupRotationState, RelayIdleCandidateRegistry};
 use crate::proxy::traffic_limiter::TrafficLimiter;
 use crate::proxy::user_admission::{
     UserAdmissionAuthority, UserAdmissionPublication, UserCredentialId, UserIncarnation,
@@ -81,19 +80,8 @@ pub(crate) struct HandshakeSharedState {
     pub(crate) auth_budget_exhausted_total: AtomicU64,
 }
 
-pub(crate) struct MiddleRelaySharedState {
-    pub(crate) desync_dedup: DashMap<u64, Instant>,
-    pub(crate) desync_dedup_previous: DashMap<u64, Instant>,
-    pub(crate) desync_hasher: RandomState,
-    pub(crate) desync_full_cache_last_emit_at: Mutex<Option<Instant>>,
-    pub(crate) desync_dedup_rotation_state: Mutex<DesyncDedupRotationState>,
-    pub(crate) relay_idle_registry: RelayIdleCandidateRegistry,
-    pub(crate) relay_idle_mark_seq: AtomicU64,
-}
-
 pub(crate) struct ProxySharedState {
     pub(crate) handshake: HandshakeSharedState,
-    pub(crate) middle_relay: MiddleRelaySharedState,
     pub(crate) traffic_limiter: Arc<TrafficLimiter>,
     pub(crate) direct_buffer_budget: Arc<DirectBufferBudget>,
     user_admission: Arc<UserAdmissionAuthority>,
@@ -166,15 +154,6 @@ impl ProxySharedState {
                 recent_user_ring_seq: AtomicU64::new(0),
                 auth_expensive_checks_total: AtomicU64::new(0),
                 auth_budget_exhausted_total: AtomicU64::new(0),
-            },
-            middle_relay: MiddleRelaySharedState {
-                desync_dedup: DashMap::new(),
-                desync_dedup_previous: DashMap::new(),
-                desync_hasher: RandomState::new(),
-                desync_full_cache_last_emit_at: Mutex::new(None),
-                desync_dedup_rotation_state: Mutex::new(DesyncDedupRotationState::default()),
-                relay_idle_registry: RelayIdleCandidateRegistry::default(),
-                relay_idle_mark_seq: AtomicU64::new(0),
             },
             traffic_limiter,
             direct_buffer_budget,

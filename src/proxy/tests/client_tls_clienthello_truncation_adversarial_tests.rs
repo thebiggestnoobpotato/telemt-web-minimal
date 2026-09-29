@@ -1,3 +1,4 @@
+
 //! Black-hat adversarial tests for truncated in-range TLS ClientHello probes.
 //! These tests encode a strict anti-probing expectation: malformed TLS traffic
 //! should still be masked as a legitimate website response.
@@ -112,7 +113,6 @@ async fn run_blackhat_generic_fragmented_probe_should_mask(
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -128,8 +128,7 @@ async fn run_blackhat_generic_fragmented_probe_should_mask(
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -199,7 +198,6 @@ async fn run_blackhat_client_handler_fragmented_probe_should_mask(
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -210,7 +208,6 @@ async fn run_blackhat_client_handler_fragmented_probe_should_mask(
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -226,8 +223,7 @@ async fn run_blackhat_client_handler_fragmented_probe_should_mask(
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,
@@ -294,7 +290,6 @@ async fn blackhat_truncated_in_range_clienthello_generic_stream_should_mask() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -310,8 +305,7 @@ async fn blackhat_truncated_in_range_clienthello_generic_stream_should_mask() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -381,7 +375,6 @@ async fn blackhat_truncated_in_range_clienthello_client_handler_should_mask() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -392,7 +385,6 @@ async fn blackhat_truncated_in_range_clienthello_client_handler_should_mask() {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -408,8 +400,7 @@ async fn blackhat_truncated_in_range_clienthello_client_handler_should_mask() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,

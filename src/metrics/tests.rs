@@ -63,29 +63,6 @@ async fn test_render_metrics_format() {
     stats.observe_upstream_connect_attempts_per_request(2);
     stats.observe_upstream_connect_duration_ms(220, true);
     stats.observe_upstream_connect_duration_ms(1500, false);
-    stats.increment_me_rpc_proxy_req_signal_sent_total();
-    stats.increment_me_rpc_proxy_req_signal_failed_total();
-    stats.increment_me_rpc_proxy_req_signal_skipped_no_meta_total();
-    stats.increment_me_rpc_proxy_req_signal_response_total();
-    stats.increment_me_rpc_proxy_req_signal_close_sent_total();
-    stats.increment_me_idle_close_by_peer_total();
-    stats.increment_relay_idle_soft_mark_total();
-    stats.increment_relay_idle_hard_close_total();
-    stats.increment_relay_pressure_evict_total();
-    stats.increment_relay_protocol_desync_close_total();
-    stats.increment_me_d2c_batches_total();
-    stats.add_me_d2c_batch_frames_total(3);
-    stats.add_me_d2c_batch_bytes_total(2048);
-    stats.increment_me_d2c_flush_reason(crate::stats::MeD2cFlushReason::AckImmediate);
-    stats.increment_me_d2c_data_frames_total();
-    stats.increment_me_d2c_ack_frames_total();
-    stats.add_me_d2c_payload_bytes_total(1800);
-    stats.increment_me_d2c_write_mode(crate::stats::MeD2cWriteMode::Coalesced);
-    stats.increment_me_d2c_quota_reject_total(crate::stats::MeD2cQuotaRejectStage::PostWrite);
-    stats.observe_me_d2c_frame_buf_shrink(4096);
-    stats.increment_me_endpoint_quarantine_total();
-    stats.increment_me_endpoint_quarantine_unexpected_total();
-    stats.increment_me_endpoint_quarantine_draining_suppressed_total();
     stats.increment_user_connects("alice");
     stats.increment_user_curr_connects("alice");
     let _connection_permit = stats
@@ -110,7 +87,6 @@ async fn test_render_metrics_format() {
         None,
         &TlsFullCertBudget::new(),
         &test_web_publication(),
-        None,
     )
     .await;
 
@@ -142,30 +118,6 @@ async fn test_render_metrics_format() {
         output.contains("telemt_upstream_connect_duration_success_total{bucket=\"101_500ms\"} 1")
     );
     assert!(output.contains("telemt_upstream_connect_duration_fail_total{bucket=\"gt_1000ms\"} 1"));
-    assert!(output.contains("telemt_me_rpc_proxy_req_signal_sent_total 1"));
-    assert!(output.contains("telemt_me_rpc_proxy_req_signal_failed_total 1"));
-    assert!(output.contains("telemt_me_rpc_proxy_req_signal_skipped_no_meta_total 1"));
-    assert!(output.contains("telemt_me_rpc_proxy_req_signal_response_total 1"));
-    assert!(output.contains("telemt_me_rpc_proxy_req_signal_close_sent_total 1"));
-    assert!(output.contains("telemt_me_idle_close_by_peer_total 1"));
-    assert!(output.contains("telemt_relay_idle_soft_mark_total 1"));
-    assert!(output.contains("telemt_relay_idle_hard_close_total 1"));
-    assert!(output.contains("telemt_relay_pressure_evict_total 1"));
-    assert!(output.contains("telemt_relay_protocol_desync_close_total 1"));
-    assert!(output.contains("telemt_me_d2c_batches_total 1"));
-    assert!(output.contains("telemt_me_d2c_batch_frames_total 3"));
-    assert!(output.contains("telemt_me_d2c_batch_bytes_total 2048"));
-    assert!(output.contains("telemt_me_d2c_flush_reason_total{reason=\"ack_immediate\"} 1"));
-    assert!(output.contains("telemt_me_d2c_data_frames_total 1"));
-    assert!(output.contains("telemt_me_d2c_ack_frames_total 1"));
-    assert!(output.contains("telemt_me_d2c_payload_bytes_total 1800"));
-    assert!(output.contains("telemt_me_d2c_write_mode_total{mode=\"coalesced\"} 1"));
-    assert!(output.contains("telemt_me_d2c_quota_reject_total{stage=\"post_write\"} 1"));
-    assert!(output.contains("telemt_me_d2c_frame_buf_shrink_total 1"));
-    assert!(output.contains("telemt_me_d2c_frame_buf_shrink_bytes_total 4096"));
-    assert!(output.contains("telemt_me_endpoint_quarantine_total 1"));
-    assert!(output.contains("telemt_me_endpoint_quarantine_unexpected_total 1"));
-    assert!(output.contains("telemt_me_endpoint_quarantine_draining_suppressed_total 1"));
     assert!(output.contains("telemt_user_connections_total{user=\"alice\"} 1"));
     assert!(output.contains("telemt_user_connections_current{user=\"alice\"} 1"));
     assert!(output.contains("telemt_user_octets_from_client_total{user=\"alice\"} 1024"));
@@ -262,7 +214,6 @@ async fn test_render_tls_front_profile_health() {
         Some(&cache),
         &TlsFullCertBudget::new(),
         &test_web_publication(),
-        None,
     )
     .await;
 
@@ -333,7 +284,6 @@ async fn process_tls_budget_metrics_survive_a_generation_without_tls_cache() {
         None,
         budget.as_ref(),
         &test_web_publication(),
-        None,
     )
     .await;
 
@@ -361,7 +311,6 @@ async fn test_render_empty_stats() {
         None,
         &TlsFullCertBudget::new(),
         &test_web_publication(),
-        None,
     )
     .await;
     assert!(output.contains("telemt_connections_total 0"));
@@ -400,7 +349,6 @@ async fn test_render_uses_global_each_unique_ip_limit() {
         None,
         &TlsFullCertBudget::new(),
         &test_web_publication(),
-        None,
     )
     .await;
 
@@ -422,7 +370,6 @@ async fn test_render_has_type_annotations() {
         None,
         &TlsFullCertBudget::new(),
         &test_web_publication(),
-        None,
     )
     .await;
     assert!(output.contains("# TYPE telemt_uptime_seconds gauge"));
@@ -434,26 +381,6 @@ async fn test_render_has_type_annotations() {
     assert!(output.contains("# TYPE telemt_auth_expensive_checks_total counter"));
     assert!(output.contains("# TYPE telemt_auth_budget_exhausted_total counter"));
     assert!(output.contains("# TYPE telemt_upstream_connect_attempt_total counter"));
-    assert!(output.contains("# TYPE telemt_me_rpc_proxy_req_signal_sent_total counter"));
-    assert!(output.contains("# TYPE telemt_me_idle_close_by_peer_total counter"));
-    assert!(output.contains("# TYPE telemt_relay_idle_soft_mark_total counter"));
-    assert!(output.contains("# TYPE telemt_relay_idle_hard_close_total counter"));
-    assert!(output.contains("# TYPE telemt_relay_pressure_evict_total counter"));
-    assert!(output.contains("# TYPE telemt_relay_protocol_desync_close_total counter"));
-    assert!(output.contains("# TYPE telemt_me_d2c_batches_total counter"));
-    assert!(output.contains("# TYPE telemt_me_d2c_flush_reason_total counter"));
-    assert!(output.contains("# TYPE telemt_me_d2c_write_mode_total counter"));
-    assert!(output.contains("# TYPE telemt_me_d2c_batch_frames_bucket_total counter"));
-    assert!(output.contains("# TYPE telemt_me_d2c_flush_duration_us_bucket_total counter"));
-    assert!(output.contains("# TYPE telemt_me_endpoint_quarantine_total counter"));
-    assert!(output.contains("# TYPE telemt_me_endpoint_quarantine_unexpected_total counter"));
-    assert!(
-        output.contains("# TYPE telemt_me_endpoint_quarantine_draining_suppressed_total counter")
-    );
-    assert!(output.contains("# TYPE telemt_me_writer_removed_total counter"));
-    assert!(
-        output.contains("# TYPE telemt_me_writer_removed_unexpected_minus_restored_total gauge")
-    );
     assert!(output.contains("# TYPE telemt_user_unique_ips_current gauge"));
     assert!(output.contains("# TYPE telemt_user_unique_ips_recent_window gauge"));
     assert!(output.contains("# TYPE telemt_user_unique_ips_limit gauge"));

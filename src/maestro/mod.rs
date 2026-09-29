@@ -10,7 +10,6 @@
 // - generation: runtime generation state and task ownership.
 // - helpers: CLI and shared startup/runtime helper routines.
 // - listeners: TCP/Unix listener planning, binding, and lifecycle control.
-// - me_startup: Middle-End secret/config fetch and pool initialization.
 // - orchestrator: process startup, listener activation, and shutdown sequencing.
 // - reload: reload command coordination.
 // - reload_supervisor: generation and listener transition supervision.
@@ -26,7 +25,6 @@ pub(crate) mod control_plane;
 pub(crate) mod generation;
 mod helpers;
 mod listeners;
-mod me_startup;
 mod orchestrator;
 pub(crate) mod reload;
 mod reload_supervisor;

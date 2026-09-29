@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::sha256_hmac;
@@ -20,7 +21,6 @@ struct CampaignHarness {
     replay_checker: Arc<ReplayChecker>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_runtime: Arc<RouteRuntimeController>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
 }
@@ -74,7 +74,6 @@ fn build_mask_harness(secret_hex: &str, mask_port: u16) -> CampaignHarness {
         replay_checker: Arc::new(ReplayChecker::new(1024, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     }
@@ -220,8 +219,7 @@ async fn run_tls_success_mtproto_fail_capture(
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -288,8 +286,7 @@ async fn run_invalid_tls_capture(config: Arc<ProxyConfig>, payload: Vec<u8>, exp
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -462,7 +459,6 @@ async fn blackhat_campaign_06_replayed_tls_hello_is_masked_without_serverhello()
         let upstream = harness.upstream_manager.clone();
         let pool = harness.buffer_pool.clone();
         let rng = harness.rng.clone();
-        let route = harness.route_runtime.clone();
         let ipt = harness.ip_tracker.clone();
         let beob = harness.beobachten.clone();
 
@@ -477,8 +473,7 @@ async fn blackhat_campaign_06_replayed_tls_hello_is_masked_without_serverhello()
                 checker,
                 pool,
                 rng,
-                None,
-                route,
+
                 None,
                 ipt,
                 beob,
@@ -578,8 +573,7 @@ async fn blackhat_campaign_09_fragmented_header_then_partial_body_masks_seen_byt
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -629,8 +623,7 @@ async fn blackhat_campaign_10_zero_handshake_timeout_with_delay_still_avoids_tim
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -702,8 +695,7 @@ async fn blackhat_campaign_11_parallel_bad_tls_probes_all_masked_without_timeout
                 Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
                 Arc::new(BufferPool::new()),
                 Arc::new(SecureRandom::new()),
-                None,
-                Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
                 None,
                 Arc::new(UserIpTracker::new()),
                 Arc::new(BeobachtenStore::new()),
@@ -783,8 +775,7 @@ async fn blackhat_campaign_12_parallel_tls_success_mtproto_fail_sessions_keep_is
                 harness.replay_checker,
                 harness.buffer_pool,
                 harness.rng,
-                None,
-                harness.route_runtime,
+
                 None,
                 harness.ip_tracker,
                 harness.beobachten,
@@ -843,8 +834,7 @@ async fn blackhat_campaign_13_backend_down_does_not_escalate_to_handshake_timeou
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -880,8 +870,7 @@ async fn blackhat_campaign_14_masking_disabled_path_finishes_cleanly() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),

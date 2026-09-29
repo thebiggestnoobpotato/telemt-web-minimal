@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::{AesCtr, sha256, sha256_hmac};
@@ -458,7 +459,6 @@ async fn relay_task_abort_releases_user_gate_and_ip_reservation() {
 
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
 
     let (server_side, client_side) = duplex(64 * 1024);
     let (server_reader, server_writer) = tokio::io::split(server_side);
@@ -486,8 +486,7 @@ async fn relay_task_abort_releases_user_gate_and_ip_reservation() {
         config,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         "127.0.0.1:443".parse().unwrap(),
         peer_addr,
         ip_tracker.clone(),
@@ -520,267 +519,6 @@ async fn relay_task_abort_releases_user_gate_and_ip_reservation() {
         ip_tracker.get_active_ip_count(user).await,
         0,
         "task abort must release reserved user IP footprint"
-    );
-
-    drop(client_side);
-    tg_accept_task.abort();
-    let _ = tg_accept_task.await;
-}
-
-#[tokio::test]
-async fn relay_cutover_releases_user_gate_and_ip_reservation() {
-    let tg_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let tg_addr = tg_listener.local_addr().unwrap();
-
-    let tg_accept_task = tokio::spawn(async move {
-        let (stream, _) = tg_listener.accept().await.unwrap();
-        let _hold_stream = stream;
-        tokio::time::sleep(Duration::from_secs(60)).await;
-    });
-
-    let user = "cutover-user";
-    let peer_addr: SocketAddr = "198.51.100.231:50001".parse().unwrap();
-
-    let stats = Arc::new(Stats::new());
-    let ip_tracker = Arc::new(UserIpTracker::new());
-    ip_tracker.set_user_limit(user, 8).await;
-
-    let mut cfg = ProxyConfig::default();
-    cfg.access.user_max_tcp_conns.insert(user.to_string(), 8);
-    cfg.dc_overrides
-        .insert("2".to_string(), vec![tg_addr.to_string()]);
-    let config = Arc::new(cfg);
-
-    let upstream_manager = Arc::new(UpstreamManager::new(
-        vec![UpstreamConfig {
-            upstream_type: UpstreamType::Direct {
-                interface: None,
-                bind_addresses: None,
-                bindtodevice: None,
-            },
-            weight: 1,
-            enabled: true,
-            scopes: String::new(),
-            selected_scope: String::new(),
-            ipv4: None,
-            ipv6: None,
-            prefer: None,
-        }],
-        1,
-        1,
-        1,
-        10,
-        1,
-        false,
-        stats.clone(),
-    ));
-
-    let buffer_pool = Arc::new(BufferPool::new());
-    let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
-
-    let (server_side, client_side) = duplex(64 * 1024);
-    let (server_reader, server_writer) = tokio::io::split(server_side);
-    let client_reader = make_crypto_reader(server_reader);
-    let client_writer = make_crypto_writer(server_writer);
-
-    let success = HandshakeSuccess {
-        user: user.to_string(),
-        dc_idx: 2,
-        proto_tag: ProtoTag::Intermediate,
-        dec_key: [0u8; 32],
-        dec_iv: 0,
-        enc_key: [0u8; 32],
-        enc_iv: 0,
-        peer: peer_addr,
-        is_tls: false,
-    };
-
-    let relay_task = tokio::spawn(RunningClientHandler::handle_authenticated_static(
-        client_reader,
-        client_writer,
-        success,
-        upstream_manager,
-        stats.clone(),
-        config,
-        buffer_pool,
-        rng,
-        None,
-        route_runtime.clone(),
-        "127.0.0.1:443".parse().unwrap(),
-        peer_addr,
-        ip_tracker.clone(),
-    ));
-
-    tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            if stats.get_user_curr_connects(user) == 1
-                && ip_tracker.get_active_ip_count(user).await == 1
-            {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("relay must reserve user slot and IP before cutover");
-
-    assert!(
-        route_runtime.set_mode(RelayRouteMode::Middle).is_some(),
-        "cutover must advance route generation"
-    );
-
-    let relay_result = tokio::time::timeout(Duration::from_secs(6), relay_task)
-        .await
-        .expect("relay must terminate after cutover")
-        .expect("relay task must not panic");
-    assert!(
-        relay_result.is_err(),
-        "cutover must terminate direct relay session"
-    );
-
-    assert_eq!(
-        stats.get_user_curr_connects(user),
-        0,
-        "cutover exit must release user current-connection slot"
-    );
-    assert_eq!(
-        ip_tracker.get_active_ip_count(user).await,
-        0,
-        "cutover exit must release reserved user IP footprint"
-    );
-
-    drop(client_side);
-    tg_accept_task.abort();
-    let _ = tg_accept_task.await;
-}
-
-#[tokio::test]
-async fn integration_route_cutover_and_quota_overlap_fails_closed_and_releases_state() {
-    let tg_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let tg_addr = tg_listener.local_addr().unwrap();
-
-    let tg_accept_task = tokio::spawn(async move {
-        let (mut stream, _) = tg_listener.accept().await.unwrap();
-        stream.write_all(&[0x41, 0x42]).await.unwrap();
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    });
-
-    let user = "cutover-quota-overlap-user";
-    let peer_addr: SocketAddr = "198.51.100.240:50010".parse().unwrap();
-
-    let stats = Arc::new(Stats::new());
-    let ip_tracker = Arc::new(UserIpTracker::new());
-
-    let mut cfg = ProxyConfig::default();
-    cfg.access.user_max_tcp_conns.insert(user.to_string(), 8);
-    cfg.access.user_data_quota.insert(user.to_string(), 1);
-    cfg.dc_overrides
-        .insert("2".to_string(), vec![tg_addr.to_string()]);
-    let config = Arc::new(cfg);
-
-    let upstream_manager = Arc::new(UpstreamManager::new(
-        vec![UpstreamConfig {
-            upstream_type: UpstreamType::Direct {
-                interface: None,
-                bind_addresses: None,
-                bindtodevice: None,
-            },
-            weight: 1,
-            enabled: true,
-            scopes: String::new(),
-            selected_scope: String::new(),
-            ipv4: None,
-            ipv6: None,
-            prefer: None,
-        }],
-        1,
-        1,
-        1,
-        10,
-        1,
-        false,
-        stats.clone(),
-    ));
-
-    let buffer_pool = Arc::new(BufferPool::new());
-    let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
-
-    let (server_side, client_side) = duplex(64 * 1024);
-    let (server_reader, server_writer) = tokio::io::split(server_side);
-    let client_reader = make_crypto_reader(server_reader);
-    let client_writer = make_crypto_writer(server_writer);
-
-    let success = HandshakeSuccess {
-        user: user.to_string(),
-        dc_idx: 2,
-        proto_tag: ProtoTag::Intermediate,
-        dec_key: [0u8; 32],
-        dec_iv: 0,
-        enc_key: [0u8; 32],
-        enc_iv: 0,
-        peer: peer_addr,
-        is_tls: false,
-    };
-
-    let relay_task = tokio::spawn(RunningClientHandler::handle_authenticated_static(
-        client_reader,
-        client_writer,
-        success,
-        upstream_manager,
-        stats.clone(),
-        config,
-        buffer_pool,
-        rng,
-        None,
-        route_runtime.clone(),
-        "127.0.0.1:443".parse().unwrap(),
-        peer_addr,
-        ip_tracker.clone(),
-    ));
-
-    let observed_progress = tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            if stats.get_user_curr_connects(user) >= 1
-                || ip_tracker.get_active_ip_count(user).await >= 1
-                || relay_task.is_finished()
-            {
-                return true;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .unwrap_or(false);
-    assert!(
-        observed_progress,
-        "overlap race test precondition must observe activation or bounded early termination"
-    );
-
-    tokio::time::sleep(Duration::from_millis(5)).await;
-    let _ = route_runtime.set_mode(RelayRouteMode::Middle);
-
-    let relay_result = tokio::time::timeout(Duration::from_secs(3), relay_task)
-        .await
-        .expect("overlap race relay must terminate")
-        .expect("overlap race relay task must not panic");
-
-    assert!(
-        matches!(relay_result, Err(ProxyError::DataQuotaExceeded { .. }))
-            || matches!(relay_result, Err(ProxyError::RouteSwitched)),
-        "overlap race must fail closed via quota enforcement or generic cutover termination"
-    );
-
-    assert_eq!(
-        stats.get_user_curr_connects(user),
-        0,
-        "overlap race exit must release user current-connection slot"
-    );
-    assert_eq!(
-        ip_tracker.get_active_ip_count(user).await,
-        0,
-        "overlap race exit must release reserved user IP footprint"
     );
 
     drop(client_side);
@@ -882,9 +620,6 @@ async fn proxy_protocol_header_is_rejected_when_trust_list_is_empty() {
     ));
     let buffer_pool = std::sync::Arc::new(crate::stream::BufferPool::new());
     let rng = std::sync::Arc::new(crate::crypto::SecureRandom::new());
-    let route_runtime = std::sync::Arc::new(crate::proxy::route_mode::RouteRuntimeController::new(
-        crate::proxy::route_mode::RelayRouteMode::Direct,
-    ));
     let ip_tracker = std::sync::Arc::new(crate::ip_tracker::UserIpTracker::new());
     let beobachten = std::sync::Arc::new(crate::stats::beobachten::BeobachtenStore::new());
 
@@ -900,8 +635,7 @@ async fn proxy_protocol_header_is_rejected_when_trust_list_is_empty() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -963,10 +697,6 @@ async fn proxy_protocol_header_from_untrusted_peer_range_is_rejected_under_load(
         ));
         let buffer_pool = std::sync::Arc::new(crate::stream::BufferPool::new());
         let rng = std::sync::Arc::new(crate::crypto::SecureRandom::new());
-        let route_runtime =
-            std::sync::Arc::new(crate::proxy::route_mode::RouteRuntimeController::new(
-                crate::proxy::route_mode::RelayRouteMode::Direct,
-            ));
         let ip_tracker = std::sync::Arc::new(crate::ip_tracker::UserIpTracker::new());
         let beobachten = std::sync::Arc::new(crate::stats::beobachten::BeobachtenStore::new());
 
@@ -985,8 +715,7 @@ async fn proxy_protocol_header_from_untrusted_peer_range_is_rejected_under_load(
             replay_checker,
             buffer_pool,
             rng,
-            None,
-            route_runtime,
+
             None,
             ip_tracker,
             beobachten,
@@ -1154,7 +883,6 @@ async fn short_tls_probe_is_masked_through_client_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -1170,8 +898,7 @@ async fn short_tls_probe_is_masked_through_client_pipeline() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -1246,7 +973,6 @@ async fn tls12_record_probe_is_masked_through_client_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -1262,8 +988,7 @@ async fn tls12_record_probe_is_masked_through_client_pipeline() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -1336,7 +1061,6 @@ async fn handle_client_stream_increments_connects_all_exactly_once() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -1352,8 +1076,7 @@ async fn handle_client_stream_increments_connects_all_exactly_once() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -1433,7 +1156,6 @@ async fn running_client_handler_increments_connects_all_exactly_once() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -1444,7 +1166,6 @@ async fn running_client_handler_increments_connects_all_exactly_once() {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -1460,8 +1181,7 @@ async fn running_client_handler_increments_connects_all_exactly_once() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,
@@ -1527,7 +1247,6 @@ async fn idle_pooled_connection_closes_cleanly_in_generic_stream_path() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -1543,8 +1262,7 @@ async fn idle_pooled_connection_closes_cleanly_in_generic_stream_path() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -1602,7 +1320,6 @@ async fn idle_pooled_connection_closes_cleanly_in_client_handler_path() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -1613,7 +1330,6 @@ async fn idle_pooled_connection_closes_cleanly_in_client_handler_path() {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -1629,8 +1345,7 @@ async fn idle_pooled_connection_closes_cleanly_in_client_handler_path() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,
@@ -1692,7 +1407,6 @@ async fn partial_tls_header_stall_triggers_handshake_timeout() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -1708,8 +1422,7 @@ async fn partial_tls_header_stall_triggers_handshake_timeout() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -2185,7 +1898,6 @@ async fn valid_tls_path_does_not_fall_back_to_mask_backend() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -2203,8 +1915,7 @@ async fn valid_tls_path_does_not_fall_back_to_mask_backend() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -2298,7 +2009,6 @@ async fn valid_tls_with_invalid_mtproto_falls_back_to_mask_backend() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -2314,8 +2024,7 @@ async fn valid_tls_with_invalid_mtproto_falls_back_to_mask_backend() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -2410,7 +2119,6 @@ async fn client_handler_tls_bad_mtproto_is_forwarded_to_mask_backend() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -2421,7 +2129,6 @@ async fn client_handler_tls_bad_mtproto_is_forwarded_to_mask_backend() {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -2437,8 +2144,7 @@ async fn client_handler_tls_bad_mtproto_is_forwarded_to_mask_backend() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,
@@ -2537,7 +2243,6 @@ async fn alpn_mismatch_tls_probe_is_masked_through_client_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -2553,8 +2258,7 @@ async fn alpn_mismatch_tls_probe_is_masked_through_client_pipeline() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -2634,7 +2338,6 @@ async fn invalid_hmac_tls_probe_is_masked_through_client_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -2650,8 +2353,7 @@ async fn invalid_hmac_tls_probe_is_masked_through_client_pipeline() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -2737,7 +2439,6 @@ async fn burst_invalid_tls_probes_are_masked_verbatim() {
         let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
         let buffer_pool = Arc::new(BufferPool::new());
         let rng = Arc::new(SecureRandom::new());
-        let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
         let ip_tracker = Arc::new(UserIpTracker::new());
         let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -2757,8 +2458,7 @@ async fn burst_invalid_tls_probes_are_masked_verbatim() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,
@@ -3708,7 +3408,6 @@ async fn relay_connect_error_releases_user_and_ip_before_return() {
 
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
 
     let (server_side, _client_side) = duplex(64 * 1024);
     let (server_reader, server_writer) = tokio::io::split(server_side);
@@ -3736,8 +3435,7 @@ async fn relay_connect_error_releases_user_and_ip_before_return() {
         config,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         "127.0.0.1:443".parse().unwrap(),
         peer_addr,
         ip_tracker.clone(),
@@ -4281,7 +3979,6 @@ async fn untrusted_proxy_header_source_is_rejected() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -4297,8 +3994,7 @@ async fn untrusted_proxy_header_source_is_rejected() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -4355,7 +4051,6 @@ async fn empty_proxy_trusted_cidrs_rejects_proxy_header_by_default() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -4371,8 +4066,7 @@ async fn empty_proxy_trusted_cidrs_rejects_proxy_header_by_default() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -4456,7 +4150,6 @@ async fn oversized_tls_record_is_masked_in_generic_stream_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -4472,8 +4165,7 @@ async fn oversized_tls_record_is_masked_in_generic_stream_pipeline() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -4563,7 +4255,6 @@ async fn oversized_tls_record_is_masked_in_client_handler_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -4574,7 +4265,6 @@ async fn oversized_tls_record_is_masked_in_client_handler_pipeline() {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -4590,8 +4280,7 @@ async fn oversized_tls_record_is_masked_in_client_handler_pipeline() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,
@@ -4684,7 +4373,6 @@ async fn tls_record_len_min_minus_1_is_rejected_in_generic_stream_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -4700,8 +4388,7 @@ async fn tls_record_len_min_minus_1_is_rejected_in_generic_stream_pipeline() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -4791,7 +4478,6 @@ async fn tls_record_len_min_minus_1_is_rejected_in_client_handler_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -4802,7 +4488,6 @@ async fn tls_record_len_min_minus_1_is_rejected_in_client_handler_pipeline() {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -4818,8 +4503,7 @@ async fn tls_record_len_min_minus_1_is_rejected_in_client_handler_pipeline() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,
@@ -4901,7 +4585,6 @@ async fn tls_record_len_16384_is_accepted_in_generic_stream_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -4917,8 +4600,7 @@ async fn tls_record_len_16384_is_accepted_in_generic_stream_pipeline() {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,
@@ -5006,7 +4688,6 @@ async fn tls_record_len_16384_is_accepted_in_client_handler_pipeline() {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -5017,7 +4698,6 @@ async fn tls_record_len_16384_is_accepted_in_client_handler_pipeline() {
         let replay_checker = replay_checker.clone();
         let buffer_pool = buffer_pool.clone();
         let rng = rng.clone();
-        let route_runtime = route_runtime.clone();
         let ip_tracker = ip_tracker.clone();
         let beobachten = beobachten.clone();
 
@@ -5033,8 +4713,7 @@ async fn tls_record_len_16384_is_accepted_in_client_handler_pipeline() {
                 replay_checker,
                 buffer_pool,
                 rng,
-                None,
-                route_runtime,
+
                 None,
                 ip_tracker,
                 beobachten,

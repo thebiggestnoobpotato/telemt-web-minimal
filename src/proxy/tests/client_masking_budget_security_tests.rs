@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::sha256_hmac;
@@ -14,7 +15,6 @@ struct PipelineHarness {
     replay_checker: Arc<ReplayChecker>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_runtime: Arc<RouteRuntimeController>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
 }
@@ -53,7 +53,6 @@ fn build_harness(config: ProxyConfig) -> PipelineHarness {
         replay_checker: Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     }
@@ -189,8 +188,7 @@ async fn masking_runs_outside_handshake_timeout_budget_with_high_reject_delay() 
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -277,8 +275,7 @@ async fn tls_mtproto_bad_client_does_not_reinject_clienthello_into_mask_backend(
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,

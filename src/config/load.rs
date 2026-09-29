@@ -30,7 +30,6 @@ mod decode;
 mod effective;
 mod pipeline;
 mod validate_core;
-mod validate_me;
 mod validate_runtime;
 mod validate_server;
 mod validate_web;
@@ -42,7 +41,7 @@ use self::includes::{
 use self::normalize::{
     is_valid_ad_tag, is_valid_tls_domain_name, normalize_domain_to_ascii,
     normalize_exclusive_mask_target, normalize_mask_host_to_ascii, parse_exclusive_mask_target,
-    push_unique_nonempty, sanitize_ad_tag,
+    sanitize_ad_tag,
 };
 pub(crate) use self::runtime_auth::UserAuthSnapshot;
 use self::strict_keys::handle_unknown_config_keys;
@@ -51,10 +50,6 @@ use self::validation::{
     validate_network_cfg, validate_upstreams,
 };
 
-const MAX_ME_WRITER_CMD_CHANNEL_CAPACITY: usize = 16_384;
-const MAX_ME_WRITER_BYTE_BUDGET_BYTES: usize = 256 * 1024 * 1024;
-const MAX_ME_ROUTE_CHANNEL_CAPACITY: usize = 8_192;
-const MAX_ME_C2ME_CHANNEL_CAPACITY: usize = 8_192;
 const MIN_DIRECT_RELAY_BUFFER_BUDGET_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DIRECT_RELAY_BUFFER_BUDGET_BYTES: usize = 2 * 1024 * 1024 * 1024;
 const MIN_MAX_CLIENT_FRAME_BYTES: usize = 4 * 1024;

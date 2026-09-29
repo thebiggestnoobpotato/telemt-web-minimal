@@ -3,9 +3,6 @@ use std::sync::Arc;
 
 use crate::stats::Stats;
 
-const TEST_SHADOWSOCKS_URL: &str =
-    "ss://2022-blake3-aes-256-gcm:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=@127.0.0.1:8388";
-
 fn manager_with_dns(entries: &[String]) -> UpstreamManager {
     UpstreamManager::new(Vec::new(), 1, 1, 1, 1, 1, false, Arc::new(Stats::new()))
         .with_dns_overrides(entries)
@@ -192,40 +189,4 @@ fn resolve_bind_address_does_not_fallback_to_interface_when_bind_addresses_prese
     );
 
     assert_eq!(bind, None);
-}
-
-#[test]
-fn api_snapshot_reports_shadowsocks_as_sanitized_route() {
-    let manager = UpstreamManager::new(
-        vec![UpstreamConfig {
-            upstream_type: UpstreamType::Shadowsocks {
-                url: TEST_SHADOWSOCKS_URL.to_string(),
-                interface: None,
-            },
-            weight: 2,
-            enabled: true,
-            scopes: String::new(),
-            selected_scope: String::new(),
-            ipv4: None,
-            ipv6: None,
-            prefer: None,
-        }],
-        1,
-        100,
-        1000,
-        10,
-        1,
-        false,
-        Arc::new(Stats::new()),
-    );
-
-    let snapshot = manager.try_api_snapshot().expect("snapshot");
-    assert_eq!(snapshot.summary.configured_total, 1);
-    assert_eq!(snapshot.summary.shadowsocks_total, 1);
-    assert_eq!(snapshot.upstreams.len(), 1);
-    assert_eq!(
-        snapshot.upstreams[0].route_kind,
-        UpstreamRouteKind::Shadowsocks
-    );
-    assert_eq!(snapshot.upstreams[0].address, "127.0.0.1:8388");
 }

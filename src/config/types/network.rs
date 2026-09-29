@@ -33,9 +33,6 @@ pub struct NetworkConfig {
     #[serde(default = "default_prefer_4")]
     pub prefer: u8,
 
-    #[serde(default)]
-    pub multipath: bool,
-
     /// Global switch for STUN probing.
     /// When false, STUN is fully disabled and only non-STUN detection remains.
     #[serde(default = "default_true")]
@@ -69,7 +66,6 @@ impl Default for NetworkConfig {
             ipv4: default_true(),
             ipv6: default_network_ipv6(),
             prefer: default_prefer_4(),
-            multipath: false,
             stun_use: default_true(),
             stun_servers: default_stun_servers(),
             stun_tcp_fallback: default_stun_tcp_fallback(),
@@ -108,11 +104,6 @@ pub enum UpstreamType {
         username: Option<String>,
         #[serde(default)]
         password: Option<String>,
-    },
-    Shadowsocks {
-        url: String,
-        #[serde(default)]
-        interface: Option<String>,
     },
 }
 

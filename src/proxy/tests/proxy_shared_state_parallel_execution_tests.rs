@@ -1,13 +1,9 @@
+
 use crate::proxy::handshake::{
     auth_probe_fail_streak_for_testing_in_shared, auth_probe_record_failure_for_testing,
     clear_auth_probe_state_for_testing_in_shared,
     clear_unknown_sni_warn_state_for_testing_in_shared,
     should_emit_unknown_sni_warn_for_testing_in_shared,
-};
-use crate::proxy::middle_relay::{
-    clear_desync_dedup_for_testing_in_shared,
-    clear_relay_idle_pressure_state_for_testing_in_shared, mark_relay_idle_candidate_for_testing,
-    oldest_relay_idle_candidate_for_testing, should_emit_full_desync_for_testing,
 };
 use crate::proxy::shared_state::ProxySharedState;
 use rand::RngExt;
@@ -34,46 +30,6 @@ async fn proxy_shared_state_50_concurrent_instances_no_counter_bleed() {
     for handle in handles {
         let streak = handle.await.expect("task join failed");
         assert_eq!(streak, Some(1));
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn proxy_shared_state_desync_rotation_concurrent_20_instances() {
-    let now = Instant::now();
-    let key = 0xD35E_D35E_u64;
-    let mut handles = Vec::new();
-    for _ in 0..20_u64 {
-        handles.push(tokio::spawn(async move {
-            let shared = ProxySharedState::new();
-            clear_desync_dedup_for_testing_in_shared(shared.as_ref());
-            should_emit_full_desync_for_testing(shared.as_ref(), key, false, now)
-        }));
-    }
-
-    for handle in handles {
-        let emitted = handle.await.expect("task join failed");
-        assert!(emitted);
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn proxy_shared_state_idle_registry_concurrent_10_instances() {
-    let mut handles = Vec::new();
-    let conn_id = 42_u64;
-    for _ in 1..=10_u64 {
-        handles.push(tokio::spawn(async move {
-            let shared = ProxySharedState::new();
-            clear_relay_idle_pressure_state_for_testing_in_shared(shared.as_ref());
-            let marked = mark_relay_idle_candidate_for_testing(shared.as_ref(), conn_id);
-            let oldest = oldest_relay_idle_candidate_for_testing(shared.as_ref());
-            (marked, oldest)
-        }));
-    }
-
-    for (i, handle) in handles.into_iter().enumerate() {
-        let (marked, oldest) = handle.await.expect("task join failed");
-        assert!(marked, "instance {} failed to mark", i);
-        assert_eq!(oldest, Some(conn_id));
     }
 }
 

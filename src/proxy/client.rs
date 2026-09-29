@@ -11,7 +11,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 use tokio::net::TcpStream;
-use tokio::sync::RwLock;
 use tokio::time::timeout;
 use tracing::{debug, warn};
 
@@ -37,7 +36,6 @@ use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::{ReplayChecker, Stats};
 use crate::stream::{BufferPool, CryptoReader, CryptoWriter};
 use crate::tls_front::TlsFrontCache;
-use crate::transport::middle_proxy::MePool;
 use crate::transport::socket::normalize_ip;
 use crate::transport::{UpstreamManager, configure_client_socket, parse_proxy_protocol};
 
@@ -50,9 +48,6 @@ use crate::proxy::handshake::{
 };
 #[cfg(test)]
 use crate::proxy::handshake::{handle_mtproto_handshake, handle_tls_handshake};
-#[cfg(test)]
-use crate::proxy::route_mode::RelayRouteMode;
-use crate::proxy::route_mode::RouteRuntimeController;
 use crate::proxy::shared_state::{ConntrackClosePolicy, ProxySharedState};
 
 // Handshake classification, telemetry, and masking helpers.
@@ -88,9 +83,6 @@ pub struct RunningClientHandler {
     upstream_manager: Arc<UpstreamManager>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    me_pool: Option<Arc<MePool>>,
-    me_pool_runtime: Option<Arc<RwLock<Option<Arc<MePool>>>>>,
-    route_runtime: Arc<RouteRuntimeController>,
     tls_cache: Option<Arc<TlsFrontCache>>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
@@ -113,8 +105,6 @@ impl ClientHandler {
         replay_checker: Arc<ReplayChecker>,
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
-        me_pool: Option<Arc<MePool>>,
-        route_runtime: Arc<RouteRuntimeController>,
         tls_cache: Option<Arc<TlsFrontCache>>,
         ip_tracker: Arc<UserIpTracker>,
         beobachten: Arc<BeobachtenStore>,
@@ -135,9 +125,6 @@ impl ClientHandler {
             replay_checker,
             buffer_pool,
             rng,
-            me_pool,
-            None,
-            route_runtime,
             tls_cache,
             ip_tracker,
             beobachten,
@@ -161,9 +148,6 @@ impl ClientHandler {
         replay_checker: Arc<ReplayChecker>,
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
-        me_pool: Option<Arc<MePool>>,
-        me_pool_runtime: Option<Arc<RwLock<Option<Arc<MePool>>>>>,
-        route_runtime: Arc<RouteRuntimeController>,
         tls_cache: Option<Arc<TlsFrontCache>>,
         ip_tracker: Arc<UserIpTracker>,
         beobachten: Arc<BeobachtenStore>,
@@ -186,9 +170,6 @@ impl ClientHandler {
             upstream_manager,
             buffer_pool,
             rng,
-            me_pool,
-            me_pool_runtime,
-            route_runtime,
             tls_cache,
             ip_tracker,
             beobachten,

@@ -1,62 +1,6 @@
 use super::*;
 
 pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
-    if let Some(path) = &config.general.proxy_config_v4_cache_path
-        && path.trim().is_empty()
-    {
-        return Err(ProxyError::Config(
-            "general.proxy_config_v4_cache_path cannot be empty when provided".to_string(),
-        ));
-    }
-
-    if let Some(path) = &config.general.proxy_config_v6_cache_path
-        && path.trim().is_empty()
-    {
-        return Err(ProxyError::Config(
-            "general.proxy_config_v6_cache_path cannot be empty when provided".to_string(),
-        ));
-    }
-
-    if let Some(update_every) = config.general.update_every {
-        if update_every == 0 {
-            return Err(ProxyError::Config(
-                "general.update_every must be > 0".to_string(),
-            ));
-        }
-    } else {
-        let legacy_secret = config.general.proxy_secret_auto_reload_secs;
-        let legacy_config = config.general.proxy_config_auto_reload_secs;
-        let effective = legacy_secret.min(legacy_config);
-        if effective == 0 {
-            return Err(ProxyError::Config(
-                "legacy proxy_*_auto_reload_secs values must be > 0 when general.update_every is not set".to_string(),
-            ));
-        }
-
-        if legacy_secret != default_proxy_secret_reload_secs()
-            || legacy_config != default_proxy_config_reload_secs()
-        {
-            warn!(
-                proxy_secret_auto_reload_secs = legacy_secret,
-                proxy_config_auto_reload_secs = legacy_config,
-                effective_update_every_secs = effective,
-                "proxy_*_auto_reload_secs are deprecated; set general.update_every"
-            );
-        }
-    }
-
-    if config.general.stun_nat_probe_concurrency == 0 {
-        return Err(ProxyError::Config(
-            "general.stun_nat_probe_concurrency must be > 0".to_string(),
-        ));
-    }
-
-    if config.general.me_init_retry_attempts > 1_000_000 {
-        return Err(ProxyError::Config(
-            "general.me_init_retry_attempts must be within [0, 1000000]".to_string(),
-        ));
-    }
-
     if config.general.upstream_connect_retry_attempts == 0 {
         return Err(ProxyError::Config(
             "general.upstream_connect_retry_attempts must be > 0".to_string(),
@@ -81,13 +25,6 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    if config.general.rpc_proxy_req_every != 0
-        && !(10..=300).contains(&config.general.rpc_proxy_req_every)
-    {
-        return Err(ProxyError::Config(
-            "general.rpc_proxy_req_every must be 0 or within [10, 300]".to_string(),
-        ));
-    }
 
     if config.timeouts.client_handshake == 0 {
         return Err(ProxyError::Config(

@@ -1,8 +1,8 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::{AesCtr, SecureRandom};
 use crate::protocol::constants::ProtoTag;
-use crate::proxy::route_mode::{RelayRouteMode, RouteRuntimeController};
 use crate::stats::Stats;
 use crate::stream::{BufferPool, CryptoReader, CryptoWriter};
 use crate::transport::UpstreamManager;

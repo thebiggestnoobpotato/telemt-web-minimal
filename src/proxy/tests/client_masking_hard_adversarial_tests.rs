@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::sha256_hmac;
@@ -14,7 +15,6 @@ struct Harness {
     replay_checker: Arc<ReplayChecker>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_runtime: Arc<RouteRuntimeController>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
 }
@@ -68,7 +68,6 @@ fn build_harness(secret_hex: &str, mask_port: u16) -> Harness {
         replay_checker: Arc::new(ReplayChecker::new(512, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     }
@@ -210,8 +209,7 @@ async fn run_tls_success_mtproto_fail_capture(
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -284,8 +282,7 @@ async fn masking_budget_survives_zero_handshake_timeout_with_delay() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -366,7 +363,6 @@ async fn replayed_tls_hello_gets_no_serverhello_and_is_masked() {
         let replay = harness.replay_checker.clone();
         let pool = harness.buffer_pool.clone();
         let rng = harness.rng.clone();
-        let route = harness.route_runtime.clone();
         let ipt = harness.ip_tracker.clone();
         let beob = harness.beobachten.clone();
         let hello = hello.clone();
@@ -383,8 +379,7 @@ async fn replayed_tls_hello_gets_no_serverhello_and_is_masked() {
                 replay,
                 pool,
                 rng,
-                None,
-                route,
+
                 None,
                 ipt,
                 beob,
@@ -458,8 +453,7 @@ async fn connects_bad_increments_once_per_invalid_mtproto() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -521,8 +515,7 @@ async fn truncated_clienthello_forwards_only_seen_prefix() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -582,8 +575,7 @@ async fn out_of_bounds_tls_len_forwards_header_only() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -638,8 +630,7 @@ async fn non_tls_with_modes_disabled_is_masked() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -713,8 +704,7 @@ async fn concurrent_tls_mtproto_fail_sessions_are_isolated() {
                 harness.replay_checker,
                 harness.buffer_pool,
                 harness.rng,
-                None,
-                harness.route_runtime,
+
                 None,
                 harness.ip_tracker,
                 harness.beobachten,

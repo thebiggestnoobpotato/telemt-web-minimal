@@ -398,14 +398,6 @@ fn web_debug_prefix_dependent_on_new_capacity_is_deferred_with_limits() {
 }
 
 #[test]
-fn strict_middle_proxy_requires_a_prepared_pool() {
-    assert!(strict_middle_proxy_unavailable(true, false, false));
-    assert!(!strict_middle_proxy_unavailable(true, false, true));
-    assert!(!strict_middle_proxy_unavailable(true, true, false));
-    assert!(!strict_middle_proxy_unavailable(false, false, false));
-}
-
-#[test]
 fn endpoint_only_listener_move_is_runtime_rebindable() {
     let mut old = ProxyConfig::default();
     old.server.listeners = vec![test_listener(443)];

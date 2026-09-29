@@ -10,7 +10,6 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf, split};
-use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 
@@ -19,9 +18,6 @@ use crate::crypto::SecureRandom;
 use crate::error::{ProxyError, Result};
 use crate::protocol::constants::*;
 use crate::proxy::handshake::{HandshakeSuccess, encrypt_tg_nonce_with_ciphers, generate_tg_nonce};
-use crate::proxy::route_mode::{
-    RelayRouteMode, RouteCutoverState, affected_cutover_state, cutover_stagger_delay,
-};
 use crate::proxy::shared_state::{
     ConntrackCloseEvent, ConntrackClosePolicy, ConntrackClosePublishResult, ConntrackCloseReason,
     ProxySharedState,

@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::ProxyConfig;
 use crate::protocol::constants::MIN_TLS_CLIENT_HELLO_SIZE;
@@ -55,8 +56,7 @@ async fn invariant_tls_clienthello_truncation_exact_boundary_triggers_masking() 
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),
@@ -186,8 +186,7 @@ async fn invariant_direct_mode_partial_header_eof_is_error_not_bad_connect() {
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::new()),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
+
         None,
         Arc::new(UserIpTracker::new()),
         beobachten.clone(),
@@ -208,17 +207,3 @@ async fn invariant_direct_mode_partial_header_eof_is_error_not_bad_connect() {
     assert!(snapshot.contains("[expected_64_got_0]"));
 }
 
-#[tokio::test]
-async fn invariant_route_mode_snapshot_picks_up_latest_mode() {
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
-    assert!(matches!(
-        route_runtime.snapshot().mode,
-        RelayRouteMode::Direct
-    ));
-
-    route_runtime.set_mode(RelayRouteMode::Middle);
-    assert!(matches!(
-        route_runtime.snapshot().mode,
-        RelayRouteMode::Middle
-    ));
-}

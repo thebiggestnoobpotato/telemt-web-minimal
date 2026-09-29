@@ -1,11 +1,8 @@
-use shadowsocks::config::ServerConfig as ShadowsocksServerConfig;
 use tracing::warn;
 
 use crate::error::{ProxyError, Result};
 
-use super::super::types::{
-    LoggingConfig, LoggingDestination, NetworkConfig, SynLimitMode, UpstreamType,
-};
+use super::super::types::{LoggingConfig, LoggingDestination, NetworkConfig, SynLimitMode};
 use super::ProxyConfig;
 
 pub(super) fn validate_network_cfg(net: &mut NetworkConfig) -> Result<()> {
@@ -53,16 +50,6 @@ pub(super) fn validate_logging_config(logging: &LoggingConfig) -> Result<()> {
 }
 
 pub(super) fn validate_upstreams(config: &ProxyConfig) -> Result<()> {
-    let has_enabled_shadowsocks = config.upstreams.iter().any(|upstream| {
-        upstream.enabled && matches!(upstream.upstream_type, UpstreamType::Shadowsocks { .. })
-    });
-
-    if has_enabled_shadowsocks && config.general.use_middle_proxy {
-        return Err(ProxyError::Config(
-            "shadowsocks upstreams require general.use_middle_proxy = false".to_string(),
-        ));
-    }
-
     for upstream in &config.upstreams {
         if matches!(upstream.ipv4, Some(false)) && matches!(upstream.ipv6, Some(false)) {
             return Err(ProxyError::Config(
@@ -78,15 +65,6 @@ pub(super) fn validate_upstreams(config: &ProxyConfig) -> Result<()> {
             ));
         }
 
-        if let UpstreamType::Shadowsocks { url, .. } = &upstream.upstream_type {
-            let parsed = ShadowsocksServerConfig::from_url(url)
-                .map_err(|error| ProxyError::Config(format!("invalid shadowsocks url: {error}")))?;
-            if parsed.plugin().is_some() {
-                return Err(ProxyError::Config(
-                    "shadowsocks plugins are not supported".to_string(),
-                ));
-            }
-        }
     }
 
     Ok(())

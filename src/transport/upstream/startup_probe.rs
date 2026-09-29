@@ -58,11 +58,6 @@ impl UpstreamManager {
                 }
                 UpstreamType::Socks4 { address, .. } => format!("socks4://{}", address),
                 UpstreamType::Socks5 { address, .. } => format!("socks5://{}", address),
-                UpstreamType::Shadowsocks { url, .. } => {
-                    let address =
-                        sanitize_shadowsocks_url(url).unwrap_or_else(|_| "invalid".to_string());
-                    format!("shadowsocks://{address}")
-                }
             };
 
             let mut v6_results = Vec::with_capacity(NUM_DCS);

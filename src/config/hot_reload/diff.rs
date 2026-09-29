@@ -142,7 +142,6 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warn!("config reload: network.ipv4/ipv6 changed; restart required");
     }
     if old.network.prefer != new.network.prefer
-        || old.network.multipath != new.network.multipath
         || old.network.stun_use != new.network.stun_use
         || old.network.stun_servers != new.network.stun_servers
         || old.network.stun_tcp_fallback != new.network.stun_tcp_fallback
@@ -152,60 +151,15 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: non-hot network settings changed; restart required");
     }
-    if old.general.use_middle_proxy != new.general.use_middle_proxy {
-        warned = true;
-        warn!("config reload: use_middle_proxy changed; restart required");
-    }
     if old.general.stun_nat_probe_concurrency != new.general.stun_nat_probe_concurrency {
         warned = true;
         warn!("config reload: general.stun_nat_probe_concurrency changed; restart required");
-    }
-    if old.general.middle_proxy_pool_size != new.general.middle_proxy_pool_size {
-        warned = true;
-        warn!("config reload: general.middle_proxy_pool_size changed; restart required");
-    }
-    if old.general.me_route_no_writer_mode != new.general.me_route_no_writer_mode
-        || old.general.me_route_no_writer_wait_ms != new.general.me_route_no_writer_wait_ms
-        || old.general.me_route_hybrid_max_wait_ms != new.general.me_route_hybrid_max_wait_ms
-        || old.general.me_route_blocking_send_timeout_ms
-            != new.general.me_route_blocking_send_timeout_ms
-        || old.general.me_route_inline_recovery_attempts
-            != new.general.me_route_inline_recovery_attempts
-        || old.general.me_route_inline_recovery_wait_ms
-            != new.general.me_route_inline_recovery_wait_ms
-    {
-        warned = true;
-        warn!("config reload: general.me_route_no_writer_* changed; restart required");
     }
     if old.general.unknown_dc_log_path != new.general.unknown_dc_log_path
         || old.general.unknown_dc_file_log_enabled != new.general.unknown_dc_file_log_enabled
     {
         warned = true;
         warn!("config reload: general.unknown_dc_* changed; restart required");
-    }
-    if old.general.me_init_retry_attempts != new.general.me_init_retry_attempts {
-        warned = true;
-        warn!("config reload: general.me_init_retry_attempts changed; restart required");
-    }
-    if old.general.me2dc_fallback != new.general.me2dc_fallback
-        || old.general.me2dc_fast != new.general.me2dc_fast
-    {
-        warned = true;
-        warn!("config reload: general.me2dc_fallback/me2dc_fast changed; restart required");
-    }
-    if old.general.proxy_config_v4_cache_path != new.general.proxy_config_v4_cache_path
-        || old.general.proxy_config_v6_cache_path != new.general.proxy_config_v6_cache_path
-    {
-        warned = true;
-        warn!("config reload: general.proxy_config_*_cache_path changed; restart required");
-    }
-    if old.general.me_keepalive_enabled != new.general.me_keepalive_enabled
-        || old.general.me_keepalive_interval_secs != new.general.me_keepalive_interval_secs
-        || old.general.me_keepalive_jitter_secs != new.general.me_keepalive_jitter_secs
-        || old.general.me_keepalive_payload_random != new.general.me_keepalive_payload_random
-    {
-        warned = true;
-        warn!("config reload: general.me_keepalive_* changed; restart required");
     }
     if old.general.upstream_connect_retry_attempts != new.general.upstream_connect_retry_attempts
         || old.general.upstream_connect_retry_backoff_ms
@@ -215,7 +169,6 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
             != new.general.upstream_unhealthy_fail_threshold
         || old.general.upstream_connect_failfast_hard_errors
             != new.general.upstream_connect_failfast_hard_errors
-        || old.general.rpc_proxy_req_every != new.general.rpc_proxy_req_every
     {
         warned = true;
         warn!("config reload: general.upstream_* changed; restart required");

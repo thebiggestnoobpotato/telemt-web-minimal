@@ -1,10 +1,7 @@
 use super::*;
 
 impl RunningClientHandler {
-    /// Main dispatch after successful handshake.
-    /// Two modes:
-    ///   - Direct: TCP relay to TG DC (existing behavior)
-    ///   - Middle Proxy: RPC multiplex through ME pool (supports CDN DCs)
+    /// Main dispatch after successful handshake: TCP relay to TG DC.
     #[cfg(test)]
     pub(super) async fn handle_authenticated_static<R, W>(
         client_reader: CryptoReader<R>,
@@ -15,8 +12,6 @@ impl RunningClientHandler {
         config: Arc<ProxyConfig>,
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
-        me_pool: Option<Arc<MePool>>,
-        route_runtime: Arc<RouteRuntimeController>,
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
         ip_tracker: Arc<UserIpTracker>,
@@ -56,9 +51,6 @@ impl RunningClientHandler {
             config,
             buffer_pool,
             rng,
-            me_pool,
-            None,
-            route_runtime,
             local_addr,
             peer_addr,
             ip_tracker,
@@ -76,9 +68,6 @@ impl RunningClientHandler {
         config: Arc<ProxyConfig>,
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
-        me_pool: Option<Arc<MePool>>,
-        me_pool_runtime: Option<Arc<RwLock<Option<Arc<MePool>>>>>,
-        route_runtime: Arc<RouteRuntimeController>,
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
         ip_tracker: Arc<UserIpTracker>,
@@ -98,9 +87,6 @@ impl RunningClientHandler {
                 upstream_manager,
                 buffer_pool,
                 rng,
-                me_pool,
-                me_pool_runtime,
-                route_runtime,
                 ip_tracker,
                 shared,
             },

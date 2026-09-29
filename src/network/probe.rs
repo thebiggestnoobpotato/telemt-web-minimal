@@ -36,26 +36,12 @@ pub struct NetworkProbe {
 pub struct NetworkDecision {
     pub ipv4_dc: bool,
     pub ipv6_dc: bool,
-    pub ipv4_me: bool,
-    pub ipv6_me: bool,
     pub effective_prefer: u8,
-    pub effective_multipath: bool,
 }
 
 impl NetworkDecision {
     pub fn prefer_ipv6(&self) -> bool {
         self.effective_prefer == 6
-    }
-
-    pub fn me_families(&self) -> Vec<IpFamily> {
-        let mut res = Vec::new();
-        if self.ipv4_me {
-            res.push(IpFamily::V4);
-        }
-        if self.ipv6_me {
-            res.push(IpFamily::V6);
-        }
-        res
     }
 }
 
@@ -65,7 +51,6 @@ const STUN_BATCH_TCP_FALLBACK_TIMEOUT: Duration = Duration::from_secs(12);
 pub async fn run_probe(
     config: &NetworkConfig,
     upstreams: &[UpstreamConfig],
-    nat_probe: bool,
     stun_nat_probe_concurrency: usize,
 ) -> Result<NetworkProbe> {
     let mut probe = NetworkProbe::default();
@@ -82,7 +67,7 @@ pub async fn run_probe(
     let mut strict_bind_ipv4_requested = false;
     let mut strict_bind_ipv6_requested = false;
 
-    let global_stun_res = if nat_probe && config.stun_use {
+    let global_stun_res = if config.stun_use {
         if servers.is_empty() {
             warn!("STUN probe is enabled but network.stun_servers is empty");
             DualStunResult::default()
@@ -97,10 +82,8 @@ pub async fn run_probe(
             )
             .await
         }
-    } else if nat_probe {
-        info!("STUN probe is disabled by network.stun_use=false");
-        DualStunResult::default()
     } else {
+        info!("STUN probe is disabled by network.stun_use=false");
         DualStunResult::default()
     };
     let mut reflected_ipv4 = global_stun_res.v4.map(|r| r.reflected_addr);
@@ -167,7 +150,7 @@ pub async fn run_probe(
             continue;
         }
 
-        if !(nat_probe && config.stun_use) || servers.is_empty() {
+        if !config.stun_use || servers.is_empty() {
             continue;
         }
 
@@ -211,8 +194,7 @@ pub async fn run_probe(
     probe.ipv6_is_bogon = probe.detected_ipv6.map(is_bogon_v6).unwrap_or(false);
 
     // If STUN is blocked but IPv4 is private, try HTTP public-IP fallback.
-    if nat_probe
-        && probe.reflected_ipv4.is_none()
+    if probe.reflected_ipv4.is_none()
         && probe.detected_ipv4.map(is_bogon_v4).unwrap_or(false)
         && let Some(public_ip) = detect_public_ipv4_http(&config.http_ip_detect_urls).await
     {
@@ -381,29 +363,14 @@ async fn probe_stun_servers_parallel(
     out
 }
 
-pub fn decide_network_capabilities(
-    config: &NetworkConfig,
-    probe: &NetworkProbe,
-    middle_proxy_nat_ip: Option<IpAddr>,
-) -> NetworkDecision {
+pub fn decide_network_capabilities(config: &NetworkConfig, probe: &NetworkProbe) -> NetworkDecision {
     let ipv4_dc = config.ipv4 && probe.detected_ipv4.is_some();
     let ipv6_dc =
         config.ipv6.unwrap_or(probe.detected_ipv6.is_some()) && probe.detected_ipv6.is_some();
-    let nat_ip_v4 = matches!(middle_proxy_nat_ip, Some(IpAddr::V4(_)));
-    let nat_ip_v6 = matches!(middle_proxy_nat_ip, Some(IpAddr::V6(_)));
-
-    let ipv4_me = config.ipv4
-        && probe.detected_ipv4.is_some()
-        && (!probe.ipv4_is_bogon || probe.reflected_ipv4.is_some() || nat_ip_v4);
-
-    let ipv6_enabled = config.ipv6.unwrap_or(probe.detected_ipv6.is_some());
-    let ipv6_me = ipv6_enabled
-        && probe.detected_ipv6.is_some()
-        && (!probe.ipv6_is_bogon || probe.reflected_ipv6.is_some() || nat_ip_v6);
 
     let effective_prefer = match config.prefer {
-        6 if ipv6_me || ipv6_dc => 6,
-        4 if ipv4_me || ipv4_dc => 4,
+        6 if ipv6_dc => 6,
+        4 if ipv4_dc => 4,
         6 => {
             warn!("prefer=6 requested but IPv6 unavailable; falling back to IPv4");
             4
@@ -411,25 +378,16 @@ pub fn decide_network_capabilities(
         _ => 4,
     };
 
-    let me_families = ipv4_me as u8 + ipv6_me as u8;
-    let effective_multipath = config.multipath && me_families >= 2;
-
     NetworkDecision {
         ipv4_dc,
         ipv6_dc,
-        ipv4_me,
-        ipv6_me,
         effective_prefer,
-        effective_multipath,
     }
 }
 
 // Local interface discovery and bogon classification.
 mod local;
-pub use local::{
-    detect_interface_ipv4, detect_interface_ipv6, is_bogon, is_bogon_v4, is_bogon_v6,
-    log_probe_result,
-};
+pub use local::{is_bogon, is_bogon_v4, is_bogon_v6, log_probe_result};
 use local::{detect_local_ip_v4, detect_local_ip_v6};
 
 #[cfg(test)]

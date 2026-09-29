@@ -96,11 +96,14 @@ fn temp_config_path(prefix: &str) -> PathBuf {
 fn overlay_applies_hot_and_preserves_non_hot() {
     let old = sample_config();
     let mut new = old.clone();
-    new.general.hardswap = !old.general.hardswap;
+    new.general.direct_relay_copy_buf_c2s_bytes = old.general.direct_relay_copy_buf_c2s_bytes + 1;
     new.server.port = old.server.port.saturating_add(1);
 
     let applied = overlay_hot_fields(&old, &new);
-    assert_eq!(applied.general.hardswap, new.general.hardswap);
+    assert_eq!(
+        applied.general.direct_relay_copy_buf_c2s_bytes,
+        new.general.direct_relay_copy_buf_c2s_bytes
+    );
     assert_eq!(applied.server.port, old.server.port);
 }
 
@@ -116,27 +119,6 @@ fn non_hot_only_change_does_not_change_hot_snapshot() {
         HotFields::from_config(&applied)
     );
     assert_eq!(applied.server.port, old.server.port);
-}
-
-#[test]
-fn bind_stale_mode_is_hot() {
-    let old = sample_config();
-    let mut new = old.clone();
-    new.general.me_bind_stale_mode = match old.general.me_bind_stale_mode {
-        MeBindStaleMode::Never => MeBindStaleMode::Ttl,
-        MeBindStaleMode::Ttl => MeBindStaleMode::Always,
-        MeBindStaleMode::Always => MeBindStaleMode::Never,
-    };
-
-    let applied = overlay_hot_fields(&old, &new);
-    assert_eq!(
-        applied.general.me_bind_stale_mode,
-        new.general.me_bind_stale_mode
-    );
-    assert_ne!(
-        HotFields::from_config(&old),
-        HotFields::from_config(&applied)
-    );
 }
 
 #[test]
@@ -240,35 +222,18 @@ fn web_debug_prefix_requiring_deferred_capacity_is_not_hot_applied() {
 }
 
 #[test]
-fn keepalive_is_not_hot() {
-    let old = sample_config();
-    let mut new = old.clone();
-    new.general.me_keepalive_interval_secs = old.general.me_keepalive_interval_secs + 5;
-
-    let applied = overlay_hot_fields(&old, &new);
-    assert_eq!(
-        applied.general.me_keepalive_interval_secs,
-        old.general.me_keepalive_interval_secs
-    );
-    assert_eq!(
-        HotFields::from_config(&old),
-        HotFields::from_config(&applied)
-    );
-}
-
-#[test]
 fn mixed_hot_and_non_hot_change_applies_only_hot_subset() {
     let old = sample_config();
     let mut new = old.clone();
-    new.general.hardswap = !old.general.hardswap;
-    new.general.use_middle_proxy = !old.general.use_middle_proxy;
+    new.general.direct_relay_copy_buf_s2c_bytes = old.general.direct_relay_copy_buf_s2c_bytes + 1;
+    new.server.port = old.server.port.saturating_add(1);
 
     let applied = overlay_hot_fields(&old, &new);
-    assert_eq!(applied.general.hardswap, new.general.hardswap);
     assert_eq!(
-        applied.general.use_middle_proxy,
-        old.general.use_middle_proxy
+        applied.general.direct_relay_copy_buf_s2c_bytes,
+        new.general.direct_relay_copy_buf_s2c_bytes
     );
+    assert_eq!(applied.server.port, old.server.port);
     assert!(!config_equal(&applied, &new));
 }
 

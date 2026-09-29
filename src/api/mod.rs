@@ -17,7 +17,7 @@ use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
-use tokio::sync::{Mutex, RwLock, Semaphore, oneshot, watch};
+use tokio::sync::{Mutex, Semaphore, oneshot, watch};
 use tokio::time::timeout;
 use tracing::{debug, info, warn};
 
@@ -26,13 +26,11 @@ use crate::ip_tracker::UserIpTracker;
 use crate::maestro::control_plane::ProcessControlPlane;
 use crate::maestro::generation::{RuntimeGeneration, RuntimeWatchState};
 use crate::maestro::reload::{ReloadAccepted, ReloadControl, ReloadRequest, ReloadSubmitError};
-use crate::proxy::route_mode::RouteRuntimeController;
 use crate::proxy::shared_state::ProxySharedState;
 use crate::quota_state::QuotaStateOwner;
 use crate::startup::StartupTracker;
 use crate::stats::Stats;
 use crate::transport::UpstreamManager;
-use crate::transport::middle_proxy::MePool;
 use crate::web::control::WebRuntimePublication;
 use crate::web::trace::WebTraceStore;
 
@@ -49,7 +47,6 @@ mod reload_tests;
 mod runtime_edge;
 mod runtime_init;
 mod runtime_min;
-mod runtime_selftest;
 mod runtime_stats;
 mod runtime_watch;
 mod runtime_zero;
@@ -75,15 +72,8 @@ use runtime_edge::{
     build_runtime_events_recent_data, build_runtime_tls_fingerprints_data,
 };
 use runtime_init::build_runtime_initialization_data;
-use runtime_min::{
-    build_runtime_me_pool_state_data, build_runtime_me_quality_data, build_runtime_nat_stun_data,
-    build_runtime_upstream_quality_data, build_security_whitelist_data,
-};
-use runtime_selftest::build_runtime_me_selftest_data;
-use runtime_stats::{
-    MinimalCacheEntry, build_dcs_data, build_me_writers_data, build_minimal_all_data,
-    build_upstreams_data, build_zero_all_data,
-};
+use runtime_min::{build_runtime_upstream_quality_data, build_security_whitelist_data};
+use runtime_stats::{build_upstreams_data, build_zero_all_data};
 use runtime_watch::spawn_runtime_watchers;
 use runtime_zero::{
     build_limits_effective_data, build_runtime_gates_data, build_security_posture_data,
@@ -114,13 +104,11 @@ pub(super) struct ApiRuntimeState {
 pub(super) struct ApiShared {
     pub(super) stats: Arc<Stats>,
     pub(super) ip_tracker: Arc<UserIpTracker>,
-    pub(super) me_pool: Arc<RwLock<Option<Arc<MePool>>>>,
     pub(super) upstream_manager: Arc<UpstreamManager>,
     pub(super) config_path: PathBuf,
     pub(super) quota_state: Arc<QuotaStateOwner>,
     pub(super) detected_ips_rx: watch::Receiver<(Option<IpAddr>, Option<IpAddr>)>,
     pub(super) mutation_lock: Arc<Mutex<()>>,
-    pub(super) minimal_cache: Arc<Mutex<Option<MinimalCacheEntry>>>,
     pub(super) runtime_edge_connections_cache: Arc<Mutex<Option<EdgeConnectionsCacheEntry>>>,
     pub(super) runtime_edge_recompute_lock: Arc<Mutex<()>>,
     pub(super) cache_generation: Arc<AtomicU64>,
@@ -128,7 +116,6 @@ pub(super) struct ApiShared {
     pub(super) request_id: Arc<AtomicU64>,
     pub(super) runtime_state: Arc<ApiRuntimeState>,
     pub(super) startup_tracker: Arc<StartupTracker>,
-    pub(super) route_runtime: Arc<RouteRuntimeController>,
     pub(super) proxy_shared: Arc<ProxySharedState>,
     pub(super) reload_control: ReloadControl,
     pub(super) active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
@@ -150,13 +137,11 @@ impl ApiShared {
         Self {
             stats: runtime.stats.clone(),
             ip_tracker: runtime.ip_tracker.clone(),
-            me_pool: runtime.me_pool_runtime.clone(),
             upstream_manager: runtime.upstream_manager.clone(),
             config_path: self.config_path.clone(),
             quota_state: self.quota_state.clone(),
             detected_ips_rx: self.detected_ips_rx.clone(),
             mutation_lock: self.mutation_lock.clone(),
-            minimal_cache: self.minimal_cache.clone(),
             runtime_edge_connections_cache: self.runtime_edge_connections_cache.clone(),
             runtime_edge_recompute_lock: self.runtime_edge_recompute_lock.clone(),
             cache_generation: self.cache_generation.clone(),
@@ -164,7 +149,6 @@ impl ApiShared {
             request_id: self.request_id.clone(),
             runtime_state: self.runtime_state.clone(),
             startup_tracker: self.startup_tracker.clone(),
-            route_runtime: runtime.route_runtime.clone(),
             proxy_shared: runtime.proxy_shared.clone(),
             reload_control: self.reload_control.clone(),
             active_runtime: self.active_runtime.clone(),
@@ -274,18 +258,8 @@ fn allowed_methods_for_path(path: &str) -> Option<&'static str> {
         | "/v1/stats/summary"
         | "/v1/stats/zero/all"
         | "/v1/stats/upstreams"
-        | "/v1/stats/minimal/all"
-        | "/v1/stats/me-writers"
-        | "/v1/stats/dcs"
-        | "/v1/runtime/me-pool-state"
-        | "/v1/runtime/me_pool_state"
-        | "/v1/runtime/me-quality"
-        | "/v1/runtime/me_quality"
         | "/v1/runtime/upstream-quality"
         | "/v1/runtime/upstream_quality"
-        | "/v1/runtime/nat-stun"
-        | "/v1/runtime/nat_stun"
-        | "/v1/runtime/me-selftest"
         | "/v1/runtime/connections/summary"
         | "/v1/runtime/events/recent"
         | "/v1/runtime/tls-fingerprints"
@@ -317,8 +291,6 @@ pub(crate) async fn serve(
     listener: TcpListener,
     stats: Arc<Stats>,
     ip_tracker: Arc<UserIpTracker>,
-    me_pool: Arc<RwLock<Option<Arc<MePool>>>>,
-    route_runtime: Arc<RouteRuntimeController>,
     proxy_shared: Arc<ProxySharedState>,
     upstream_manager: Arc<UpstreamManager>,
     config_path: PathBuf,
@@ -367,13 +339,11 @@ pub(crate) async fn serve(
     let shared = Arc::new(ApiShared {
         stats,
         ip_tracker,
-        me_pool,
         upstream_manager,
         config_path,
         quota_state,
         detected_ips_rx,
         mutation_lock: Arc::new(Mutex::new(())),
-        minimal_cache: Arc::new(Mutex::new(None)),
         runtime_edge_connections_cache: Arc::new(Mutex::new(None)),
         runtime_edge_recompute_lock: Arc::new(Mutex::new(())),
         cache_generation: Arc::new(AtomicU64::new(1)),
@@ -383,7 +353,6 @@ pub(crate) async fn serve(
         request_id: Arc::new(AtomicU64::new(1)),
         runtime_state: runtime_state.clone(),
         startup_tracker,
-        route_runtime,
         proxy_shared,
         reload_control,
         active_runtime,

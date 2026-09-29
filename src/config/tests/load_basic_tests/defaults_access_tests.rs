@@ -15,69 +15,6 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
     assert_eq!(cfg.network.stun_use, default_true());
     assert_eq!(cfg.network.stun_tcp_fallback, default_stun_tcp_fallback());
     assert_eq!(
-        cfg.general.middle_proxy_warm_standby,
-        default_middle_proxy_warm_standby()
-    );
-    assert_eq!(
-        cfg.general.me_reconnect_max_concurrent_per_dc,
-        default_me_reconnect_max_concurrent_per_dc()
-    );
-    assert_eq!(
-        cfg.general.me_reconnect_fast_retry_count,
-        default_me_reconnect_fast_retry_count()
-    );
-    assert_eq!(
-        cfg.general.me_init_retry_attempts,
-        default_me_init_retry_attempts()
-    );
-    assert_eq!(cfg.general.me2dc_fallback, default_me2dc_fallback());
-    assert_eq!(cfg.general.me2dc_fast, default_me2dc_fast());
-    assert_eq!(
-        cfg.general.proxy_config_v4_cache_path,
-        default_proxy_config_v4_cache_path()
-    );
-    assert_eq!(
-        cfg.general.proxy_config_v6_cache_path,
-        default_proxy_config_v6_cache_path()
-    );
-    assert_eq!(
-        cfg.general.me_single_endpoint_shadow_writers,
-        default_me_single_endpoint_shadow_writers()
-    );
-    assert_eq!(
-        cfg.general.me_single_endpoint_outage_mode_enabled,
-        default_me_single_endpoint_outage_mode_enabled()
-    );
-    assert_eq!(
-        cfg.general.me_single_endpoint_outage_disable_quarantine,
-        default_me_single_endpoint_outage_disable_quarantine()
-    );
-    assert_eq!(
-        cfg.general.me_single_endpoint_outage_backoff_min_ms,
-        default_me_single_endpoint_outage_backoff_min_ms()
-    );
-    assert_eq!(
-        cfg.general.me_single_endpoint_outage_backoff_max_ms,
-        default_me_single_endpoint_outage_backoff_max_ms()
-    );
-    assert_eq!(
-        cfg.general.me_single_endpoint_shadow_rotate_every_secs,
-        default_me_single_endpoint_shadow_rotate_every_secs()
-    );
-    assert_eq!(cfg.general.me_floor_mode, MeFloorMode::default());
-    assert_eq!(
-        cfg.general.me_adaptive_floor_idle_secs,
-        default_me_adaptive_floor_idle_secs()
-    );
-    assert_eq!(
-        cfg.general.me_adaptive_floor_min_writers_single_endpoint,
-        default_me_adaptive_floor_min_writers_single_endpoint()
-    );
-    assert_eq!(
-        cfg.general.me_adaptive_floor_recover_grace_secs,
-        default_me_adaptive_floor_recover_grace_secs()
-    );
-    assert_eq!(
         cfg.general.upstream_connect_retry_attempts,
         default_upstream_connect_retry_attempts()
     );
@@ -93,12 +30,7 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
         cfg.general.upstream_connect_failfast_hard_errors,
         default_upstream_connect_failfast_hard_errors()
     );
-    assert_eq!(
-        cfg.general.rpc_proxy_req_every,
-        default_rpc_proxy_req_every()
-    );
     assert_eq!(cfg.general.beobachten_file, default_beobachten_file());
-    assert_eq!(cfg.general.update_every, default_update_every());
     assert_eq!(cfg.server.listen_addr_ipv4, default_listen_addr_ipv4());
     assert_eq!(cfg.server.listen_addr_ipv6, default_listen_addr_ipv6_opt());
     assert_eq!(cfg.server.client_mss_value(), Ok(None));
@@ -382,69 +314,6 @@ fn impl_defaults_are_sourced_from_default_helpers() {
 
     let general = GeneralConfig::default();
     assert_eq!(
-        general.middle_proxy_warm_standby,
-        default_middle_proxy_warm_standby()
-    );
-    assert_eq!(
-        general.me_reconnect_max_concurrent_per_dc,
-        default_me_reconnect_max_concurrent_per_dc()
-    );
-    assert_eq!(
-        general.me_reconnect_fast_retry_count,
-        default_me_reconnect_fast_retry_count()
-    );
-    assert_eq!(
-        general.me_init_retry_attempts,
-        default_me_init_retry_attempts()
-    );
-    assert_eq!(general.me2dc_fallback, default_me2dc_fallback());
-    assert_eq!(general.me2dc_fast, default_me2dc_fast());
-    assert_eq!(
-        general.proxy_config_v4_cache_path,
-        default_proxy_config_v4_cache_path()
-    );
-    assert_eq!(
-        general.proxy_config_v6_cache_path,
-        default_proxy_config_v6_cache_path()
-    );
-    assert_eq!(
-        general.me_single_endpoint_shadow_writers,
-        default_me_single_endpoint_shadow_writers()
-    );
-    assert_eq!(
-        general.me_single_endpoint_outage_mode_enabled,
-        default_me_single_endpoint_outage_mode_enabled()
-    );
-    assert_eq!(
-        general.me_single_endpoint_outage_disable_quarantine,
-        default_me_single_endpoint_outage_disable_quarantine()
-    );
-    assert_eq!(
-        general.me_single_endpoint_outage_backoff_min_ms,
-        default_me_single_endpoint_outage_backoff_min_ms()
-    );
-    assert_eq!(
-        general.me_single_endpoint_outage_backoff_max_ms,
-        default_me_single_endpoint_outage_backoff_max_ms()
-    );
-    assert_eq!(
-        general.me_single_endpoint_shadow_rotate_every_secs,
-        default_me_single_endpoint_shadow_rotate_every_secs()
-    );
-    assert_eq!(general.me_floor_mode, MeFloorMode::default());
-    assert_eq!(
-        general.me_adaptive_floor_idle_secs,
-        default_me_adaptive_floor_idle_secs()
-    );
-    assert_eq!(
-        general.me_adaptive_floor_min_writers_single_endpoint,
-        default_me_adaptive_floor_min_writers_single_endpoint()
-    );
-    assert_eq!(
-        general.me_adaptive_floor_recover_grace_secs,
-        default_me_adaptive_floor_recover_grace_secs()
-    );
-    assert_eq!(
         general.upstream_connect_retry_attempts,
         default_upstream_connect_retry_attempts()
     );
@@ -460,9 +329,7 @@ fn impl_defaults_are_sourced_from_default_helpers() {
         general.upstream_connect_failfast_hard_errors,
         default_upstream_connect_failfast_hard_errors()
     );
-    assert_eq!(general.rpc_proxy_req_every, default_rpc_proxy_req_every());
     assert_eq!(general.beobachten_file, default_beobachten_file());
-    assert_eq!(general.update_every, default_update_every());
 
     let server = ServerConfig::default();
     assert_eq!(server.listen_addr_ipv6, Some(default_listen_addr_ipv6()));

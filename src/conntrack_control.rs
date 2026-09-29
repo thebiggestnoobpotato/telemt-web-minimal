@@ -6,7 +6,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
 use crate::config::ProxyConfig;
-use crate::proxy::middle_relay::note_global_relay_pressure;
+
 use crate::proxy::shared_state::{ConntrackCloseEvent, ConntrackCloseReason, ProxySharedState};
 use crate::stats::Stats;
 
@@ -40,14 +40,12 @@ struct PressureSample {
     conn_pct: Option<u8>,
     fd_pct: Option<u8>,
     accept_timeout_delta: u64,
-    me_queue_pressure_delta: u64,
 }
 
 struct PressureState {
     active: bool,
     low_streak: u8,
     prev_accept_timeout_total: u64,
-    prev_me_queue_pressure_total: u64,
 }
 
 impl PressureState {
@@ -56,7 +54,6 @@ impl PressureState {
             active: false,
             low_streak: 0,
             prev_accept_timeout_total: stats.get_accept_permit_timeout_total(),
-            prev_me_queue_pressure_total: stats.get_me_c2me_send_full_total(),
         }
     }
 }
@@ -174,9 +171,7 @@ async fn run_conntrack_controller_worker(
                     &sample,
                     &mut pressure_state,
                 );
-                if pressure_state.active {
-                    note_global_relay_pressure(shared.as_ref());
-                }
+
             }
         }
     }
@@ -237,15 +232,11 @@ fn collect_pressure_sample(
     let accept_delta = accept_total.saturating_sub(state.prev_accept_timeout_total);
     state.prev_accept_timeout_total = accept_total;
 
-    let me_total = stats.get_me_c2me_send_full_total();
-    let me_delta = me_total.saturating_sub(state.prev_me_queue_pressure_total);
-    state.prev_me_queue_pressure_total = me_total;
 
     PressureSample {
         conn_pct,
         fd_pct,
         accept_timeout_delta: accept_delta,
-        me_queue_pressure_delta: me_delta,
     }
 }
 
@@ -273,13 +264,11 @@ fn update_pressure_state(
 
     let high_hit = sample.conn_pct.is_some_and(|v| v >= high)
         || sample.fd_pct.is_some_and(|v| v >= high)
-        || sample.accept_timeout_delta > 0
-        || sample.me_queue_pressure_delta > 0;
+        || sample.accept_timeout_delta > 0;
 
     let low_clear = sample.conn_pct.is_none_or(|v| v <= low)
         && sample.fd_pct.is_none_or(|v| v <= low)
-        && sample.accept_timeout_delta == 0
-        && sample.me_queue_pressure_delta == 0;
+        && sample.accept_timeout_delta == 0;
 
     if !state.active && high_hit {
         state.active = true;
@@ -290,7 +279,6 @@ fn update_pressure_state(
             conn_pct = ?sample.conn_pct,
             fd_pct = ?sample.fd_pct,
             accept_timeout_delta = sample.accept_timeout_delta,
-            me_queue_pressure_delta = sample.me_queue_pressure_delta,
             "Conntrack pressure mode activated"
         );
         return;
@@ -355,7 +343,6 @@ mod tests {
             conn_pct: Some(10),
             fd_pct: Some(10),
             accept_timeout_delta: 1,
-            me_queue_pressure_delta: 0,
         };
 
         update_pressure_state(&stats, shared.as_ref(), &cfg, true, &sample, &mut state);
@@ -377,7 +364,6 @@ mod tests {
             conn_pct: Some(95),
             fd_pct: Some(95),
             accept_timeout_delta: 0,
-            me_queue_pressure_delta: 0,
         };
         update_pressure_state(
             &stats,
@@ -393,7 +379,6 @@ mod tests {
             conn_pct: Some(10),
             fd_pct: Some(10),
             accept_timeout_delta: 0,
-            me_queue_pressure_delta: 0,
         };
         update_pressure_state(&stats, shared.as_ref(), &cfg, true, &low_sample, &mut state);
         assert!(state.active);
@@ -417,7 +402,6 @@ mod tests {
             conn_pct: Some(100),
             fd_pct: Some(100),
             accept_timeout_delta: 10,
-            me_queue_pressure_delta: 10,
         };
 
         update_pressure_state(&stats, shared.as_ref(), &cfg, false, &sample, &mut state);

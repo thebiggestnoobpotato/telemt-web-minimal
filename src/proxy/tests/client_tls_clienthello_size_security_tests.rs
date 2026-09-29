@@ -1,3 +1,4 @@
+
 //! TLS ClientHello size validation tests for proxy anti-censorship security
 //! Covers positive, negative, edge, adversarial, and fuzz cases.
 //! Ensures proxy does not reveal itself on probe failures.
@@ -78,7 +79,6 @@ async fn run_probe_and_assert_masking(len: usize, expect_bad_increment: bool) {
     let replay_checker = Arc::new(ReplayChecker::new(128, Duration::from_secs(60)));
     let buffer_pool = Arc::new(BufferPool::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_runtime = Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct));
     let ip_tracker = Arc::new(UserIpTracker::new());
     let beobachten = Arc::new(BeobachtenStore::new());
 
@@ -94,8 +94,7 @@ async fn run_probe_and_assert_masking(len: usize, expect_bad_increment: bool) {
         replay_checker,
         buffer_pool,
         rng,
-        None,
-        route_runtime,
+
         None,
         ip_tracker,
         beobachten,

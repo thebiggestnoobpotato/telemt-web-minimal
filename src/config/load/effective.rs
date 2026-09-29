@@ -75,21 +75,8 @@ pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
         warn!("prefer_ipv6 is deprecated, use [network].prefer = 6");
     }
 
-    if config.general.use_middle_proxy && !config.general.me_secret_atomic_snapshot {
-        config.general.me_secret_atomic_snapshot = true;
-        warn!(
-            "Auto-enabled me_secret_atomic_snapshot for middle proxy mode to keep KDF key_selector/secret coherent"
-        );
-    }
-
     validate_network_cfg(&mut config.network)?;
     crate::network::dns_overrides::validate_entries(&config.network.dns_overrides)?;
-
-    if config.general.use_middle_proxy && config.network.ipv6 == Some(true) {
-        warn!(
-            "IPv6 with Middle Proxy is experimental and may cause KDF address mismatch; consider disabling IPv6 or ME"
-        );
-    }
 
     // Random fake_cert_len only when default is in use.
     if !config.censorship.tls_emulation

@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::sha256_hmac;
@@ -16,7 +17,6 @@ struct PipelineHarness {
     replay_checker: Arc<ReplayChecker>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_runtime: Arc<RouteRuntimeController>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
 }
@@ -67,7 +67,6 @@ fn build_harness(secret_hex: &str, mask_port: u16) -> PipelineHarness {
         replay_checker: Arc::new(ReplayChecker::new(256, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     }
@@ -228,8 +227,7 @@ async fn tls_bad_mtproto_fallback_preserves_wire_and_backend_response() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -297,8 +295,7 @@ async fn tls_bad_mtproto_fallback_keeps_connects_bad_accounting() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -369,8 +366,7 @@ async fn tls_bad_mtproto_fallback_forwards_zero_length_tls_record_verbatim() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -435,8 +431,7 @@ async fn tls_bad_mtproto_fallback_forwards_max_tls_record_verbatim() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -511,8 +506,7 @@ async fn tls_bad_mtproto_fallback_light_fuzz_tls_record_lengths_verbatim() {
             harness.replay_checker,
             harness.buffer_pool,
             harness.rng,
-            None,
-            harness.route_runtime,
+
             None,
             harness.ip_tracker,
             harness.beobachten,
@@ -614,8 +608,7 @@ async fn tls_bad_mtproto_fallback_concurrent_sessions_are_isolated() {
                 harness.replay_checker,
                 harness.buffer_pool,
                 harness.rng,
-                None,
-                harness.route_runtime,
+
                 None,
                 harness.ip_tracker,
                 harness.beobachten,
@@ -686,8 +679,7 @@ async fn tls_bad_mtproto_fallback_forwards_fragmented_client_writes_verbatim() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -757,8 +749,7 @@ async fn tls_bad_mtproto_fallback_header_fragmentation_bytewise_is_verbatim() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -832,8 +823,7 @@ async fn tls_bad_mtproto_fallback_record_splitting_chaos_is_verbatim() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -917,8 +907,7 @@ async fn tls_bad_mtproto_fallback_multiple_tls_records_are_forwarded_in_order() 
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -989,8 +978,7 @@ async fn tls_bad_mtproto_fallback_client_half_close_propagates_eof_to_backend() 
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1057,8 +1045,7 @@ async fn tls_bad_mtproto_fallback_backend_half_close_after_response_is_tolerated
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1117,8 +1104,7 @@ async fn tls_bad_mtproto_fallback_backend_reset_after_clienthello_is_handled() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1195,8 +1181,7 @@ async fn tls_bad_mtproto_fallback_backend_slow_reader_preserves_byte_identity() 
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1265,7 +1250,6 @@ async fn tls_bad_mtproto_fallback_replay_pressure_masks_replay_without_serverhel
         let replay = harness.replay_checker.clone();
         let pool = harness.buffer_pool.clone();
         let rng = harness.rng.clone();
-        let route = harness.route_runtime.clone();
         let ipt = harness.ip_tracker.clone();
         let beob = harness.beobachten.clone();
         let invalid_mtproto_record = invalid_mtproto_record.clone();
@@ -1280,8 +1264,7 @@ async fn tls_bad_mtproto_fallback_replay_pressure_masks_replay_without_serverhel
                 replay,
                 pool,
                 rng,
-                None,
-                route,
+
                 None,
                 ipt,
                 beob,
@@ -1373,8 +1356,7 @@ async fn tls_bad_mtproto_fallback_large_multi_record_chaos_under_backpressure() 
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1470,8 +1452,7 @@ async fn tls_bad_mtproto_fallback_interleaved_control_and_application_records_ve
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1571,8 +1552,7 @@ async fn tls_bad_mtproto_fallback_many_short_sessions_with_chaos_no_cross_leak()
                 harness.replay_checker,
                 harness.buffer_pool,
                 harness.rng,
-                None,
-                harness.route_runtime,
+
                 None,
                 harness.ip_tracker,
                 harness.beobachten,
@@ -1643,8 +1623,7 @@ async fn tls_bad_mtproto_fallback_coalesced_tail_small_is_forwarded_as_tls_recor
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1702,8 +1681,7 @@ async fn tls_bad_mtproto_fallback_coalesced_tail_large_is_forwarded_as_tls_recor
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1763,8 +1741,7 @@ async fn tls_bad_mtproto_fallback_coalesced_tail_keeps_order_before_following_re
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1823,8 +1800,7 @@ async fn tls_bad_mtproto_fallback_coalesced_tail_fragmented_client_write_is_forw
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1894,8 +1870,7 @@ async fn tls_bad_mtproto_fallback_coalesced_tail_max_payload_is_forwarded() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -1958,8 +1933,7 @@ async fn blackhat_coalesced_tail_identical_following_record_must_not_duplicate_o
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2019,8 +1993,7 @@ async fn blackhat_coalesced_tail_tls_header_looking_bytes_must_stay_payload() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2082,8 +2055,7 @@ async fn blackhat_coalesced_tail_client_half_close_must_not_truncate_prepended_r
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2166,8 +2138,7 @@ async fn blackhat_coalesced_tail_multi_session_no_cross_bleed_under_churn() {
                 harness.replay_checker,
                 harness.buffer_pool,
                 harness.rng,
-                None,
-                harness.route_runtime,
+
                 None,
                 harness.ip_tracker,
                 harness.beobachten,
@@ -2232,8 +2203,7 @@ async fn blackhat_coalesced_tail_single_byte_tail_is_preserved() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2289,8 +2259,7 @@ async fn blackhat_coalesced_tail_exact_tls_header_size_payload_is_preserved() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2346,8 +2315,7 @@ async fn blackhat_coalesced_tail_all_zero_payload_is_preserved() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2408,8 +2376,7 @@ async fn blackhat_coalesced_tail_following_control_records_are_not_mutated() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2473,8 +2440,7 @@ async fn blackhat_coalesced_tail_then_following_records_fragmented_chaos_stays_o
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2546,8 +2512,7 @@ async fn blackhat_coalesced_tail_backend_response_integrity_after_fallback() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2630,8 +2595,7 @@ async fn blackhat_coalesced_tail_connects_bad_increments_exactly_once() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2723,8 +2687,7 @@ async fn blackhat_coalesced_tail_parallel_32_sessions_no_cross_bleed() {
                 harness.replay_checker,
                 harness.buffer_pool,
                 harness.rng,
-                None,
-                harness.route_runtime,
+
                 None,
                 harness.ip_tracker,
                 harness.beobachten,
@@ -2793,8 +2756,7 @@ async fn blackhat_coalesced_tail_repeated_tls_like_prefixes_are_preserved() {
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2849,8 +2811,7 @@ async fn blackhat_coalesced_tail_drop_after_write_still_delivers_prepended_recor
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2909,8 +2870,7 @@ async fn blackhat_coalesced_tail_zero_following_record_after_coalesced_is_not_in
         harness.replay_checker,
         harness.buffer_pool,
         harness.rng,
-        None,
-        harness.route_runtime,
+
         None,
         harness.ip_tracker,
         harness.beobachten,
@@ -2998,8 +2958,7 @@ async fn blackhat_coalesced_tail_light_fuzz_mixed_followup_records_stay_byte_exa
             harness.replay_checker,
             harness.buffer_pool,
             harness.rng,
-            None,
-            harness.route_runtime,
+
             None,
             harness.ip_tracker,
             harness.beobachten,

@@ -3,14 +3,13 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use tokio::sync::{RwLock, Semaphore, watch};
+use tokio::sync::{Semaphore, watch};
 use tracing::{error, info, warn};
 
 use crate::api;
 use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::{decide_network_capabilities, log_probe_result, run_probe};
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, resolve_direct_buffer_hard_limit};
-use crate::proxy::route_mode::{RelayRouteMode, RouteRuntimeController};
 use crate::proxy::shared_state::ProxySharedState;
 use crate::proxy::traffic_limiter::TrafficLimiter;
 use crate::proxy::user_admission::UserAdmissionAuthority;
@@ -21,7 +20,6 @@ use crate::stats::{QuotaStore, Stats};
 use crate::synlimit_control;
 use crate::tls_front::cache::TlsFullCertBudget;
 use crate::transport::UpstreamManager;
-use crate::transport::middle_proxy::MePool;
 use crate::web::control::WebRuntimeControl;
 use crate::web::trace::WebTraceStore;
 
@@ -146,21 +144,12 @@ pub(super) async fn run_telemt_core(
     let web_runtime_control = WebRuntimeControl::new();
 
     let (detected_ips_tx, detected_ips_rx) = watch::channel((None::<IpAddr>, None::<IpAddr>));
-    let initial_direct_first = config.general.use_middle_proxy && config.general.me2dc_fallback;
-    let initial_admission_open = !config.general.use_middle_proxy || initial_direct_first;
-    let (admission_tx, admission_rx) = watch::channel(initial_admission_open);
+    let (admission_tx, admission_rx) = watch::channel(true);
     let (reload_control, reload_commands) = reload::ReloadControl::channel(1);
     let (active_runtime_tx, active_runtime_rx) =
         watch::channel(None::<Arc<ArcSwap<generation::RuntimeGeneration>>>);
     let (runtime_watch_tx, runtime_watch_rx) =
         watch::channel(None::<generation::RuntimeWatchState>);
-    let initial_route_mode = if !config.general.use_middle_proxy || initial_direct_first {
-        RelayRouteMode::Direct
-    } else {
-        RelayRouteMode::Middle
-    };
-    let route_runtime = Arc::new(RouteRuntimeController::new(initial_route_mode));
-    let api_me_pool = Arc::new(RwLock::new(None::<Arc<MePool>>));
     startup_tracker
         .start_component(
             COMPONENT_API_BOOTSTRAP,
@@ -197,9 +186,7 @@ pub(super) async fn run_telemt_core(
             };
             let stats_api = stats.clone();
             let ip_tracker_api = ip_tracker.clone();
-            let me_pool_api = api_me_pool.clone();
             let upstream_manager_api = upstream_manager.clone();
-            let route_runtime_api = route_runtime.clone();
             let proxy_shared_api = shared_state.clone();
             let config_path_api = config_path.clone();
             let quota_state_api = quota_state.clone();
@@ -217,8 +204,6 @@ pub(super) async fn run_telemt_core(
                     api_listener,
                     stats_api,
                     ip_tracker_api,
-                    me_pool_api,
-                    route_runtime_api,
                     proxy_shared_api,
                     upstream_manager_api,
                     config_path_api,
@@ -293,7 +278,6 @@ pub(super) async fn run_telemt_core(
     let probe = run_probe(
         &config.network,
         &config.upstreams,
-        config.general.middle_proxy_nat_probe,
         config.general.stun_nat_probe_concurrency,
     )
     .await?;
@@ -301,8 +285,7 @@ pub(super) async fn run_telemt_core(
         probe.detected_ipv4.map(IpAddr::V4),
         probe.detected_ipv6.map(IpAddr::V6),
     ));
-    let decision =
-        decide_network_capabilities(&config.network, &probe, config.general.middle_proxy_nat_ip);
+    let decision = decide_network_capabilities(&config.network, &probe);
     log_probe_result(&probe, &decision);
     startup_tracker
         .complete_component(
@@ -324,8 +307,6 @@ pub(super) async fn run_telemt_core(
         shared_state.clone(),
         direct_buffer_budget,
         max_connections,
-        route_runtime.clone(),
-        api_me_pool.clone(),
         runtime_task_scope.clone(),
         admission_tx,
         &runtime_log_filter,
@@ -344,9 +325,6 @@ pub(super) async fn run_telemt_core(
         runtime.replay_checker,
         runtime.buffer_pool,
         runtime.rng,
-        runtime.me_pool,
-        api_me_pool,
-        route_runtime,
         tls_cache,
         ip_tracker,
         runtime.beobachten,

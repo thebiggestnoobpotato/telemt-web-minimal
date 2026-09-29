@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tokio::sync::{RwLock, Semaphore, watch};
+use tokio::sync::{Semaphore, watch};
 
 use crate::config::{
     ProxyConfig, ServerConfig, WEB_CARRIER_LEARNING_MIN_ENTRIES, web_debug_fits_limits,
@@ -12,7 +12,6 @@ use crate::crypto::SecureRandom;
 use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::{decide_network_capabilities, run_probe};
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, run_direct_buffer_budget_controller};
-use crate::proxy::route_mode::{RelayRouteMode, RouteRuntimeController};
 use crate::proxy::shared_state::ProxySharedState;
 use crate::proxy::traffic_limiter::TrafficLimiter;
 use crate::proxy::user_admission::UserAdmissionAuthority;
@@ -24,13 +23,12 @@ use crate::stats::{QuotaStore, ReplayChecker, Stats};
 use crate::stream::BufferPool;
 use crate::tls_front::cache::TlsFullCertBudget;
 use crate::transport::UpstreamManager;
-use crate::transport::middle_proxy::MePool;
 
 use super::admission;
 use super::generation::{RuntimeGeneration, RuntimeTaskScope, RuntimeTaskScopePreparationGuard};
 use super::listeners::listener_rebind_supported;
 use super::runtime_tasks::RuntimeLogFilter;
-use super::{me_startup, runtime_tasks, tls_bootstrap};
+use super::{runtime_tasks, tls_bootstrap};
 
 /// Fully prepared candidate runtime and its activation-gated config watcher.
 pub(crate) struct PreparedRuntime {
@@ -98,13 +96,11 @@ pub(crate) async fn prepare_runtime(
     let probe = run_probe(
         &config.network,
         &config.upstreams,
-        config.general.middle_proxy_nat_probe,
         config.general.stun_nat_probe_concurrency,
     )
     .await
     .map_err(|error| format!("network probe failed: {}", error))?;
-    let decision =
-        decide_network_capabilities(&config.network, &probe, config.general.middle_proxy_nat_ip);
+    let decision = decide_network_capabilities(&config.network, &probe);
     let prefer_ipv6 = decision.prefer_ipv6();
 
     let mut tls_domains = Vec::with_capacity(1 + config.censorship.tls_domains.len());
@@ -128,44 +124,6 @@ pub(crate) async fn prepare_runtime(
 
     let beobachten = Arc::new(BeobachtenStore::new());
     let rng = Arc::new(SecureRandom::new());
-    let route_mode = if !config.general.use_middle_proxy || config.general.me2dc_fallback {
-        RelayRouteMode::Direct
-    } else {
-        RelayRouteMode::Middle
-    };
-    let route_runtime = Arc::new(RouteRuntimeController::new(route_mode));
-    let me_pool_runtime = Arc::new(RwLock::new(None::<Arc<MePool>>));
-    let (me_ready_tx, me_ready_rx) = watch::channel(0_u64);
-    let direct_first_startup = config.general.use_middle_proxy && config.general.me2dc_fallback;
-    let me_pool = if direct_first_startup {
-        None
-    } else {
-        me_startup::initialize_me_pool(
-            config.general.use_middle_proxy,
-            &config,
-            &decision,
-            &probe,
-            &startup_tracker,
-            upstream_manager.clone(),
-            rng.clone(),
-            stats.clone(),
-            me_pool_runtime.clone(),
-            me_ready_tx.clone(),
-            task_scope.clone(),
-        )
-        .await
-    };
-    if strict_middle_proxy_unavailable(
-        config.general.use_middle_proxy,
-        direct_first_startup,
-        me_pool.is_some(),
-    ) {
-        task_scope.stop().await;
-        return Err(
-            "Middle-End pool is required but did not become ready during reload preparation"
-                .to_string(),
-        );
-    }
 
     let config = Arc::new(config);
     let replay_checker = Arc::new(ReplayChecker::new(
@@ -186,82 +144,18 @@ pub(crate) async fn prepare_runtime(
         stats.clone(),
         upstream_manager.clone(),
         replay_checker.clone(),
-        me_pool.clone(),
-        rng.clone(),
         ip_tracker.clone(),
         beobachten.clone(),
-        me_pool.clone(),
         proxy_shared.clone(),
-        me_ready_tx.clone(),
         task_scope.clone(),
         Some(config_watcher_activation_rx),
     )
     .await;
     let config_rx = watches.config_rx;
     runtime_log_filter.spawn_watcher(watches.log_level_rx, task_scope.clone());
-    let initial_admission_open = !config.general.use_middle_proxy || me_pool.is_some();
-    let (admission_tx, admission_rx) = watch::channel(initial_admission_open);
-    admission::configure_admission_gate(
-        &config,
-        me_pool.clone(),
-        me_pool_runtime.clone(),
-        route_runtime.clone(),
-        &admission_tx,
-        config_rx.clone(),
-        me_ready_rx,
-        task_scope.clone(),
-    )
-    .await;
-
-    if direct_first_startup {
-        let config_bg = config.clone();
-        let decision_bg = decision.clone();
-        let probe_bg = probe.clone();
-        let startup_tracker_bg = startup_tracker.clone();
-        let upstream_manager_bg = upstream_manager.clone();
-        let rng_bg = rng.clone();
-        let stats_bg = stats.clone();
-        let me_pool_runtime_bg = me_pool_runtime.clone();
-        let me_ready_tx_bg = me_ready_tx.clone();
-        let config_rx_bg = config_rx.clone();
-        let task_scope_bg = task_scope.clone();
-        let retry_limit = config.general.me_init_retry_attempts;
-        task_scope.spawn(async move {
-            let mut attempt = 0_u32;
-            loop {
-                attempt = attempt.saturating_add(1);
-                let pool = me_startup::initialize_me_pool(
-                    true,
-                    config_bg.as_ref(),
-                    &decision_bg,
-                    &probe_bg,
-                    &startup_tracker_bg,
-                    upstream_manager_bg.clone(),
-                    rng_bg.clone(),
-                    stats_bg.clone(),
-                    me_pool_runtime_bg.clone(),
-                    me_ready_tx_bg.clone(),
-                    task_scope_bg.clone(),
-                )
-                .await;
-                if let Some(pool) = pool {
-                    runtime_tasks::spawn_middle_proxy_runtime_tasks(
-                        config_bg.as_ref(),
-                        config_rx_bg,
-                        pool,
-                        rng_bg,
-                        me_ready_tx_bg,
-                        task_scope_bg,
-                    );
-                    break;
-                }
-                if retry_limit > 0 && attempt >= retry_limit {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-        });
-    }
+    // This build always relays directly to DCs, so admission opens immediately.
+    let (admission_tx, admission_rx) = watch::channel(true);
+    admission::configure_admission_gate(&admission_tx).await;
 
     let conntrack_scope = task_scope.clone();
     task_scope.spawn(crate::conntrack_control::run_conntrack_controller(
@@ -288,9 +182,6 @@ pub(crate) async fn prepare_runtime(
         replay_checker,
         buffer_pool,
         rng,
-        me_pool,
-        me_pool_runtime,
-        route_runtime,
         tls_cache,
         ip_tracker,
         beobachten,
@@ -310,14 +201,6 @@ pub(crate) async fn prepare_runtime(
             probe.detected_ipv6.map(IpAddr::V6),
         ),
     })
-}
-
-fn strict_middle_proxy_unavailable(
-    use_middle_proxy: bool,
-    direct_first_startup: bool,
-    pool_available: bool,
-) -> bool {
-    use_middle_proxy && !direct_first_startup && !pool_available
 }
 
 pub(crate) struct ResolvedReloadConfig {

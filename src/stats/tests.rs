@@ -1,5 +1,4 @@
 use super::*;
-use crate::config::MeTelemetryLevel;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -46,7 +45,6 @@ fn test_telemetry_policy_disables_core_and_user_counters() {
     stats.apply_telemetry_policy(TelemetryPolicy {
         core_enabled: false,
         user_enabled: false,
-        me_level: MeTelemetryLevel::Normal,
     });
 
     stats.increment_connects_all();
@@ -55,97 +53,6 @@ fn test_telemetry_policy_disables_core_and_user_counters() {
     assert_eq!(stats.get_connects_all(), 0);
     assert_eq!(stats.get_user_curr_connects("alice"), 0);
     assert_eq!(stats.get_user_total_octets("alice"), 0);
-}
-
-#[test]
-fn test_telemetry_policy_me_silent_blocks_me_counters() {
-    let stats = Stats::new();
-    stats.apply_telemetry_policy(TelemetryPolicy {
-        core_enabled: true,
-        user_enabled: true,
-        me_level: MeTelemetryLevel::Silent,
-    });
-
-    stats.increment_me_crc_mismatch();
-    stats.increment_me_keepalive_sent();
-    stats.increment_me_route_drop_queue_full();
-    stats.increment_me_d2c_batches_total();
-    stats.add_me_d2c_batch_frames_total(4);
-    stats.add_me_d2c_batch_bytes_total(4096);
-    stats.increment_me_d2c_flush_reason(MeD2cFlushReason::BatchBytes);
-    stats.increment_me_d2c_write_mode(MeD2cWriteMode::Coalesced);
-    stats.increment_me_d2c_quota_reject_total(MeD2cQuotaRejectStage::PreWrite);
-    stats.observe_me_d2c_frame_buf_shrink(1024);
-    stats.observe_me_d2c_batch_frames(4);
-    stats.observe_me_d2c_batch_bytes(4096);
-    stats.observe_me_d2c_flush_duration_us(120);
-    stats.increment_me_d2c_batch_timeout_armed_total();
-    stats.increment_me_d2c_batch_timeout_fired_total();
-    assert_eq!(stats.get_me_crc_mismatch(), 0);
-    assert_eq!(stats.get_me_keepalive_sent(), 0);
-    assert_eq!(stats.get_me_route_drop_queue_full(), 0);
-    assert_eq!(stats.get_me_d2c_batches_total(), 0);
-    assert_eq!(stats.get_me_d2c_flush_reason_batch_bytes_total(), 0);
-    assert_eq!(stats.get_me_d2c_write_mode_coalesced_total(), 0);
-    assert_eq!(stats.get_me_d2c_quota_reject_pre_write_total(), 0);
-    assert_eq!(stats.get_me_d2c_frame_buf_shrink_total(), 0);
-    assert_eq!(stats.get_me_d2c_batch_frames_bucket_2_4(), 0);
-    assert_eq!(stats.get_me_d2c_batch_bytes_bucket_1k_4k(), 0);
-    assert_eq!(stats.get_me_d2c_flush_duration_us_bucket_51_200(), 0);
-    assert_eq!(stats.get_me_d2c_batch_timeout_armed_total(), 0);
-    assert_eq!(stats.get_me_d2c_batch_timeout_fired_total(), 0);
-}
-
-#[test]
-fn test_telemetry_policy_me_normal_blocks_d2c_debug_metrics() {
-    let stats = Stats::new();
-    stats.apply_telemetry_policy(TelemetryPolicy {
-        core_enabled: true,
-        user_enabled: true,
-        me_level: MeTelemetryLevel::Normal,
-    });
-
-    stats.increment_me_d2c_batches_total();
-    stats.add_me_d2c_batch_frames_total(2);
-    stats.add_me_d2c_batch_bytes_total(2048);
-    stats.increment_me_d2c_flush_reason(MeD2cFlushReason::QueueDrain);
-    stats.observe_me_d2c_batch_frames(2);
-    stats.observe_me_d2c_batch_bytes(2048);
-    stats.observe_me_d2c_flush_duration_us(100);
-    stats.increment_me_d2c_batch_timeout_armed_total();
-    stats.increment_me_d2c_batch_timeout_fired_total();
-
-    assert_eq!(stats.get_me_d2c_batches_total(), 1);
-    assert_eq!(stats.get_me_d2c_batch_frames_total(), 2);
-    assert_eq!(stats.get_me_d2c_batch_bytes_total(), 2048);
-    assert_eq!(stats.get_me_d2c_flush_reason_queue_drain_total(), 1);
-    assert_eq!(stats.get_me_d2c_batch_frames_bucket_2_4(), 0);
-    assert_eq!(stats.get_me_d2c_batch_bytes_bucket_1k_4k(), 0);
-    assert_eq!(stats.get_me_d2c_flush_duration_us_bucket_51_200(), 0);
-    assert_eq!(stats.get_me_d2c_batch_timeout_armed_total(), 0);
-    assert_eq!(stats.get_me_d2c_batch_timeout_fired_total(), 0);
-}
-
-#[test]
-fn test_telemetry_policy_me_debug_enables_d2c_debug_metrics() {
-    let stats = Stats::new();
-    stats.apply_telemetry_policy(TelemetryPolicy {
-        core_enabled: true,
-        user_enabled: true,
-        me_level: MeTelemetryLevel::Debug,
-    });
-
-    stats.observe_me_d2c_batch_frames(7);
-    stats.observe_me_d2c_batch_bytes(70_000);
-    stats.observe_me_d2c_flush_duration_us(1400);
-    stats.increment_me_d2c_batch_timeout_armed_total();
-    stats.increment_me_d2c_batch_timeout_fired_total();
-
-    assert_eq!(stats.get_me_d2c_batch_frames_bucket_5_8(), 1);
-    assert_eq!(stats.get_me_d2c_batch_bytes_bucket_64k_128k(), 1);
-    assert_eq!(stats.get_me_d2c_flush_duration_us_bucket_1001_5000(), 1);
-    assert_eq!(stats.get_me_d2c_batch_timeout_armed_total(), 1);
-    assert_eq!(stats.get_me_d2c_batch_timeout_fired_total(), 1);
 }
 
 #[test]

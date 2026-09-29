@@ -25,7 +25,6 @@ pub(super) struct RuntimeEdgeConnectionUserData {
 #[derive(Clone, Serialize)]
 pub(super) struct RuntimeEdgeConnectionTotalsData {
     pub(super) current_connections: u64,
-    pub(super) current_connections_me: u64,
     pub(super) current_connections_direct: u64,
     pub(super) active_users: usize,
 }
@@ -351,7 +350,6 @@ async fn recompute_connections_payload(
         },
         totals: RuntimeEdgeConnectionTotalsData {
             current_connections: shared.stats.get_current_connections_total(),
-            current_connections_me: shared.stats.get_current_connections_me(),
             current_connections_direct: shared.stats.get_current_connections_direct(),
             active_users,
         },

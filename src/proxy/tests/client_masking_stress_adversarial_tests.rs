@@ -1,3 +1,4 @@
+
 use super::*;
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::crypto::sha256_hmac;
@@ -14,7 +15,6 @@ struct StressHarness {
     replay_checker: Arc<ReplayChecker>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    route_runtime: Arc<RouteRuntimeController>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
 }
@@ -68,7 +68,6 @@ fn build_harness(mask_port: u16, secret_hex: &str) -> StressHarness {
         replay_checker: Arc::new(ReplayChecker::new(1024, Duration::from_secs(60))),
         buffer_pool: Arc::new(BufferPool::new()),
         rng: Arc::new(SecureRandom::new()),
-        route_runtime: Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         ip_tracker: Arc::new(UserIpTracker::new()),
         beobachten: Arc::new(BeobachtenStore::new()),
     }
@@ -243,8 +242,7 @@ async fn run_parallel_tail_fallback_case(
                 harness.replay_checker,
                 harness.buffer_pool,
                 harness.rng,
-                None,
-                harness.route_runtime,
+
                 None,
                 harness.ip_tracker,
                 harness.beobachten,

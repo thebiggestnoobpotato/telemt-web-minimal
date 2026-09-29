@@ -1,15 +1,8 @@
-use std::time::Duration;
-
 use base64::Engine as _;
 use tokio::sync::watch;
-use tracing::{debug, error, info, warn};
+use tracing::warn;
 
 use crate::config::ProxyConfig;
-use crate::transport::UpstreamManager;
-use crate::transport::middle_proxy::{
-    ProxyConfigData, fetch_proxy_config_with_raw_via_upstream, load_proxy_config_cache,
-    save_proxy_config_cache,
-};
 
 use super::print_maestro_line;
 
@@ -282,123 +275,6 @@ pub(crate) fn expected_handshake_close_description(
             from_kind(ioe.kind())
         }
         _ => None,
-    }
-}
-
-/// Loads a non-empty startup endpoint snapshot with bounded cache fallback.
-pub(crate) async fn load_startup_proxy_config_snapshot(
-    url: &str,
-    cache_path: Option<&str>,
-    me2dc_fallback: bool,
-    label: &'static str,
-    upstream: Option<std::sync::Arc<UpstreamManager>>,
-) -> Option<ProxyConfigData> {
-    loop {
-        match fetch_proxy_config_with_raw_via_upstream(url, upstream.clone()).await {
-            Ok((cfg, raw)) => {
-                if !cfg.map.is_empty() {
-                    if let Some(path) = cache_path
-                        && let Err(e) = save_proxy_config_cache(path, &raw).await
-                    {
-                        warn!(error = %e, path, snapshot = label, "Failed to store startup proxy-config cache");
-                    }
-                    return Some(cfg);
-                }
-
-                warn!(
-                    snapshot = label,
-                    url, "Startup proxy-config is empty; trying disk cache"
-                );
-                if let Some(path) = cache_path {
-                    match load_proxy_config_cache(path).await {
-                        Ok(cached) if !cached.map.is_empty() => {
-                            info!(
-                                snapshot = label,
-                                path,
-                                proxy_for_lines = cached.proxy_for_lines,
-                                "Loaded startup proxy-config from disk cache"
-                            );
-                            return Some(cached);
-                        }
-                        Ok(_) => {
-                            warn!(
-                                snapshot = label,
-                                path, "Startup proxy-config cache is empty; ignoring cache file"
-                            );
-                        }
-                        Err(cache_err) => {
-                            debug!(
-                                snapshot = label,
-                                path,
-                                error = %cache_err,
-                                "Startup proxy-config cache unavailable"
-                            );
-                        }
-                    }
-                }
-
-                if me2dc_fallback {
-                    error!(
-                        snapshot = label,
-                        "Startup proxy-config unavailable and no saved config found; falling back to direct mode"
-                    );
-                    return None;
-                }
-
-                warn!(
-                    snapshot = label,
-                    retry_in_secs = 2,
-                    "Startup proxy-config unavailable and no saved config found; retrying because me2dc_fallback=false"
-                );
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-            Err(fetch_err) => {
-                if let Some(path) = cache_path {
-                    match load_proxy_config_cache(path).await {
-                        Ok(cached) if !cached.map.is_empty() => {
-                            info!(
-                                snapshot = label,
-                                path,
-                                proxy_for_lines = cached.proxy_for_lines,
-                                "Loaded startup proxy-config from disk cache"
-                            );
-                            return Some(cached);
-                        }
-                        Ok(_) => {
-                            warn!(
-                                snapshot = label,
-                                path, "Startup proxy-config cache is empty; ignoring cache file"
-                            );
-                        }
-                        Err(cache_err) => {
-                            debug!(
-                                snapshot = label,
-                                path,
-                                error = %cache_err,
-                                "Startup proxy-config cache unavailable"
-                            );
-                        }
-                    }
-                }
-
-                if me2dc_fallback {
-                    error!(
-                        snapshot = label,
-                        error = %fetch_err,
-                        "Startup proxy-config unavailable and no cached data; falling back to direct mode"
-                    );
-                    return None;
-                }
-
-                warn!(
-                    snapshot = label,
-                    error = %fetch_err,
-                    retry_in_secs = 2,
-                    "Startup proxy-config unavailable; retrying because me2dc_fallback=false"
-                );
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-        }
     }
 }
 

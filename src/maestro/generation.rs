@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use tokio::sync::{Notify, RwLock, Semaphore, watch};
+use tokio::sync::{Notify, Semaphore, watch};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -11,16 +11,12 @@ use crate::config::ProxyConfig;
 use crate::crypto::SecureRandom;
 use crate::ip_tracker::UserIpTracker;
 use crate::proxy::authenticated::ClientRuntimeDeps;
-#[cfg(test)]
-use crate::proxy::route_mode::RelayRouteMode;
-use crate::proxy::route_mode::RouteRuntimeController;
 use crate::proxy::shared_state::ProxySharedState;
 use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::{ReplayChecker, Stats};
 use crate::stream::BufferPool;
 use crate::tls_front::TlsFrontCache;
 use crate::transport::UpstreamManager;
-use crate::transport::middle_proxy::MePool;
 
 // Cancellation guards preserve runtime ownership across preparation and drain futures.
 mod lifecycle;
@@ -175,9 +171,6 @@ pub(crate) struct RuntimeGeneration {
     pub(crate) replay_checker: Arc<ReplayChecker>,
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) rng: Arc<SecureRandom>,
-    pub(crate) me_pool: Option<Arc<MePool>>,
-    pub(crate) me_pool_runtime: Arc<RwLock<Option<Arc<MePool>>>>,
-    pub(crate) route_runtime: Arc<RouteRuntimeController>,
     pub(crate) tls_cache: Option<Arc<TlsFrontCache>>,
     pub(crate) ip_tracker: Arc<UserIpTracker>,
     pub(crate) beobachten: Arc<BeobachtenStore>,
@@ -201,9 +194,6 @@ impl RuntimeGeneration {
         replay_checker: Arc<ReplayChecker>,
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
-        me_pool: Option<Arc<MePool>>,
-        me_pool_runtime: Arc<RwLock<Option<Arc<MePool>>>>,
-        route_runtime: Arc<RouteRuntimeController>,
         tls_cache: Option<Arc<TlsFrontCache>>,
         ip_tracker: Arc<UserIpTracker>,
         beobachten: Arc<BeobachtenStore>,
@@ -220,9 +210,6 @@ impl RuntimeGeneration {
             replay_checker,
             buffer_pool,
             rng,
-            me_pool,
-            me_pool_runtime,
-            route_runtime,
             tls_cache,
             ip_tracker,
             beobachten,
@@ -249,14 +236,6 @@ impl RuntimeGeneration {
         }
     }
 
-    /// Returns the initial or asynchronously published Middle-End pool.
-    pub(crate) async fn current_me_pool(&self) -> Option<Arc<MePool>> {
-        if let Some(pool) = &self.me_pool {
-            return Some(pool.clone());
-        }
-        self.me_pool_runtime.read().await.clone()
-    }
-
     /// Pins all dependencies required by a client stream without retaining the generation.
     pub(crate) fn client_runtime_deps(&self) -> ClientRuntimeDeps {
         ClientRuntimeDeps {
@@ -265,9 +244,6 @@ impl RuntimeGeneration {
             upstream_manager: Arc::clone(&self.upstream_manager),
             buffer_pool: Arc::clone(&self.buffer_pool),
             rng: Arc::clone(&self.rng),
-            me_pool: self.me_pool.clone(),
-            me_pool_runtime: Some(Arc::clone(&self.me_pool_runtime)),
-            route_runtime: Arc::clone(&self.route_runtime),
             ip_tracker: Arc::clone(&self.ip_tracker),
             shared: Arc::clone(&self.proxy_shared),
         }
@@ -340,28 +316,12 @@ impl RuntimeGeneration {
     pub(crate) async fn stop_background_tasks(&self) {
         self.background_tasks.stop().await;
     }
-
-    /// Terminally stops the generation's Middle-End task and writer scope.
-    pub(crate) async fn stop_middle_end(&self, timeout: Duration) -> bool {
-        let Some(pool) = self.current_me_pool().await else {
-            return true;
-        };
-        pool.shutdown_until(timeout).await
-    }
 }
 
 impl Drop for RuntimeGeneration {
     fn drop(&mut self) {
         self.background_tasks.begin_stop();
         self.begin_stop_sessions();
-        if let Some(pool) = self.me_pool.as_ref() {
-            pool.begin_shutdown();
-        }
-        if let Ok(pool) = self.me_pool_runtime.try_read()
-            && let Some(pool) = pool.as_ref()
-        {
-            pool.begin_shutdown();
-        }
     }
 }
 
@@ -401,9 +361,6 @@ pub(crate) fn test_runtime_generation_with_admission(
         Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::with_config(4096, 16)),
         Arc::new(SecureRandom::new()),
-        None,
-        Arc::new(RwLock::new(None)),
-        Arc::new(RouteRuntimeController::new(RelayRouteMode::Direct)),
         None,
         Arc::new(UserIpTracker::new()),
         Arc::new(BeobachtenStore::new()),

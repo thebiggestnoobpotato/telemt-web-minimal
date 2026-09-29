@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::watch;
 use tracing::{debug, info, warn};
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
@@ -11,7 +11,6 @@ use tracing_subscriber::reload;
 
 use crate::config::hot_reload::spawn_config_watcher;
 use crate::config::{LogLevel, ProxyConfig};
-use crate::crypto::SecureRandom;
 use crate::ip_tracker::UserIpTracker;
 use crate::metrics;
 use crate::network::probe::NetworkProbe;
@@ -24,7 +23,6 @@ use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::telemetry::TelemetryPolicy;
 use crate::stats::{ReplayChecker, Stats};
 use crate::transport::UpstreamManager;
-use crate::transport::middle_proxy::{MePool, MeReinitTrigger};
 
 use super::control_plane::ProcessControlPlane;
 use super::generation::RuntimeGeneration;
@@ -101,13 +99,9 @@ pub(crate) async fn spawn_runtime_tasks(
     stats: Arc<Stats>,
     upstream_manager: Arc<UpstreamManager>,
     replay_checker: Arc<ReplayChecker>,
-    me_pool: Option<Arc<MePool>>,
-    rng: Arc<SecureRandom>,
     ip_tracker: Arc<UserIpTracker>,
     beobachten: Arc<BeobachtenStore>,
-    me_pool_for_policy: Option<Arc<MePool>>,
     shared_state: Arc<ProxySharedState>,
-    me_ready_tx: watch::Sender<u64>,
     task_scope: RuntimeTaskScope,
     config_watcher_activation: Option<watch::Receiver<bool>>,
 ) -> RuntimeWatches {
@@ -182,17 +176,6 @@ pub(crate) async fn spawn_runtime_tasks(
             let cfg = config_rx_policy.borrow_and_update().clone();
             stats_policy
                 .apply_telemetry_policy(TelemetryPolicy::from_config(&cfg.general.telemetry));
-            if let Some(pool) = &me_pool_for_policy {
-                pool.update_runtime_transport_policy(
-                    cfg.general.me_socks_kdf_policy,
-                    cfg.general.me_route_backpressure_enabled,
-                    cfg.general.me_route_fairshare_enabled,
-                    cfg.general.me_route_backpressure_base_timeout_ms,
-                    cfg.general.me_route_backpressure_high_timeout_ms,
-                    cfg.general.me_route_backpressure_high_watermark_pct,
-                    cfg.general.me_reader_route_data_wait_ms,
-                );
-            }
         }
     });
 
@@ -309,69 +292,12 @@ pub(crate) async fn spawn_runtime_tasks(
         }
     });
 
-    if let Some(pool) = me_pool {
-        spawn_middle_proxy_runtime_tasks(
-            config,
-            config_rx.clone(),
-            pool,
-            rng,
-            me_ready_tx,
-            task_scope,
-        );
-    }
-
     RuntimeWatches {
         config_rx,
         log_level_rx,
         detected_ip_v4,
         detected_ip_v6,
     }
-}
-
-pub(crate) fn spawn_middle_proxy_runtime_tasks(
-    config: &ProxyConfig,
-    config_rx: watch::Receiver<Arc<ProxyConfig>>,
-    pool: Arc<MePool>,
-    rng: Arc<SecureRandom>,
-    me_ready_tx: watch::Sender<u64>,
-    task_scope: RuntimeTaskScope,
-) {
-    let reinit_trigger_capacity = config.general.me_reinit_trigger_channel.max(1);
-    let (reinit_tx, reinit_rx) = mpsc::channel::<MeReinitTrigger>(reinit_trigger_capacity);
-
-    let pool_clone_sched = pool.clone();
-    let rng_clone_sched = rng.clone();
-    let config_rx_clone_sched = config_rx.clone();
-    let me_ready_tx_sched = me_ready_tx.clone();
-    task_scope.spawn(async move {
-        crate::transport::middle_proxy::me_reinit_scheduler(
-            pool_clone_sched,
-            rng_clone_sched,
-            config_rx_clone_sched,
-            reinit_rx,
-            me_ready_tx_sched,
-        )
-        .await;
-    });
-
-    let pool_clone = pool.clone();
-    let config_rx_clone = config_rx.clone();
-    let reinit_tx_updater = reinit_tx.clone();
-    task_scope.spawn(async move {
-        crate::transport::middle_proxy::me_config_updater(
-            pool_clone,
-            config_rx_clone,
-            reinit_tx_updater,
-        )
-        .await;
-    });
-
-    let config_rx_clone_rot = config_rx.clone();
-    let reinit_tx_rotation = reinit_tx.clone();
-    task_scope.spawn(async move {
-        crate::transport::middle_proxy::me_rotation_task(config_rx_clone_rot, reinit_tx_rotation)
-            .await;
-    });
 }
 
 pub(crate) fn log_filter_spec(has_rust_log: bool, effective_log_level: &LogLevel) -> String {
