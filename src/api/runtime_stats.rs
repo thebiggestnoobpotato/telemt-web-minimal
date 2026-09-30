@@ -104,7 +104,6 @@ pub(super) fn build_upstreams_data(shared: &ApiShared, api_cfg: &ApiConfig) -> U
         healthy_total: snapshot.summary.healthy_total,
         unhealthy_total: snapshot.summary.unhealthy_total,
         direct_total: snapshot.summary.direct_total,
-        socks4_total: snapshot.summary.socks4_total,
         socks5_total: snapshot.summary.socks5_total,
     };
     let upstreams = snapshot

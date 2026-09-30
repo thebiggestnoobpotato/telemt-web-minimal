@@ -1,4 +1,4 @@
-//! SOCKS4/5 Client Implementation
+//! SOCKS5 Client Implementation
 
 use crate::error::{ProxyError, Result};
 use std::net::{IpAddr, SocketAddr};
@@ -8,53 +8,6 @@ use tokio::net::TcpStream;
 #[derive(Debug, Clone, Copy)]
 pub struct SocksBoundAddr {
     pub addr: SocketAddr,
-}
-
-pub async fn connect_socks4(
-    stream: &mut TcpStream,
-    target: SocketAddr,
-    user_id: Option<&str>,
-) -> Result<SocksBoundAddr> {
-    let ip = match target.ip() {
-        IpAddr::V4(ip) => ip,
-        IpAddr::V6(_) => {
-            return Err(ProxyError::Proxy(
-                "SOCKS4 does not support IPv6".to_string(),
-            ));
-        }
-    };
-
-    let port = target.port();
-    let user = user_id.unwrap_or("").as_bytes();
-
-    // VN (4) | CD (1) | DSTPORT (2) | DSTIP (4) | USERID (variable) | NULL (1)
-    let mut buf = Vec::with_capacity(9 + user.len());
-    buf.push(4); // VN
-    buf.push(1); // CD (CONNECT)
-    buf.extend_from_slice(&port.to_be_bytes());
-    buf.extend_from_slice(&ip.octets());
-    buf.extend_from_slice(user);
-    buf.push(0); // NULL
-
-    stream.write_all(&buf).await.map_err(ProxyError::Io)?;
-
-    // Response: VN (1) | CD (1) | DSTPORT (2) | DSTIP (4)
-    let mut resp = [0u8; 8];
-    stream.read_exact(&mut resp).await.map_err(ProxyError::Io)?;
-
-    if resp[1] != 90 {
-        return Err(ProxyError::Proxy(format!(
-            "SOCKS4 request rejected: code {}",
-            resp[1]
-        )));
-    }
-
-    let bound_port = u16::from_be_bytes([resp[2], resp[3]]);
-    let bound_ip = IpAddr::from([resp[4], resp[5], resp[6], resp[7]]);
-
-    Ok(SocksBoundAddr {
-        addr: SocketAddr::new(bound_ip, bound_port),
-    })
 }
 
 pub async fn connect_socks5(

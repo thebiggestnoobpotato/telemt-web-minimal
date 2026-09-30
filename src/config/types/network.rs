@@ -69,13 +69,6 @@ pub enum UpstreamType {
         #[serde(default, alias = "force_bind")]
         bindtodevice: Option<String>,
     },
-    Socks4 {
-        address: String,
-        #[serde(default)]
-        interface: Option<String>,
-        #[serde(default)]
-        user_id: Option<String>,
-    },
     Socks5 {
         address: String,
         #[serde(default)]

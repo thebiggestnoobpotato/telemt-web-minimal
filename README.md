@@ -19,7 +19,7 @@
 - Multi-vhost setup with decoy responses for unrecognized web traffic
 - Per-user profiles with `plain` and `dd` 16-byte MTProxy secrets, `tg://webproxy` link generation
 - Direct-to-DC MTProxy relay with replay protection, configurable keepalives, timeouts, IPv6, and "Fast Mode"
-- Upstream manager: direct, SOCKS4, and SOCKS5 upstreams with weights and health tracking
+- Upstream manager: direct and SOCKS5 upstreams with weights and health tracking
 - Graceful hot-reload for runtime fields; explicit deferral of process-owned fields
 - Control API (`/v1/*`) for users, config, reloads, and WEB runtime management
 - Prometheus metrics, quotas, and rate limits

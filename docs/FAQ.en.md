@@ -128,12 +128,10 @@ enabled = true
 interface = "192.168.1.100"
 ```
 
-#### Using SOCKS4/5 as an Upstream
+#### Using SOCKS5 as an Upstream
 - Without authorization:
 ```toml
 [[upstreams]]
-# Specify SOCKS4 or SOCKS5.
-type = "socks5"
 # SOCKS server address.
 address = "1.2.3.4:1234"
 # Selection weight.
@@ -144,8 +142,6 @@ enabled = true
 - With authorization:
 ```toml
 [[upstreams]]
-# Specify SOCKS4 or SOCKS5.
-type = "socks5"
 # SOCKS server address.
 address = "1.2.3.4:1234"
 # SOCKS username.

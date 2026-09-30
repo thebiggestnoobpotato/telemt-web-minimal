@@ -126,7 +126,6 @@ impl UpstreamManager {
             let (route_kind, address) = Self::describe_upstream(&upstream.config.upstream_type);
             match route_kind {
                 UpstreamRouteKind::Direct => summary.direct_total += 1,
-                UpstreamRouteKind::Socks4 => summary.socks4_total += 1,
                 UpstreamRouteKind::Socks5 => summary.socks5_total += 1,
             }
 
@@ -173,7 +172,6 @@ impl UpstreamManager {
     pub(super) fn describe_upstream(upstream_type: &UpstreamType) -> (UpstreamRouteKind, String) {
         match upstream_type {
             UpstreamType::Direct { .. } => (UpstreamRouteKind::Direct, "direct".to_string()),
-            UpstreamType::Socks4 { address, .. } => (UpstreamRouteKind::Socks4, address.clone()),
             UpstreamType::Socks5 { address, .. } => (UpstreamRouteKind::Socks5, address.clone()),
         }
     }

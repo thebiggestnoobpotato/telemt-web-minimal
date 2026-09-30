@@ -56,7 +56,6 @@ impl UpstreamManager {
                         format!("direct {}", direct_parts.join(" "))
                     }
                 }
-                UpstreamType::Socks4 { address, .. } => format!("socks4://{}", address),
                 UpstreamType::Socks5 { address, .. } => format!("socks5://{}", address),
             };
 

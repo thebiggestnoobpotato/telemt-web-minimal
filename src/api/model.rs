@@ -161,7 +161,6 @@ pub(super) struct UpstreamSummaryData {
     pub(super) healthy_total: usize,
     pub(super) unhealthy_total: usize,
     pub(super) direct_total: usize,
-    pub(super) socks4_total: usize,
     pub(super) socks5_total: usize,
 }
 

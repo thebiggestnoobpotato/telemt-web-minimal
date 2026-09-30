@@ -39,7 +39,6 @@ pub(super) struct RuntimeUpstreamQualitySummaryData {
     pub(super) healthy_total: usize,
     pub(super) unhealthy_total: usize,
     pub(super) direct_total: usize,
-    pub(super) socks4_total: usize,
     pub(super) socks5_total: usize,
 }
 
@@ -143,7 +142,6 @@ pub(super) async fn build_runtime_upstream_quality_data(
             healthy_total: snapshot.summary.healthy_total,
             unhealthy_total: snapshot.summary.unhealthy_total,
             direct_total: snapshot.summary.direct_total,
-            socks4_total: snapshot.summary.socks4_total,
             socks5_total: snapshot.summary.socks5_total,
 
         }),
@@ -155,7 +153,6 @@ pub(super) async fn build_runtime_upstream_quality_data(
                     upstream_id: upstream.upstream_id,
                     route_kind: match upstream.route_kind {
                         crate::transport::UpstreamRouteKind::Direct => "direct",
-                        crate::transport::UpstreamRouteKind::Socks4 => "socks4",
                         crate::transport::UpstreamRouteKind::Socks5 => "socks5",
                     },
                     address: upstream.address,

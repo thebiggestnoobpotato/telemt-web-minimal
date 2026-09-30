@@ -26,7 +26,7 @@ use crate::stats::Stats;
 use crate::transport::socket::{
     bind_outgoing_socket_to_device, create_outgoing_socket_bound, resolve_interface_ip,
 };
-use crate::transport::socks::{connect_socks4, connect_socks5};
+use crate::transport::socks::connect_socks5;
 
 /// Number of Telegram datacenters
 const NUM_DCS: usize = 5;
@@ -224,7 +224,6 @@ impl AsyncWrite for UpstreamStream {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpstreamRouteKind {
     Direct,
-    Socks4,
     Socks5,
 }
 
@@ -255,7 +254,6 @@ pub struct UpstreamApiSummarySnapshot {
     pub healthy_total: usize,
     pub unhealthy_total: usize,
     pub direct_total: usize,
-    pub socks4_total: usize,
     pub socks5_total: usize,
 }
 

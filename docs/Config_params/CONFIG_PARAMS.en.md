@@ -1262,7 +1262,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
-| [`type`](#type) | `"direct"`, `"socks4"`, or `"socks5"` | — | `✘` |
+| [`type`](#type) | `"direct"` or `"socks5"` | — | `✘` |
 | [`weight`](#weight) | `u16` | `1` | `✘` |
 | [`enabled`](#enabled) | `bool` | `true` | `✘` |
 | [`scopes`](#scopes) | `String` | `""` | `✘` |
@@ -1274,12 +1274,11 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`bindtodevice`](#bindtodevice) | `String` | — | `✘` |
 | [`force_bind`](#force_bind) | `String` | — | `✘` |
 | [`address`](#address) | `String` | — | `✘` |
-| [`user_id`](#user_id) | `String` | — | `✘` |
 | [`username`](#username) | `String` | — | `✘` |
 | [`password`](#password) | `String` | — | `✘` |
 
 ## type
-  - **Constraints / validation**: Required field. Must be one of: `"direct"`, `"socks4"`, `"socks5"`.
+  - **Constraints / validation**: Required field. Must be one of: `"direct"` or `"socks5"`.
   - **Description**: Selects the upstream transport implementation for this `[[upstreams]]` entry.
   - **Example**:
 
@@ -1319,7 +1318,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
     ```toml
     [[upstreams]]
-    type = "socks4"
+    type = "socks5"
     address = "10.0.0.10:1080"
     scopes = "me, fetch, dc2"
     ```
@@ -1358,7 +1357,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 ## interface
   - **Constraints / validation**: `String` (optional).
     - For `"direct"`: may be an IP address (used as explicit local bind) or an OS interface name (resolved to an IP at runtime; Unix only).
-    - For `"socks4"`/`"socks5"`: supported only when `address` is an `IP:port` literal; when `address` is a hostname, interface binding is ignored.
+    - For `"socks5"`: supported only when `address` is an `IP:port` literal; when `address` is a hostname, interface binding is ignored.
   - **Description**: Optional outbound interface / local bind hint for the upstream connect socket.
   - **Example**:
 
@@ -1406,7 +1405,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
     force_bind = "eth0"
     ```
 ## address
-  - **Constraints / validation**: Required for `type = "socks4"` and `type = "socks5"`. Must be `host:port` or `ip:port`.
+  - **Constraints / validation**: Required for `type = "socks5"`. Must be `host:port` or `ip:port`.
   - **Description**: SOCKS proxy server endpoint used for upstream connects.
   - **Example**:
 
@@ -1414,17 +1413,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
     [[upstreams]]
     type = "socks5"
     address = "127.0.0.1:9050"
-    ```
-## user_id
-  - **Constraints / validation**: `String` (optional). Only for `type = "socks4"`.
-  - **Description**: SOCKS4 CONNECT user ID. Note: when a request scope is selected, Telemt may override this with the selected scope value.
-  - **Example**:
-
-    ```toml
-    [[upstreams]]
-    type = "socks4"
-    address = "127.0.0.1:1080"
-    user_id = "telemt"
     ```
 ## username
   - **Constraints / validation**: `String` (optional). Only for `type = "socks5"`.

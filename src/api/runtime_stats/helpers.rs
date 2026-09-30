@@ -3,7 +3,6 @@ use super::*;
 pub(super) fn map_route_kind(value: UpstreamRouteKind) -> &'static str {
     match value {
         UpstreamRouteKind::Direct => "direct",
-        UpstreamRouteKind::Socks4 => "socks4",
         UpstreamRouteKind::Socks5 => "socks5",
     }
 }
