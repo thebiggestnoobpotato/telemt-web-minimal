@@ -1,43 +1,6 @@
 use super::*;
 
 #[test]
-fn conntrack_inline_explicit_flag_is_false_when_omitted() {
-    let cfg = load_config_from_temp_toml(
-        r#"
-        [general]
-        [network]
-        [server]
-        [server.conntrack_control]
-        [access]
-        "#,
-    );
-    assert!(
-        !cfg.server
-            .conntrack_control
-            .inline_conntrack_control_explicit
-    );
-}
-
-#[test]
-fn conntrack_inline_explicit_flag_is_true_when_present() {
-    let cfg = load_config_from_temp_toml(
-        r#"
-        [general]
-        [network]
-        [server]
-        [server.conntrack_control]
-        inline_conntrack_control = true
-        [access]
-        "#,
-    );
-    assert!(
-        cfg.server
-            .conntrack_control
-            .inline_conntrack_control_explicit
-    );
-}
-
-#[test]
 fn api_gray_action_parses_and_defaults_to_drop() {
     let cfg_default: ProxyConfig = toml::from_str(
         r#"

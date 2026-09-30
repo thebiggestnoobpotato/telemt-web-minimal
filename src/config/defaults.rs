@@ -14,10 +14,6 @@ pub(crate) const DIRECT_RELAY_BUFFER_BUDGET_UNIT_BYTES: usize = 4 * 1024;
 const DEFAULT_DIRECT_RELAY_BUFFER_BUDGET_MAX_BYTES: usize = 0;
 const DEFAULT_USER_MAX_UNIQUE_IPS_WINDOW_SECS: u64 = 30;
 const DEFAULT_ACCEPT_PERMIT_TIMEOUT_MS: u64 = 250;
-const DEFAULT_CONNTRACK_CONTROL_ENABLED: bool = true;
-const DEFAULT_CONNTRACK_PRESSURE_HIGH_WATERMARK_PCT: u8 = 85;
-const DEFAULT_CONNTRACK_PRESSURE_LOW_WATERMARK_PCT: u8 = 70;
-const DEFAULT_CONNTRACK_DELETE_BUDGET_PER_SEC: u64 = 4096;
 const DEFAULT_UPSTREAM_CONNECT_RETRY_ATTEMPTS: u32 = 2;
 const DEFAULT_UPSTREAM_UNHEALTHY_FAIL_THRESHOLD: u32 = 5;
 const DEFAULT_UPSTREAM_CONNECT_BUDGET_MS: u64 = 3000;
@@ -113,22 +109,6 @@ pub(crate) fn default_listen_backlog() -> u32 {
 
 pub(crate) fn default_accept_permit_timeout_ms() -> u64 {
     DEFAULT_ACCEPT_PERMIT_TIMEOUT_MS
-}
-
-pub(crate) fn default_conntrack_control_enabled() -> bool {
-    DEFAULT_CONNTRACK_CONTROL_ENABLED
-}
-
-pub(crate) fn default_conntrack_pressure_high_watermark_pct() -> u8 {
-    DEFAULT_CONNTRACK_PRESSURE_HIGH_WATERMARK_PCT
-}
-
-pub(crate) fn default_conntrack_pressure_low_watermark_pct() -> u8 {
-    DEFAULT_CONNTRACK_PRESSURE_LOW_WATERMARK_PCT
-}
-
-pub(crate) fn default_conntrack_delete_budget_per_sec() -> u64 {
-    DEFAULT_CONNTRACK_DELETE_BUDGET_PER_SEC
 }
 
 pub(crate) fn default_prefer_4() -> u8 {

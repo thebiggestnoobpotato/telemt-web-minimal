@@ -67,7 +67,6 @@ const SERVER_CONFIG_KEYS: &[&str] = &[
     "listen_backlog",
     "max_connections",
     "accept_permit_timeout_ms",
-    "conntrack_control",
 ];
 
 const API_CONFIG_KEYS: &[&str] = &[
@@ -84,17 +83,6 @@ const API_CONFIG_KEYS: &[&str] = &[
     "runtime_edge_top_n",
     "runtime_edge_events_capacity",
     "read_only",
-];
-
-const CONNTRACK_CONTROL_CONFIG_KEYS: &[&str] = &[
-    "inline_conntrack_control",
-    "mode",
-    "backend",
-    "profile",
-    "hybrid_listener_ips",
-    "pressure_high_watermark_pct",
-    "pressure_low_watermark_pct",
-    "delete_budget_per_sec",
 ];
 
 const LISTENER_CONFIG_KEYS: &[&str] = &[

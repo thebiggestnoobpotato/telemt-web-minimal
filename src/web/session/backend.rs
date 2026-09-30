@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use crate::proxy::shared_state::ConntrackClosePolicy;
 use crate::web::frame::FrameType;
 use crate::web::stream::WebLogicalStream;
 
@@ -368,16 +367,7 @@ async fn run_stream(
         Some(stream_identity.id),
         None,
     );
-    let relay_result = run_authenticated(
-        reader,
-        writer,
-        success,
-        deps,
-        session.profile.public_addr,
-        peer,
-        ConntrackClosePolicy::Suppress,
-    )
-    .await;
+    let relay_result = run_authenticated(reader, writer, success, deps, peer).await;
     session.trace_lifecycle(
         crate::web::trace::TraceLifecycleEvent::RelayEnded,
         Some(stream_identity.id),

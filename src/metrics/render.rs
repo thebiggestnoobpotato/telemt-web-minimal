@@ -2,7 +2,7 @@ use super::*;
 
 // Process, buffer, and TLS cache metrics.
 mod process;
-// Connection, quota, and conntrack metrics.
+// Connection and quota metrics.
 mod connections;
 // Rate limiter and upstream metrics.
 mod traffic;

@@ -112,20 +112,6 @@ pub(super) struct ZeroCoreData {
     pub(super) configured_users: usize,
     pub(super) telemetry_core_enabled: bool,
     pub(super) telemetry_user_enabled: bool,
-    pub(super) conntrack_control_enabled: bool,
-    pub(super) conntrack_control_available: bool,
-    pub(super) conntrack_pressure_active: bool,
-    pub(super) conntrack_event_queue_depth: u64,
-    pub(super) conntrack_rule_apply_ok: bool,
-    pub(super) conntrack_rule_reconcile_success_total: u64,
-    pub(super) conntrack_rule_reconcile_error_total: u64,
-    pub(super) conntrack_rule_rollback_success_total: u64,
-    pub(super) conntrack_rule_rollback_error_total: u64,
-    pub(super) conntrack_delete_attempt_total: u64,
-    pub(super) conntrack_delete_success_total: u64,
-    pub(super) conntrack_delete_not_found_total: u64,
-    pub(super) conntrack_delete_error_total: u64,
-    pub(super) conntrack_close_event_drop_total: u64,
 }
 
 #[derive(Serialize, Clone)]

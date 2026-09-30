@@ -39,7 +39,6 @@ pub use network::{NetworkConfig, UpstreamConfig, UpstreamType};
 pub use policies::{RstOnCloseMode, TelemetryConfig, UserMaxUniqueIpsMode};
 #[allow(unused_imports)]
 pub use server::{
-    ConntrackBackend, ConntrackControlConfig, ConntrackMode, ConntrackPressureProfile,
     ListenerConfig, ListenerTransport, ServerConfig, TimeoutsConfig, WebClientIpSource,
 };
 #[allow(unused_imports)]

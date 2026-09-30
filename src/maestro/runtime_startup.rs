@@ -6,7 +6,6 @@ use tokio::sync::{Semaphore, watch};
 use tracing::info;
 
 use crate::config::{LogLevel, ProxyConfig};
-use crate::conntrack_control;
 use crate::crypto::SecureRandom;
 use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::NetworkDecision;
@@ -100,19 +99,11 @@ pub(super) async fn prepare_runtime(
     info!("Transport: Direct DC - TCP - standard DC-over-TCP");
 
     admission::configure_admission_gate(&admission_tx).await;
-    let conntrack_scope = runtime_task_scope.clone();
-    runtime_task_scope.spawn(conntrack_control::run_conntrack_controller(
-        config_rx.clone(),
-        stats.clone(),
-        shared_state.clone(),
-        conntrack_scope.cancellation_token(),
-    ));
     runtime_task_scope.spawn(run_direct_buffer_budget_controller(
         1,
         direct_buffer_budget,
         buffer_pool.clone(),
         stats,
-        shared_state,
         max_connections.clone(),
         config.server.max_connections,
     ));

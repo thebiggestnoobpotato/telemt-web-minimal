@@ -51,43 +51,6 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    if config.server.conntrack_control.pressure_high_watermark_pct == 0
-        || config.server.conntrack_control.pressure_high_watermark_pct > 100
-    {
-        return Err(ProxyError::Config(
-            "server.conntrack_control.pressure_high_watermark_pct must be within [1, 100]"
-                .to_string(),
-        ));
-    }
-
-    if config.server.conntrack_control.pressure_low_watermark_pct
-        >= config.server.conntrack_control.pressure_high_watermark_pct
-    {
-        return Err(ProxyError::Config(
-            "server.conntrack_control.pressure_low_watermark_pct must be < pressure_high_watermark_pct"
-                .to_string(),
-        ));
-    }
-
-    if config.server.conntrack_control.delete_budget_per_sec == 0 {
-        return Err(ProxyError::Config(
-            "server.conntrack_control.delete_budget_per_sec must be > 0".to_string(),
-        ));
-    }
-
-    if matches!(config.server.conntrack_control.mode, ConntrackMode::Hybrid)
-        && config
-            .server
-            .conntrack_control
-            .hybrid_listener_ips
-            .is_empty()
-    {
-        return Err(ProxyError::Config(
-            "server.conntrack_control.hybrid_listener_ips must be non-empty in mode=hybrid"
-                .to_string(),
-        ));
-    }
-
     // Validate secrets.
     for (user, secret) in &config.access.users {
         if !secret.chars().all(|c| c.is_ascii_hexdigit()) || secret.len() != 32 {

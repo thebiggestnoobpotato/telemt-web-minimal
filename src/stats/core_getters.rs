@@ -47,61 +47,6 @@ impl Stats {
     pub fn get_current_connections_total(&self) -> u64 {
         self.get_current_connections_direct()
     }
-    pub fn get_conntrack_control_enabled(&self) -> bool {
-        self.conntrack_control_enabled_gauge.load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_control_available(&self) -> bool {
-        self.conntrack_control_available_gauge
-            .load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_pressure_active(&self) -> bool {
-        self.conntrack_pressure_active_gauge.load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_event_queue_depth(&self) -> u64 {
-        self.conntrack_event_queue_depth_gauge
-            .load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_rule_apply_ok(&self) -> bool {
-        self.conntrack_rule_apply_ok_gauge.load(Ordering::Relaxed)
-    }
-    /// Returns successful process-owned firewall reconciliations.
-    pub fn get_conntrack_rule_reconcile_success_total(&self) -> u64 {
-        self.conntrack_rule_reconcile_success_total
-            .load(Ordering::Relaxed)
-    }
-    /// Returns failed process-owned firewall reconciliations.
-    pub fn get_conntrack_rule_reconcile_error_total(&self) -> u64 {
-        self.conntrack_rule_reconcile_error_total
-            .load(Ordering::Relaxed)
-    }
-    /// Returns successful firewall transaction rollbacks.
-    pub fn get_conntrack_rule_rollback_success_total(&self) -> u64 {
-        self.conntrack_rule_rollback_success_total
-            .load(Ordering::Relaxed)
-    }
-    /// Returns rollback failures that left applied firewall state unknown.
-    pub fn get_conntrack_rule_rollback_error_total(&self) -> u64 {
-        self.conntrack_rule_rollback_error_total
-            .load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_delete_attempt_total(&self) -> u64 {
-        self.conntrack_delete_attempt_total.load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_delete_success_total(&self) -> u64 {
-        self.conntrack_delete_success_total.load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_delete_not_found_total(&self) -> u64 {
-        self.conntrack_delete_not_found_total
-            .load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_delete_error_total(&self) -> u64 {
-        self.conntrack_delete_error_total.load(Ordering::Relaxed)
-    }
-    pub fn get_conntrack_close_event_drop_total(&self) -> u64 {
-        self.conntrack_close_event_drop_total
-            .load(Ordering::Relaxed)
-    }
-
     pub fn get_buffer_pool_pooled_gauge(&self) -> u64 {
         self.buffer_pool_pooled_gauge.load(Ordering::Relaxed)
     }

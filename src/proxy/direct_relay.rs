@@ -18,10 +18,7 @@ use crate::crypto::SecureRandom;
 use crate::error::{ProxyError, Result};
 use crate::protocol::constants::*;
 use crate::proxy::handshake::{HandshakeSuccess, encrypt_tg_nonce_with_ciphers, generate_tg_nonce};
-use crate::proxy::shared_state::{
-    ConntrackCloseEvent, ConntrackClosePolicy, ConntrackClosePublishResult, ConntrackCloseReason,
-    ProxySharedState,
-};
+use crate::proxy::shared_state::ProxySharedState;
 use crate::stats::Stats;
 use crate::stats::UserQuotaHandle;
 use crate::stream::{BufferPool, CryptoReader, CryptoWriter};
@@ -34,12 +31,12 @@ use nix::sys::stat::Mode;
 #[cfg(all(test, unix))]
 use std::os::unix::fs::OpenOptionsExt;
 
-// Direct relay lifecycle and conntrack publication.
+// Direct relay lifecycle.
 mod relay;
 // Telegram DC resolution and upstream handshake.
 mod routing;
 
-pub(crate) use relay::handle_via_direct_with_shared_and_conntrack;
+pub(crate) use relay::handle_via_direct_with_shared;
 #[cfg(test)]
 pub(crate) use relay::handle_via_direct;
 use routing::*;

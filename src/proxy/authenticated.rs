@@ -8,9 +8,9 @@ use crate::config::ProxyConfig;
 use crate::crypto::SecureRandom;
 use crate::error::{ProxyError, Result};
 use crate::ip_tracker::UserIpTracker;
-use crate::proxy::direct_relay::handle_via_direct_with_shared_and_conntrack;
+use crate::proxy::direct_relay::handle_via_direct_with_shared;
 use crate::proxy::handshake::HandshakeSuccess;
-use crate::proxy::shared_state::{ConntrackClosePolicy, ProxySharedState};
+use crate::proxy::shared_state::ProxySharedState;
 use crate::proxy::user_admission::UserIncarnation;
 use crate::proxy::user_connection_authority::UserConnectionPermit;
 use crate::stats::{Stats, UserConnectionObservation, UserQuotaHandle};
@@ -42,9 +42,7 @@ pub(crate) async fn run_authenticated<R, W>(
     client_writer: CryptoWriter<W>,
     success: HandshakeSuccess,
     deps: ClientRuntimeDeps,
-    local_addr: SocketAddr,
     peer_addr: SocketAddr,
-    conntrack_close_policy: ConntrackClosePolicy,
 ) -> Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
@@ -101,9 +99,7 @@ where
         success,
         &deps,
         session_id,
-        local_addr,
         session_cancel,
-        conntrack_close_policy,
         quota_handle,
     )
     .await;
@@ -117,16 +113,14 @@ async fn run_direct<R, W>(
     success: HandshakeSuccess,
     deps: &ClientRuntimeDeps,
     session_id: u64,
-    local_addr: SocketAddr,
     session_cancel: tokio_util::sync::CancellationToken,
-    conntrack_close_policy: ConntrackClosePolicy,
     quota_handle: UserQuotaHandle,
 ) -> Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    handle_via_direct_with_shared_and_conntrack(
+    handle_via_direct_with_shared(
         client_reader,
         client_writer,
         success,
@@ -136,10 +130,8 @@ where
         Arc::clone(&deps.buffer_pool),
         Arc::clone(&deps.rng),
         session_id,
-        local_addr,
         session_cancel,
         Arc::clone(&deps.shared),
-        conntrack_close_policy,
         quota_handle,
     )
     .await

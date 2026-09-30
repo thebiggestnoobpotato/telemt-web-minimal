@@ -1,11 +1,11 @@
 use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
-use std::net::{IpAddr, SocketAddr};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::net::IpAddr;
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 
 use dashmap::DashMap;
-use tokio::sync::{Semaphore, mpsc};
+use tokio::sync::Semaphore;
 
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, fallback_direct_buffer_hard_limit};
 use crate::proxy::handshake::{AuthProbeSaturationState, AuthProbeState};
@@ -17,39 +17,6 @@ use crate::proxy::user_admission::{
 use crate::slot_budget::SlotBudget;
 
 const HANDSHAKE_RECENT_USER_RING_LEN: usize = 64;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ConntrackCloseReason {
-    NormalEof,
-    Timeout,
-    Pressure,
-    Reset,
-    Other,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ConntrackCloseEvent {
-    pub(crate) src: SocketAddr,
-    pub(crate) dst: SocketAddr,
-    pub(crate) reason: ConntrackCloseReason,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ConntrackClosePublishResult {
-    Sent,
-    Disabled,
-    QueueFull,
-    QueueClosed,
-}
-
-/// Controls whether a relay tuple maps to a real kernel conntrack entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ConntrackClosePolicy {
-    /// Publish closure for a tuple backed by an accepted kernel TCP flow.
-    Publish,
-    /// Suppress closure for a virtual transport tuple with no kernel flow.
-    Suppress,
-}
 
 pub(crate) struct HandshakeSharedState {
     pub(crate) auth_probe: DashMap<IpAddr, AuthProbeState>,
@@ -82,8 +49,6 @@ pub(crate) struct ProxySharedState {
     pub(crate) traffic_limiter: Arc<TrafficLimiter>,
     pub(crate) direct_buffer_budget: Arc<DirectBufferBudget>,
     user_admission: Arc<UserAdmissionAuthority>,
-    pub(crate) conntrack_pressure_active: AtomicBool,
-    pub(crate) conntrack_close_tx: Mutex<Option<mpsc::Sender<ConntrackCloseEvent>>>,
 }
 
 impl ProxySharedState {
@@ -153,8 +118,6 @@ impl ProxySharedState {
             traffic_limiter,
             direct_buffer_budget,
             user_admission,
-            conntrack_pressure_active: AtomicBool::new(false),
-            conntrack_close_tx: Mutex::new(None),
         })
     }
 
@@ -272,65 +235,6 @@ impl ProxySharedState {
         self.user_admission.cancel_user_owners(user)
     }
 
-    pub(crate) fn set_conntrack_close_sender(&self, tx: mpsc::Sender<ConntrackCloseEvent>) {
-        match self.conntrack_close_tx.lock() {
-            Ok(mut guard) => {
-                *guard = Some(tx);
-            }
-            Err(poisoned) => {
-                let mut guard = poisoned.into_inner();
-                *guard = Some(tx);
-                self.conntrack_close_tx.clear_poison();
-            }
-        }
-    }
-
-    pub(crate) fn disable_conntrack_close_sender(&self) {
-        match self.conntrack_close_tx.lock() {
-            Ok(mut guard) => {
-                *guard = None;
-            }
-            Err(poisoned) => {
-                let mut guard = poisoned.into_inner();
-                *guard = None;
-                self.conntrack_close_tx.clear_poison();
-            }
-        }
-    }
-
-    pub(crate) fn publish_conntrack_close_event(
-        &self,
-        event: ConntrackCloseEvent,
-    ) -> ConntrackClosePublishResult {
-        let tx = match self.conntrack_close_tx.lock() {
-            Ok(guard) => guard.clone(),
-            Err(poisoned) => {
-                let guard = poisoned.into_inner();
-                let cloned = guard.clone();
-                self.conntrack_close_tx.clear_poison();
-                cloned
-            }
-        };
-
-        let Some(tx) = tx else {
-            return ConntrackClosePublishResult::Disabled;
-        };
-
-        match tx.try_send(event) {
-            Ok(()) => ConntrackClosePublishResult::Sent,
-            Err(mpsc::error::TrySendError::Full(_)) => ConntrackClosePublishResult::QueueFull,
-            Err(mpsc::error::TrySendError::Closed(_)) => ConntrackClosePublishResult::QueueClosed,
-        }
-    }
-
-    pub(crate) fn set_conntrack_pressure_active(&self, active: bool) {
-        self.conntrack_pressure_active
-            .store(active, Ordering::Relaxed);
-    }
-
-    pub(crate) fn conntrack_pressure_active(&self) -> bool {
-        self.conntrack_pressure_active.load(Ordering::Relaxed)
-    }
 }
 
 #[cfg(test)]

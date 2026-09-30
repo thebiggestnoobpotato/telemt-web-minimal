@@ -129,19 +129,11 @@ pub(crate) async fn prepare_runtime(
     let (admission_tx, admission_rx) = watch::channel(true);
     admission::configure_admission_gate(&admission_tx).await;
 
-    let conntrack_scope = task_scope.clone();
-    task_scope.spawn(crate::conntrack_control::run_conntrack_controller(
-        config_rx.clone(),
-        stats.clone(),
-        proxy_shared.clone(),
-        conntrack_scope.cancellation_token(),
-    ));
     task_scope.spawn(run_direct_buffer_budget_controller(
         generation_id,
         direct_buffer_budget,
         buffer_pool.clone(),
         stats.clone(),
-        proxy_shared.clone(),
         max_connections.clone(),
         config.server.max_connections,
     ));
@@ -222,12 +214,6 @@ pub(crate) fn resolve_reload_config(
     if old.server.max_connections != desired.server.max_connections {
         fields.push("server.max_connections".to_string());
         effective.server.max_connections = old.server.max_connections;
-    }
-    if serde_json::to_value(&old.server.conntrack_control).ok()
-        != serde_json::to_value(&desired.server.conntrack_control).ok()
-    {
-        fields.push("server.conntrack_control".to_string());
-        effective.server.conntrack_control = old.server.conntrack_control.clone();
     }
     if old.general.direct_relay_buffer_budget_max_bytes
         != desired.general.direct_relay_buffer_budget_max_bytes

@@ -57,7 +57,6 @@ async fn fixture(request: ReloadRequest) -> ReloadFixture {
         runtime_watch_tx,
         listener_manager,
         web_trace,
-        conntrack_firewall: None,
     });
     let command = ReloadCommand {
         reload_id: accepted.reload_id,
@@ -269,7 +268,6 @@ async fn quiesce_joins_idle_supervisor_and_rejects_later_submissions() {
             runtime.config().web.debug.clone(),
             &runtime.config().web.limits,
         ),
-        None,
     );
 
     tokio::time::timeout(Duration::from_secs(1), handle.quiesce())

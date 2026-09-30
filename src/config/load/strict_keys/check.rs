@@ -33,7 +33,6 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         NETWORK_CONFIG_KEYS,
         SERVER_CONFIG_KEYS,
         API_CONFIG_KEYS,
-        CONNTRACK_CONTROL_CONFIG_KEYS,
         LISTENER_CONFIG_KEYS,
         WEB_CONFIG_KEYS,
         WEB_LIMITS_CONFIG_KEYS,
@@ -210,13 +209,6 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         &known_for_suggestion,
         &["server", "admin_api"],
         API_CONFIG_KEYS,
-    );
-    check_known_table(
-        parsed_toml,
-        &mut unknown,
-        &known_for_suggestion,
-        &["server", "conntrack_control"],
-        CONNTRACK_CONTROL_CONFIG_KEYS,
     );
     check_known_table(
         parsed_toml,

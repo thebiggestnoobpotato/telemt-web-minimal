@@ -61,31 +61,6 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
         cfg.server.api.runtime_edge_events_capacity,
         default_api_runtime_edge_events_capacity()
     );
-    assert_eq!(
-        cfg.server.conntrack_control.inline_conntrack_control,
-        default_conntrack_control_enabled()
-    );
-    assert_eq!(cfg.server.conntrack_control.mode, ConntrackMode::default());
-    assert_eq!(
-        cfg.server.conntrack_control.backend,
-        ConntrackBackend::default()
-    );
-    assert_eq!(
-        cfg.server.conntrack_control.profile,
-        ConntrackPressureProfile::default()
-    );
-    assert_eq!(
-        cfg.server.conntrack_control.pressure_high_watermark_pct,
-        default_conntrack_pressure_high_watermark_pct()
-    );
-    assert_eq!(
-        cfg.server.conntrack_control.pressure_low_watermark_pct,
-        default_conntrack_pressure_low_watermark_pct()
-    );
-    assert_eq!(
-        cfg.server.conntrack_control.delete_budget_per_sec,
-        default_conntrack_delete_budget_per_sec()
-    );
     assert_eq!(cfg.access.users, default_access_users());
     assert_eq!(
         cfg.access.user_max_tcp_conns_global_each,
@@ -318,31 +293,6 @@ fn impl_defaults_are_sourced_from_default_helpers() {
     assert_eq!(
         server.api.runtime_edge_events_capacity,
         default_api_runtime_edge_events_capacity()
-    );
-    assert_eq!(
-        server.conntrack_control.inline_conntrack_control,
-        default_conntrack_control_enabled()
-    );
-    assert_eq!(server.conntrack_control.mode, ConntrackMode::default());
-    assert_eq!(
-        server.conntrack_control.backend,
-        ConntrackBackend::default()
-    );
-    assert_eq!(
-        server.conntrack_control.profile,
-        ConntrackPressureProfile::default()
-    );
-    assert_eq!(
-        server.conntrack_control.pressure_high_watermark_pct,
-        default_conntrack_pressure_high_watermark_pct()
-    );
-    assert_eq!(
-        server.conntrack_control.pressure_low_watermark_pct,
-        default_conntrack_pressure_low_watermark_pct()
-    );
-    assert_eq!(
-        server.conntrack_control.delete_budget_per_sec,
-        default_conntrack_delete_budget_per_sec()
     );
 
     let access = AccessConfig::default();

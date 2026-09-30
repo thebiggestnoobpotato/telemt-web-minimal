@@ -85,7 +85,7 @@ async fn run_inner(
     let user = daemon_opts.user.clone();
     let group = daemon_opts.group.clone();
 
-    orchestrator::run_telemt_core(user.is_some() || group.is_some(), || {
+    orchestrator::run_telemt_core(|| {
         if (user.is_some() || group.is_some())
             && let Err(e) = drop_privileges(user.as_deref(), group.as_deref(), _pid_file.as_ref())
         {
@@ -98,5 +98,5 @@ async fn run_inner(
 
 #[cfg(not(unix))]
 async fn run_inner() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    orchestrator::run_telemt_core(false, || {}).await
+    orchestrator::run_telemt_core(|| {}).await
 }

@@ -18,7 +18,7 @@ where
     W: AsyncWrite + Unpin + Send + 'static,
 {
     let quota_handle = stats.current_user_quota_handle(&success.user);
-    handle_via_direct_with_shared_and_conntrack(
+    handle_via_direct_with_shared(
         client_reader,
         client_writer,
         success,
@@ -28,17 +28,15 @@ where
         buffer_pool,
         rng,
         session_id,
-        SocketAddr::from(([0, 0, 0, 0], config.server.port)),
         CancellationToken::new(),
         ProxySharedState::new(),
-        ConntrackClosePolicy::Suppress,
         quota_handle,
     )
     .await
 }
 
-/// Runs Direct relay with explicit kernel-conntrack close publication policy.
-pub(crate) async fn handle_via_direct_with_shared_and_conntrack<R, W>(
+/// Runs Direct relay with explicit shared runtime state and session cancellation.
+pub(crate) async fn handle_via_direct_with_shared<R, W>(
     client_reader: CryptoReader<R>,
     client_writer: CryptoWriter<W>,
     success: HandshakeSuccess,
@@ -48,10 +46,8 @@ pub(crate) async fn handle_via_direct_with_shared_and_conntrack<R, W>(
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
     session_id: u64,
-    local_addr: SocketAddr,
     session_cancel: CancellationToken,
     shared: Arc<ProxySharedState>,
-    conntrack_close_policy: ConntrackClosePolicy,
     quota_handle: UserQuotaHandle,
 ) -> Result<()>
 where
@@ -107,17 +103,7 @@ where
         .acquire_lease(user, success.peer.ip());
 
     let buffer_pool_trim = Arc::clone(&buffer_pool);
-    let relay_activity_timeout = if shared.conntrack_pressure_active() {
-        Duration::from_secs(
-            config
-                .server
-                .conntrack_control
-                .profile
-                .direct_activity_timeout_secs(),
-        )
-    } else {
-        Duration::from_secs(1800)
-    };
+    let relay_activity_timeout = Duration::from_secs(1800);
     let relay_result = crate::proxy::relay::relay_direct_adaptive(
         client_reader,
         client_writer,
@@ -157,49 +143,5 @@ where
         pool_snapshot.allocated.saturating_sub(pool_snapshot.pooled),
     );
 
-    if conntrack_close_policy == ConntrackClosePolicy::Publish {
-        let close_reason = classify_conntrack_close_reason(&relay_result);
-        let publish_result = shared.publish_conntrack_close_event(ConntrackCloseEvent {
-            src: success.peer,
-            dst: local_addr,
-            reason: close_reason,
-        });
-        if !matches!(
-            publish_result,
-            ConntrackClosePublishResult::Sent | ConntrackClosePublishResult::Disabled
-        ) {
-            stats.increment_conntrack_close_event_drop_total();
-        }
-    }
-
     relay_result
-}
-
-fn classify_conntrack_close_reason(result: &Result<()>) -> ConntrackCloseReason {
-    match result {
-        Ok(()) => ConntrackCloseReason::NormalEof,
-        Err(crate::error::ProxyError::Io(error))
-            if matches!(error.kind(), std::io::ErrorKind::TimedOut) =>
-        {
-            ConntrackCloseReason::Timeout
-        }
-        Err(crate::error::ProxyError::Io(error))
-            if matches!(
-                error.kind(),
-                std::io::ErrorKind::ConnectionReset
-                    | std::io::ErrorKind::ConnectionAborted
-                    | std::io::ErrorKind::BrokenPipe
-                    | std::io::ErrorKind::NotConnected
-                    | std::io::ErrorKind::UnexpectedEof
-            ) =>
-        {
-            ConntrackCloseReason::Reset
-        }
-        Err(crate::error::ProxyError::Proxy(message))
-            if message.contains("pressure") || message.contains("evicted") =>
-        {
-            ConntrackCloseReason::Pressure
-        }
-        Err(_) => ConntrackCloseReason::Other,
-    }
 }

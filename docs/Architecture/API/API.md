@@ -744,20 +744,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `configured_users` | `usize` | Configured user count. |
 | `telemetry_core_enabled` | `bool` | Core telemetry toggle. |
 | `telemetry_user_enabled` | `bool` | User telemetry toggle. |
-| `conntrack_control_enabled` | `bool` | Whether conntrack control is enabled by policy. |
-| `conntrack_control_available` | `bool` | Whether conntrack control backend is currently available. |
-| `conntrack_pressure_active` | `bool` | Current conntrack pressure flag. |
-| `conntrack_event_queue_depth` | `u64` | Current conntrack close-event queue depth. |
-| `conntrack_rule_apply_ok` | `bool` | Last conntrack rule application state. |
-| `conntrack_rule_reconcile_success_total` | `u64` | Successful process-owned firewall reconciliations. |
-| `conntrack_rule_reconcile_error_total` | `u64` | Failed process-owned firewall reconciliations. |
-| `conntrack_rule_rollback_success_total` | `u64` | Successful rollback attempts after partial firewall application. |
-| `conntrack_rule_rollback_error_total` | `u64` | Failed rollback attempts after partial firewall application. |
-| `conntrack_delete_attempt_total` | `u64` | Conntrack delete attempts. |
-| `conntrack_delete_success_total` | `u64` | Successful conntrack deletes. |
-| `conntrack_delete_not_found_total` | `u64` | Conntrack delete misses. |
-| `conntrack_delete_error_total` | `u64` | Conntrack delete errors. |
-| `conntrack_close_event_drop_total` | `u64` | Dropped conntrack close events. |
 
 #### `ZeroUpstreamData`
 | Field | Type | Description |
@@ -969,7 +955,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `restart_required` — legacy file-watcher classification retained for compatibility.
 - `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `server.metrics_listen`, `server.metrics_port`, `server.max_connections`, `server.conntrack_control`, `logging`, `general.data_path`, `general.quota_state_path`, `general.disable_colors`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
+- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `server.metrics_listen`, `server.metrics_port`, `server.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.disable_colors`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 
@@ -1131,8 +1117,6 @@ Additional runtime endpoint behavior:
 
 The current runtime exports these additional bounded-cardinality families. All use closed labels except the explicitly capped per-user family described below:
 
-- `telemt_conntrack_rule_reconcile_total{result="success"|"error"}` and `telemt_conntrack_rule_rollback_total{result="success"|"error"}` describe process-owned firewall reconcile and best-effort rollback attempts.
-- The conntrack reconcile/rollback counters and rate-limiter CAS samples render zero while core telemetry is disabled; conntrack control-state gauges continue to report their effective state.
 - `telemt_rate_limiter_cas_retry_exhausted_total{scope,direction,operation}` uses the closed labels `scope=user|cidr`, `direction=up|down`, and `operation=reserve|refund`. Reserve exhaustion returns a zero grant without classifying it as configured throttling; refund exhaustion retains the charge. Neither outcome is a connection-drop counter.
 - `telemt_user_connections_current{user}` uses the same authoritative process-scoped admission count as API `current_connections`; it does not reset at a runtime generation boundary. Its Prometheus samples are emitted only when user telemetry is enabled and remain bounded to 4096 tracked telemetry users; `/v1/users` rows and their process-scoped counts are independent of that optional telemetry.
 

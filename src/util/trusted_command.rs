@@ -4,14 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 const TRUSTED_HELPER_DIRS: [&str; 4] = ["/usr/sbin", "/usr/bin", "/sbin", "/bin"];
-const TRUSTED_HELPERS: [&str; 12] = [
-    "nft",
-    "iptables",
-    "iptables-restore",
-    "ip6tables",
-    "ip6tables-restore",
-    "conntrack",
-    "pfctl",
+const TRUSTED_HELPERS: [&str; 5] = [
     "systemctl",
     "rc-update",
     "rc-service",
@@ -87,21 +80,9 @@ mod tests {
     }
 
     #[test]
-    fn privileged_helper_allowlist_accepts_exact_restore_names() {
-        assert!(TRUSTED_HELPERS.contains(&"iptables-restore"));
-        assert!(TRUSTED_HELPERS.contains(&"ip6tables-restore"));
-        assert!(!TRUSTED_HELPERS.contains(&"iptables-restore-wrapper"));
-    }
-
-    #[test]
     fn trusted_multicall_command_preserves_logical_argv0() {
         let command_path = std::fs::canonicalize("/bin/sh").unwrap();
-        for binary in [
-            "iptables",
-            "ip6tables",
-            "iptables-restore",
-            "ip6tables-restore",
-        ] {
+        for binary in ["systemctl", "service"] {
             let mut command = command_for_resolved_helper(binary, command_path.clone());
             assert_eq!(command.get_program(), command_path.as_os_str());
 

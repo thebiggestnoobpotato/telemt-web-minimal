@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use tokio::sync::{Semaphore, watch};
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::api;
 use crate::ip_tracker::UserIpTracker;
@@ -26,28 +26,22 @@ use super::{
     runtime_tasks, shutdown,
 };
 
-// Shared maestro startup and main loop. `drop_after_bind` runs on Unix after listeners are bound
-// and privileged firewall setup completes; it is a no-op on other platforms.
+// Shared maestro startup and main loop. `drop_after_bind` runs on Unix after listeners are
+// bound; it is a no-op on other platforms.
 pub(super) async fn run_telemt_core(
-    privilege_drop_requested: bool,
     drop_after_bind: impl FnOnce(),
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
     let bootstrap::BootstrapState {
         process_started_at,
         process_started_at_epoch_secs,
         startup_tracker,
-        mut config,
+        config,
         config_path,
         has_rust_log,
         effective_log_level,
         runtime_log_filter,
         logging_guard: _logging_guard,
     } = bootstrap::bootstrap().await?;
-
-    if privilege_drop_requested && config.server.conntrack_control.inline_conntrack_control {
-        warn!("Inline conntrack control is disabled when process privileges are dropped");
-        config.server.conntrack_control.inline_conntrack_control = false;
-    }
 
     let quota_store = Arc::new(QuotaStore::default());
     let connection_authority = Arc::new(UserConnectionAuthority::default());
@@ -308,23 +302,6 @@ pub(super) async fn run_telemt_core(
         std::process::exit(1);
     }
 
-    #[cfg(target_os = "linux")]
-    let conntrack_firewall = {
-        let authority = crate::conntrack_control::FirewallAuthority::spawn(&process_control_plane)
-            .map_err(std::io::Error::other)?;
-        if !authority
-            .publish_initial(1, runtime.config.clone(), stats.clone())
-            .await
-        {
-            warn!(
-                "Initial conntrack firewall reconciliation failed; background retries remain active"
-            );
-        }
-        Some(authority)
-    };
-    #[cfg(not(target_os = "linux"))]
-    let conntrack_firewall = None::<crate::conntrack_control::FirewallAuthority>;
-
     drop_after_bind();
 
     if let Err(error) = runtime_tasks::spawn_metrics_if_configured(
@@ -336,11 +313,6 @@ pub(super) async fn run_telemt_core(
     )
     .await
     {
-        if let Some(conntrack_firewall) = &conntrack_firewall
-            && !conntrack_firewall.shutdown_and_clear().await
-        {
-            warn!("Conntrack firewall cleanup failed after metrics startup error");
-        }
         return Err(error.into());
     }
 
@@ -364,7 +336,6 @@ pub(super) async fn run_telemt_core(
         runtime_watch_tx,
         listener_manager,
         web_trace,
-        conntrack_firewall.clone(),
     );
 
     shutdown::spawn_signal_handlers(
@@ -377,7 +348,6 @@ pub(super) async fn run_telemt_core(
         active_runtime,
         quota_state,
         reload_supervisor,
-        conntrack_firewall,
         process_control_plane,
     )
     .await;
