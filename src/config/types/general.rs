@@ -77,12 +77,6 @@ pub struct GeneralConfig {
     /// [general.links] — proxy link generation overrides.
     #[serde(default)]
     pub links: LinksConfig,
-    /// Enable NTP drift check at startup.
-    #[serde(default = "default_ntp_check")]
-    pub ntp_check: bool,
-    /// NTP servers for drift check.
-    #[serde(default = "default_ntp_servers")]
-    pub ntp_servers: Vec<String>,
     /// RST-on-close mode for accepted client sockets.
     /// `off`    — normal FIN on all closes (default).
     /// `errors` — SO_LINGER(0) on accept, cleared after successful auth;

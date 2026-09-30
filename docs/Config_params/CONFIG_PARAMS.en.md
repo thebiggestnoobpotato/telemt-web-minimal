@@ -189,8 +189,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`unknown_dc_file_log_enabled`](#unknown_dc_file_log_enabled) | `bool` | `false` | `✘` |
 | [`log_level`](#log_level) | `"debug"`, `"verbose"`, `"normal"`, or `"silent"` | `"normal"` | `✔` |
 | [`disable_colors`](#disable_colors) | `bool` | `false` | `✘` |
-| [`ntp_check`](#ntp_check) | `bool` | `true` | `✘` |
-| [`ntp_servers`](#ntp_servers) | `String[]` | `["pool.ntp.org"]` | `✘` |
 | [`rst_on_close`](#rst_on_close) | `"off"`, `"errors"`, or `"always"` | `"off"` | `✘` |
 
 ## data_path
@@ -383,24 +381,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     disable_colors = false
-    ```
-## ntp_check
-  - **Constraints / validation**: `bool`.
-  - **Description**: Reserved for future use. Currently this key is parsed but not used by the runtime.
-  - **Example**:
-
-    ```toml
-    [general]
-    ntp_check = true
-    ```
-## ntp_servers
-  - **Constraints / validation**: `String[]`.
-  - **Description**: Reserved for future use. Currently this key is parsed but not used by the runtime.
-  - **Example**:
-
-    ```toml
-    [general]
-    ntp_servers = ["pool.ntp.org"]
     ```
 ## rst_on_close
   - **Constraints / validation**: one of `"off"`, `"errors"`, `"always"`.

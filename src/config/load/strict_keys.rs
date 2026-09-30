@@ -41,8 +41,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "disable_colors",
     "telemetry",
     "links",
-    "ntp_check",
-    "ntp_servers",
     "rst_on_close",
 ];
 

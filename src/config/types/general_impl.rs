@@ -26,8 +26,6 @@ impl Default for GeneralConfig {
             disable_colors: false,
             telemetry: TelemetryConfig::default(),
             links: LinksConfig::default(),
-            ntp_check: default_ntp_check(),
-            ntp_servers: default_ntp_servers(),
             rst_on_close: RstOnCloseMode::default(),
         }
     }

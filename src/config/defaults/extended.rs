@@ -61,14 +61,6 @@ pub(crate) fn default_cache_public_ip_path() -> String {
     "cache/public_ip.txt".to_string()
 }
 
-pub(crate) fn default_ntp_check() -> bool {
-    true
-}
-
-pub(crate) fn default_ntp_servers() -> Vec<String> {
-    vec!["pool.ntp.org".to_string()]
-}
-
 pub(crate) fn default_access_users() -> HashMap<String, String> {
     HashMap::from([(
         DEFAULT_ACCESS_USER.to_string(),
