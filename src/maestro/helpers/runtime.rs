@@ -52,28 +52,6 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
     }
 }
 
-/// Durably replaces one Beobachten snapshot without following Unix symlinks.
-pub(crate) async fn write_beobachten_snapshot(path: &str, payload: &str) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        crate::util::secure_fs::atomic_replace_async(
-            std::path::PathBuf::from(path),
-            payload.as_bytes().to_vec(),
-            0o600,
-        )
-        .await
-    }
-    #[cfg(not(unix))]
-    {
-        if let Some(parent) = std::path::Path::new(path).parent()
-            && !parent.as_os_str().is_empty()
-        {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-        tokio::fs::write(path, payload).await
-    }
-}
-
 /// Selects a singular or plural display label for one integer value.
 pub(crate) fn unit_label(value: u64, singular: &'static str, plural: &'static str) -> &'static str {
     if value == 1 { singular } else { plural }

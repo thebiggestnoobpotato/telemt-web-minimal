@@ -1,6 +1,5 @@
 use super::*;
 use http_body_util::BodyExt;
-use std::net::IpAddr;
 
 use crate::stats::telemetry::TelemetryPolicy;
 
@@ -238,9 +237,7 @@ async fn test_render_has_type_annotations() {
 
 #[tokio::test]
 async fn test_endpoint_integration() {
-    let mut config = ProxyConfig::default();
-    config.general.beobachten = true;
-    config.general.beobachten_minutes = 10;
+    let config = ProxyConfig::default();
     let runtime = crate::maestro::generation::test_runtime_generation(1, config);
     let web_publication = test_web_publication();
     runtime.stats.increment_connects_all();
@@ -264,19 +261,6 @@ async fn test_endpoint_integration() {
                 env!("CARGO_PKG_VERSION")
             ))
     );
-
-    runtime.beobachten.record(
-        "TLS-scanner",
-        "203.0.113.10".parse::<IpAddr>().unwrap(),
-        Duration::from_secs(600),
-    );
-    let req_beob = Request::builder().uri("/beobachten").body(()).unwrap();
-    let resp_beob = handle(req_beob, &runtime, &web_publication).await.unwrap();
-    assert_eq!(resp_beob.status(), StatusCode::OK);
-    let body_beob = resp_beob.into_body().collect().await.unwrap().to_bytes();
-    let beob_text = std::str::from_utf8(body_beob.as_ref()).unwrap();
-    assert!(beob_text.contains("[TLS-scanner]"));
-    assert!(beob_text.contains("203.0.113.10-1"));
 
     let req404 = Request::builder().uri("/other").body(()).unwrap();
     let resp404 = handle(req404, &runtime, &web_publication).await.unwrap();

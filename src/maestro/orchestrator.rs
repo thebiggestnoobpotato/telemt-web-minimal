@@ -296,7 +296,6 @@ pub(super) async fn run_telemt_core(
         runtime.buffer_pool,
         runtime.rng,
         ip_tracker,
-        runtime.beobachten,
         shared_state,
         runtime.max_connections,
         runtime_task_scope,

@@ -42,18 +42,6 @@ pub struct GeneralConfig {
     /// Maximum allowed client MTProto frame size (bytes).
     #[serde(default = "default_max_client_frame")]
     pub max_client_frame: usize,
-    /// Enable per-IP forensic observation buckets for scanners and handshake failures.
-    #[serde(default = "default_true")]
-    pub beobachten: bool,
-    /// Observation retention window in minutes for per-IP forensic buckets.
-    #[serde(default = "default_beobachten_minutes")]
-    pub beobachten_minutes: u64,
-    /// Snapshot flush interval in seconds for beob output file.
-    #[serde(default = "default_beobachten_flush_secs")]
-    pub beobachten_flush_secs: u64,
-    /// Snapshot file path for beob output.
-    #[serde(default = "default_beobachten_file")]
-    pub beobachten_file: String,
     /// Connect attempts for the selected upstream before returning error/fallback.
     #[serde(default = "default_upstream_connect_retry_attempts")]
     pub upstream_connect_retry_attempts: u32,

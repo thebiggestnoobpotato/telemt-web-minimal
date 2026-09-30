@@ -91,54 +91,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
 }
 
 #[test]
-fn top_level_beobachten_keys_migrate_to_general_when_general_not_explicit() {
-    let cfg = load_config_from_temp_toml(
-        r#"
-        beobachten = false
-        beobachten_minutes = 7
-        beobachten_flush_secs = 3
-        beobachten_file = "tmp/legacy-beob.txt"
-
-        [server]
-        [general]
-        [network]
-        [access]
-        "#,
-    );
-
-    assert!(!cfg.general.beobachten);
-    assert_eq!(cfg.general.beobachten_minutes, 7);
-    assert_eq!(cfg.general.beobachten_flush_secs, 3);
-    assert_eq!(cfg.general.beobachten_file, "tmp/legacy-beob.txt");
-}
-
-#[test]
-fn general_beobachten_keys_have_priority_over_legacy_top_level() {
-    let cfg = load_config_from_temp_toml(
-        r#"
-        beobachten = true
-        beobachten_minutes = 30
-        beobachten_flush_secs = 30
-        beobachten_file = "tmp/legacy-beob.txt"
-
-        [server]
-        [general]
-        beobachten = false
-        beobachten_minutes = 5
-        beobachten_flush_secs = 2
-        beobachten_file = "tmp/general-beob.txt"
-        [network]
-        [access]
-        "#,
-    );
-
-    assert!(!cfg.general.beobachten);
-    assert_eq!(cfg.general.beobachten_minutes, 5);
-    assert_eq!(cfg.general.beobachten_flush_secs, 2);
-    assert_eq!(cfg.general.beobachten_file, "tmp/general-beob.txt");
-}
-
-#[test]
 fn dc_overrides_allow_string_and_array() {
     let toml = r#"
         [dc_overrides]

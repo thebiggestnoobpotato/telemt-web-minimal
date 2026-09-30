@@ -13,7 +13,6 @@ use crate::network::probe::NetworkDecision;
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, run_direct_buffer_budget_controller};
 use crate::proxy::shared_state::ProxySharedState;
 use crate::startup::StartupTracker;
-use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::{ReplayChecker, Stats};
 use crate::stream::BufferPool;
 use crate::transport::UpstreamManager;
@@ -24,7 +23,6 @@ use super::{connectivity, runtime_tasks};
 
 pub(super) struct RuntimeStartupState {
     pub(super) config: Arc<ProxyConfig>,
-    pub(super) beobachten: Arc<BeobachtenStore>,
     pub(super) rng: Arc<SecureRandom>,
     pub(super) max_connections: Arc<Semaphore>,
     pub(super) replay_checker: Arc<ReplayChecker>,
@@ -53,7 +51,6 @@ pub(super) async fn prepare_runtime(
     effective_log_level: &LogLevel,
 ) -> RuntimeStartupState {
     let prefer_ipv6 = decision.prefer_ipv6();
-    let beobachten = Arc::new(BeobachtenStore::new());
     let rng = Arc::new(SecureRandom::new());
 
     let config = Arc::new(config);
@@ -85,7 +82,6 @@ pub(super) async fn prepare_runtime(
         upstream_manager.clone(),
         replay_checker.clone(),
         ip_tracker.clone(),
-        beobachten.clone(),
         shared_state.clone(),
         runtime_task_scope.clone(),
         None,
@@ -123,7 +119,6 @@ pub(super) async fn prepare_runtime(
 
     RuntimeStartupState {
         config,
-        beobachten,
         rng,
         max_connections,
         replay_checker,

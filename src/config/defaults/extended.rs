@@ -32,18 +32,6 @@ pub(crate) fn default_max_client_frame() -> usize {
     16 * 1024 * 1024
 }
 
-pub(crate) fn default_beobachten_minutes() -> u64 {
-    10
-}
-
-pub(crate) fn default_beobachten_flush_secs() -> u64 {
-    15
-}
-
-pub(crate) fn default_beobachten_file() -> String {
-    "beobachten.txt".to_string()
-}
-
 pub(crate) fn default_stun_servers() -> Vec<String> {
     vec![
         "stun.l.google.com:5349".to_string(),

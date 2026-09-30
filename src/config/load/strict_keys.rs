@@ -14,10 +14,6 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "show_link",
     "dc_overrides",
     "default_dc",
-    "beobachten",
-    "beobachten_minutes",
-    "beobachten_flush_secs",
-    "beobachten_file",
     "include",
 ];
 
@@ -33,10 +29,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "direct_relay_buffer_budget_max_bytes",
     "crypto_pending_buffer",
     "max_client_frame",
-    "beobachten",
-    "beobachten_minutes",
-    "beobachten_flush_secs",
-    "beobachten_file",
     "upstream_connect_retry_attempts",
     "upstream_connect_retry_backoff_ms",
     "upstream_connect_budget_ms",

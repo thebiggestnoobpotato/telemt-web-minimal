@@ -12,7 +12,6 @@ use crate::crypto::SecureRandom;
 use crate::ip_tracker::UserIpTracker;
 use crate::proxy::authenticated::ClientRuntimeDeps;
 use crate::proxy::shared_state::ProxySharedState;
-use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::{ReplayChecker, Stats};
 use crate::stream::BufferPool;
 use crate::transport::UpstreamManager;
@@ -171,7 +170,6 @@ pub(crate) struct RuntimeGeneration {
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) rng: Arc<SecureRandom>,
     pub(crate) ip_tracker: Arc<UserIpTracker>,
-    pub(crate) beobachten: Arc<BeobachtenStore>,
     pub(crate) proxy_shared: Arc<ProxySharedState>,
     pub(crate) max_connections: Arc<Semaphore>,
     background_tasks: RuntimeTaskScope,
@@ -193,7 +191,6 @@ impl RuntimeGeneration {
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
         ip_tracker: Arc<UserIpTracker>,
-        beobachten: Arc<BeobachtenStore>,
         proxy_shared: Arc<ProxySharedState>,
         max_connections: Arc<Semaphore>,
         background_tasks: RuntimeTaskScope,
@@ -208,7 +205,6 @@ impl RuntimeGeneration {
             buffer_pool,
             rng,
             ip_tracker,
-            beobachten,
             proxy_shared,
             max_connections,
             background_tasks,
@@ -358,7 +354,6 @@ pub(crate) fn test_runtime_generation_with_admission(
         Arc::new(BufferPool::with_config(4096, 16)),
         Arc::new(SecureRandom::new()),
         Arc::new(UserIpTracker::new()),
-        Arc::new(BeobachtenStore::new()),
         ProxySharedState::new(),
         Arc::new(Semaphore::new(64)),
         RuntimeTaskScope::new(),

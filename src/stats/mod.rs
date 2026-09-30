@@ -2,7 +2,6 @@
 
 #![allow(dead_code)]
 
-pub mod beobachten;
 mod core_counters;
 mod core_getters;
 mod helpers;

@@ -143,17 +143,6 @@ pub(crate) fn atomic_replace(path: &Path, contents: &[u8], mode: u32) -> io::Res
     atomic_replace_anchored(&anchored, contents, mode)
 }
 
-/// Durably replaces a file on the blocking pool.
-pub(crate) async fn atomic_replace_async(
-    path: std::path::PathBuf,
-    contents: Vec<u8>,
-    mode: u32,
-) -> io::Result<()> {
-    tokio::task::spawn_blocking(move || atomic_replace(&path, &contents, mode))
-        .await
-        .map_err(|error| io::Error::other(format!("secure writer task failed: {error}")))?
-}
-
 fn atomic_replace_anchored(anchored: &AnchoredPath, contents: &[u8], mode: u32) -> io::Result<()> {
     let temp_name = format!(".telemt.tmp-{}", rand::random::<u64>());
     let descriptor = openat(

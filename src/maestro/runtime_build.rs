@@ -16,7 +16,6 @@ use crate::proxy::traffic_limiter::TrafficLimiter;
 use crate::proxy::user_admission::UserAdmissionAuthority;
 use crate::proxy::user_connection_authority::UserConnectionAuthority;
 use crate::startup::StartupTracker;
-use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::telemetry::TelemetryPolicy;
 use crate::stats::{QuotaStore, ReplayChecker, Stats};
 use crate::stream::BufferPool;
@@ -98,7 +97,6 @@ pub(crate) async fn prepare_runtime(
     let decision = decide_network_capabilities(&config.network, &probe);
     let prefer_ipv6 = decision.prefer_ipv6();
 
-    let beobachten = Arc::new(BeobachtenStore::new());
     let rng = Arc::new(SecureRandom::new());
 
     let config = Arc::new(config);
@@ -120,7 +118,6 @@ pub(crate) async fn prepare_runtime(
         upstream_manager.clone(),
         replay_checker.clone(),
         ip_tracker.clone(),
-        beobachten.clone(),
         proxy_shared.clone(),
         task_scope.clone(),
         Some(config_watcher_activation_rx),
@@ -158,7 +155,6 @@ pub(crate) async fn prepare_runtime(
         buffer_pool,
         rng,
         ip_tracker,
-        beobachten,
         proxy_shared,
         max_connections,
         task_scope,

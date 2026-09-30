@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use tokio::sync::watch;
-use tracing::{info, warn};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
 use tracing_subscriber::reload;
@@ -17,7 +17,6 @@ use crate::startup::{
     COMPONENT_CONFIG_WATCHER_START, COMPONENT_METRICS_START, COMPONENT_RUNTIME_READY,
     StartupTracker,
 };
-use crate::stats::beobachten::BeobachtenStore;
 use crate::stats::telemetry::TelemetryPolicy;
 use crate::stats::{ReplayChecker, Stats};
 use crate::transport::UpstreamManager;
@@ -25,7 +24,6 @@ use crate::transport::UpstreamManager;
 use super::control_plane::ProcessControlPlane;
 use super::generation::RuntimeGeneration;
 use super::generation::RuntimeTaskScope;
-use super::helpers::write_beobachten_snapshot;
 
 pub(crate) struct RuntimeWatches {
     pub(crate) config_rx: watch::Receiver<Arc<ProxyConfig>>,
@@ -95,7 +93,6 @@ pub(crate) async fn spawn_runtime_tasks(
     upstream_manager: Arc<UpstreamManager>,
     replay_checker: Arc<ReplayChecker>,
     ip_tracker: Arc<UserIpTracker>,
-    beobachten: Arc<BeobachtenStore>,
     shared_state: Arc<ProxySharedState>,
     task_scope: RuntimeTaskScope,
     config_watcher_activation: Option<watch::Receiver<bool>>,
@@ -253,28 +250,6 @@ pub(crate) async fn spawn_runtime_tasks(
                     );
                 }
             }
-        }
-    });
-
-    let beobachten_writer = beobachten.clone();
-    let config_rx_beobachten = config_rx.clone();
-    task_scope.spawn(async move {
-        loop {
-            let cfg = config_rx_beobachten.borrow().clone();
-            let sleep_secs = cfg.general.beobachten_flush_secs.max(1);
-
-            if cfg.general.beobachten {
-                let ttl = std::time::Duration::from_secs(
-                    cfg.general.beobachten_minutes.saturating_mul(60),
-                );
-                let path = cfg.general.beobachten_file.clone();
-                let snapshot = beobachten_writer.snapshot_text(ttl);
-                if let Err(e) = write_beobachten_snapshot(&path, &snapshot).await {
-                    warn!(error = %e, path = %path, "Failed to flush beobachten snapshot");
-                }
-            }
-
-            tokio::time::sleep(std::time::Duration::from_secs(sleep_secs)).await;
         }
     });
 

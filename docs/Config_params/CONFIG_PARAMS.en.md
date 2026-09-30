@@ -43,10 +43,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`logging`](#logging) | Table | default values | `✘` |
 | [`dc_overrides`](#dc_overrides) | `Map<String, String or String[]>` | `{}` | `✘` |
 | [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
-| [`beobachten`](#beobachten) | `bool` | `true` | `✘` |
-| [`beobachten_minutes`](#beobachten_minutes) | `u64` | `10` | `✘` |
-| [`beobachten_flush_secs`](#beobachten_flush_secs) | `u64` | `15` | `✘` |
-| [`beobachten_file`](#beobachten_file) | `String` | `"cache/beobachten.txt"` | `✘` |
 
 ## include
   - **Constraints / validation**: Must be a single-line directive in the form `include = "path/to/file.toml"`. Includes are expanded before TOML parsing. Maximum include depth is 10.
@@ -183,10 +179,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`direct_relay_buffer_budget_max_bytes`](#direct_relay_buffer_budget_max_bytes) | `usize` | `0` | `✘` |
 | [`crypto_pending_buffer`](#crypto_pending_buffer) | `usize` | `262144` | `✘` |
 | [`max_client_frame`](#max_client_frame) | `usize` | `16777216` | `✘` |
-| [`beobachten`](#beobachten) | `bool` | `true` | `✘` |
-| [`beobachten_minutes`](#beobachten_minutes) | `u64` | `10` | `✘` |
-| [`beobachten_flush_secs`](#beobachten_flush_secs) | `u64` | `15` | `✘` |
-| [`beobachten_file`](#beobachten_file) | `String` | `"cache/beobachten.txt"` | `✘` |
 | [`upstream_connect_retry_attempts`](#upstream_connect_retry_attempts) | `u32` | `2` | `✘` |
 | [`upstream_connect_retry_backoff_ms`](#upstream_connect_retry_backoff_ms) | `u64` | `100` | `✘` |
 | [`upstream_connect_budget_ms`](#upstream_connect_budget_ms) | `u64` | `3000` | `✘` |
@@ -301,42 +293,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     max_client_frame = 16777216
-    ```
-## beobachten
-  - **Constraints / validation**: `bool`.
-  - **Description**: Enables per-IP forensic observation buckets and appends TLS JA3/JA4 fingerprint snapshots to Beobachten output when available.
-  - **Example**:
-
-    ```toml
-    [general]
-    beobachten = true
-    ```
-## beobachten_minutes
-  - **Constraints / validation**: Must be `> 0` (minutes).
-  - **Description**: Retention window (minutes) for per-IP observation buckets and in-memory TLS fingerprint buckets.
-  - **Example**:
-
-    ```toml
-    [general]
-    beobachten_minutes = 10
-    ```
-## beobachten_flush_secs
-  - **Constraints / validation**: Must be `> 0` (seconds).
-  - **Description**: Snapshot flush interval (seconds) for observation output file.
-  - **Example**:
-
-    ```toml
-    [general]
-    beobachten_flush_secs = 15
-    ```
-## beobachten_file
-  - **Constraints / validation**: Must not be empty/whitespace-only.
-  - **Description**: Observation snapshot output file path.
-  - **Example**:
-
-    ```toml
-    [general]
-    beobachten_file = "cache/beobachten.txt"
     ```
 ## upstream_connect_retry_attempts
   - **Constraints / validation**: Must be `> 0`.

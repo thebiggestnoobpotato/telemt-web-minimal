@@ -30,7 +30,6 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
         cfg.general.upstream_connect_failfast_hard_errors,
         default_upstream_connect_failfast_hard_errors()
     );
-    assert_eq!(cfg.general.beobachten_file, default_beobachten_file());
     assert_eq!(cfg.server.api.listen, default_api_listen());
     assert_eq!(cfg.server.api.whitelist, default_api_whitelist());
     assert_eq!(cfg.server.api.gray_action, ApiGrayAction::Drop);
@@ -287,7 +286,6 @@ fn impl_defaults_are_sourced_from_default_helpers() {
         general.upstream_connect_failfast_hard_errors,
         default_upstream_connect_failfast_hard_errors()
     );
-    assert_eq!(general.beobachten_file, default_beobachten_file());
 
     let server = ServerConfig::default();
     assert_eq!(server.api.listen, default_api_listen());

@@ -21,7 +21,6 @@ use crate::maestro::control_plane::ProcessControlPlane;
 use crate::maestro::generation::RuntimeGeneration;
 use crate::proxy::shared_state::ProxySharedState;
 use crate::stats::Stats;
-use crate::stats::beobachten::BeobachtenStore;
 use crate::transport::{ListenOptions, create_listener};
 
 // Process-owned WEB metrics stay isolated from the legacy renderer body.
@@ -99,7 +98,7 @@ pub(crate) fn serve(
     control_plane: ProcessControlPlane,
 ) {
     for (listener, addr) in bound.listeners {
-        info!("Metrics endpoint: http://{}/metrics and /beobachten", addr);
+        info!("Metrics endpoint: http://{}/metrics", addr);
         let active_runtime = active_runtime.clone();
         let web_runtime_rx = web_runtime_rx.clone();
         let listener_scope = control_plane.clone();
@@ -203,7 +202,6 @@ async fn handle<B>(
     web_publication: &crate::web::control::WebRuntimePublication,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     let stats = &runtime.stats;
-    let beobachten = &runtime.beobachten;
     let shared_state = &runtime.proxy_shared;
     let ip_tracker = &runtime.ip_tracker;
     let config = runtime.config();
@@ -218,30 +216,11 @@ async fn handle<B>(
         return Ok(resp);
     }
 
-    if req.uri().path() == "/beobachten" {
-        let body = render_beobachten(beobachten, &config);
-        let resp = Response::builder()
-            .status(StatusCode::OK)
-            .header("content-type", "text/plain; charset=utf-8")
-            .body(Full::new(Bytes::from(body)))
-            .unwrap();
-        return Ok(resp);
-    }
-
     let resp = Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(Full::new(Bytes::from("Not Found\n")))
         .unwrap();
     Ok(resp)
-}
-
-fn render_beobachten(beobachten: &BeobachtenStore, config: &ProxyConfig) -> String {
-    if !config.general.beobachten {
-        return "beobachten disabled\n".to_string();
-    }
-
-    let ttl = Duration::from_secs(config.general.beobachten_minutes.saturating_mul(60));
-    beobachten.snapshot_text(ttl)
 }
 
 // Ordered Prometheus text rendering split by bounded metric families.
