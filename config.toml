@@ -5,10 +5,11 @@
 # === General Settings ===
 [general]
 
-# === Log Level ===
+# === Logging ===
 # Log level: debug | verbose | normal | silent
 # Can be overridden with --silent or --log-level CLI flags
 # RUST_LOG env var takes absolute priority over all of these
+[logging]
 log_level = "normal"
 
 [general.links]

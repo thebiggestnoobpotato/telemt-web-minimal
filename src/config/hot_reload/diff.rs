@@ -100,11 +100,11 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: general.stun_nat_probe_concurrency changed; restart required");
     }
-    if old.general.unknown_dc_log_path != new.general.unknown_dc_log_path
-        || old.general.unknown_dc_file_log_enabled != new.general.unknown_dc_file_log_enabled
+    if old.logging.unknown_dc_log_path != new.logging.unknown_dc_log_path
+        || old.logging.unknown_dc_file_log_enabled != new.logging.unknown_dc_file_log_enabled
     {
         warned = true;
-        warn!("config reload: general.unknown_dc_* changed; restart required");
+        warn!("config reload: logging.unknown_dc_* changed; restart required");
     }
     if old.general.upstream_connect_retry_attempts != new.general.upstream_connect_retry_attempts
         || old.general.upstream_connect_retry_backoff_ms

@@ -50,7 +50,7 @@ fn reload_rejects_invalid_base_then_publishes_route_identity_together() {
         .rendered_hash;
     let initial_capability = initial.web.runtime.as_ref().unwrap().capabilities[0];
     let (config_tx, _config_rx) = watch::channel(Arc::clone(&initial));
-    let (log_tx, _log_rx) = watch::channel(initial.general.log_level.clone());
+    let (log_tx, _log_rx) = watch::channel(initial.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_base_path_config(&path, "/invalid");

@@ -65,11 +65,11 @@ fn process_socket_and_logging_changes_are_deferred() {
     let old = ProxyConfig::default();
     let mut new = old.clone();
     new.server.listen_backlog = new.server.listen_backlog.saturating_add(1);
-    new.general.disable_colors = !new.general.disable_colors;
+    new.logging.disable_colors = !new.logging.disable_colors;
 
     let fields = deferred_process_fields(&old, &new).unwrap();
     assert!(fields.contains(&"server.listeners".to_string()));
-    assert!(fields.contains(&"general.disable_colors".to_string()));
+    assert!(fields.contains(&"logging".to_string()));
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn process_field_labels_are_stable_ordered_and_unique() {
         .api
         .runtime_edge_events_capacity
         .saturating_add(1);
-    desired.general.disable_colors = !desired.general.disable_colors;
+    desired.logging.disable_colors = !desired.logging.disable_colors;
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 
@@ -175,7 +175,7 @@ fn process_field_labels_are_stable_ordered_and_unique() {
             "server.listeners".to_string(),
             "server.api.listen".to_string(),
             "server.api.runtime_edge_events_capacity".to_string(),
-            "general.disable_colors".to_string(),
+            "logging".to_string(),
         ]
     );
 }

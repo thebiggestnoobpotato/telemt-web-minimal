@@ -197,20 +197,10 @@ pub(crate) fn parse_cli() -> CliArgs {
             s if s.starts_with("--log-level=") => {
                 log_level = Some(s.trim_start_matches("--log-level=").to_string());
             }
-            "--log-file" | "--log-file-daily" => {
+            "--log-file" => {
                 i += 1;
             }
-            s if s.starts_with("--log-file=") || s.starts_with("--log-file-daily=") => {}
-            "--log-rotation"
-            | "--log-max-size-bytes"
-            | "--log-max-files"
-            | "--log-max-age-secs" => {
-                i += 1;
-            }
-            s if s.starts_with("--log-rotation=")
-                || s.starts_with("--log-max-size-bytes=")
-                || s.starts_with("--log-max-files=")
-                || s.starts_with("--log-max-age-secs=") => {}
+            s if s.starts_with("--log-file=") => {}
             "--syslog" => {}
             "--help" | "-h" => {
                 print_help();
@@ -286,11 +276,6 @@ fn print_help() {
     eprintln!();
     eprintln!("Logging options:");
     eprintln!("  --log-file <PATH>       Log to file (default: stderr)");
-    eprintln!("  --log-file-daily <PATH> Log to file with daily rotation");
-    eprintln!("  --log-rotation <MODE>   never|minutely|hourly|daily|weekly");
-    eprintln!("  --log-max-size-bytes N  Rotate file logs when active file exceeds N bytes");
-    eprintln!("  --log-max-files N       Keep at most N matching file logs (0 disables)");
-    eprintln!("  --log-max-age-secs N    Remove rotated file logs older than N seconds");
     #[cfg(unix)]
     eprintln!("  --syslog                Log to syslog (Unix only)");
     eprintln!();

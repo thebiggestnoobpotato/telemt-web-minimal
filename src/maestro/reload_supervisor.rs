@@ -190,7 +190,7 @@ impl ReloadSupervisor {
             Err(error) => {
                 cleanup_candidate(&prepared.generation).await;
                 self.runtime_log_filter
-                    .apply_reload(&old_runtime.config().general.log_level);
+                    .apply_reload(&old_runtime.config().logging.log_level);
                 self.control.fail(command.reload_id, error).await;
                 return;
             }
@@ -257,7 +257,7 @@ impl ReloadSupervisor {
             RevisionGateAction::Rollback(warning) => {
                 cleanup_candidate(&prepared.generation).await;
                 self.runtime_log_filter
-                    .apply_reload(&old_runtime.config().general.log_level);
+                    .apply_reload(&old_runtime.config().logging.log_level);
                 self.control.rolled_back(command.reload_id, warning).await;
                 return;
             }
@@ -283,7 +283,7 @@ impl ReloadSupervisor {
                 Err(error) => {
                     cleanup_candidate(&new_runtime).await;
                     self.runtime_log_filter
-                        .apply_reload(&old_runtime.config().general.log_level);
+                        .apply_reload(&old_runtime.config().logging.log_level);
                     self.control.fail(command.reload_id, error).await;
                     return;
                 }
@@ -335,7 +335,7 @@ impl ReloadSupervisor {
                 .finish_transition(pending);
         }
         self.runtime_log_filter
-            .apply_reload(&new_runtime.config().general.log_level);
+            .apply_reload(&new_runtime.config().logging.log_level);
         self.runtime_watch_tx
             .send_replace(Some(new_runtime.watch_state()));
 

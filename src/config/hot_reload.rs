@@ -6,7 +6,7 @@
 //!
 //! | Section   | Field                          | Effect                                         |
 //! |-----------|--------------------------------|------------------------------------------------|
-//! | `general` | `log_level`                    | Filter updated via `log_level_tx`              |
+//! | `logging` | `log_level`                    | Filter updated via `log_level_tx`              |
 //! | `general` | `telemetry`                    | Applied immediately                            |
 //! | `network` | `dns_overrides`                | Applied immediately                            |
 //! | `access`  | All user/quota fields          | Effective immediately                          |

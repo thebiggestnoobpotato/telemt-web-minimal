@@ -44,8 +44,8 @@ pub(super) fn get_dc_addr_static(dc_idx: i16, config: &ProxyConfig) -> Result<So
             dc_idx = dc_idx,
             "Requested non-standard DC with no override; falling back to default cluster"
         );
-        if config.general.unknown_dc_file_log_enabled
-            && let Some(path) = &config.general.unknown_dc_log_path
+        if config.logging.unknown_dc_file_log_enabled
+            && let Some(path) = &config.logging.unknown_dc_log_path
             && let Ok(handle) = tokio::runtime::Handle::try_current()
         {
             if let Some(path) = sanitize_unknown_dc_log_path(path) {

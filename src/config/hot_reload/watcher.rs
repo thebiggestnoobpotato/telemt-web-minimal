@@ -237,7 +237,7 @@ pub fn spawn_config_watcher(
     watch::Receiver<LogLevel>,
     impl std::future::Future<Output = ()> + Send + 'static,
 ) {
-    let initial_level = initial.general.log_level.clone();
+    let initial_level = initial.logging.log_level.clone();
     let (config_tx, config_rx) = watch::channel(initial);
     let (log_tx, log_rx) = watch::channel(initial_level);
 

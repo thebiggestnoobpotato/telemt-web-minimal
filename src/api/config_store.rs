@@ -312,6 +312,7 @@ pub(super) async fn save_config_to_disk(
 /// (e.g. `network.dns_overrides`) without opening the whole section.
 pub(super) const EDITABLE_SECTIONS: &[&str] = &[
     "general",
+    "logging",
     "timeouts",
     "upstreams",
     "dc_overrides",

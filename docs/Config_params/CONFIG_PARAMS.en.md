@@ -90,10 +90,10 @@ This document lists all configuration keys accepted by `config.toml`.
 | --- | ---- | ------- | ---------- |
 | [`destination`](#loggingdestination) | `"stderr"` / `"syslog"` / `"file"` | `"stderr"` | `✘` |
 | [`path`](#loggingpath) | `String` | — | `✘` |
-| [`rotation`](#loggingrotation) | `"never"` / `"minutely"` / `"hourly"` / `"daily"` / `"weekly"` | `"never"` | `✘` |
-| [`max_size_bytes`](#loggingmax_size_bytes) | `u64` | `0` | `✘` |
-| [`max_files`](#loggingmax_files) | `usize` | `0` | `✘` |
-| [`max_age_secs`](#loggingmax_age_secs) | `u64` | `0` | `✘` |
+| [`log_level`](#logginglog_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
+| [`disable_colors`](#loggingdisable_colors) | `bool` | `false` | `✘` |
+| [`unknown_dc_log_path`](#loggingunknown_dc_log_path) | `String` | `"unknown-dc.txt"` | `✘` |
+| [`unknown_dc_file_log_enabled`](#loggingunknown_dc_file_log_enabled) | `bool` | `false` | `✘` |
 
 ## logging.destination
   - **Constraints / validation**: Must be `stderr`, `syslog`, or `file`. `syslog` is supported only on Unix platforms. `file` requires `logging.path`.
@@ -107,7 +107,7 @@ This document lists all configuration keys accepted by `config.toml`.
     ```
 ## logging.path
   - **Constraints / validation**: Required when `logging.destination = "file"`; must not be empty.
-  - **Description**: File path used for file logging. With time rotation, the file name is used as the rolling prefix.
+  - **Description**: File path used for file logging.
   - **Example**:
 
     ```toml
@@ -115,51 +115,41 @@ This document lists all configuration keys accepted by `config.toml`.
     destination = "file"
     path = "/var/log/telemt.log"
     ```
-## logging.rotation
-  - **Constraints / validation**: Must be `never`, `minutely`, `hourly`, `daily`, or `weekly`.
-  - **Description**: Time-based file rotation interval. `weekly` rotates at the Sunday UTC boundary. `never` writes to the exact `logging.path` unless size rotation is enabled.
+## logging.log_level
+  - **Constraints / validation**: `"debug"`, `"verbose"`, `"normal"`, or `"silent"`.
+  - **Description**: Runtime logging verbosity level (used when `RUST_LOG` is not set). If `RUST_LOG` is set in the environment, it takes precedence over this setting.
   - **Example**:
 
     ```toml
     [logging]
-    destination = "file"
-    path = "/var/log/telemt.log"
-    rotation = "daily"
+    log_level = "normal"
     ```
-## logging.max_size_bytes
-  - **Constraints / validation**: `0` disables size rotation.
-  - **Description**: Rotates file logs before writing the next record when the active file is non-empty and that record would exceed this byte limit. Records are written whole and are not split.
+## logging.disable_colors
+  - **Constraints / validation**: `bool`.
+  - **Description**: Disables ANSI colors in logs (useful for files/systemd). This affects log formatting only and does not change the log level/filtering.
   - **Example**:
 
     ```toml
     [logging]
-    destination = "file"
-    path = "/var/log/telemt.log"
-    max_size_bytes = 104857600
+    disable_colors = false
     ```
-## logging.max_files
-  - **Constraints / validation**: `0` disables count-based retention.
-  - **Description**: Keeps at most this many matching file logs, counting the active file and rotated archives. The active file is never deleted by retention cleanup.
+## logging.unknown_dc_log_path
+  - **Constraints / validation**: `String` (optional). Must be a safe path (no `..` components, parent directory must exist); unsafe paths are rejected at runtime.
+  - **Description**: Log file path for unknown (non-standard) DC requests when `unknown_dc_file_log_enabled = true`. Omit this key to disable file logging.
   - **Example**:
 
     ```toml
     [logging]
-    destination = "file"
-    path = "/var/log/telemt.log"
-    rotation = "daily"
-    max_files = 14
+    unknown_dc_log_path = "unknown-dc.txt"
     ```
-## logging.max_age_secs
-  - **Constraints / validation**: `0` disables age-based retention.
-  - **Description**: Removes rotated file logs older than this many seconds based on file modification time. The active file is never deleted by retention cleanup.
+## logging.unknown_dc_file_log_enabled
+  - **Constraints / validation**: `bool`.
+  - **Description**: Enables unknown-DC file logging (writes `dc_idx=<N>` lines). Requires `unknown_dc_log_path` to be set and, on non-Unix platforms, may be unsupported. Logging is deduplicated and capped (only the first ~1024 distinct unknown DC indices are recorded).
   - **Example**:
 
     ```toml
     [logging]
-    destination = "file"
-    path = "/var/log/telemt.log"
-    rotation = "daily"
-    max_age_secs = 1209600
+    unknown_dc_file_log_enabled = false
     ```
 
 # [general]
@@ -184,10 +174,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`tg_connect`](#tg_connect) | `u64` | `10` | `✘` |
 | [`upstream_unhealthy_fail_threshold`](#upstream_unhealthy_fail_threshold) | `u32` | `5` | `✘` |
 | [`upstream_connect_failfast_hard_errors`](#upstream_connect_failfast_hard_errors) | `bool` | `false` | `✘` |
-| [`unknown_dc_log_path`](#unknown_dc_log_path) | `String` | `"unknown-dc.txt"` | `✘` |
-| [`unknown_dc_file_log_enabled`](#unknown_dc_file_log_enabled) | `bool` | `false` | `✘` |
-| [`log_level`](#log_level) | `"debug"`, `"verbose"`, `"normal"`, or `"silent"` | `"normal"` | `✔` |
-| [`disable_colors`](#disable_colors) | `bool` | `false` | `✘` |
 | [`rst_on_close`](#rst_on_close) | `"off"`, `"errors"`, or `"always"` | `"off"` | `✘` |
 
 ## data_path
@@ -344,42 +330,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     upstream_connect_failfast_hard_errors = false
-    ```
-## unknown_dc_log_path
-  - **Constraints / validation**: `String` (optional). Must be a safe path (no `..` components, parent directory must exist); unsafe paths are rejected at runtime.
-  - **Description**: Log file path for unknown (non-standard) DC requests when `unknown_dc_file_log_enabled = true`. Omit this key to disable file logging.
-  - **Example**:
-
-    ```toml
-    [general]
-    unknown_dc_log_path = "unknown-dc.txt"
-    ```
-## unknown_dc_file_log_enabled
-  - **Constraints / validation**: `bool`.
-  - **Description**: Enables unknown-DC file logging (writes `dc_idx=<N>` lines). Requires `unknown_dc_log_path` to be set and, on non-Unix platforms, may be unsupported. Logging is deduplicated and capped (only the first ~1024 distinct unknown DC indices are recorded).
-  - **Example**:
-
-    ```toml
-    [general]
-    unknown_dc_file_log_enabled = false
-    ```
-## log_level
-  - **Constraints / validation**: `"debug"`, `"verbose"`, `"normal"`, or `"silent"`.
-  - **Description**: Runtime logging verbosity level (used when `RUST_LOG` is not set). If `RUST_LOG` is set in the environment, it takes precedence over this setting.
-  - **Example**:
-
-    ```toml
-    [general]
-    log_level = "normal"
-    ```
-## disable_colors
-  - **Constraints / validation**: `bool`.
-  - **Description**: Disables ANSI colors in logs (useful for files/systemd). This affects log formatting only and does not change the log level/filtering.
-  - **Example**:
-
-    ```toml
-    [general]
-    disable_colors = false
     ```
 ## rst_on_close
   - **Constraints / validation**: one of `"off"`, `"errors"`, `"always"`.

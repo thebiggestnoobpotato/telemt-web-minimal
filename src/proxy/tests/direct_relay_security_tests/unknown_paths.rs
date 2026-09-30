@@ -63,8 +63,8 @@ fn unsafe_unknown_dc_log_path_does_not_consume_dedup_slot() {
 
     let dc_idx: i16 = 31_123;
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some("../telemt-unknown-dc-unsafe.log".to_string());
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some("../telemt-unknown-dc-unsafe.log".to_string());
 
     let _ = get_dc_addr_static(dc_idx, &cfg).expect("fallback routing must still work");
 

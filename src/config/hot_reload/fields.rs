@@ -27,7 +27,7 @@ pub struct HotFields {
 impl HotFields {
     pub fn from_config(cfg: &ProxyConfig) -> Self {
         Self {
-            log_level: cfg.general.log_level.clone(),
+            log_level: cfg.logging.log_level.clone(),
             dns_overrides: cfg.network.dns_overrides.clone(),
             telemetry_core_enabled: cfg.general.telemetry.core_enabled,
             telemetry_user_enabled: cfg.general.telemetry.user_enabled,
@@ -53,7 +53,7 @@ impl HotFields {
 pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyConfig {
     let mut cfg = old.clone();
 
-    cfg.general.log_level = new.general.log_level.clone();
+    cfg.logging.log_level = new.logging.log_level.clone();
     cfg.network.dns_overrides = new.network.dns_overrides.clone();
     cfg.general.telemetry = new.general.telemetry.clone();
     cfg.general.direct_relay_copy_buf_c2s_bytes = new.general.direct_relay_copy_buf_c2s_bytes;

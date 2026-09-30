@@ -188,7 +188,7 @@ pub(super) fn build_security_posture_data(cfg: &ProxyConfig) -> SecurityPostureD
         api_whitelist_enabled: !cfg.server.api.whitelist.is_empty(),
         api_whitelist_entries: cfg.server.api.whitelist.len(),
         api_auth_header_enabled: !cfg.server.api.auth_header.is_empty(),
-        log_level: cfg.general.log_level.to_string(),
+        log_level: cfg.logging.log_level.to_string(),
         telemetry_core_enabled: cfg.general.telemetry.core_enabled,
         telemetry_user_enabled: cfg.general.telemetry.user_enabled,
     }

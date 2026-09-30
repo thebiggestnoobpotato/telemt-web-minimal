@@ -35,10 +35,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "tg_connect",
     "upstream_unhealthy_fail_threshold",
     "upstream_connect_failfast_hard_errors",
-    "unknown_dc_log_path",
-    "unknown_dc_file_log_enabled",
-    "log_level",
-    "disable_colors",
     "telemetry",
     "links",
     "rst_on_close",
@@ -258,10 +254,10 @@ const LINKS_CONFIG_KEYS: &[&str] = &["show", "public_host", "public_port"];
 const LOGGING_CONFIG_KEYS: &[&str] = &[
     "destination",
     "path",
-    "rotation",
-    "max_size_bytes",
-    "max_files",
-    "max_age_secs",
+    "log_level",
+    "disable_colors",
+    "unknown_dc_log_path",
+    "unknown_dc_file_log_enabled",
 ];
 
 // Recursive table traversal and key suggestion logic.

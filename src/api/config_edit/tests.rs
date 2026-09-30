@@ -483,14 +483,14 @@ async fn patch_empty_is_rejected() {
 
 #[tokio::test]
 async fn patch_log_level_is_hot() {
-    // general.log_level is hot-reloadable -> a patch changing only it must
+    // logging.log_level is hot-reloadable -> a patch changing only it must
     // report restart_required = false (exercises the full apply path, not
     // just the classifier). Default LogLevel is Normal; patch to "debug".
     let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"general": {"log_level": "debug"}});
+    let patch: Json = serde_json::json!({"logging": {"log_level": "debug"}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(!resp.restart_required);
     assert!(!resp.runtime_reload_required);
     assert!(!resp.process_restart_required);
-    assert!(resp.changed.iter().any(|c| c == "general"));
+    assert!(resp.changed.iter().any(|c| c == "logging"));
 }

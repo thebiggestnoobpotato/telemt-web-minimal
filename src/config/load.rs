@@ -82,7 +82,7 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub general: GeneralConfig,
 
-    /// Runtime logging destination, rotation, and retention configuration.
+    /// Runtime logging destination, verbosity, and unknown-DC file log configuration.
     #[serde(default)]
     pub logging: LoggingConfig,
 

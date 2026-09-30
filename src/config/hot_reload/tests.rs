@@ -13,7 +13,7 @@ fn write_reload_config(path: &Path, log_level: Option<&str>, server_port: Option
     );
 
     if log_level.is_some() {
-        config.push_str("\n[general]\n");
+        config.push_str("\n[logging]\n");
         if let Some(level) = log_level {
             config.push_str(&format!("log_level = \"{level}\"\n"));
         }
@@ -44,7 +44,7 @@ fn write_web_reload_config(path: &Path, carriers: &str, carrier_learning: bool) 
 fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
     let config = format!(
         r#"
-                [general]
+                [logging]
                 log_level = "{log_level}"
 
                 [access.users]
@@ -263,13 +263,13 @@ fn reload_applies_hot_change_on_first_observed_snapshot() {
         .unwrap()
         .rendered_hash;
     let (config_tx, _config_rx) = watch::channel(initial_cfg.clone());
-    let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
+    let (log_tx, _log_rx) = watch::channel(initial_cfg.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_reload_config(&path, Some("silent"), None);
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
     assert_eq!(
-        config_tx.borrow().general.log_level,
+        config_tx.borrow().logging.log_level,
         LogLevel::Silent
     );
 
@@ -295,7 +295,7 @@ async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
 
     tokio::task::yield_now().await;
     assert_eq!(
-        config_rx.borrow().general.log_level,
+        config_rx.borrow().logging.log_level,
         LogLevel::Normal
     );
     activation_tx.send_replace(true);
@@ -304,7 +304,7 @@ async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        config_rx.borrow_and_update().general.log_level,
+        config_rx.borrow_and_update().logging.log_level,
         LogLevel::Debug
     );
 
@@ -323,14 +323,14 @@ fn reload_keeps_hot_apply_when_non_hot_fields_change() {
         .unwrap()
         .rendered_hash;
     let (config_tx, _config_rx) = watch::channel(initial_cfg.clone());
-    let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
+    let (log_tx, _log_rx) = watch::channel(initial_cfg.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_reload_config(&path, Some("verbose"), Some(initial_cfg.server.port + 1));
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
-    assert_eq!(applied.general.log_level, LogLevel::Verbose);
+    assert_eq!(applied.logging.log_level, LogLevel::Verbose);
     assert_eq!(applied.server.port, initial_cfg.server.port);
 
     let _ = std::fs::remove_file(path);
@@ -346,14 +346,14 @@ fn reload_rebuilds_vhosts_with_the_effective_fasttrack_mode() {
         .unwrap()
         .rendered_hash;
     let (config_tx, _config_rx) = watch::channel(Arc::clone(&initial_cfg));
-    let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
+    let (log_tx, _log_rx) = watch::channel(initial_cfg.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_web_fasttrack_reload_config(&path, "enforce", "silent");
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
-    assert_eq!(applied.general.log_level, LogLevel::Silent);
+    assert_eq!(applied.logging.log_level, LogLevel::Silent);
     assert_eq!(
         applied.web.decoy_fasttrack_mode,
         crate::config::WebDecoyFastTrackMode::Off
@@ -377,7 +377,7 @@ fn reload_publishes_web_negotiation_policy_outside_hot_field_reporting() {
         .unwrap()
         .rendered_hash;
     let (config_tx, _config_rx) = watch::channel(initial_cfg.clone());
-    let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
+    let (log_tx, _log_rx) = watch::channel(initial_cfg.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     write_web_reload_config(&path, "[\"websocket\", \"https\"]", false);
@@ -423,20 +423,20 @@ fn reload_recovers_after_parse_error_on_next_attempt() {
         .unwrap()
         .rendered_hash;
     let (config_tx, _config_rx) = watch::channel(initial_cfg.clone());
-    let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
+    let (log_tx, _log_rx) = watch::channel(initial_cfg.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
     std::fs::write(&path, "[access.users\nuser = \"broken\"\n").unwrap();
     assert!(reload_config(&path, &config_tx, &log_tx, &mut reload_state).is_none());
     assert_eq!(
-        config_tx.borrow().general.log_level,
+        config_tx.borrow().logging.log_level,
         LogLevel::Normal
     );
 
     write_reload_config(&path, Some("debug"), None);
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
     assert_eq!(
-        config_tx.borrow().general.log_level,
+        config_tx.borrow().logging.log_level,
         LogLevel::Debug
     );
 

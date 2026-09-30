@@ -273,7 +273,7 @@ bob = ["198.51.100.42/32"]
 
 ### `PatchConfigRequest`
 
-A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `timeouts`, `upstreams`, `dc_overrides`, `web`) or the partially editable `server` object (only `listeners` is allowed under `server`; see below). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
+A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `timeouts`, `upstreams`, `dc_overrides`, `web`) or the partially editable `server` object (only `listeners` is allowed under `server`; see below). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
 
 **Rejected keys:**
 - `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
@@ -281,9 +281,9 @@ A sparse JSON object containing only the top-level config sections to modify. Ea
 - `server` with any key other than `listeners` (e.g. `port`, `api`, `admin_api`) → `400 field_not_editable`.
 - An object with no editable keys → `400 bad_request` (empty patch).
 
-Example — patch one `general` field:
+Example — patch one `logging` field:
 ```json
-{"general": {"log_level": "verbose"}}
+{"logging": {"log_level": "verbose"}}
 ```
 
 Example — replace `[[server.listeners]]` (other `[server]` fields including `[server.api]` are preserved):
@@ -307,6 +307,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | Field | Type | Description |
 | --- | --- | --- |
 | `general` | `object` | Complete normalized `[general]` section, including defaults. |
+| `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
 | `timeouts` | `object` | Complete normalized `[timeouts]` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
 | `dc_overrides` | `object` | Complete normalized DC override map, including the synthesized DC 203 endpoint when it is not authored. |
@@ -877,7 +878,7 @@ Returns the current editable config sections as TOML-shaped JSON, plus the curre
 {
   "ok": true,
   "data": {
-    "general": {"log_level": "normal"},
+    "logging": {"log_level": "normal"},
     "web": {"enabled": true}
   },
   "revision": "<sha256-hex>"
@@ -953,7 +954,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `restart_required` — legacy file-watcher classification retained for compatibility.
 - `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `server.metrics_listen`, `server.metrics_port`, `server.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.disable_colors`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
+- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `server.metrics_listen`, `server.metrics_port`, `server.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 

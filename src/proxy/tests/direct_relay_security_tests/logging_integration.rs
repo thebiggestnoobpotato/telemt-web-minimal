@@ -15,8 +15,8 @@ async fn unknown_dc_absolute_log_path_writes_one_entry() {
     let _ = fs::remove_file(&file_path);
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some(
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some(
         file_path
             .to_str()
             .expect("temp file path must be valid UTF-8")
@@ -57,8 +57,8 @@ async fn unknown_dc_safe_relative_log_path_writes_one_entry() {
     let _ = fs::remove_file(&abs_file);
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some(rel_file);
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some(rel_file);
 
     let _ = get_dc_addr_static(dc_idx, &cfg).expect("fallback routing must still work");
 
@@ -92,8 +92,8 @@ async fn unknown_dc_same_index_burst_writes_only_once() {
     let _ = fs::remove_file(&abs_file);
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some(rel_file);
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some(rel_file);
 
     for _ in 0..64 {
         let _ = get_dc_addr_static(dc_idx, &cfg).expect("fallback routing must still work");
@@ -129,8 +129,8 @@ async fn unknown_dc_distinct_burst_is_hard_capped_on_file_writes() {
     let _ = fs::remove_file(&abs_file);
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some(rel_file);
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some(rel_file);
 
     for i in 0..(UNKNOWN_DC_LOG_DISTINCT_LIMIT + 128) {
         let dc_idx = 20_000i16.wrapping_add(i as i16);
@@ -193,8 +193,8 @@ async fn unknown_dc_symlinked_target_escape_is_not_written_integration() {
     let dc_idx: i16 = 31_050;
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some(rel_file);
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some(rel_file);
 
     let before = fs::read_to_string(&outside).expect("must read baseline outside file");
     let _ = get_dc_addr_static(dc_idx, &cfg).expect("fallback routing must still work");

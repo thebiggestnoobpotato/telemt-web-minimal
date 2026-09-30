@@ -15,52 +15,11 @@ fn test_parse_log_cli_options_file() {
     let args = vec!["--log-file".to_string(), "/var/log/telemt.log".to_string()];
     let options = parse_log_cli_options(&args).unwrap();
     match resolve_log_destination(&LoggingConfig::default(), &options).unwrap() {
-        LogDestination::File { options } => {
-            assert_eq!(options.path, "/var/log/telemt.log");
-            assert_eq!(options.rotation, LogRotation::Never);
+        LogDestination::File { path } => {
+            assert_eq!(path, "/var/log/telemt.log");
         }
         _ => panic!("Expected File destination"),
     }
-}
-
-#[test]
-fn test_parse_log_cli_options_file_daily() {
-    let args = vec!["--log-file-daily=/var/log/telemt".to_string()];
-    let options = parse_log_cli_options(&args).unwrap();
-    match resolve_log_destination(&LoggingConfig::default(), &options).unwrap() {
-        LogDestination::File { options } => {
-            assert_eq!(options.path, "/var/log/telemt");
-            assert_eq!(options.rotation, LogRotation::Daily);
-        }
-        _ => panic!("Expected File destination"),
-    }
-}
-
-#[test]
-fn test_parse_log_cli_options_bounds() {
-    let args = vec![
-        "--log-file=/var/log/telemt.log".to_string(),
-        "--log-rotation=hourly".to_string(),
-        "--log-max-size-bytes=1024".to_string(),
-        "--log-max-files=3".to_string(),
-        "--log-max-age-secs=60".to_string(),
-    ];
-    let options = parse_log_cli_options(&args).unwrap();
-    match resolve_log_destination(&LoggingConfig::default(), &options).unwrap() {
-        LogDestination::File { options } => {
-            assert_eq!(options.rotation, LogRotation::Hourly);
-            assert_eq!(options.max_size_bytes, 1024);
-            assert_eq!(options.max_files, 3);
-            assert_eq!(options.max_age_secs, 60);
-        }
-        _ => panic!("Expected File destination"),
-    }
-}
-
-#[test]
-fn test_parse_log_cli_options_rejects_bad_rotation() {
-    let args = vec!["--log-rotation=yearly".to_string()];
-    assert!(parse_log_cli_options(&args).is_err());
 }
 
 #[cfg(unix)]

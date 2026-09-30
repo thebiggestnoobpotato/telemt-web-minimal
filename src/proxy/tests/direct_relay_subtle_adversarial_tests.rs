@@ -115,8 +115,8 @@ async fn subtle_integration_parallel_same_dc_logs_one_line() {
     let _ = std::fs::remove_file(&abs_file);
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some(rel_file);
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some(rel_file);
 
     let cfg = Arc::new(cfg);
     let mut tasks = Vec::new();
@@ -158,8 +158,8 @@ async fn subtle_integration_parallel_unique_dcs_log_unique_lines() {
     let _ = std::fs::remove_file(&abs_file);
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.unknown_dc_file_log_enabled = true;
-    cfg.general.unknown_dc_log_path = Some(rel_file);
+    cfg.logging.unknown_dc_file_log_enabled = true;
+    cfg.logging.unknown_dc_log_path = Some(rel_file);
 
     let cfg = Arc::new(cfg);
     let dcs = [

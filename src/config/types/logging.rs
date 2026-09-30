@@ -1,7 +1,7 @@
 use super::*;
 
 /// Logging verbosity level.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     /// All messages including trace (trace + debug + info + warn + error).
@@ -63,38 +63,7 @@ pub enum LoggingDestination {
     File,
 }
 
-/// Time-based log rotation interval for file logging.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum LogRotation {
-    /// Do not rotate logs by time.
-    #[default]
-    Never,
-    /// Rotate once per minute.
-    Minutely,
-    /// Rotate once per hour.
-    Hourly,
-    /// Rotate once per day.
-    Daily,
-    /// Rotate once per week.
-    Weekly,
-}
-
-impl LogRotation {
-    /// Parse a CLI rotation value.
-    pub fn from_cli_arg(value: &str) -> Option<Self> {
-        match value.to_ascii_lowercase().as_str() {
-            "never" | "none" | "off" => Some(Self::Never),
-            "minutely" | "minute" => Some(Self::Minutely),
-            "hourly" | "hour" => Some(Self::Hourly),
-            "daily" | "day" => Some(Self::Daily),
-            "weekly" | "week" => Some(Self::Weekly),
-            _ => None,
-        }
-    }
-}
-
-/// File logging and retention settings.
+/// Runtime logging settings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoggingConfig {
     /// Effective logging destination.
@@ -103,18 +72,18 @@ pub struct LoggingConfig {
     /// File path used when `destination = "file"`.
     #[serde(default)]
     pub path: Option<String>,
-    /// Time rotation interval for file logs.
+    /// Runtime logging verbosity level.
     #[serde(default)]
-    pub rotation: LogRotation,
-    /// Maximum active log file size before rotating. `0` disables size rotation.
+    pub log_level: LogLevel,
+    /// Disable colored output in logs (useful for files/systemd).
     #[serde(default)]
-    pub max_size_bytes: u64,
-    /// Maximum number of matching log files to keep. `0` disables count retention.
-    #[serde(default)]
-    pub max_files: usize,
-    /// Maximum age for rotated log files in seconds. `0` disables age retention.
-    #[serde(default)]
-    pub max_age_secs: u64,
+    pub disable_colors: bool,
+    /// Log unknown (non-standard) DC requests to a file (default: unknown-dc.txt). Set to null to disable.
+    #[serde(default = "default_unknown_dc_log_path")]
+    pub unknown_dc_log_path: Option<String>,
+    /// Enable unknown-DC file logging.
+    #[serde(default = "default_unknown_dc_file_log_enabled")]
+    pub unknown_dc_file_log_enabled: bool,
 }
 
 impl Default for LoggingConfig {
@@ -122,10 +91,10 @@ impl Default for LoggingConfig {
         Self {
             destination: LoggingDestination::Stderr,
             path: None,
-            rotation: LogRotation::Never,
-            max_size_bytes: 0,
-            max_files: 0,
-            max_age_secs: 0,
+            log_level: LogLevel::Normal,
+            disable_colors: false,
+            unknown_dc_log_path: default_unknown_dc_log_path(),
+            unknown_dc_file_log_enabled: default_unknown_dc_file_log_enabled(),
         }
     }
 }

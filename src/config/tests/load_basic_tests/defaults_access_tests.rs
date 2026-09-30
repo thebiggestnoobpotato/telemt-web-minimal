@@ -86,10 +86,10 @@ fn logging_config_is_loaded_from_strict_config() {
             [logging]
             destination = "file"
             path = "/tmp/telemt.log"
-            rotation = "daily"
-            max_size_bytes = 1024
-            max_files = 3
-            max_age_secs = 60
+            log_level = "verbose"
+            disable_colors = true
+            unknown_dc_log_path = "unknown-dc.log"
+            unknown_dc_file_log_enabled = true
 
             [access.users]
             user = "00000000000000000000000000000000"
@@ -98,10 +98,10 @@ fn logging_config_is_loaded_from_strict_config() {
 
     assert_eq!(cfg.logging.destination, LoggingDestination::File);
     assert_eq!(cfg.logging.path.as_deref(), Some("/tmp/telemt.log"));
-    assert_eq!(cfg.logging.rotation, LogRotation::Daily);
-    assert_eq!(cfg.logging.max_size_bytes, 1024);
-    assert_eq!(cfg.logging.max_files, 3);
-    assert_eq!(cfg.logging.max_age_secs, 60);
+    assert_eq!(cfg.logging.log_level, LogLevel::Verbose);
+    assert!(cfg.logging.disable_colors);
+    assert_eq!(cfg.logging.unknown_dc_log_path.as_deref(), Some("unknown-dc.log"));
+    assert!(cfg.logging.unknown_dc_file_log_enabled);
 }
 
 #[test]

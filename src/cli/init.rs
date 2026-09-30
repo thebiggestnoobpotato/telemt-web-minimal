@@ -250,8 +250,10 @@ show_link = ["{username}"]
 # prefer_ipv6 is deprecated; use [network].prefer
 prefer_ipv6 = false
 fast_mode = true
-log_level = "normal"
 tg_connect = 10
+
+[logging]
+log_level = "normal"
 
 [network]
 ipv4 = true

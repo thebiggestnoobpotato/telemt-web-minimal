@@ -60,17 +60,6 @@ pub struct GeneralConfig {
     /// Skip additional retries for hard non-transient upstream connect errors.
     #[serde(default = "default_upstream_connect_failfast_hard_errors")]
     pub upstream_connect_failfast_hard_errors: bool,
-    /// Log unknown (non-standard) DC requests to a file (default: unknown-dc.txt). Set to null to disable.
-    #[serde(default = "default_unknown_dc_log_path")]
-    pub unknown_dc_log_path: Option<String>,
-    /// Enable unknown-DC file logging.
-    #[serde(default = "default_unknown_dc_file_log_enabled")]
-    pub unknown_dc_file_log_enabled: bool,
-    #[serde(default)]
-    pub log_level: LogLevel,
-    /// Disable colored output in logs (useful for files/systemd).
-    #[serde(default)]
-    pub disable_colors: bool,
     /// Runtime telemetry controls for counters/metrics in hot paths.
     #[serde(default)]
     pub telemetry: TelemetryConfig,

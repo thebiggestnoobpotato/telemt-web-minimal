@@ -226,17 +226,23 @@ pub(crate) fn resolve_reload_config(
         fields.push("general.quota_state_path".to_string());
         effective.general.quota_state_path = old.general.quota_state_path.clone();
     }
-    if old.general.disable_colors != desired.general.disable_colors {
-        fields.push("general.disable_colors".to_string());
-        effective.general.disable_colors = old.general.disable_colors;
-    }
     if old.general.data_path != desired.general.data_path {
         fields.push("general.data_path".to_string());
         effective.general.data_path = old.general.data_path.clone();
     }
-    if serde_json::to_value(&old.logging).ok() != serde_json::to_value(&desired.logging).ok() {
+    // `logging.log_level` is hot-reloadable; the remaining logging fields are
+    // process-owned and deferred until restart.
+    let logging_process_fields_changed =
+        old.logging.disable_colors != desired.logging.disable_colors
+            || old.logging.destination != desired.logging.destination
+            || old.logging.path != desired.logging.path
+            || old.logging.unknown_dc_log_path != desired.logging.unknown_dc_log_path
+            || old.logging.unknown_dc_file_log_enabled
+                != desired.logging.unknown_dc_file_log_enabled;
+    if logging_process_fields_changed {
         fields.push("logging".to_string());
         effective.logging = old.logging.clone();
+        effective.logging.log_level = desired.logging.log_level;
     }
     if serde_json::to_value(&old.web.limits).ok() != serde_json::to_value(&desired.web.limits).ok()
     {

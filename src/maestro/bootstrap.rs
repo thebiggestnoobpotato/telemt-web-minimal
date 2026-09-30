@@ -214,7 +214,7 @@ pub(super) async fn bootstrap(
         }
     }
 
-    set_maestro_colors_enabled(!config.general.disable_colors);
+    set_maestro_colors_enabled(!config.logging.disable_colors);
     startup_tracker
         .complete_component(COMPONENT_CONFIG_LOAD, Some("config is ready".to_string()))
         .await;
@@ -225,7 +225,7 @@ pub(super) async fn bootstrap(
     } else if let Some(ref s) = cli_log_level {
         LogLevel::from_str_loose(s)
     } else {
-        config.general.log_level.clone()
+        config.logging.log_level.clone()
     };
 
     let initial_filter_spec = runtime_tasks::log_filter_spec(has_rust_log, &effective_log_level);
@@ -249,7 +249,7 @@ pub(super) async fn bootstrap(
     let logging_guard: Option<crate::logging::LoggingGuard>;
     match log_destination {
         crate::logging::LogDestination::Stderr => {
-            let fmt_layer = if config.general.disable_colors {
+            let fmt_layer = if config.logging.disable_colors {
                 fmt::Layer::default().with_ansi(false)
             } else {
                 fmt::Layer::default().with_ansi(true)
@@ -289,7 +289,7 @@ pub(super) async fn bootstrap(
 
     print_maestro_line(format!("Telemt MTProxy v{}", env!("CARGO_PKG_VERSION")));
     info!("Log level: {}", effective_log_level);
-    if config.general.disable_colors {
+    if config.logging.disable_colors {
         info!("Colors: disabled");
     }
     if config.web.enabled {
