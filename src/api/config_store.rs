@@ -25,7 +25,6 @@ pub(in crate::api) use persistence::{
 pub(super) enum AccessSection {
     Users,
     UserEnabled,
-    UserAdTags,
     UserMaxTcpConns,
     UserExpirations,
     UserDataQuota,
@@ -38,7 +37,6 @@ impl AccessSection {
         match self {
             Self::Users => "access.users",
             Self::UserEnabled => "access.user_enabled",
-            Self::UserAdTags => "access.user_ad_tags",
             Self::UserMaxTcpConns => "access.user_max_tcp_conns",
             Self::UserExpirations => "access.user_expirations",
             Self::UserDataQuota => "access.user_data_quota",

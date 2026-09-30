@@ -4,7 +4,6 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotFields {
     pub log_level: LogLevel,
-    pub ad_tag: Option<String>,
     pub dns_overrides: Vec<String>,
     pub telemetry_core_enabled: bool,
     pub telemetry_user_enabled: bool,
@@ -12,7 +11,6 @@ pub struct HotFields {
     pub direct_relay_copy_buf_s2c_bytes: usize,
     pub users: std::collections::HashMap<String, String>,
     pub user_enabled: std::collections::HashMap<String, bool>,
-    pub user_ad_tags: std::collections::HashMap<String, String>,
     pub user_max_tcp_conns: std::collections::HashMap<String, usize>,
     pub user_max_tcp_conns_global_each: usize,
     pub user_expirations: std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>,
@@ -30,7 +28,6 @@ impl HotFields {
     pub fn from_config(cfg: &ProxyConfig) -> Self {
         Self {
             log_level: cfg.general.log_level.clone(),
-            ad_tag: cfg.general.ad_tag.clone(),
             dns_overrides: cfg.network.dns_overrides.clone(),
             telemetry_core_enabled: cfg.general.telemetry.core_enabled,
             telemetry_user_enabled: cfg.general.telemetry.user_enabled,
@@ -38,7 +35,6 @@ impl HotFields {
             direct_relay_copy_buf_s2c_bytes: cfg.general.direct_relay_copy_buf_s2c_bytes,
             users: cfg.access.users.clone(),
             user_enabled: cfg.access.user_enabled.clone(),
-            user_ad_tags: cfg.access.user_ad_tags.clone(),
             user_max_tcp_conns: cfg.access.user_max_tcp_conns.clone(),
             user_max_tcp_conns_global_each: cfg.access.user_max_tcp_conns_global_each,
             user_expirations: cfg.access.user_expirations.clone(),
@@ -58,7 +54,6 @@ pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyC
     let mut cfg = old.clone();
 
     cfg.general.log_level = new.general.log_level.clone();
-    cfg.general.ad_tag = new.general.ad_tag.clone();
     cfg.network.dns_overrides = new.network.dns_overrides.clone();
     cfg.general.telemetry = new.general.telemetry.clone();
     cfg.general.direct_relay_copy_buf_c2s_bytes = new.general.direct_relay_copy_buf_c2s_bytes;
@@ -66,7 +61,6 @@ pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyC
 
     cfg.access.users = new.access.users.clone();
     cfg.access.user_enabled = new.access.user_enabled.clone();
-    cfg.access.user_ad_tags = new.access.user_ad_tags.clone();
     cfg.access.user_max_tcp_conns = new.access.user_max_tcp_conns.clone();
     cfg.access.user_max_tcp_conns_global_each = new.access.user_max_tcp_conns_global_each;
     cfg.access.user_expirations = new.access.user_expirations.clone();

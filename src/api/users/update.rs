@@ -23,7 +23,6 @@ async fn patch_user_to_completion(
     shared: &ApiShared,
 ) -> Result<(UserInfo, String), ApiFailure> {
     let touches_users = body.secret.is_some();
-    let touches_user_ad_tags = !matches!(&body.user_ad_tag, Patch::Unchanged);
     let touches_user_max_tcp_conns = !matches!(&body.max_tcp_conns, Patch::Unchanged);
     let touches_user_expirations = !matches!(&body.expiration_rfc3339, Patch::Unchanged);
     let touches_user_data_quota = !matches!(&body.data_quota_bytes, Patch::Unchanged);
@@ -37,13 +36,6 @@ async fn patch_user_to_completion(
     {
         return Err(ApiFailure::bad_request(
             "secret must be exactly 32 hex characters",
-        ));
-    }
-    if let Patch::Set(ad_tag) = &body.user_ad_tag
-        && !is_valid_ad_tag(ad_tag)
-    {
-        return Err(ApiFailure::bad_request(
-            "user_ad_tag must be exactly 32 hex characters",
         ));
     }
     let expiration = parse_patch_expiration(&body.expiration_rfc3339)?;
@@ -61,15 +53,6 @@ async fn patch_user_to_completion(
 
     if let Some(secret) = body.secret {
         cfg.access.users.insert(user.to_string(), secret);
-    }
-    match body.user_ad_tag {
-        Patch::Unchanged => {}
-        Patch::Remove => {
-            cfg.access.user_ad_tags.remove(user);
-        }
-        Patch::Set(ad_tag) => {
-            cfg.access.user_ad_tags.insert(user.to_string(), ad_tag);
-        }
     }
     match body.max_tcp_conns {
         Patch::Unchanged => {}
@@ -171,9 +154,6 @@ async fn patch_user_to_completion(
     let mut touched_sections = Vec::new();
     if touches_users {
         touched_sections.push(AccessSection::Users);
-    }
-    if touches_user_ad_tags {
-        touched_sections.push(AccessSection::UserAdTags);
     }
     if touches_user_max_tcp_conns {
         touched_sections.push(AccessSection::UserMaxTcpConns);

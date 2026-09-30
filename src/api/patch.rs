@@ -129,6 +129,5 @@ mod tests {
         assert!(matches!(req.rate_limit_up_bps, Patch::Set(4096)));
         assert!(matches!(req.rate_limit_down_bps, Patch::Remove));
         assert!(matches!(req.expiration_rfc3339, Patch::Unchanged));
-        assert!(matches!(req.user_ad_tag, Patch::Unchanged));
     }
 }

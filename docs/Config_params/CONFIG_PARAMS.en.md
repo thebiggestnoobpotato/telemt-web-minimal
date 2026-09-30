@@ -177,7 +177,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`config_strict`](#config_strict) | `bool` | `false` | `✘` |
 | [`prefer_ipv6`](#prefer_ipv6) | `bool` | `false` | `✘` |
 | [`fast_mode`](#fast_mode) | `bool` | `true` | `✘` |
-| [`ad_tag`](#ad_tag) | `String` | — | `✔` |
 | [`stun_nat_probe_concurrency`](#stun_nat_probe_concurrency) | `usize` | `8` | `✘` |
 | [`direct_relay_copy_buf_c2s_bytes`](#direct_relay_copy_buf_c2s_bytes) | `usize` | `65536` | `✔` |
 | [`direct_relay_copy_buf_s2c_bytes`](#direct_relay_copy_buf_s2c_bytes) | `usize` | `262144` | `✔` |
@@ -248,15 +247,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     fast_mode = true
-    ```
-## ad_tag
-  - **Constraints / validation**: `String` (optional). When set, must be exactly 32 hex characters; invalid values are disabled during config load.
-  - **Description**: Global fallback sponsored-channel `ad_tag` (used when user has no override in `access.user_ad_tags`). An all-zero tag is accepted but has no effect (and is warned about) until replaced with a real tag from `@MTProxybot`.
-  - **Example**:
-
-    ```toml
-    [general]
-    ad_tag = "00112233445566778899aabbccddeeff"
     ```
 ## stun_nat_probe_concurrency
   - **Constraints / validation**: Must be `> 0`.
@@ -1248,7 +1238,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | --- | ---- | ------- | ---------- |
 | [`users`](#users) | `Map<String, String>` | `{"default": "000…000"}` | `✔` |
 | [`user_enabled`](#user_enabled-1) | `Map<String, bool>` | `{}` | `✔` |
-| [`user_ad_tags`](#user_ad_tags) | `Map<String, String>` | `{}` | `✔` |
 | [`user_max_tcp_conns`](#user_max_tcp_conns) | `Map<String, usize>` | `{}` | `✔` |
 | [`user_max_tcp_conns_global_each`](#user_max_tcp_conns_global_each) | `usize` | `0` | `✔` |
 | [`user_expirations`](#user_expirations) | `Map<String, DateTime<Utc>>` | `{}` | `✔` |
@@ -1283,18 +1272,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```toml
     [access.user_enabled]
     alice = false
-    ```
-## user_ad_tags
-  - **Constraints / validation**: Each value must be **exactly 32 hex characters** (same format as `general.ad_tag`). An all-zero tag is allowed but logs a warning.
-  - **Description**: Per-user sponsored-channel ad tag override. When a user has an entry here, it takes precedence over `general.ad_tag`.
-  - **Example**:
-
-    ```toml
-    [general]
-    ad_tag = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-    [access.user_ad_tags]
-    alice = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     ```
 ## user_max_tcp_conns
   - **Constraints / validation**: `Map<String, usize>`.

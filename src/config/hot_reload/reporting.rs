@@ -15,17 +15,6 @@ pub(super) fn log_changes(
         log_tx.send(new_hot.log_level.clone()).ok();
     }
 
-    if old_hot.user_ad_tags != new_hot.user_ad_tags {
-        info!(
-            "config reload: user_ad_tags updated ({} entries)",
-            new_hot.user_ad_tags.len(),
-        );
-    }
-
-    if old_hot.ad_tag != new_hot.ad_tag {
-        info!("config reload: general.ad_tag updated (applied on next connection)");
-    }
-
     if old_hot.dns_overrides != new_hot.dns_overrides {
         info!(
             "config reload: network.dns_overrides updated ({} entries)",

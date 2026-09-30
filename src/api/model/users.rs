@@ -10,7 +10,6 @@ pub(in crate::api) struct UserInfo {
     pub(in crate::api) username: String,
     pub(in crate::api) enabled: bool,
     pub(in crate::api) in_runtime: bool,
-    pub(in crate::api) user_ad_tag: Option<String>,
     pub(in crate::api) max_tcp_conns: Option<usize>,
     pub(in crate::api) expiration_rfc3339: Option<String>,
     pub(in crate::api) data_quota_bytes: Option<u64>,
@@ -68,7 +67,6 @@ pub(in crate::api) struct UserQuotaEntry {
 pub(in crate::api) struct CreateUserRequest {
     pub(in crate::api) username: String,
     pub(in crate::api) secret: Option<String>,
-    pub(in crate::api) user_ad_tag: Option<String>,
     pub(in crate::api) max_tcp_conns: Option<usize>,
     pub(in crate::api) expiration_rfc3339: Option<String>,
     pub(in crate::api) data_quota_bytes: Option<u64>,
@@ -81,8 +79,6 @@ pub(in crate::api) struct CreateUserRequest {
 #[derive(Deserialize)]
 pub(in crate::api) struct PatchUserRequest {
     pub(in crate::api) secret: Option<String>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) user_ad_tag: Patch<String>,
     #[serde(default, deserialize_with = "patch_field")]
     pub(in crate::api) max_tcp_conns: Patch<usize>,
     #[serde(default, deserialize_with = "patch_field")]
@@ -131,10 +127,6 @@ pub(in crate::api) fn parse_patch_expiration(
 
 pub(in crate::api) fn is_valid_user_secret(secret: &str) -> bool {
     secret.len() == 32 && secret.chars().all(|c| c.is_ascii_hexdigit())
-}
-
-pub(in crate::api) fn is_valid_ad_tag(tag: &str) -> bool {
-    tag.len() == 32 && tag.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 pub(in crate::api) fn is_valid_username(user: &str) -> bool {

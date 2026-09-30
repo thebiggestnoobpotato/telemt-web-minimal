@@ -7,8 +7,6 @@
 //! | Section   | Field                          | Effect                                         |
 //! |-----------|--------------------------------|------------------------------------------------|
 //! | `general` | `log_level`                    | Filter updated via `log_level_tx`              |
-//! | `access`  | `user_ad_tags`                 | Passed on next connection                      |
-//! | `general` | `ad_tag`                       | Passed on next connection (fallback per-user)  |
 //! | `general` | `telemetry`                    | Applied immediately                            |
 //! | `network` | `dns_overrides`                | Applied immediately                            |
 //! | `access`  | All user/quota fields          | Effective immediately                          |

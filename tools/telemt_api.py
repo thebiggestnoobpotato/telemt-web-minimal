@@ -274,7 +274,6 @@ class TelemtAPI:
             username: str,
             *,
             secret: str | None = None,
-            user_ad_tag: str | None = None,
             max_tcp_conns: int | None = None,
             expiration_rfc3339: str | None = None,
             data_quota_bytes: int | None = None,
@@ -289,8 +288,6 @@ class TelemtAPI:
             ``[A-Za-z0-9_.-]``, length 1–64.
         secret:
             Exactly 32 hex chars. Auto-generated if omitted.
-        user_ad_tag:
-            Exactly 32 hex chars.
         max_tcp_conns:
             Per-user concurrent TCP limit.
         expiration_rfc3339:
@@ -304,7 +301,6 @@ class TelemtAPI:
         """
         body: Dict[str, Any] = {"username": username}
         _opt(body, "secret", secret)
-        _opt(body, "user_ad_tag", user_ad_tag)
         _opt(body, "max_tcp_conns", max_tcp_conns)
         _opt(body, "expiration_rfc3339", expiration_rfc3339)
         _opt(body, "data_quota_bytes", data_quota_bytes)
@@ -316,7 +312,6 @@ class TelemtAPI:
             username: str,
             *,
             secret: str | None = None,
-            user_ad_tag: str | None = None,
             max_tcp_conns: int | None = None,
             expiration_rfc3339: str | None = None,
             data_quota_bytes: int | None = None,
@@ -331,8 +326,6 @@ class TelemtAPI:
             Existing username to update.
         secret:
             New secret (32 hex chars).
-        user_ad_tag:
-            New ad tag (32 hex chars).
         max_tcp_conns:
             New TCP concurrency limit.
         expiration_rfc3339:
@@ -346,7 +339,6 @@ class TelemtAPI:
         """
         body: Dict[str, Any] = {}
         _opt(body, "secret", secret)
-        _opt(body, "user_ad_tag", user_ad_tag)
         _opt(body, "max_tcp_conns", max_tcp_conns)
         _opt(body, "expiration_rfc3339", expiration_rfc3339)
         _opt(body, "data_quota_bytes", data_quota_bytes)
@@ -461,7 +453,6 @@ COMMANDS (users)
 
 USER OPTIONS (for create / patch)
   --secret S          32 hex chars
-  --ad-tag S          32 hex chars (ad tag)
   --max-conns N       Max concurrent TCP connections
   --expires DATETIME  RFC3339 expiration (e.g. 2026-12-31T23:59:59Z)
   --quota N           Data quota in bytes
@@ -491,7 +482,6 @@ EXAMPLES
 
     # user create/patch fields
     p.add_argument("--secret", default=None)
-    p.add_argument("--ad-tag", dest="ad_tag", default=None)
     p.add_argument("--max-conns", dest="max_conns", type=int, default=None)
     p.add_argument("--expires", default=None)
     p.add_argument("--quota", type=int, default=None)
@@ -602,7 +592,6 @@ if __name__ == "__main__":
             resp = api.create_user(
                 args.arg,
                 secret=args.secret,
-                user_ad_tag=args.ad_tag,
                 max_tcp_conns=args.max_conns,
                 expiration_rfc3339=args.expires,
                 data_quota_bytes=args.quota,
@@ -622,14 +611,13 @@ if __name__ == "__main__":
         elif cmd == "patch":
             if not args.arg:
                 parser.error("patch command requires <username>")
-            if not any([args.secret, args.ad_tag, args.max_conns,
+            if not any([args.secret, args.max_conns,
                         args.expires, args.quota, args.max_ips]):
                 parser.error(
-                    "patch requires at least one field (--secret, --max-conns, --expires, --quota, --max-ips, --ad-tag)")
+                    "patch requires at least one field (--secret, --max-conns, --expires, --quota, --max-ips)")
             _print(api.patch_user(
                 args.arg,
                 secret=args.secret,
-                user_ad_tag=args.ad_tag,
                 max_tcp_conns=args.max_conns,
                 expiration_rfc3339=args.expires,
                 data_quota_bytes=args.quota,

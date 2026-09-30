@@ -236,7 +236,6 @@ Notes:
 | --- | --- | --- | --- |
 | `username` | `string` | yes | `[A-Za-z0-9_.-]`, length `1..64`. |
 | `secret` | `string` | no | Exactly 32 hex chars. If missing, generated automatically. |
-| `user_ad_tag` | `string` | no | Exactly 32 hex chars. |
 | `max_tcp_conns` | `usize` | no | Per-user concurrent TCP limit. |
 | `expiration_rfc3339` | `string` | no | RFC3339 expiration timestamp. |
 | `data_quota_bytes` | `u64` | no | Per-user traffic quota. |
@@ -249,7 +248,6 @@ Notes:
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `secret` | `string` | no | Exactly 32 hex chars. |
-| `user_ad_tag` | `string` or `null` | no | Exactly 32 hex chars; `null` removes the per-user ad tag. |
 | `max_tcp_conns` | `usize` or `null` | no | Per-user concurrent TCP limit; `null` removes the per-user override. |
 | `expiration_rfc3339` | `string` or `null` | no | RFC3339 expiration timestamp; `null` removes the expiration. |
 | `data_quota_bytes` | `u64` or `null` | no | Per-user traffic quota; `null` removes the per-user quota. |
@@ -828,7 +826,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `username` | `string` | Username. |
 | `enabled` | `bool` | Effective user enable flag. Missing config entry is reported as `true`. |
 | `in_runtime` | `bool` | Whether current runtime config already contains this user. |
-| `user_ad_tag` | `string?` | Optional ad tag (32 hex chars). |
 | `max_tcp_conns` | `usize?` | Optional max concurrent TCP limit. |
 | `expiration_rfc3339` | `string?` | Optional expiration timestamp. |
 | `data_quota_bytes` | `u64?` | Optional data quota. |

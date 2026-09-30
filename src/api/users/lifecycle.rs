@@ -120,9 +120,6 @@ async fn delete_user_to_completion(
     if cfg.access.user_enabled.remove(user).is_some() {
         touched_sections.push(AccessSection::UserEnabled);
     }
-    if cfg.access.user_ad_tags.remove(user).is_some() {
-        touched_sections.push(AccessSection::UserAdTags);
-    }
     if cfg.access.user_max_tcp_conns.remove(user).is_some() {
         touched_sections.push(AccessSection::UserMaxTcpConns);
     }

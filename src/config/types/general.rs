@@ -15,9 +15,6 @@ pub struct GeneralConfig {
     /// Fast nonce mode: pre-fills the client enc key/iv into the relay nonce.
     #[serde(default = "default_true")]
     pub fast_mode: bool,
-    /// Global ad_tag (32 hex chars from @MTProxybot). Fallback when user has no per-user tag in access.user_ad_tags.
-    #[serde(default)]
-    pub ad_tag: Option<String>,
     /// Maximum number of concurrent STUN probes during NAT detection.
     #[serde(default = "default_stun_nat_probe_concurrency")]
     pub stun_nat_probe_concurrency: usize,

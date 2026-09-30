@@ -15,9 +15,8 @@ use super::config_store::{
 };
 use super::model::{
     ApiFailure, CreateUserRequest, CreateUserResponse, PatchUserRequest, RotateSecretRequest,
-    UserInfo, UserLinks, UserQuotaEntry, UserQuotaListData, is_valid_ad_tag,
-    is_valid_user_secret, is_valid_username, parse_optional_expiration, parse_patch_expiration,
-    random_user_secret,
+    UserInfo, UserLinks, UserQuotaEntry, UserQuotaListData, is_valid_user_secret,
+    is_valid_username, parse_optional_expiration, parse_patch_expiration, random_user_secret,
 };
 use super::patch::Patch;
 

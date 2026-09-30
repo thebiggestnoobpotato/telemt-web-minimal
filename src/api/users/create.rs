@@ -19,7 +19,6 @@ async fn create_user_to_completion(
     expected_revision: Option<String>,
     shared: &ApiShared,
 ) -> Result<(CreateUserResponse, String), ApiFailure> {
-    let touches_user_ad_tags = body.user_ad_tag.is_some();
     let touches_user_max_tcp_conns = body.max_tcp_conns.is_some();
     let touches_user_expirations = body.expiration_rfc3339.is_some();
     let touches_user_data_quota = body.data_quota_bytes.is_some();
@@ -46,14 +45,6 @@ async fn create_user_to_completion(
         None => random_user_secret(),
     };
 
-    if let Some(ad_tag) = body.user_ad_tag.as_ref()
-        && !is_valid_ad_tag(ad_tag)
-    {
-        return Err(ApiFailure::bad_request(
-            "user_ad_tag must be exactly 32 hex characters",
-        ));
-    }
-
     let expiration = parse_optional_expiration(body.expiration_rfc3339.as_deref())?;
     let credential_id = credential_id_from_hex(&secret)
         .ok_or_else(|| ApiFailure::internal("validated user secret could not be decoded"))?;
@@ -72,11 +63,6 @@ async fn create_user_to_completion(
     cfg.access
         .users
         .insert(body.username.clone(), secret.clone());
-    if let Some(ad_tag) = body.user_ad_tag {
-        cfg.access
-            .user_ad_tags
-            .insert(body.username.clone(), ad_tag);
-    }
     if let Some(limit) = body.max_tcp_conns {
         cfg.access
             .user_max_tcp_conns
@@ -116,9 +102,6 @@ async fn create_user_to_completion(
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
 
     let mut touched_sections = vec![AccessSection::Users];
-    if touches_user_ad_tags {
-        touched_sections.push(AccessSection::UserAdTags);
-    }
     if touches_user_max_tcp_conns {
         touched_sections.push(AccessSection::UserMaxTcpConns);
     }
@@ -167,7 +150,6 @@ async fn create_user_to_completion(
             username: body.username.clone(),
             enabled: cfg.access.is_user_enabled(&body.username),
             in_runtime: false,
-            user_ad_tag: None,
             max_tcp_conns: cfg
                 .access
                 .user_max_tcp_conns

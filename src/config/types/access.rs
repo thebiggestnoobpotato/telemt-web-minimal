@@ -11,10 +11,6 @@ pub struct AccessConfig {
     #[serde(default)]
     pub user_enabled: HashMap<String, bool>,
 
-    /// Per-user ad_tag (32 hex chars from @MTProxybot).
-    #[serde(default)]
-    pub user_ad_tags: HashMap<String, String>,
-
     #[serde(default)]
     pub user_max_tcp_conns: HashMap<String, usize>,
 
@@ -85,7 +81,6 @@ impl Default for AccessConfig {
         Self {
             users: default_access_users(),
             user_enabled: HashMap::new(),
-            user_ad_tags: HashMap::new(),
             user_max_tcp_conns: HashMap::new(),
             user_max_tcp_conns_global_each: default_user_max_tcp_conns_global_each(),
             user_expirations: HashMap::new(),

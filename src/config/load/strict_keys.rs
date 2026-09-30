@@ -27,7 +27,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "config_strict",
     "prefer_ipv6",
     "fast_mode",
-    "ad_tag",
     "stun_nat_probe_concurrency",
     "direct_relay_copy_buf_c2s_bytes",
     "direct_relay_copy_buf_s2c_bytes",
@@ -241,7 +240,6 @@ const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
 const ACCESS_CONFIG_KEYS: &[&str] = &[
     "users",
     "user_enabled",
-    "user_ad_tags",
     "user_max_tcp_conns",
     "user_max_tcp_conns_global_each",
     "user_expirations",

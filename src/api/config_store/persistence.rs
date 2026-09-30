@@ -195,15 +195,6 @@ pub(super) fn render_access_section(
                 .collect();
             serialize_table_body(&rows)?
         }
-        AccessSection::UserAdTags => {
-            let rows: BTreeMap<String, String> = cfg
-                .access
-                .user_ad_tags
-                .iter()
-                .map(|(key, value)| (key.clone(), value.clone()))
-                .collect();
-            serialize_table_body(&rows)?
-        }
         AccessSection::UserMaxTcpConns => {
             let rows: BTreeMap<String, usize> = cfg
                 .access
@@ -265,7 +256,6 @@ fn access_section_is_empty(cfg: &ProxyConfig, section: AccessSection) -> bool {
     match section {
         AccessSection::Users => cfg.access.users.is_empty(),
         AccessSection::UserEnabled => cfg.access.user_enabled.is_empty(),
-        AccessSection::UserAdTags => cfg.access.user_ad_tags.is_empty(),
         AccessSection::UserMaxTcpConns => cfg.access.user_max_tcp_conns.is_empty(),
         AccessSection::UserExpirations => cfg.access.user_expirations.is_empty(),
         AccessSection::UserDataQuota => cfg.access.user_data_quota.is_empty(),

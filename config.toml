@@ -4,8 +4,6 @@
 
 # === General Settings ===
 [general]
-# Global ad_tag fallback when user has no per-user tag in [access.user_ad_tags]
-# ad_tag = "00000000000000000000000000000000"
 
 # === Log Level ===
 # Log level: debug | verbose | normal | silent

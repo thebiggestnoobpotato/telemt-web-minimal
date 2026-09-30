@@ -1,44 +1,5 @@
 # F.A.Q.
 
-## How to set up a "proxy sponsor" channel and statistics via the @MTProxybot
-
-1. Go to the @MTProxybot.
-2. Enter the `/newproxy` command.
-3. Send your server's public address and port. For example: `1.2.3.4:443`.
-4. Open the configuration file: `nano /etc/telemt/config.toml`.
-5. Copy and send the user secret from the `[access.users]` section to the bot.
-6. Copy the tag provided by the bot. For example: `1234567890abcdef1234567890abcdef`.
-
-> [!WARNING]
-> The link provided by the bot will not work. Do not copy or use it!
-
-7. Uncomment the `ad_tag` parameter and enter the tag received from the bot.
-
-Configuration example:
-
-```toml
-[general]
-ad_tag = "1234567890abcdef1234567890abcdef"
-```
-
-8. Save the changes (in nano: Ctrl+S -> Ctrl+X).
-9. Reload the telemt service: `systemctl reload-or-restart telemt`.
-10. Send the `/myproxies` command to the bot and select the added server.
-11. Click the "Set promotion" button.
-12. Send a **public link** to the channel. Private channels cannot be added!
-13. Wait for about 1 hour for the information to update on Telegram servers.
-
-> [!WARNING]
-> The sponsored channel will not be displayed to you if you are already subscribed to it.
-
-**You can also configure different sponsored channels for different users:**
-
-```toml
-[access.user_ad_tags]
-hello = "ad_tag"
-hello2 = "ad_tag2"
-```
-
 ## F.A.Q.
 
 ### Telegram Calls via MTProxy

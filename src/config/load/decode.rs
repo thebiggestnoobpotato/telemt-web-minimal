@@ -101,6 +101,5 @@ pub(super) fn decode_source_graph(graph: ConfigSourceGraph) -> Result<DecodedSou
         warn!("top-level beobachten* keys are deprecated; use general.beobachten* instead");
     }
 
-    sanitize_ad_tag(&mut config.general.ad_tag);
     Ok((config, source_files, source_contents, processed))
 }

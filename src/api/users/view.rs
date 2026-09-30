@@ -27,7 +27,6 @@ pub(in crate::api) async fn users_from_config(
             in_runtime: runtime_cfg
                 .map(|runtime| runtime.access.users.contains_key(&username))
                 .unwrap_or(false),
-            user_ad_tag: cfg.access.user_ad_tags.get(&username).cloned(),
             max_tcp_conns: cfg
                 .access
                 .user_max_tcp_conns

@@ -4,7 +4,7 @@ fn sample_config() -> ProxyConfig {
     ProxyConfig::default()
 }
 
-fn write_reload_config(path: &Path, ad_tag: Option<&str>, server_port: Option<u16>) {
+fn write_reload_config(path: &Path, log_level: Option<&str>, server_port: Option<u16>) {
     let mut config = String::from(
         r#"
                 [access.users]
@@ -12,10 +12,10 @@ fn write_reload_config(path: &Path, ad_tag: Option<&str>, server_port: Option<u1
             "#,
     );
 
-    if ad_tag.is_some() {
+    if log_level.is_some() {
         config.push_str("\n[general]\n");
-        if let Some(tag) = ad_tag {
-            config.push_str(&format!("ad_tag = \"{tag}\"\n"));
+        if let Some(level) = log_level {
+            config.push_str(&format!("log_level = \"{level}\"\n"));
         }
     }
 
@@ -41,11 +41,11 @@ fn write_web_reload_config(path: &Path, carriers: &str, carrier_learning: bool) 
     std::fs::write(path, config).unwrap();
 }
 
-fn write_web_fasttrack_reload_config(path: &Path, mode: &str, ad_tag: &str) {
+fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
     let config = format!(
         r#"
                 [general]
-                ad_tag = "{ad_tag}"
+                log_level = "{log_level}"
 
                 [access.users]
                 alice = "000102030405060708090a0b0c0d0e0f"
@@ -255,11 +255,9 @@ fn listener_web_policy_fields_are_process_owned() {
 
 #[test]
 fn reload_applies_hot_change_on_first_observed_snapshot() {
-    let initial_tag = "11111111111111111111111111111111";
-    let final_tag = "22222222222222222222222222222222";
     let path = temp_config_path("telemt_hot_reload_stable");
 
-    write_reload_config(&path, Some(initial_tag), None);
+    write_reload_config(&path, Some("normal"), None);
     let initial_cfg = Arc::new(ProxyConfig::load(&path).unwrap());
     let initial_hash = ProxyConfig::load_with_metadata(&path)
         .unwrap()
@@ -268,11 +266,11 @@ fn reload_applies_hot_change_on_first_observed_snapshot() {
     let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
-    write_reload_config(&path, Some(final_tag), None);
+    write_reload_config(&path, Some("silent"), None);
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
     assert_eq!(
-        config_tx.borrow().general.ad_tag.as_deref(),
-        Some(final_tag)
+        config_tx.borrow().general.log_level,
+        LogLevel::Silent
     );
 
     let _ = std::fs::remove_file(path);
@@ -280,12 +278,10 @@ fn reload_applies_hot_change_on_first_observed_snapshot() {
 
 #[tokio::test]
 async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
-    let initial_tag = "10101010101010101010101010101010";
-    let disk_tag = "20202020202020202020202020202020";
     let path = temp_config_path("telemt_hot_reload_activation_gate");
-    write_reload_config(&path, Some(initial_tag), None);
+    write_reload_config(&path, Some("normal"), None);
     let initial = Arc::new(ProxyConfig::load(&path).unwrap());
-    write_reload_config(&path, Some(disk_tag), None);
+    write_reload_config(&path, Some("debug"), None);
     let cancellation = tokio_util::sync::CancellationToken::new();
     let (activation_tx, activation_rx) = watch::channel(false);
     let (mut config_rx, _log_rx, watcher) = spawn_config_watcher(
@@ -299,8 +295,8 @@ async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
 
     tokio::task::yield_now().await;
     assert_eq!(
-        config_rx.borrow().general.ad_tag.as_deref(),
-        Some(initial_tag)
+        config_rx.borrow().general.log_level,
+        LogLevel::Normal
     );
     activation_tx.send_replace(true);
     tokio::time::timeout(Duration::from_secs(2), config_rx.changed())
@@ -308,8 +304,8 @@ async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
         .unwrap()
         .unwrap();
     assert_eq!(
-        config_rx.borrow_and_update().general.ad_tag.as_deref(),
-        Some(disk_tag)
+        config_rx.borrow_and_update().general.log_level,
+        LogLevel::Debug
     );
 
     cancellation.cancel();
@@ -319,11 +315,9 @@ async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
 
 #[test]
 fn reload_keeps_hot_apply_when_non_hot_fields_change() {
-    let initial_tag = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    let final_tag = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let path = temp_config_path("telemt_hot_reload_mixed");
 
-    write_reload_config(&path, Some(initial_tag), None);
+    write_reload_config(&path, Some("normal"), None);
     let initial_cfg = Arc::new(ProxyConfig::load(&path).unwrap());
     let initial_hash = ProxyConfig::load_with_metadata(&path)
         .unwrap()
@@ -332,11 +326,11 @@ fn reload_keeps_hot_apply_when_non_hot_fields_change() {
     let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
-    write_reload_config(&path, Some(final_tag), Some(initial_cfg.server.port + 1));
+    write_reload_config(&path, Some("verbose"), Some(initial_cfg.server.port + 1));
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
-    assert_eq!(applied.general.ad_tag.as_deref(), Some(final_tag));
+    assert_eq!(applied.general.log_level, LogLevel::Verbose);
     assert_eq!(applied.server.port, initial_cfg.server.port);
 
     let _ = std::fs::remove_file(path);
@@ -344,11 +338,9 @@ fn reload_keeps_hot_apply_when_non_hot_fields_change() {
 
 #[test]
 fn reload_rebuilds_vhosts_with_the_effective_fasttrack_mode() {
-    let initial_tag = "abababababababababababababababab";
-    let final_tag = "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
     let path = temp_config_path("telemt_web_fasttrack_reload");
 
-    write_web_fasttrack_reload_config(&path, "off", initial_tag);
+    write_web_fasttrack_reload_config(&path, "off", "normal");
     let initial_cfg = Arc::new(ProxyConfig::load(&path).unwrap());
     let initial_hash = ProxyConfig::load_with_metadata(&path)
         .unwrap()
@@ -357,11 +349,11 @@ fn reload_rebuilds_vhosts_with_the_effective_fasttrack_mode() {
     let (log_tx, _log_rx) = watch::channel(initial_cfg.general.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
-    write_web_fasttrack_reload_config(&path, "enforce", final_tag);
+    write_web_fasttrack_reload_config(&path, "enforce", "silent");
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
-    assert_eq!(applied.general.ad_tag.as_deref(), Some(final_tag));
+    assert_eq!(applied.general.log_level, LogLevel::Silent);
     assert_eq!(
         applied.web.decoy_fasttrack_mode,
         crate::config::WebDecoyFastTrackMode::Off
@@ -423,11 +415,9 @@ fn classify_timeouts_change_requires_restart() {
 
 #[test]
 fn reload_recovers_after_parse_error_on_next_attempt() {
-    let initial_tag = "cccccccccccccccccccccccccccccccc";
-    let final_tag = "dddddddddddddddddddddddddddddddd";
     let path = temp_config_path("telemt_hot_reload_parse_recovery");
 
-    write_reload_config(&path, Some(initial_tag), None);
+    write_reload_config(&path, Some("normal"), None);
     let initial_cfg = Arc::new(ProxyConfig::load(&path).unwrap());
     let initial_hash = ProxyConfig::load_with_metadata(&path)
         .unwrap()
@@ -439,15 +429,15 @@ fn reload_recovers_after_parse_error_on_next_attempt() {
     std::fs::write(&path, "[access.users\nuser = \"broken\"\n").unwrap();
     assert!(reload_config(&path, &config_tx, &log_tx, &mut reload_state).is_none());
     assert_eq!(
-        config_tx.borrow().general.ad_tag.as_deref(),
-        Some(initial_tag)
+        config_tx.borrow().general.log_level,
+        LogLevel::Normal
     );
 
-    write_reload_config(&path, Some(final_tag), None);
+    write_reload_config(&path, Some("debug"), None);
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
     assert_eq!(
-        config_tx.borrow().general.ad_tag.as_deref(),
-        Some(final_tag)
+        config_tx.borrow().general.log_level,
+        LogLevel::Debug
     );
 
     let _ = std::fs::remove_file(path);

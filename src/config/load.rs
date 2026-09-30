@@ -7,15 +7,16 @@ use std::sync::Arc;
 
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
-use tracing::warn;
 
 use crate::crypto::sha256;
+use tracing::warn;
+
 use crate::error::{ProxyError, Result};
 
 use super::defaults::*;
 use super::types::*;
 
-// Domain name and ad tag normalization helpers.
+// Domain name normalization helpers.
 mod normalize;
 // Include preprocessing and rendered config metadata helpers.
 mod includes;
@@ -38,7 +39,7 @@ mod validation;
 use self::includes::{
     hash_rendered_snapshot, normalize_config_path, preprocess_includes, read_config_source,
 };
-use self::normalize::{is_valid_ad_tag, normalize_domain_to_ascii, sanitize_ad_tag};
+use self::normalize::normalize_domain_to_ascii;
 pub(crate) use self::runtime_auth::UserAuthSnapshot;
 use self::strict_keys::handle_unknown_config_keys;
 use self::validation::{
@@ -267,19 +268,6 @@ impl ProxyConfig {
         }
 
         validate_logging_config(&self.logging)?;
-
-        for (user, tag) in &self.access.user_ad_tags {
-            let zeros = "00000000000000000000000000000000";
-            if !is_valid_ad_tag(tag) {
-                return Err(ProxyError::Config(format!(
-                    "access.user_ad_tags['{}'] must be exactly 32 hex characters",
-                    user
-                )));
-            }
-            if tag == zeros {
-                warn!(user = %user, "user ad_tag is all zeros; register a valid proxy tag via @MTProxybot to enable sponsored channel");
-            }
-        }
 
         crate::network::dns_overrides::validate_entries(&self.network.dns_overrides)?;
 

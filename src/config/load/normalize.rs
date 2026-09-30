@@ -1,5 +1,4 @@
 use crate::error::{ProxyError, Result};
-use tracing::warn;
 
 pub(super) fn is_valid_tls_domain_name(domain: &str) -> bool {
     !domain.is_empty()
@@ -30,19 +29,4 @@ pub(super) fn normalize_domain_to_ascii(domain: &str, field: &str) -> Result<Str
         ))
     })?;
     Ok(host.to_ascii_lowercase())
-}
-
-pub(super) fn is_valid_ad_tag(tag: &str) -> bool {
-    tag.len() == 32 && tag.chars().all(|ch| ch.is_ascii_hexdigit())
-}
-
-pub(super) fn sanitize_ad_tag(ad_tag: &mut Option<String>) {
-    let Some(tag) = ad_tag.as_ref() else {
-        return;
-    };
-
-    if !is_valid_ad_tag(tag) {
-        warn!("Invalid general.ad_tag value, expected exactly 32 hex chars; ad_tag is disabled");
-        *ad_tag = None;
-    }
 }

@@ -1,27 +1,6 @@
 use super::*;
 
 #[test]
-fn invalid_user_ad_tag_reports_access_user_ad_tags_key() {
-    let toml = r#"
-        [general]
-        prefer_ipv6 = false
-
-        [access.users]
-        alice = "00000000000000000000000000000000"
-
-        [access.user_ad_tags]
-        alice = "not_hex"
-    "#;
-    let dir = std::env::temp_dir();
-    let path = dir.join("telemt_invalid_user_ad_tag_message_test.toml");
-    std::fs::write(&path, toml).unwrap();
-    let cfg = ProxyConfig::load(&path).unwrap();
-    let err = cfg.validate().unwrap_err().to_string();
-    assert!(err.contains("access.user_ad_tags['alice'] must be exactly 32 hex characters"));
-    let _ = std::fs::remove_file(path);
-}
-
-#[test]
 fn invalid_dns_override_is_rejected() {
     let toml = r#"
         [network]
