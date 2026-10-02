@@ -426,29 +426,29 @@ fn adaptive_throughput_short_session_should_return_base() {
     );
 }
 
-// ── me_flush_policy_for_tier ────────────────────────────────────────────
+// ── flush_policy_for_tier ────────────────────────────────────────────
 
 #[test]
-fn adaptive_me_flush_base_unchanged() {
+fn adaptive_flush_base_unchanged() {
     let (frames, bytes, delay) =
-        me_flush_policy_for_tier(AdaptiveTier::Base, 32, 65536, Duration::from_micros(1000));
+        flush_policy_for_tier(AdaptiveTier::Base, 32, 65536, Duration::from_micros(1000));
     assert_eq!(frames, 32);
     assert_eq!(bytes, 65536);
     assert_eq!(delay, Duration::from_micros(1000));
 }
 
 #[test]
-fn adaptive_me_flush_tier1_delay_reduced() {
+fn adaptive_flush_tier1_delay_reduced() {
     let (_, _, delay) =
-        me_flush_policy_for_tier(AdaptiveTier::Tier1, 32, 65536, Duration::from_micros(1000));
+        flush_policy_for_tier(AdaptiveTier::Tier1, 32, 65536, Duration::from_micros(1000));
     // Tier1: delay * 7/10 = 700 µs
     assert_eq!(delay, Duration::from_micros(700));
 }
 
 #[test]
-fn adaptive_me_flush_delay_never_below_minimum() {
+fn adaptive_flush_delay_never_below_minimum() {
     let (_, _, delay) =
-        me_flush_policy_for_tier(AdaptiveTier::Tier3, 32, 65536, Duration::from_micros(200));
-    // Tier3: 200 * 3/10 = 60, but min is ME_DELAY_MIN_US = 150
+        flush_policy_for_tier(AdaptiveTier::Tier3, 32, 65536, Duration::from_micros(200));
+    // Tier3: 200 * 3/10 = 60, but min is FLUSH_DELAY_MIN_US = 150
     assert!(delay.as_micros() >= 150, "Delay must respect minimum");
 }

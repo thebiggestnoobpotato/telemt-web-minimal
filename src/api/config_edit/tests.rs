@@ -52,7 +52,7 @@ async fn patch_revision_conflict() {
 #[tokio::test]
 async fn patch_general_links_reports_restart_required() {
     let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"general": {"links": {"public_host": "b.com"}}});
+    let patch: Json = serde_json::json!({"general": {"links": {"show": ["alice"]}}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.restart_required);
     assert!(resp.runtime_reload_required);
@@ -60,7 +60,7 @@ async fn patch_general_links_reports_restart_required() {
     assert!(resp.deferred_process_fields.is_empty());
     assert!(resp.changed.iter().any(|c| c == "general"));
     let written = std::fs::read_to_string(&path).unwrap();
-    assert!(written.contains("public_host = \"b.com\""));
+    assert!(written.contains("show = [\"alice\"]"));
     assert_eq!(
         resp.revision,
         crate::api::config_store::current_revision(&path)
@@ -426,52 +426,6 @@ async fn failed_config_write_releases_reload_reservation() {
 
     assert!(result.is_err());
     assert_eq!(control.in_progress().await, None);
-}
-
-#[tokio::test]
-async fn patch_links_public_port_written_as_integer_not_float_or_string() {
-    // A JSON integer must land on disk as a bare TOML integer (443), never
-    // 443.0 nor "443". The write re-renders from the typed config, so the
-    // u16 field dictates the output format regardless of JSON quirks.
-    let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"general": {"links": {"public_port": 443}}});
-    apply_patch_to_path(&path, &patch, None).await.unwrap();
-
-    let written = tokio::fs::read_to_string(&path).await.unwrap();
-    assert!(written.contains("public_port = 443"), "{written}");
-    assert!(
-        !written.contains("443.0"),
-        "must not be a float:\n{written}"
-    );
-    assert!(
-        !written.contains("\"443\""),
-        "must not be a string:\n{written}"
-    );
-
-    let parsed: toml::Value = toml::from_str(&written).unwrap();
-    assert_eq!(
-        parsed["general"]["links"]["public_port"].as_integer(),
-        Some(443),
-        "{written}"
-    );
-}
-
-#[tokio::test]
-async fn patch_links_public_port_rejects_float() {
-    // 443.0 cannot deserialize into u16 -> rejected, not silently coerced.
-    let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"general": {"links": {"public_port": 443.0}}});
-    let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
-    assert_eq!(err.status, hyper::StatusCode::BAD_REQUEST, "{:?}", err);
-}
-
-#[tokio::test]
-async fn patch_links_public_port_rejects_string() {
-    // "443" is a string, not a u16 -> rejected.
-    let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"general": {"links": {"public_port": "443"}}});
-    let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
-    assert_eq!(err.status, hyper::StatusCode::BAD_REQUEST, "{:?}", err);
 }
 
 #[tokio::test]

@@ -105,7 +105,7 @@ root    hard    nofile  1048576
 ## Additional parameters
 
 ### Domain in the link instead of IP
-To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `[[web.vhosts]]` entry. `general.links.public_host`/`public_port` do not affect WEB links.
+To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `[[web.vhosts]]` entry.
 
 ### Total server connection limit
 This parameter limits the total number of active connections to the server:

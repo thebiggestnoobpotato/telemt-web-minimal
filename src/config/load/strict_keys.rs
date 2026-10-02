@@ -250,7 +250,7 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
 ];
 
 const TELEMETRY_CONFIG_KEYS: &[&str] = &["core_enabled", "user_enabled"];
-const LINKS_CONFIG_KEYS: &[&str] = &["show", "public_host", "public_port"];
+const LINKS_CONFIG_KEYS: &[&str] = &["show"];
 const LOGGING_CONFIG_KEYS: &[&str] = &[
     "destination",
     "path",

@@ -3,7 +3,6 @@
 //! Handles graceful shutdown on various signals:
 //! - SIGINT (Ctrl+C) / SIGTERM: Graceful shutdown
 //! - SIGQUIT: Graceful shutdown with stats dump
-//! - SIGUSR1: Reserved for log rotation (logs acknowledgment)
 //! - SIGUSR2: Dump runtime status to log
 //!
 //! SIGHUP is handled separately in config/hot_reload.rs for config reload.
@@ -174,11 +173,9 @@ fn dump_stats(stats: &Stats, process_started_at: Instant) {
     info!("=== End Statistics Dump ===");
 }
 
-/// Spawns a background task to handle operational signals (SIGUSR1, SIGUSR2).
+/// Spawns a background task to handle operational signals (SIGUSR2).
 ///
-/// These signals don't trigger shutdown but perform specific actions:
-/// - SIGUSR1: Log rotation acknowledgment (for external log rotation tools)
-/// - SIGUSR2: Dump runtime status to log
+/// The signal doesn't trigger shutdown but dumps runtime status to the log.
 #[cfg(unix)]
 pub(crate) fn spawn_signal_handlers(
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
@@ -186,21 +183,13 @@ pub(crate) fn spawn_signal_handlers(
     process_control_plane: ProcessControlPlane,
 ) {
     let _ = process_control_plane.spawn(async move {
-        let mut sigusr1 =
-            signal(SignalKind::user_defined1()).expect("Failed to register SIGUSR1 handler");
         let mut sigusr2 =
             signal(SignalKind::user_defined2()).expect("Failed to register SIGUSR2 handler");
 
         loop {
-            tokio::select! {
-                _ = sigusr1.recv() => {
-                    handle_sigusr1();
-                }
-                _ = sigusr2.recv() => {
-                    let runtime = active_runtime.load_full();
-                    handle_sigusr2(runtime.stats.as_ref(), process_started_at);
-                }
-            }
+            sigusr2.recv().await;
+            let runtime = active_runtime.load_full();
+            handle_sigusr2(runtime.stats.as_ref(), process_started_at);
         }
     });
 }
@@ -212,19 +201,7 @@ pub(crate) fn spawn_signal_handlers(
     _process_started_at: Instant,
     _process_control_plane: ProcessControlPlane,
 ) {
-    // No SIGUSR1/SIGUSR2 on non-Unix
-}
-
-/// Handles SIGUSR1 - log rotation signal.
-///
-/// This signal is typically sent by logrotate or similar tools after
-/// rotating log files. Since tracing-subscriber doesn't natively support
-/// reopening files, we just acknowledge the signal. If file logging is
-/// added in the future, this would reopen log file handles.
-#[cfg(unix)]
-fn handle_sigusr1() {
-    info!("SIGUSR1 received - log rotation acknowledged");
-    // Future: If using file-based logging, reopen file handles here
+    // No SIGUSR2 on non-Unix
 }
 
 /// Handles SIGUSR2 - dump runtime status.

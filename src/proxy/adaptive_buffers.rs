@@ -23,11 +23,11 @@ const DIRECT_C2S_CAP_BYTES: usize = 128 * 1024;
 #[cfg(test)]
 const DIRECT_S2C_CAP_BYTES: usize = 512 * 1024;
 #[cfg(test)]
-const ME_FRAMES_CAP: usize = 96;
+const FLUSH_FRAMES_CAP: usize = 96;
 #[cfg(test)]
-const ME_BYTES_CAP: usize = 384 * 1024;
+const FLUSH_BYTES_CAP: usize = 384 * 1024;
 #[cfg(test)]
-const ME_DELAY_MIN_US: u64 = 150;
+const FLUSH_DELAY_MIN_US: u64 = 150;
 const MAX_USER_PROFILES_ENTRIES: usize = 50_000;
 const MAX_USER_KEY_BYTES: usize = 512;
 
@@ -419,15 +419,15 @@ fn direct_direction_size(tier: AdaptiveTier, base: usize, ceiling: usize) -> usi
 
 #[cfg(test)]
 /// Returns the staged flush policy for an adaptive buffer tier, retained by security fixtures.
-pub fn me_flush_policy_for_tier(
+pub fn flush_policy_for_tier(
     tier: AdaptiveTier,
     base_frames: usize,
     base_bytes: usize,
     base_delay: Duration,
 ) -> (usize, usize, Duration) {
     let (num, den) = tier.ratio();
-    let frames = scale(base_frames, num, den, ME_FRAMES_CAP).max(1);
-    let bytes = scale(base_bytes, num, den, ME_BYTES_CAP).max(4096);
+    let frames = scale(base_frames, num, den, FLUSH_FRAMES_CAP).max(1);
+    let bytes = scale(base_bytes, num, den, FLUSH_BYTES_CAP).max(4096);
     let delay_us = base_delay.as_micros() as u64;
     let adjusted_delay_us = match tier {
         AdaptiveTier::Base => delay_us,
@@ -435,8 +435,8 @@ pub fn me_flush_policy_for_tier(
         AdaptiveTier::Tier2 => delay_us.saturating_div(2),
         AdaptiveTier::Tier3 => (delay_us.saturating_mul(3)).saturating_div(10),
     }
-    .max(ME_DELAY_MIN_US)
-    .min(delay_us.max(ME_DELAY_MIN_US));
+    .max(FLUSH_DELAY_MIN_US)
+    .min(delay_us.max(FLUSH_DELAY_MIN_US));
     (frames, bytes, Duration::from_micros(adjusted_delay_us))
 }
 

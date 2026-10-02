@@ -352,8 +352,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
 | [`show`](#show) | `"*"` or `String[]` | `"*"` | `✘` |
-| [`public_host`](#public_host) | `String` | — | `✘` |
-| [`public_port`](#public_port) | `u16` | — | `✘` |
 
 ## show
   - **Constraints / validation**: `"*"` or `String[]`. An empty array means "show none".
@@ -365,24 +363,6 @@ This document lists all configuration keys accepted by `config.toml`.
     show = "*"
     # or:
     # show = ["alice", "bob"]
-    ```
-## public_host
-  - **Constraints / validation**: `String` (optional).
-  - **Description**: Public hostname/IP override used for generated `tg://` links (overrides detected IP).
-  - **Example**:
-
-    ```toml
-    [general.links]
-    public_host = "proxy.example.com"
-    ```
-## public_port
-  - **Constraints / validation**: `u16` (optional).
-  - **Description**: Public port override used for generated `tg://` links (overrides `server.port`).
-  - **Example**:
-
-    ```toml
-    [general.links]
-    public_port = 443
     ```
 
 

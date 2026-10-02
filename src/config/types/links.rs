@@ -7,23 +7,12 @@ pub struct LinksConfig {
     /// `"*"` = all users, `["alice", "bob"]` = specific users.
     #[serde(default = "default_links_show")]
     pub show: ShowLink,
-
-    /// Public hostname/IP for tg:// link generation (overrides detected IP).
-    #[serde(default)]
-    pub public_host: Option<String>,
-
-    /// Public port for tg:// link generation.
-    /// Overrides listener ports and legacy `server.port`.
-    #[serde(default)]
-    pub public_port: Option<u16>,
 }
 
 impl Default for LinksConfig {
     fn default() -> Self {
         Self {
             show: default_links_show(),
-            public_host: None,
-            public_port: None,
         }
     }
 }

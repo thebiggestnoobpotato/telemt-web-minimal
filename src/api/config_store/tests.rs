@@ -60,7 +60,7 @@ async fn save_general_section_keeps_subtables_dotted_without_duplicates() {
     tokio::fs::write(
         &path,
         "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
-         [general.links]\npublic_host = \"old.example\"\n\n[server]\nport = 443\n",
+         [general.links]\nshow = \"*\"\n\n[server]\nport = 443\n",
     )
     .await
     .unwrap();
@@ -108,7 +108,7 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
     tokio::fs::write(
         &path,
         "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
-         [general.links]\npublic_host = \"old.example\"\n",
+         [general.links]\nshow = \"*\"\n",
     )
     .await
     .unwrap();
@@ -134,7 +134,7 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
 #[test]
 fn find_bounds_spans_dotted_subtables() {
     let src = "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
-               [general.links]\npublic_host = \"a\"\n\n[server]\nport = 1\n";
+               [general.links]\nshow = \"*\"\n\n[server]\nport = 1\n";
     let bounds = find_toml_table_bounds(src, "general");
     assert!(bounds.is_some(), "should locate [general] block");
     let (start, end) = bounds.unwrap();

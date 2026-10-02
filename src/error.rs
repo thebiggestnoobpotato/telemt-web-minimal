@@ -213,9 +213,6 @@ pub enum ProxyError {
     Io(#[from] std::io::Error),
 
     // ============= Proxy Protocol Errors =============
-    #[error("Invalid proxy protocol header")]
-    InvalidProxyProtocol,
-
     #[error("Unknown TLS SNI")]
     UnknownTlsSni,
 
@@ -437,8 +434,5 @@ mod tests {
             addr: "1.2.3.4:443".into(),
         };
         assert!(err.to_string().contains("1.2.3.4:443"));
-
-        let err = ProxyError::InvalidProxyProtocol;
-        assert!(err.to_string().contains("proxy protocol"));
     }
 }

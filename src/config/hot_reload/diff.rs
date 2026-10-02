@@ -123,14 +123,6 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
     }
 }
 
-/// Resolve the public host for link generation — mirrors the logic in main.rs.
-///
-/// Priority:
-/// 1. `[general.links] public_host` — explicit override in config
-/// 2. `detected_ip_v4` — from STUN/interface probe at startup
-/// 3. `detected_ip_v6` — fallback
-/// 4. `"UNKNOWN"` — warn the user to set `public_host`
-
 /// Which top-level config sections changed and whether any require a restart.
 #[derive(Debug, Default, Clone, serde::Serialize)]
 pub struct ChangeClassification {

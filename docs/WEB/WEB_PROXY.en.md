@@ -53,7 +53,7 @@ tg://webproxy?server=proxy.example.com&secret=dd0123456789abcdef0123456789abcdef
 tg://webproxy?server=proxy.example.com%2Ftelegram%2Fweb&secret=cAABAgMEBQYHCAkKCwwNDg8
 ```
 
-Telemt prints links at process startup for WEB profiles selected by `[general.links].show` through the existing `telemt::links` log target. Root links keep the legacy hexadecimal secret. A path link percent-encodes `HOST/BASE` in `server` and uses unpadded base64url of `0x70 || client_secret`, where `client_secret` is the raw 16-byte secret in `plain` mode or `0xdd || secret` in `dd` mode. The users API returns only the raw secret, not a WEB link. `[general.links].public_host` and `public_port` affect native links only and do not override WEB vhost links.
+Telemt prints links at process startup for WEB profiles selected by `[general.links].show` through the existing `telemt::links` log target. Root links keep the legacy hexadecimal secret. A path link percent-encodes `HOST/BASE` in `server` and uses unpadded base64url of `0x70 || client_secret`, where `client_secret` is the raw 16-byte secret in `plain` mode or `0xdd || secret` in `dd` mode. The users API returns only the raw secret, not a WEB link.
 
 ## Prerequisites
 
