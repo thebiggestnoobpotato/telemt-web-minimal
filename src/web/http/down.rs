@@ -22,7 +22,7 @@ pub(super) async fn handle_down(
     vhost: Arc<WebRuntimeVhost>,
     token_hash: TokenHash,
 ) -> HttpResponse {
-    if request.method() != hyper::Method::POST
+    if !matches!(*request.method(), hyper::Method::POST | hyper::Method::PUT)
         || request.headers().contains_key(header::CONTENT_TYPE)
     {
         return serve_decoy(request, vhost, true, &runtime).await;
@@ -65,6 +65,8 @@ pub(super) async fn handle_down(
     if !body.is_empty() {
         return serve_decoy(request, vhost, true, &runtime).await;
     }
+    // Empty polls must not retain even one byte from a conveyor head's body reserve.
+    drop(_body_budget);
     let Some(_down_poll) = runtime.try_lane_poll(false) else {
         return service_unavailable();
     };

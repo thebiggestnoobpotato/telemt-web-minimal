@@ -11,9 +11,9 @@
 //! | `network` | `dns_overrides`                | Applied immediately                            |
 //! | `access`  | All user/quota fields          | Effective immediately                          |
 //! | `web`     | Carrier, timing, and debug policy | Applied to newly issued sessions             |
-//! Fields that require re-binding sockets (`server.listeners`,
-//! `server.port`, `network.*`) are **not**
-//! applied; a warning is emitted.
+//! | `web`     | `carrier_method`               | Applied to newly rendered bridge pages        |
+//! Fields that require re-binding sockets (`server.listeners`, legacy
+//! `server.port`, `network.*`) are **not** applied; a warning is emitted.
 //! `web.decoy_fasttrack_mode` is also restart-only so one process never mixes
 //! capability timing policies or process-lifetime counter semantics.
 //! Non-hot changes are never mixed into the runtime config snapshot.
@@ -59,3 +59,11 @@ use watcher::{ReloadState, reload_config};
 mod base_path_tests;
 #[cfg(test)]
 mod tests;
+// Carrier method reloads preserve page-owned requests and process-owned limits.
+#[cfg(test)]
+#[path = "hot_reload/carrier_method_tests.rs"]
+mod carrier_method_tests;
+
+#[cfg(test)]
+#[path = "hot_reload/conveyor_tests.rs"]
+mod conveyor_tests;

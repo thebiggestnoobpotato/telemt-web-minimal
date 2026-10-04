@@ -29,6 +29,7 @@ use super::{
 // Shared maestro startup and main loop. `drop_after_bind` runs on Unix after listeners are
 // bound; it is a no-op on other platforms.
 pub(super) async fn run_telemt_core(
+    strict_runtime_paths: bool,
     drop_after_bind: impl FnOnce(),
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
     let bootstrap::BootstrapState {
@@ -41,7 +42,7 @@ pub(super) async fn run_telemt_core(
         effective_log_level,
         runtime_log_filter,
         logging_guard: _logging_guard,
-    } = bootstrap::bootstrap().await?;
+    } = bootstrap::bootstrap(strict_runtime_paths).await?;
 
     let quota_store = Arc::new(QuotaStore::default());
     let connection_authority = Arc::new(UserConnectionAuthority::default());

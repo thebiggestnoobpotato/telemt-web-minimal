@@ -58,6 +58,8 @@ pub struct LoggingOptions {
     pub destination: LogDestination,
     /// Disable ANSI colors.
     pub disable_colors: bool,
+    /// Require trusted, symlink-free log parents on Unix. Disabled by default for compatibility.
+    pub strict_runtime_paths: bool,
 }
 
 /// Guard that must be held to keep file logging active.
@@ -106,7 +108,6 @@ pub fn init_logging(
 
         #[cfg(unix)]
         LogDestination::Syslog => {
-            // Use a custom fmt layer that writes to syslog
             let fmt_layer = fmt::Layer::default()
                 .with_ansi(false)
                 .with_target(false)
@@ -124,7 +125,8 @@ pub fn init_logging(
 
         LogDestination::File { path } => {
             let file_appender =
-                file::AppendFileAppender::new(path).expect("Failed to open log file");
+                file::AppendFileAppender::new(path, opts.strict_runtime_paths)
+                    .expect("Failed to open log file");
             let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
             let fmt_layer = fmt::Layer::default()
@@ -156,14 +158,10 @@ struct SyslogWriter {
 #[cfg(unix)]
 impl SyslogMakeWriter {
     fn new() -> Self {
-        // Open syslog connection on first use
         static INIT: std::sync::Once = std::sync::Once::new();
-        INIT.call_once(|| {
-            unsafe {
-                // Open syslog with ident "telemt", LOG_PID, LOG_DAEMON facility
-                let ident = b"telemt\0".as_ptr() as *const libc::c_char;
-                libc::openlog(ident, libc::LOG_PID | libc::LOG_NDELAY, libc::LOG_DAEMON);
-            }
+        INIT.call_once(|| unsafe {
+            let ident = b"telemt\0".as_ptr() as *const libc::c_char;
+            libc::openlog(ident, libc::LOG_PID | libc::LOG_NDELAY, libc::LOG_DAEMON);
         });
         Self
     }
@@ -183,7 +181,6 @@ fn syslog_priority_for_level(level: &tracing::Level) -> libc::c_int {
 #[cfg(unix)]
 impl std::io::Write for SyslogWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        // Convert to C string, stripping newlines
         let msg = String::from_utf8_lossy(buf);
         let msg = msg.trim_end();
 
@@ -191,7 +188,6 @@ impl std::io::Write for SyslogWriter {
             return Ok(buf.len());
         }
 
-        // Write to syslog
         let c_msg = std::ffi::CString::new(msg.as_bytes())
             .unwrap_or_else(|_| std::ffi::CString::new("(invalid utf8)").unwrap());
 

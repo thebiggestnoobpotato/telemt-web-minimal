@@ -1,5 +1,6 @@
 use base64::Engine as _;
 
+use crate::config::WebCarrierMethod;
 use crate::crypto::SecureRandom;
 
 /// Browser security policy for the transient Telegram Desktop bridge page.
@@ -34,6 +35,7 @@ pub(crate) fn render(
     reconnect_grace_secs: u64,
     carrier_probe_coalesce_ms: u64,
     bridge_diagnostics_enabled: bool,
+    carrier_method: WebCarrierMethod,
     rng: &SecureRandom,
 ) -> BridgePage {
     let mut nonce = [0u8; 18];
@@ -63,6 +65,8 @@ pub(crate) fn render(
         .replace("__REQUEST_RUNTIME__", REQUEST_RUNTIME)
         .replace("__BUFFER_RUNTIME__", BUFFER_RUNTIME)
         .replace("__RECOVERY_RUNTIME__", RECOVERY_RUNTIME)
+        .replace("__DOWNLINK_RUNTIME__", DOWNLINK_RUNTIME)
+        .replace("__CONVEYOR_RUNTIME__", CONVEYOR_RUNTIME)
         .replace("__RUNTIME__", RUNTIME)
         .replace(
             "__DIAGNOSTIC_BINDING__;\n",
@@ -124,6 +128,7 @@ pub(crate) fn render(
         .replace("__HOST__", host)
         .replace("__BASE_PREFIX__", base_prefix)
         .replace("__BOOTSTRAP__", bootstrap)
+        .replace("__CARRIER_METHOD__", carrier_method.as_str())
         .replace("__BATCH_LIMIT__", &batch_limit.to_string())
         .replace("__QUEUE_LIMIT__", &queue_limit.to_string())
         .replace("__QUEUE_ITEMS__", &queue_items.to_string())
@@ -171,6 +176,8 @@ const RESPONSE_RUNTIME: &str = include_str!("bridge/response.js");
 const REQUEST_RUNTIME: &str = include_str!("bridge/request.js");
 const BUFFER_RUNTIME: &str = include_str!("bridge/buffers.js");
 const RECOVERY_RUNTIME: &str = include_str!("bridge/recovery.js");
+const DOWNLINK_RUNTIME: &str = include_str!("bridge/downlink.js");
+const CONVEYOR_RUNTIME: &str = include_str!("bridge/conveyor.js");
 const RUNTIME: &str = include_str!("bridge/runtime.js");
 
 // Rendered wire-contract tests remain separate from the embedded document.

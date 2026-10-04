@@ -19,7 +19,8 @@ pub(crate) struct AppendFileAppender {
 }
 
 impl AppendFileAppender {
-    pub(crate) fn new(path: &str) -> io::Result<Self> {
+    /// Opens the appender using the process-level Unix parent-path policy.
+    pub(crate) fn new(path: &str, strict_runtime_paths: bool) -> io::Result<Self> {
         let path = Path::new(path);
         #[cfg(unix)]
         {
@@ -33,12 +34,17 @@ impl AppendFileAppender {
                 .ok_or_else(|| {
                     io::Error::new(io::ErrorKind::InvalidInput, "log path has no file name")
                 })?;
-            let dir_fd = crate::util::secure_fs::open_trusted_dir_nofollow_or_create(&dir, 0o750)?;
+            let dir_fd = if strict_runtime_paths {
+                crate::util::secure_fs::open_trusted_dir_nofollow_or_create(&dir, 0o750)?
+            } else {
+                crate::util::secure_fs::open_compatible_dir(&dir, Some(0o750))?
+            };
             let file = crate::util::secure_fs::open_append_regular_at(&dir_fd, name, 0o640)?;
             Ok(Self { file })
         }
         #[cfg(not(unix))]
         {
+            let _ = strict_runtime_paths;
             let mut options = OpenOptions::new();
             options.create(true).append(true);
 
