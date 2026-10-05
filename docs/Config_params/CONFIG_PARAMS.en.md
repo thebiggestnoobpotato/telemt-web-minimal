@@ -54,7 +54,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`destination`](#loggingdestination) | `"stderr"` / `"syslog"` / `"file"` | `"stderr"` | `✘` |
 | [`path`](#loggingpath) | `String` | — | `✘` |
 | [`log_level`](#logginglog_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
-| [`disable_colors`](#loggingdisable_colors) | `bool` | `false` | `✘` |
 | [`unknown_dc_log_enabled`](#loggingunknown_dc_log_enabled) | `bool` | `false` | `✘` |
 
 ## logging.destination
@@ -85,15 +84,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [logging]
     log_level = "normal"
-    ```
-## logging.disable_colors
-  - **Constraints / validation**: `bool`.
-  - **Description**: Disables ANSI colors in logs (useful for files/systemd). This affects log formatting only and does not change the log level/filtering.
-  - **Example**:
-
-    ```toml
-    [logging]
-    disable_colors = false
     ```
 ## logging.unknown_dc_log_enabled
   - **Constraints / validation**: `bool`.

@@ -10,7 +10,6 @@ use crate::startup::{COMPONENT_CONFIG_LOAD, COMPONENT_TRACING_INIT, StartupTrack
 
 use super::helpers::{
     parse_cli, print_maestro_line, resolve_runtime_base_dir, resolve_runtime_config_path,
-    set_maestro_colors_enabled,
 };
 use super::runtime_tasks;
 
@@ -226,7 +225,6 @@ pub(super) async fn bootstrap(
         }
     }
 
-    set_maestro_colors_enabled(!config.logging.disable_colors);
     startup_tracker
         .complete_component(COMPONENT_CONFIG_LOAD, Some("config is ready".to_string()))
         .await;
@@ -261,11 +259,7 @@ pub(super) async fn bootstrap(
     let logging_guard: Option<crate::logging::LoggingGuard>;
     match log_destination {
         crate::logging::LogDestination::Stderr => {
-            let fmt_layer = if config.logging.disable_colors {
-                fmt::Layer::default().with_ansi(false)
-            } else {
-                fmt::Layer::default().with_ansi(true)
-            };
+            let fmt_layer = fmt::Layer::default().with_ansi(false);
             tracing_subscriber::registry()
                 .with(filter_layer)
                 .with(fmt_layer)
@@ -276,7 +270,6 @@ pub(super) async fn bootstrap(
         crate::logging::LogDestination::Syslog => {
             let logging_opts = crate::logging::LoggingOptions {
                 destination: log_destination,
-                disable_colors: true,
                 strict_runtime_paths,
             };
             let (_, guard) = crate::logging::init_logging(&logging_opts, &initial_filter_spec);
@@ -285,7 +278,6 @@ pub(super) async fn bootstrap(
         crate::logging::LogDestination::File { .. } => {
             let logging_opts = crate::logging::LoggingOptions {
                 destination: log_destination,
-                disable_colors: true,
                 strict_runtime_paths,
             };
             let (_, guard) = crate::logging::init_logging(&logging_opts, &initial_filter_spec);
@@ -303,9 +295,6 @@ pub(super) async fn bootstrap(
 
     print_maestro_line(format!("Telemt MTProxy v{}", env!("CARGO_PKG_VERSION")));
     info!("Log level: {}", effective_log_level);
-    if config.logging.disable_colors {
-        info!("Colors: disabled");
-    }
     if config.web.enabled {
         info!(
             "WEB: enabled ({} vhost(s), carrier={:?})",

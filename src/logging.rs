@@ -56,8 +56,6 @@ pub struct LogCliOptions {
 pub struct LoggingOptions {
     /// Where to send logs.
     pub destination: LogDestination,
-    /// Disable ANSI colors.
-    pub disable_colors: bool,
     /// Require trusted, symlink-free log parents on Unix. Disabled by default for compatibility.
     pub strict_runtime_paths: bool,
 }
@@ -95,7 +93,7 @@ pub fn init_logging(
     match &opts.destination {
         LogDestination::Stderr => {
             let fmt_layer = fmt::Layer::default()
-                .with_ansi(!opts.disable_colors)
+                .with_ansi(false)
                 .with_target(true);
 
             tracing_subscriber::registry()

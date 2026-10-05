@@ -227,8 +227,7 @@ pub(crate) fn resolve_reload_config(
     // `logging.log_level` is hot-reloadable; the remaining logging fields are
     // process-owned and deferred until restart.
     let logging_process_fields_changed =
-        old.logging.disable_colors != desired.logging.disable_colors
-            || old.logging.destination != desired.logging.destination
+        old.logging.destination != desired.logging.destination
             || old.logging.path != desired.logging.path
             || old.logging.unknown_dc_log_enabled
                 != desired.logging.unknown_dc_log_enabled;

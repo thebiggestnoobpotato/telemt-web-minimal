@@ -1,33 +1,15 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::cli;
 use crate::logging::LogCliOptions;
 
-const MAESTRO_COLOR: &str = "\x1b[92m";
-const COLOR_RESET: &str = "\x1b[0m";
-
-static MAESTRO_COLORS_ENABLED: AtomicBool = AtomicBool::new(true);
-
-/// Enables or disables ANSI color in direct MAESTRO status lines.
-pub(crate) fn set_maestro_colors_enabled(enabled: bool) {
-    MAESTRO_COLORS_ENABLED.store(enabled, Ordering::Relaxed);
-}
-
-fn format_maestro_line(message: impl AsRef<str>, colors_enabled: bool) -> String {
-    if colors_enabled {
-        format!("{MAESTRO_COLOR}MAESTRO{COLOR_RESET}: {}", message.as_ref())
-    } else {
-        format!("MAESTRO: {}", message.as_ref())
-    }
+fn format_maestro_line(message: impl AsRef<str>) -> String {
+    format!("MAESTRO: {}", message.as_ref())
 }
 
 /// Prints a direct MAESTRO status line outside the tracing subscriber.
 pub(crate) fn print_maestro_line(message: impl AsRef<str>) {
-    eprintln!(
-        "{}",
-        format_maestro_line(message, MAESTRO_COLORS_ENABLED.load(Ordering::Relaxed))
-    );
+    eprintln!("{}", format_maestro_line(message));
 }
 
 /// Resolves the config source against startup cwd while retaining symlink components.

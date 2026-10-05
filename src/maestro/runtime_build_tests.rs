@@ -65,7 +65,7 @@ fn process_socket_and_logging_changes_are_deferred() {
     let old = ProxyConfig::default();
     let mut new = old.clone();
     new.server.listen_backlog = new.server.listen_backlog.saturating_add(1);
-    new.logging.disable_colors = !new.logging.disable_colors;
+    new.logging.destination = crate::config::LoggingDestination::File;
 
     let fields = deferred_process_fields(&old, &new).unwrap();
     assert!(fields.contains(&"server.listeners".to_string()));
@@ -165,7 +165,7 @@ fn process_field_labels_are_stable_ordered_and_unique() {
         .api
         .runtime_edge_events_capacity
         .saturating_add(1);
-    desired.logging.disable_colors = !desired.logging.disable_colors;
+    desired.logging.destination = crate::config::LoggingDestination::File;
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 

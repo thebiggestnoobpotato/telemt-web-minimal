@@ -7,16 +7,10 @@ use super::{
 use crate::error::{ProxyError, StreamError};
 
 #[test]
-fn maestro_line_formatter_respects_disabled_colors() {
-    let plain = format_maestro_line("boot", false);
-    assert_eq!(plain, "MAESTRO: boot");
-    assert!(!plain.contains('\x1b'));
-}
-
-#[test]
-fn maestro_line_formatter_keeps_color_when_enabled() {
-    let colored = format_maestro_line("boot", true);
-    assert!(colored.contains("\x1b[92mMAESTRO\x1b[0m"));
+fn maestro_line_formatter_is_always_plain() {
+    let line = format_maestro_line("boot");
+    assert_eq!(line, "MAESTRO: boot");
+    assert!(!line.contains('\x1b'));
 }
 
 #[test]

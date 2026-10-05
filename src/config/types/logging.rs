@@ -75,9 +75,6 @@ pub struct LoggingConfig {
     /// Runtime logging verbosity level.
     #[serde(default)]
     pub log_level: LogLevel,
-    /// Disable colored output in logs (useful for files/systemd).
-    #[serde(default)]
-    pub disable_colors: bool,
     /// Enable unknown-DC logging: distinct unknown DC indices are recorded
     /// once each in the main log destination.
     #[serde(default = "default_unknown_dc_log_enabled")]
@@ -90,7 +87,6 @@ impl Default for LoggingConfig {
             destination: LoggingDestination::Stderr,
             path: None,
             log_level: LogLevel::Normal,
-            disable_colors: false,
             unknown_dc_log_enabled: default_unknown_dc_log_enabled(),
         }
     }
