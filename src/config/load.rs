@@ -9,7 +9,6 @@ use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 use crate::crypto::sha256;
-use tracing::warn;
 
 use crate::error::{ProxyError, Result};
 

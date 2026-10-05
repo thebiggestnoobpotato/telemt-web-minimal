@@ -6,7 +6,6 @@ impl Default for GeneralConfig {
             data_path: None,
             quota_state_path: default_quota_state_path(),
             config_strict: false,
-            prefer_ipv6: false,
             network_ipv4: default_true(),
             network_ipv6: default_network_ipv6(),
             network_prefer: default_prefer_4(),

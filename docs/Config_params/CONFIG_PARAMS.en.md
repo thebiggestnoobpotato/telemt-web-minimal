@@ -113,7 +113,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`data_path`](#data_path) | `String` | — | `✘` |
 | [`quota_state_path`](#quota_state_path) | `Path` | `"telemt.limit.json"` | `✘` |
 | [`config_strict`](#config_strict) | `bool` | `false` | `✘` |
-| [`prefer_ipv6`](#prefer_ipv6) | `bool` | `false` | `✘` |
 | [`network_ipv4`](#network_ipv4) | `bool` | `true` | `✘` |
 | [`network_ipv6`](#network_ipv6) | `bool` | `false` | `✘` |
 | [`network_prefer`](#network_prefer) | `u8` | `4` | `✘` |
@@ -163,15 +162,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```
 
   - **Known limitation**: In this revision, `config_strict = true` rejects the otherwise supported `access.user_source_deny` and `[[upstreams]].prefer` keys. Keep strict mode disabled when either key is present.
-## prefer_ipv6
-  - **Constraints / validation**: Deprecated. Use `general.network_prefer`.
-  - **Description**: Deprecated legacy IPv6 preference flag migrated to `general.network_prefer`.
-  - **Example**:
-
-    ```toml
-    [general]
-    network_prefer = 6
-    ```
 ## network_ipv4
   - **Constraints / validation**: `bool`.
   - **Description**: Allow IPv4 Telegram DC targets.

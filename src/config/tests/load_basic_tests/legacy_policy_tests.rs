@@ -89,7 +89,7 @@ fn load_with_metadata_collects_include_files() {
             include = "included.toml"
 
             [general]
-            prefer_ipv6 = false
+            fast_mode = true
         "#,
     )
     .unwrap();

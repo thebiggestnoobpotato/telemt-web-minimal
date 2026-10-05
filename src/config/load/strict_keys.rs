@@ -18,7 +18,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "data_path",
     "quota_state_path",
     "config_strict",
-    "prefer_ipv6",
     "network_ipv4",
     "network_ipv6",
     "network_prefer",

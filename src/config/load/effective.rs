@@ -1,14 +1,6 @@
 use super::*;
 
 pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
-    // Migration: prefer_ipv6 -> general.network_prefer.
-    if config.general.prefer_ipv6 {
-        if config.general.network_prefer == 4 {
-            config.general.network_prefer = 6;
-        }
-        warn!("prefer_ipv6 is deprecated, use [general].network_prefer = 6");
-    }
-
     validate_network_cfg(&mut config.general)?;
 
     // Migration: listeners[].port fallback to legacy server.port.

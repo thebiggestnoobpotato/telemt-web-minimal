@@ -9,7 +9,7 @@ fn api_minimal_runtime_cache_ttl_out_of_range_is_rejected() {
         minimal_runtime_cache_ttl_ms = 70000
 
         [general]
-        prefer_ipv6 = false
+        fast_mode = true
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -31,7 +31,7 @@ fn api_runtime_edge_cache_ttl_out_of_range_is_rejected() {
         runtime_edge_cache_ttl_ms = 70000
 
         [general]
-        prefer_ipv6 = false
+        fast_mode = true
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -53,7 +53,7 @@ fn api_runtime_edge_top_n_out_of_range_is_rejected() {
         runtime_edge_top_n = 0
 
         [general]
-        prefer_ipv6 = false
+        fast_mode = true
 
         [access.users]
         user = "00000000000000000000000000000000"
@@ -75,7 +75,7 @@ fn api_runtime_edge_events_capacity_out_of_range_is_rejected() {
         runtime_edge_events_capacity = 8
 
         [general]
-        prefer_ipv6 = false
+        fast_mode = true
 
         [access.users]
         user = "00000000000000000000000000000000"

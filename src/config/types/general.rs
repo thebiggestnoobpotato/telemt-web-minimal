@@ -10,8 +10,6 @@ pub struct GeneralConfig {
     /// Startup fails fast; hot-reload rejects the new snapshot and keeps the current config.
     #[serde(default)]
     pub config_strict: bool,
-    #[serde(default)]
-    pub prefer_ipv6: bool,
     /// Allow IPv4 Telegram DC targets.
     #[serde(default = "default_true")]
     pub network_ipv4: bool,

@@ -144,6 +144,25 @@ fn general_telemetry_key_is_stripped_from_general() {
 }
 
 #[test]
+fn prefer_ipv6_key_is_stripped_from_general() {
+    // strict: the removed prefer_ipv6 alias is rejected; the family
+    // preference now lives in network_prefer.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\nprefer_ipv6 = true\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("prefer_ipv6"), "{error}");
+
+    // non-strict: the removed key is silently ignored and no longer
+    // affects the family preference.
+    let cfg = load_config_from_temp_toml(
+        "[general]\nprefer_ipv6 = true\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.general.network_prefer, default_prefer_4());
+}
+
+#[test]
 fn network_section_is_stripped_into_general() {
     // strict: the removed [network] section is rejected; its keys now live
     // in [general] as network_ipv4 / network_ipv6 / network_prefer.
