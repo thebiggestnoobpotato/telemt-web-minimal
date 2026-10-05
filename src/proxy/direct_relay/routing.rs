@@ -46,7 +46,7 @@ pub(super) fn get_dc_addr_static(dc_idx: i16, config: &ProxyConfig) -> Result<So
         );
         // Record each distinct unknown DC index once in the main log
         // destination; the switch gates both the record and the dedup slot.
-        if config.logging.unknown_dc_file_log_enabled
+        if config.logging.unknown_dc_log_enabled
             && should_log_unknown_dc(dc_idx)
         {
             warn!(dc_idx = dc_idx, "unknown_dc");

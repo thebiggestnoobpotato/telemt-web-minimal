@@ -251,7 +251,7 @@ const LOGGING_CONFIG_KEYS: &[&str] = &[
     "path",
     "log_level",
     "disable_colors",
-    "unknown_dc_file_log_enabled",
+    "unknown_dc_log_enabled",
 ];
 
 // Recursive table traversal and key suggestion logic.

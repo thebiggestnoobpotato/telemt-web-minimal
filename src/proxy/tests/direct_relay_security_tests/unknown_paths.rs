@@ -72,7 +72,7 @@ fn unknown_dc_log_switch_gates_dedup_slot() {
     );
 
     let mut on_cfg = ProxyConfig::default();
-    on_cfg.logging.unknown_dc_file_log_enabled = true;
+    on_cfg.logging.unknown_dc_log_enabled = true;
     assert!(
         get_dc_addr_static(31_124, &on_cfg).is_ok(),
         "fallback routing must still work with the switch on"

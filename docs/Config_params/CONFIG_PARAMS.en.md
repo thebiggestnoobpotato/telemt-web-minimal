@@ -55,7 +55,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`path`](#loggingpath) | `String` | — | `✘` |
 | [`log_level`](#logginglog_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
 | [`disable_colors`](#loggingdisable_colors) | `bool` | `false` | `✘` |
-| [`unknown_dc_file_log_enabled`](#loggingunknown_dc_file_log_enabled) | `bool` | `false` | `✘` |
+| [`unknown_dc_log_enabled`](#loggingunknown_dc_log_enabled) | `bool` | `false` | `✘` |
 
 ## logging.destination
   - **Constraints / validation**: Must be `stderr`, `syslog`, or `file`. `syslog` is supported only on Unix platforms. `file` requires `logging.path`.
@@ -95,14 +95,14 @@ This document lists all configuration keys accepted by `config.toml`.
     [logging]
     disable_colors = false
     ```
-## logging.unknown_dc_file_log_enabled
+## logging.unknown_dc_log_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables unknown-DC logging: when a client requests a non-standard DC index that has no matching `dc_overrides` entry, each distinct index is recorded once as a `dc_idx=<N>` line in the main log destination. Logging is deduplicated and capped (only the first 1024 distinct unknown DC indices are recorded).
   - **Example**:
 
     ```toml
     [logging]
-    unknown_dc_file_log_enabled = false
+    unknown_dc_log_enabled = false
     ```
 
 # [general]

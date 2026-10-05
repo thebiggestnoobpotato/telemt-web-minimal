@@ -80,8 +80,8 @@ pub struct LoggingConfig {
     pub disable_colors: bool,
     /// Enable unknown-DC logging: distinct unknown DC indices are recorded
     /// once each in the main log destination.
-    #[serde(default = "default_unknown_dc_file_log_enabled")]
-    pub unknown_dc_file_log_enabled: bool,
+    #[serde(default = "default_unknown_dc_log_enabled")]
+    pub unknown_dc_log_enabled: bool,
 }
 
 impl Default for LoggingConfig {
@@ -91,7 +91,7 @@ impl Default for LoggingConfig {
             path: None,
             log_level: LogLevel::Normal,
             disable_colors: false,
-            unknown_dc_file_log_enabled: default_unknown_dc_file_log_enabled(),
+            unknown_dc_log_enabled: default_unknown_dc_log_enabled(),
         }
     }
 }
