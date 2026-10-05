@@ -70,4 +70,17 @@ pub struct GeneralConfig {
     /// `always` — SO_LINGER(0) on accept, never cleared; all closes send RST.
     #[serde(default)]
     pub rst_on_close: RstOnCloseMode,
+    /// DC address overrides for non-standard DCs (CDN, media, test, etc.)
+    /// Keys are DC indices as strings, values are one or more "ip:port" addresses.
+    /// Matches the C implementation's `proxy_for <dc_id> <ip>:<port>` config directive.
+    /// Example in config.toml:
+    ///   [general.dc_overrides]
+    ///   "203" = ["149.154.175.100:443", "91.105.192.100:443"]
+    #[serde(default, deserialize_with = "deserialize_dc_overrides")]
+    pub dc_overrides: HashMap<String, Vec<String>>,
+    /// Default DC index (1-5) for unmapped non-standard DCs.
+    /// Matches the C implementation's `default <dc_id>` config directive.
+    /// If not set, defaults to 2 (matching Telegram's official `default 2;` in proxy-multi.conf).
+    #[serde(default)]
+    pub default_dc: Option<u8>,
 }

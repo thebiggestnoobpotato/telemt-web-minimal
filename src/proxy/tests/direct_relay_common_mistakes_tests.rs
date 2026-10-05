@@ -8,7 +8,7 @@ use std::sync::Mutex;
 #[test]
 fn common_invalid_override_entries_fallback_to_static_table() {
     let mut cfg = ProxyConfig::default();
-    cfg.dc_overrides.insert(
+    cfg.general.dc_overrides.insert(
         "2".to_string(),
         vec!["bad-address".to_string(), "still-bad".to_string()],
     );
@@ -24,7 +24,7 @@ fn common_prefer_v6_with_only_ipv4_override_uses_override_instead_of_ignoring_it
     let mut cfg = ProxyConfig::default();
     cfg.network.prefer = 6;
     cfg.network.ipv6 = Some(true);
-    cfg.dc_overrides
+    cfg.general.dc_overrides
         .insert("3".to_string(), vec!["203.0.113.203:443".to_string()]);
 
     let resolved =

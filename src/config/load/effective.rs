@@ -40,7 +40,7 @@ pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
 
     // Ensure default DC203 override is present.
     config
-        .dc_overrides
+        .general.dc_overrides
         .entry("203".to_string())
         .or_insert_with(|| vec!["91.105.192.100:443".to_string()]);
 

@@ -6,7 +6,7 @@ fn fallback_dc_never_panics_with_single_dc_list() {
     let mut cfg = ProxyConfig::default();
     cfg.network.prefer = 6;
     cfg.network.ipv6 = Some(true);
-    cfg.default_dc = Some(42);
+    cfg.general.default_dc = Some(42);
 
     let addr = get_dc_addr_static(999, &cfg).expect("fallback dc must resolve safely");
     let expected = SocketAddr::new(TG_DATACENTERS_V6[0], TG_DATACENTER_PORT);
@@ -27,7 +27,7 @@ async fn direct_relay_abort_midflight_releases_route_gauge() {
     let stats = Arc::new(Stats::new());
     let mut config = ProxyConfig::default();
     config
-        .dc_overrides
+        .general.dc_overrides
         .insert("2".to_string(), vec![tg_addr.to_string()]);
     let config = Arc::new(config);
 

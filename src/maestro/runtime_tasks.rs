@@ -98,7 +98,7 @@ pub(crate) async fn spawn_runtime_tasks(
     config_watcher_activation: Option<watch::Receiver<bool>>,
 ) -> RuntimeWatches {
     let um_clone = upstream_manager.clone();
-    let dc_overrides_for_health = config.dc_overrides.clone();
+    let dc_overrides_for_health = config.general.dc_overrides.clone();
     task_scope.spawn(async move {
         um_clone
             .run_health_checks(

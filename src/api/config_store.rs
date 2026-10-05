@@ -310,7 +310,6 @@ pub(super) const EDITABLE_SECTIONS: &[&str] = &[
     "logging",
     "timeouts",
     "upstreams",
-    "dc_overrides",
     "web",
 ];
 

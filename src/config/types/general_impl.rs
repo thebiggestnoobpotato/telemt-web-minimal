@@ -22,6 +22,8 @@ impl Default for GeneralConfig {
             telemetry: TelemetryConfig::default(),
             links: LinksConfig::default(),
             rst_on_close: RstOnCloseMode::default(),
+            dc_overrides: HashMap::new(),
+            default_dc: None,
         }
     }
 }

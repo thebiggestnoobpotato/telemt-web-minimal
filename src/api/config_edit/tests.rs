@@ -51,11 +51,11 @@ async fn carrier_method_api_rejects_invalid_values_without_writing() {
 
 #[test]
 fn json_object_converts_to_toml_table() {
-    let j: Json = serde_json::json!({"general": {"prefer_ipv6": false}, "default_dc": 2});
+    let j: Json = serde_json::json!({"general": {"prefer_ipv6": false}, "sample": 2});
     let t = json_to_toml(&j).expect("convertible");
     let table = t.as_table().unwrap();
     assert_eq!(table["general"]["prefer_ipv6"].as_bool(), Some(false));
-    assert_eq!(table["default_dc"].as_integer(), Some(2));
+    assert_eq!(table["sample"].as_integer(), Some(2));
 }
 
 #[test]

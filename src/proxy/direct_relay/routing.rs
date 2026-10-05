@@ -11,7 +11,7 @@ pub(super) fn get_dc_addr_static(dc_idx: i16, config: &ProxyConfig) -> Result<So
     let num_dcs = datacenters.len();
 
     let dc_key = dc_idx.to_string();
-    if let Some(addrs) = config.dc_overrides.get(&dc_key) {
+    if let Some(addrs) = config.general.dc_overrides.get(&dc_key) {
         let mut parsed = Vec::new();
         for addr_str in addrs {
             match addr_str.parse::<SocketAddr>() {
@@ -39,7 +39,7 @@ pub(super) fn get_dc_addr_static(dc_idx: i16, config: &ProxyConfig) -> Result<So
     }
 
     // Unknown DC requested by client without override: log and fall back.
-    if !config.dc_overrides.contains_key(&dc_key) {
+    if !config.general.dc_overrides.contains_key(&dc_key) {
         warn!(
             dc_idx = dc_idx,
             "Requested non-standard DC with no override; falling back to default cluster"
@@ -64,7 +64,7 @@ pub(super) fn get_dc_addr_static(dc_idx: i16, config: &ProxyConfig) -> Result<So
         }
     }
 
-    let default_dc = config.default_dc.unwrap_or(2) as usize;
+    let default_dc = config.general.default_dc.unwrap_or(2) as usize;
     let fallback_idx = if default_dc >= 1 && default_dc <= num_dcs {
         default_dc - 1
     } else {

@@ -56,14 +56,14 @@ fn api_gray_action_parses_and_defaults_to_drop() {
 #[test]
 fn dc_overrides_allow_string_and_array() {
     let toml = r#"
-        [dc_overrides]
+        [general.dc_overrides]
         "201" = "149.154.175.50:443"
         "202" = ["149.154.167.51:443", "149.154.175.100:443"]
     "#;
     let cfg: ProxyConfig = toml::from_str(toml).unwrap();
-    assert_eq!(cfg.dc_overrides["201"], vec!["149.154.175.50:443"]);
+    assert_eq!(cfg.general.dc_overrides["201"], vec!["149.154.175.50:443"]);
     assert_eq!(
-        cfg.dc_overrides["202"],
+        cfg.general.dc_overrides["202"],
         vec!["149.154.167.51:443", "149.154.175.100:443"]
     );
 }
@@ -121,7 +121,7 @@ fn dc_overrides_inject_dc203_default() {
     std::fs::write(&path, toml).unwrap();
     let cfg = ProxyConfig::load(&path).unwrap();
     assert!(
-        cfg.dc_overrides
+        cfg.general.dc_overrides
             .get("203")
             .map(|v| v.contains(&"91.105.192.100:443".to_string()))
             .unwrap_or(false)

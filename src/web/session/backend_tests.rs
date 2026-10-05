@@ -89,7 +89,7 @@ fn test_runtime_with_dc(
     config.web.timeouts.shutdown_secs = 1;
     if let Some(dc_addr) = dc_addr {
         config
-            .dc_overrides
+            .general.dc_overrides
             .insert("2".to_string(), vec![dc_addr.to_string()]);
         config.upstreams.push(UpstreamConfig {
             upstream_type: UpstreamType::Direct {

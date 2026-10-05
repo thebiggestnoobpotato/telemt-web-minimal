@@ -11,8 +11,6 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "timeouts",
     "access",
     "upstreams",
-    "dc_overrides",
-    "default_dc",
     "include",
 ];
 
@@ -36,6 +34,8 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "telemetry",
     "links",
     "rst_on_close",
+    "dc_overrides",
+    "default_dc",
 ];
 
 const NETWORK_CONFIG_KEYS: &[&str] = &[

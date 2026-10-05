@@ -29,7 +29,7 @@ pub(crate) async fn run_startup_connectivity(
     let ping_results = upstream_manager
         .ping_all_dcs(
             prefer_ipv6,
-            &config.dc_overrides,
+            &config.general.dc_overrides,
             decision.ipv4_dc,
             decision.ipv6_dc,
         )

@@ -38,9 +38,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
 | [`include`](#include) | `String` (special directive) | — | `✔` |
-| [`logging`](#logging) | Table | default values | `✘` |
-| [`dc_overrides`](#dc_overrides) | `Map<String, String or String[]>` | `{}` | `✘` |
-| [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
 
 ## include
   - **Constraints / validation**: Must be a single-line directive in the form `include = "path/to/file.toml"`. Includes are expanded before TOML parsing. Maximum include depth is 10.
@@ -50,27 +47,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     include = "secrets.toml"
     ```
-## dc_overrides
-  - **Constraints / validation**: Key must be a positive integer DC index encoded as string (e.g. `"203"`). Values must parse as `SocketAddr` (`ip:port`). Empty strings are ignored.
-  - **Description**: Overrides DC endpoints for non-standard DCs; key is DC index string, value is one or more `ip:port` addresses.
-  - **Example**:
-
-    ```toml
-    [dc_overrides]
-    "201" = "149.154.175.50:443"
-    "203" = ["149.154.175.100:443", "91.105.192.100:443"]
-    ```
-## default_dc
-  - **Constraints / validation**: Intended range is `1..=5`. If set out of range, runtime falls back to DC1 behavior in direct relay.
-  - **Description**: Default DC index used for unmapped non-standard DCs.
-  - **Example**:
-
-    ```toml
-    # When a client requests an unknown/non-standard DC with no override,
-    # route it to this default cluster (1..=5).
-    default_dc = 2
-    ```
-
 # [logging]
 
 | Key | Type | Default | Hot-Reload |
@@ -161,6 +137,8 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`upstream_unhealthy_fail_threshold`](#upstream_unhealthy_fail_threshold) | `u32` | `5` | `✘` |
 | [`upstream_connect_failfast_hard_errors`](#upstream_connect_failfast_hard_errors) | `bool` | `false` | `✘` |
 | [`rst_on_close`](#rst_on_close) | `"off"`, `"errors"`, or `"always"` | `"off"` | `✘` |
+| [`dc_overrides`](#dc_overrides) | `Map<String, String or String[]>` | `{}` | `✘` |
+| [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
 
 ## data_path
   - **Constraints / validation**: `String` (optional).
@@ -321,6 +299,27 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     rst_on_close = "errors"
+    ```
+## dc_overrides
+  - **Constraints / validation**: Key must be a positive integer DC index encoded as string (e.g. `"203"`). Values must parse as `SocketAddr` (`ip:port`). Empty strings are ignored.
+  - **Description**: Overrides DC endpoints for non-standard DCs; key is DC index string, value is one or more `ip:port` addresses.
+  - **Example**:
+
+    ```toml
+    [general.dc_overrides]
+    "201" = "149.154.175.50:443"
+    "203" = ["149.154.175.100:443", "91.105.192.100:443"]
+    ```
+## default_dc
+  - **Constraints / validation**: Intended range is `1..=5`. If set out of range, runtime falls back to DC1 behavior in direct relay.
+  - **Description**: Default DC index used for unmapped non-standard DCs.
+  - **Example**:
+
+    ```toml
+    [general]
+    # When a client requests an unknown/non-standard DC with no override,
+    # route it to this default cluster (1..=5).
+    default_dc = 2
     ```
 
 # [general.links]

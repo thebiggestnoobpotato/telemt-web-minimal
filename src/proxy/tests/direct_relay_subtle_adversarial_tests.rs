@@ -86,7 +86,7 @@ fn subtle_light_fuzz_dc_resolution_never_panics_and_preserves_port() {
         let mut cfg = ProxyConfig::default();
         cfg.network.prefer = if (state & 1) == 0 { 4 } else { 6 };
         cfg.network.ipv6 = Some((state & 2) != 0);
-        cfg.default_dc = Some(((state >> 8) as u8).max(1));
+        cfg.general.default_dc = Some(((state >> 8) as u8).max(1));
 
         let dc_idx = (state as i16).wrapping_sub(16_384);
         let resolved = get_dc_addr_static(dc_idx, &cfg).expect("dc resolution must never fail");

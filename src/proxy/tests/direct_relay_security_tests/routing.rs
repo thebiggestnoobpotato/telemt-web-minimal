@@ -8,7 +8,7 @@ fn prefer_v6_override_matrix_prefers_matching_family_then_degrades_safely() {
     let mut cfg_a = ProxyConfig::default();
     cfg_a.network.prefer = 6;
     cfg_a.network.ipv6 = Some(true);
-    cfg_a.dc_overrides.insert(
+    cfg_a.general.dc_overrides.insert(
         dc_idx.to_string(),
         vec![
             "203.0.113.90:443".to_string(),
@@ -25,7 +25,7 @@ fn prefer_v6_override_matrix_prefers_matching_family_then_degrades_safely() {
     cfg_b.network.prefer = 6;
     cfg_b.network.ipv6 = Some(true);
     cfg_b
-        .dc_overrides
+        .general.dc_overrides
         .insert(dc_idx.to_string(), vec!["203.0.113.91:443".to_string()]);
     let b = get_dc_addr_static(dc_idx, &cfg_b).expect("v4-only override must still resolve");
     assert!(
@@ -51,7 +51,7 @@ fn prefer_v6_override_matrix_ignores_invalid_entries_and_keeps_fail_closed_fallb
     let mut cfg = ProxyConfig::default();
     cfg.network.prefer = 6;
     cfg.network.ipv6 = Some(true);
-    cfg.dc_overrides.insert(
+    cfg.general.dc_overrides.insert(
         dc_idx.to_string(),
         vec![
             "not-an-addr".to_string(),
@@ -71,7 +71,7 @@ fn stress_prefer_v6_override_matrix_is_deterministic_under_mixed_inputs() {
         let mut cfg = ProxyConfig::default();
         cfg.network.prefer = 6;
         cfg.network.ipv6 = Some(true);
-        cfg.dc_overrides.insert(
+        cfg.general.dc_overrides.insert(
             idx.to_string(),
             vec![
                 format!("203.0.113.{}:443", 100 + idx),
@@ -111,7 +111,7 @@ async fn negative_direct_relay_dc_connection_refused_fails_fast() {
 
     let mut config_with_override = ProxyConfig::default();
     config_with_override
-        .dc_overrides
+        .general.dc_overrides
         .insert("1".to_string(), vec![dc_addr.to_string()]);
     let config = Arc::new(config_with_override);
 

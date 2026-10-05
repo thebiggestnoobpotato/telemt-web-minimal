@@ -273,7 +273,7 @@ bob = ["198.51.100.42/32"]
 
 ### `PatchConfigRequest`
 
-A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `timeouts`, `upstreams`, `dc_overrides`, `web`) or the partially editable `server` object (only `listeners` is allowed under `server`; see below). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
+A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `timeouts`, `upstreams`, `web`) or the partially editable `server` object (only `listeners` is allowed under `server`; see below). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
 
 **Rejected keys:**
 - `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
@@ -306,11 +306,10 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `general` | `object` | Complete normalized `[general]` section, including defaults. |
+| `general` | `object` | Complete normalized `[general]` section, including defaults. Contains `dc_overrides` (including the synthesized DC 203 endpoint when it is not authored) and `default_dc`. |
 | `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
 | `timeouts` | `object` | Complete normalized `[timeouts]` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `dc_overrides` | `object` | Complete normalized DC override map, including the synthesized DC 203 endpoint when it is not authored. |
 | `web` | `object` | Complete normalized `[web]` section, including defaults. Each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 | `server` | `object?` | Partial `[server]` view when editable nested fields are present. Currently only `listeners` may appear; `api`/`admin_api`, `port`, unix sockets, and other bind-identity fields are never returned. |
 
@@ -903,7 +902,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | `Content-Type: application/json` | recommended | Not enforced, but body must be valid JSON. |
 | `If-Match: <revision>` | no | Optimistic concurrency. `<revision>` is the `revision` value from `GET /v1/config` or `config_hash` from `GET /v1/system/info`. It covers the complete recursive include graph. If supplied and it does not match the current source manifest, returns `409 revision_conflict`. Omitting it removes the caller precondition, but the internal graph/owner race fence can still return the same conflict. |
 
-**Editable sections:** `general`, `timeouts`, `upstreams`, `dc_overrides`, `web`, plus partially editable `server` (only nested `listeners`).
+**Editable sections:** `general`, `timeouts`, `upstreams`, `web`, plus partially editable `server` (only nested `listeners`).
 
 **Rejected keys and their error codes:**
 
