@@ -51,13 +51,13 @@ This document lists all configuration keys accepted by `config.toml`.
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
-| [`destination`](#loggingdestination) | `"stderr"` / `"syslog"` / `"file"` | `"stderr"` | `✘` |
-| [`path`](#loggingpath) | `String` | — | `✘` |
-| [`log_level`](#logginglog_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
-| [`unknown_dc_log_enabled`](#loggingunknown_dc_log_enabled) | `bool` | `false` | `✘` |
+| [`destination`](#destination) | `"stderr"` / `"syslog"` / `"file"` | `"stderr"` | `✘` |
+| [`path`](#path) | `String` | — | `✘` |
+| [`log_level`](#log_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
+| [`unknown_dc_log_enabled`](#unknown_dc_log_enabled) | `bool` | `false` | `✘` |
 
-## logging.destination
-  - **Constraints / validation**: Must be `stderr`, `syslog`, or `file`. `syslog` is supported only on Unix platforms. `file` requires `logging.path`.
+## destination
+  - **Constraints / validation**: Must be `stderr`, `syslog`, or `file`. `syslog` is supported only on Unix platforms. `file` requires `path`.
   - **Description**: Selects the runtime log destination. CLI flags override this value.
   - **Example**:
 
@@ -66,8 +66,8 @@ This document lists all configuration keys accepted by `config.toml`.
     destination = "file"
     path = "/var/log/telemt.log"
     ```
-## logging.path
-  - **Constraints / validation**: Required when `logging.destination = "file"`; must not be empty.
+## path
+  - **Constraints / validation**: Required when `destination = "file"`; must not be empty.
   - **Description**: File path used for file logging.
   - **Example**:
 
@@ -76,7 +76,7 @@ This document lists all configuration keys accepted by `config.toml`.
     destination = "file"
     path = "/var/log/telemt.log"
     ```
-## logging.log_level
+## log_level
   - **Constraints / validation**: `"debug"`, `"verbose"`, `"normal"`, or `"silent"`.
   - **Description**: Runtime logging verbosity level (used when `RUST_LOG` is not set). If `RUST_LOG` is set in the environment, it takes precedence over this setting.
   - **Example**:
@@ -85,7 +85,7 @@ This document lists all configuration keys accepted by `config.toml`.
     [logging]
     log_level = "normal"
     ```
-## logging.unknown_dc_log_enabled
+## unknown_dc_log_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables unknown-DC logging: when a client requests a non-standard DC index that has no matching `dc_overrides` entry, each distinct index is recorded once as a `dc_idx=<N>` line in the main log destination. Logging is deduplicated and capped (only the first 1024 distinct unknown DC indices are recorded).
   - **Example**:
