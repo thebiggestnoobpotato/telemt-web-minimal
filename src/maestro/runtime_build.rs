@@ -230,7 +230,6 @@ pub(crate) fn resolve_reload_config(
         old.logging.disable_colors != desired.logging.disable_colors
             || old.logging.destination != desired.logging.destination
             || old.logging.path != desired.logging.path
-            || old.logging.unknown_dc_log_path != desired.logging.unknown_dc_log_path
             || old.logging.unknown_dc_file_log_enabled
                 != desired.logging.unknown_dc_file_log_enabled;
     if logging_process_fields_changed {

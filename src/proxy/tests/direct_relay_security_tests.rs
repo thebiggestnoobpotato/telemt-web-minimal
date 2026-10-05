@@ -35,22 +35,9 @@ where
     CryptoWriter::new(writer, AesCtr::new(&key, iv), 8 * 1024)
 }
 
-fn nonempty_line_count(text: &str) -> usize {
-    text.lines().filter(|line| !line.trim().is_empty()).count()
-}
-
-// Unknown-DC deduplication and path validation.
+// Unknown-DC deduplication and logging switch.
 #[path = "direct_relay_security_tests/unknown_paths.rs"]
 mod unknown_paths;
-// No-follow file opening and target-swap defenses.
-#[path = "direct_relay_security_tests/nofollow.rs"]
-mod nofollow;
-// Directory-anchored append and descriptor integrity.
-#[path = "direct_relay_security_tests/anchored.rs"]
-mod anchored;
-// Asynchronous unknown-DC logging integration.
-#[path = "direct_relay_security_tests/logging_integration.rs"]
-mod logging_integration;
 // Direct relay cancellation and cutover lifecycle.
 #[path = "direct_relay_security_tests/relay_lifecycle.rs"]
 mod relay_lifecycle;

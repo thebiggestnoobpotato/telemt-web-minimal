@@ -119,10 +119,6 @@ pub(crate) fn default_network_ipv6() -> Option<bool> {
     DEFAULT_NETWORK_IPV6
 }
 
-pub(crate) fn default_unknown_dc_log_path() -> Option<String> {
-    Some("unknown-dc.txt".to_string())
-}
-
 pub(crate) fn default_unknown_dc_file_log_enabled() -> bool {
     false
 }

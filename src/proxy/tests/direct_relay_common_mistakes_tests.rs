@@ -38,58 +38,6 @@ fn common_scope_hint_rejects_unicode_lookalike_characters() {
     assert_eq!(validated_scope_hint("scope_Αlpha"), None);
 }
 
-#[cfg(unix)]
-#[test]
-fn common_anchored_open_rejects_nul_filename() {
-    use std::os::unix::ffi::OsStringExt;
-
-    let parent = std::env::current_dir()
-        .expect("cwd must be available")
-        .join("target")
-        .join(format!("telemt-direct-relay-nul-{}", std::process::id()));
-    std::fs::create_dir_all(&parent).expect("parent directory must be creatable");
-
-    let path = SanitizedUnknownDcLogPath {
-        resolved_path: parent.join("placeholder.log"),
-        allowed_parent: parent,
-        file_name: std::ffi::OsString::from_vec(vec![b'a', 0, b'b']),
-    };
-
-    let err = open_unknown_dc_log_append_anchored(&path)
-        .expect_err("anchored open must fail on NUL in filename");
-    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
-}
-
-#[cfg(unix)]
-#[test]
-fn common_anchored_open_creates_owner_only_file_permissions() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let parent = std::env::current_dir()
-        .expect("cwd must be available")
-        .join("target")
-        .join(format!("telemt-direct-relay-perm-{}", std::process::id()));
-    std::fs::create_dir_all(&parent).expect("parent directory must be creatable");
-
-    let sanitized = SanitizedUnknownDcLogPath {
-        resolved_path: parent.join("unknown-dc.log"),
-        allowed_parent: parent.clone(),
-        file_name: std::ffi::OsString::from("unknown-dc.log"),
-    };
-
-    let mut file = open_unknown_dc_log_append_anchored(&sanitized)
-        .expect("anchored open must create regular file");
-    use std::io::Write;
-    writeln!(file, "dc_idx=1").expect("write must succeed");
-
-    let mode = std::fs::metadata(parent.join("unknown-dc.log"))
-        .expect("metadata must be readable")
-        .permissions()
-        .mode()
-        & 0o777;
-    assert_eq!(mode, 0o600);
-}
-
 #[test]
 fn common_duplicate_dc_attempts_do_not_consume_unique_slots() {
     let set = Mutex::new(HashSet::new());

@@ -86,7 +86,6 @@ fn logging_config_is_loaded_from_strict_config() {
             path = "/tmp/telemt.log"
             log_level = "verbose"
             disable_colors = true
-            unknown_dc_log_path = "unknown-dc.log"
             unknown_dc_file_log_enabled = true
 
             [access.users]
@@ -98,7 +97,6 @@ fn logging_config_is_loaded_from_strict_config() {
     assert_eq!(cfg.logging.path.as_deref(), Some("/tmp/telemt.log"));
     assert_eq!(cfg.logging.log_level, LogLevel::Verbose);
     assert!(cfg.logging.disable_colors);
-    assert_eq!(cfg.logging.unknown_dc_log_path.as_deref(), Some("unknown-dc.log"));
     assert!(cfg.logging.unknown_dc_file_log_enabled);
 }
 

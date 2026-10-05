@@ -78,10 +78,8 @@ pub struct LoggingConfig {
     /// Disable colored output in logs (useful for files/systemd).
     #[serde(default)]
     pub disable_colors: bool,
-    /// Log unknown (non-standard) DC requests to a file (default: unknown-dc.txt). Set to null to disable.
-    #[serde(default = "default_unknown_dc_log_path")]
-    pub unknown_dc_log_path: Option<String>,
-    /// Enable unknown-DC file logging.
+    /// Enable unknown-DC logging: distinct unknown DC indices are recorded
+    /// once each in the main log destination.
     #[serde(default = "default_unknown_dc_file_log_enabled")]
     pub unknown_dc_file_log_enabled: bool,
 }
@@ -93,7 +91,6 @@ impl Default for LoggingConfig {
             path: None,
             log_level: LogLevel::Normal,
             disable_colors: false,
-            unknown_dc_log_path: default_unknown_dc_log_path(),
             unknown_dc_file_log_enabled: default_unknown_dc_file_log_enabled(),
         }
     }

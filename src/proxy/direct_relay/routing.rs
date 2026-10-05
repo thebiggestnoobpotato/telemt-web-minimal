@@ -44,23 +44,12 @@ pub(super) fn get_dc_addr_static(dc_idx: i16, config: &ProxyConfig) -> Result<So
             dc_idx = dc_idx,
             "Requested non-standard DC with no override; falling back to default cluster"
         );
+        // Record each distinct unknown DC index once in the main log
+        // destination; the switch gates both the record and the dedup slot.
         if config.logging.unknown_dc_file_log_enabled
-            && let Some(path) = &config.logging.unknown_dc_log_path
-            && let Ok(handle) = tokio::runtime::Handle::try_current()
+            && should_log_unknown_dc(dc_idx)
         {
-            if let Some(path) = sanitize_unknown_dc_log_path(path) {
-                if should_log_unknown_dc(dc_idx) {
-                    handle.spawn_blocking(move || {
-                        if unknown_dc_log_path_is_still_safe(&path)
-                            && let Ok(mut file) = open_unknown_dc_log_append_anchored(&path)
-                        {
-                            let _ = append_unknown_dc_line(&mut file, dc_idx);
-                        }
-                    });
-                }
-            } else {
-                warn!(dc_idx = dc_idx, raw_path = %path, "Rejected unsafe unknown DC log path");
-            }
+            warn!(dc_idx = dc_idx, "unknown_dc");
         }
     }
 

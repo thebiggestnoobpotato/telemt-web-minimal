@@ -55,7 +55,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`path`](#loggingpath) | `String` | — | `✘` |
 | [`log_level`](#logginglog_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
 | [`disable_colors`](#loggingdisable_colors) | `bool` | `false` | `✘` |
-| [`unknown_dc_log_path`](#loggingunknown_dc_log_path) | `String` | `"unknown-dc.txt"` | `✘` |
 | [`unknown_dc_file_log_enabled`](#loggingunknown_dc_file_log_enabled) | `bool` | `false` | `✘` |
 
 ## logging.destination
@@ -96,18 +95,9 @@ This document lists all configuration keys accepted by `config.toml`.
     [logging]
     disable_colors = false
     ```
-## logging.unknown_dc_log_path
-  - **Constraints / validation**: `String` (optional). Must be a safe path (no `..` components, parent directory must exist); unsafe paths are rejected at runtime.
-  - **Description**: Log file path for unknown (non-standard) DC requests when `unknown_dc_file_log_enabled = true`. Omit this key to disable file logging.
-  - **Example**:
-
-    ```toml
-    [logging]
-    unknown_dc_log_path = "unknown-dc.txt"
-    ```
 ## logging.unknown_dc_file_log_enabled
   - **Constraints / validation**: `bool`.
-  - **Description**: Enables unknown-DC file logging (writes `dc_idx=<N>` lines). Requires `unknown_dc_log_path` to be set and, on non-Unix platforms, may be unsupported. Logging is deduplicated and capped (only the first ~1024 distinct unknown DC indices are recorded).
+  - **Description**: Enables unknown-DC logging: when a client requests a non-standard DC index that has no matching `dc_overrides` entry, each distinct index is recorded once as a `dc_idx=<N>` line in the main log destination. Logging is deduplicated and capped (only the first 1024 distinct unknown DC indices are recorded).
   - **Example**:
 
     ```toml

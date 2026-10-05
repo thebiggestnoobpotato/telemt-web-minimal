@@ -3,10 +3,6 @@ use super::*;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-fn nonempty_line_count(text: &str) -> usize {
-    text.lines().filter(|line| !line.trim().is_empty()).count()
-}
-
 #[test]
 fn subtle_stress_single_unknown_dc_under_concurrency_logs_once() {
     let _guard = unknown_dc_test_lock().blocking_lock();
@@ -98,98 +94,4 @@ fn subtle_light_fuzz_dc_resolution_never_panics_and_preserves_port() {
         let expect_v6 = cfg.network.prefer == 6 && cfg.network.ipv6.unwrap_or(true);
         assert_eq!(resolved.is_ipv6(), expect_v6);
     }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn subtle_integration_parallel_same_dc_logs_one_line() {
-    let _guard = unknown_dc_test_lock().lock().await;
-    clear_unknown_dc_log_cache_for_testing();
-
-    let rel_dir = format!("target/telemt-direct-relay-same-{}", std::process::id());
-    let rel_file = format!("{rel_dir}/unknown-dc.log");
-    let abs_dir = std::env::current_dir()
-        .expect("cwd must be available")
-        .join(&rel_dir);
-    std::fs::create_dir_all(&abs_dir).expect("log directory must be creatable");
-    let abs_file = abs_dir.join("unknown-dc.log");
-    let _ = std::fs::remove_file(&abs_file);
-
-    let mut cfg = ProxyConfig::default();
-    cfg.logging.unknown_dc_file_log_enabled = true;
-    cfg.logging.unknown_dc_log_path = Some(rel_file);
-
-    let cfg = Arc::new(cfg);
-    let mut tasks = Vec::new();
-    for _ in 0..32 {
-        let cfg = Arc::clone(&cfg);
-        tasks.push(tokio::spawn(async move {
-            let _ = get_dc_addr_static(31_777, cfg.as_ref());
-        }));
-    }
-    for task in tasks {
-        task.await.expect("task must not panic");
-    }
-
-    for _ in 0..60 {
-        if let Ok(content) = std::fs::read_to_string(&abs_file)
-            && nonempty_line_count(&content) == 1
-        {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-
-    let content = std::fs::read_to_string(&abs_file).unwrap_or_default();
-    assert_eq!(nonempty_line_count(&content), 1);
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn subtle_integration_parallel_unique_dcs_log_unique_lines() {
-    let _guard = unknown_dc_test_lock().lock().await;
-    clear_unknown_dc_log_cache_for_testing();
-
-    let rel_dir = format!("target/telemt-direct-relay-unique-{}", std::process::id());
-    let rel_file = format!("{rel_dir}/unknown-dc.log");
-    let abs_dir = std::env::current_dir()
-        .expect("cwd must be available")
-        .join(&rel_dir);
-    std::fs::create_dir_all(&abs_dir).expect("log directory must be creatable");
-    let abs_file = abs_dir.join("unknown-dc.log");
-    let _ = std::fs::remove_file(&abs_file);
-
-    let mut cfg = ProxyConfig::default();
-    cfg.logging.unknown_dc_file_log_enabled = true;
-    cfg.logging.unknown_dc_log_path = Some(rel_file);
-
-    let cfg = Arc::new(cfg);
-    let dcs = [
-        31_901_i16, 31_902, 31_903, 31_904, 31_905, 31_906, 31_907, 31_908,
-    ];
-    let mut tasks = Vec::new();
-
-    for dc in dcs {
-        let cfg = Arc::clone(&cfg);
-        tasks.push(tokio::spawn(async move {
-            let _ = get_dc_addr_static(dc, cfg.as_ref());
-        }));
-    }
-
-    for task in tasks {
-        task.await.expect("task must not panic");
-    }
-
-    for _ in 0..80 {
-        if let Ok(content) = std::fs::read_to_string(&abs_file)
-            && nonempty_line_count(&content) >= 8
-        {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-
-    let content = std::fs::read_to_string(&abs_file).unwrap_or_default();
-    assert!(
-        nonempty_line_count(&content) >= 8,
-        "expected at least one line per unique dc, content: {content}"
-    );
 }

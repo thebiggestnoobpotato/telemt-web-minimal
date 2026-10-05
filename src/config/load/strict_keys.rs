@@ -251,7 +251,6 @@ const LOGGING_CONFIG_KEYS: &[&str] = &[
     "path",
     "log_level",
     "disable_colors",
-    "unknown_dc_log_path",
     "unknown_dc_file_log_enabled",
 ];
 
