@@ -85,6 +85,7 @@ fn logging_config_is_loaded_from_strict_config() {
             destination = "file"
             path = "/tmp/telemt.log"
             log_level = "verbose"
+            show = ["user"]
             unknown_dc_log_enabled = true
 
             [access.users]
@@ -95,7 +96,30 @@ fn logging_config_is_loaded_from_strict_config() {
     assert_eq!(cfg.logging.destination, LoggingDestination::File);
     assert_eq!(cfg.logging.path.as_deref(), Some("/tmp/telemt.log"));
     assert_eq!(cfg.logging.log_level, LogLevel::Verbose);
+    assert_eq!(
+        cfg.logging.show,
+        ShowLink::Specific(vec!["user".to_string()])
+    );
     assert!(cfg.logging.unknown_dc_log_enabled);
+}
+
+#[test]
+fn general_links_key_is_stripped_from_general() {
+    // strict: the old [general.links] location is rejected after the move
+    // to [logging].show.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n[general.links]\nshow = \"*\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("general.links"), "{error}");
+
+    // non-strict: the old key is silently ignored and [logging].show keeps
+    // its default.
+    let cfg = load_config_from_temp_toml(
+        "[general]\n[general.links]\nshow = \"*\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.logging.show, ShowLink::All);
 }
 
 #[test]

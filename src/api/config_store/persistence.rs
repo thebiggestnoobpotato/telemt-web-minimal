@@ -68,9 +68,9 @@ pub(in crate::api) fn render_top_level_section(
 
     // Serialize the table *inside a wrapper keyed by `section`* so the `toml`
     // crate emits correctly dotted headers for nested sub-tables, e.g.
-    // `[general]` + `[general.links]` + `[general.telemetry]`. Serializing the
-    // inner table alone would render bare `[links]`/`[telemetry]` headers, which
-    // would leak as duplicate top-level tables and break config load.
+    // `[general]` + `[general.telemetry]`. Serializing the inner table alone
+    // would render a bare `[telemetry]` header, which would leak as a
+    // duplicate top-level table and break config load.
     let mut wrapper = toml::value::Table::new();
     wrapper.insert(section.to_string(), table.clone());
     let mut out = toml::to_string(&toml::Value::Table(wrapper))

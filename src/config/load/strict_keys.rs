@@ -32,7 +32,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "upstream_unhealthy_fail_threshold",
     "upstream_connect_failfast_hard_errors",
     "telemetry",
-    "links",
     "dc_overrides",
     "default_dc",
 ];
@@ -244,11 +243,11 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
 ];
 
 const TELEMETRY_CONFIG_KEYS: &[&str] = &["core_enabled", "user_enabled"];
-const LINKS_CONFIG_KEYS: &[&str] = &["show"];
 const LOGGING_CONFIG_KEYS: &[&str] = &[
     "destination",
     "path",
     "log_level",
+    "show",
     "unknown_dc_log_enabled",
 ];
 

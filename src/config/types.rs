@@ -34,7 +34,7 @@ pub(crate) use access::{CidrAutoTemplate, CidrAutoTemplateFamily, MAX_RATE_LIMIT
 pub use api::{ApiConfig, ApiGrayAction};
 pub use general::GeneralConfig;
 #[allow(unused_imports)]
-pub use links::{LinksConfig, ShowLink};
+pub use links::ShowLink;
 pub use logging::{LogLevel, LoggingConfig, LoggingDestination};
 pub use network::{NetworkConfig, UpstreamConfig, UpstreamType};
 pub use policies::{TelemetryConfig, UserMaxUniqueIpsMode};

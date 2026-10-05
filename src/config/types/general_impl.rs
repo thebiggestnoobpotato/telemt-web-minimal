@@ -20,7 +20,6 @@ impl Default for GeneralConfig {
             upstream_unhealthy_fail_threshold: default_upstream_unhealthy_fail_threshold(),
             upstream_connect_failfast_hard_errors: default_upstream_connect_failfast_hard_errors(),
             telemetry: TelemetryConfig::default(),
-            links: LinksConfig::default(),
             dc_overrides: HashMap::new(),
             default_dc: None,
         }

@@ -60,7 +60,7 @@ async fn save_general_section_keeps_subtables_dotted_without_duplicates() {
     tokio::fs::write(
         &path,
         "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
-         [general.links]\nshow = \"*\"\n\n[server]\nport = 443\n",
+         [server]\nport = 443\n",
     )
     .await
     .unwrap();
@@ -74,23 +74,17 @@ async fn save_general_section_keeps_subtables_dotted_without_duplicates() {
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
 
-    // No bare top-level [telemetry] / [links] headers leaked.
+    // No bare top-level [telemetry] header leaked.
     for line in written.lines() {
         let header = line.trim();
         assert_ne!(header, "[telemetry]", "leaked top-level [telemetry]:\n{written}");
-        assert_ne!(header, "[links]", "leaked top-level [links]:\n{written}");
     }
 
-    // Sub-tables kept their dotted prefix exactly once each.
+    // The sub-table kept its dotted prefix exactly once.
     assert_eq!(
         written.matches("[general.telemetry]").count(),
         1,
         "[general.telemetry] must appear exactly once:\n{written}"
-    );
-    assert_eq!(
-        written.matches("[general.links]").count(),
-        1,
-        "[general.links] must appear exactly once:\n{written}"
     );
 
     // Result parses (duplicate tables would error here).
@@ -107,8 +101,7 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
     let path = dir.path().join("config.toml");
     tokio::fs::write(
         &path,
-        "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
-         [general.links]\nshow = \"*\"\n",
+        "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n",
     )
     .await
     .unwrap();
@@ -125,7 +118,6 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
     assert_eq!(written.matches("[general.telemetry]").count(), 1, "{written}");
-    assert_eq!(written.matches("[general.links]").count(), 1, "{written}");
     assert_eq!(written.matches("[general]").count(), 1, "{written}");
     toml::from_str::<toml::Value>(&written)
         .unwrap_or_else(|e| panic!("written config must parse: {e}\n{written}"));
@@ -134,7 +126,7 @@ async fn save_general_section_is_idempotent_across_repeated_saves() {
 #[test]
 fn find_bounds_spans_dotted_subtables() {
     let src = "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
-               [general.links]\nshow = \"*\"\n\n[server]\nport = 1\n";
+               [server]\nport = 1\n";
     let bounds = find_toml_table_bounds(src, "general");
     assert!(bounds.is_some(), "should locate [general] block");
     let (start, end) = bounds.unwrap();
@@ -142,7 +134,6 @@ fn find_bounds_spans_dotted_subtables() {
     assert!(slice.starts_with("[general]"));
     // Nested sub-tables belong to the parent table bound.
     assert!(slice.contains("[general.telemetry]"));
-    assert!(slice.contains("[general.links]"));
     // The bound terminates before an unrelated header.
     assert!(!slice.contains("[server]"));
 }

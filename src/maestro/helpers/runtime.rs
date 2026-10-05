@@ -2,19 +2,22 @@ use tokio::sync::watch;
 
 use crate::config::ProxyConfig;
 
-use super::print_maestro_line;
+// Dedicated log target for startup WEB proxy link lines. `log_filter_spec`
+// pins this target to INFO under every `[logging].log_level`, so links reach
+// the configured destination (stderr, syslog, or file) even at Silent level.
+const WEB_LINKS_LOG_TARGET: &str = "telemt::links";
 
-/// Prints WEB links only for profiles selected by the existing link policy.
+/// Emits WEB links for profiles selected by `[logging].show` through the
+/// tracing subscriber so they follow the configured log destination.
 pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
-    if !config.web.enabled || config.general.links.show.is_empty() {
+    if !config.web.enabled || config.logging.show.is_empty() {
         return;
     }
     let Some(runtime) = config.web.runtime.as_ref() else {
         return;
     };
     let shown = config
-        .general
-        .links
+        .logging
         .show
         .resolve_users(&config.access.users);
     let mut heading_printed = false;
@@ -23,7 +26,7 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
             continue;
         }
         if !heading_printed {
-            print_maestro_line("WEB proxy links");
+            tracing::info!(target: WEB_LINKS_LOG_TARGET, "WEB proxy links");
             heading_printed = true;
         }
         let Some(secret) = config.access.users.get(&profile.user) else {
@@ -37,17 +40,19 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
         else {
             continue;
         };
-        print_maestro_line(format!(
+        tracing::info!(
+            target: WEB_LINKS_LOG_TARGET,
             "User: {} ({:?})",
-            profile.user, profile.secret_mode
-        ));
+            profile.user,
+            profile.secret_mode
+        );
         if let Some(link) = crate::web::links::format_web_proxy_link(
             &profile.host,
             &vhost.base_path,
             secret,
             profile.secret_mode,
         ) {
-            print_maestro_line(format!("WEB: {link}"));
+            tracing::info!(target: WEB_LINKS_LOG_TARGET, "WEB: {link}");
         }
     }
 }

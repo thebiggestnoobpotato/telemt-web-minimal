@@ -1,27 +1,12 @@
+//! WEB proxy link display policy backing `[logging].show`.
+
 use super::*;
-
-/// Proxy link generation settings.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LinksConfig {
-    /// List of usernames whose tg:// links to display at startup.
-    /// `"*"` = all users, `["alice", "bob"]` = specific users.
-    #[serde(default = "default_links_show")]
-    pub show: ShowLink,
-}
-
-impl Default for LinksConfig {
-    fn default() -> Self {
-        Self {
-            show: default_links_show(),
-        }
-    }
-}
 
 /// In TOML, this can be:
 /// - `show = "*"`          — show links for all users
 /// - `show = ["a", "b"]`   — show links for specific users
-/// - omitted                — default depends on the owning config field
-#[derive(Debug, Clone, Default)]
+/// - omitted                — defaults to `"*"` (all users)
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum ShowLink {
     /// Don't show any links (default when omitted).
     #[default]
@@ -32,7 +17,7 @@ pub enum ShowLink {
     Specific(Vec<String>),
 }
 
-fn default_links_show() -> ShowLink {
+pub(super) fn default_links_show() -> ShowLink {
     ShowLink::All
 }
 
@@ -109,5 +94,85 @@ impl<'de> Deserialize<'de> for ShowLink {
         }
 
         deserializer.deserialize_any(ShowLinkVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn users(names: &[&str]) -> HashMap<String, String> {
+        names
+            .iter()
+            .map(|name| (name.to_string(), "00000000000000000000000000000000".to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn show_link_defaults_to_all_users() {
+        assert_eq!(default_links_show(), ShowLink::All);
+        assert!(!ShowLink::All.is_empty());
+        assert!(ShowLink::None.is_empty());
+        assert!(ShowLink::Specific(Vec::new()).is_empty());
+        assert!(!ShowLink::Specific(vec!["alice".to_string()]).is_empty());
+    }
+
+    #[test]
+    fn show_link_resolves_users() {
+        let all = users(&["bob", "alice"]);
+
+        let none = ShowLink::None;
+        assert!(none.resolve_users(&all).is_empty());
+
+        let all_users = ShowLink::All;
+        let everyone: Vec<&str> = all_users
+            .resolve_users(&all)
+            .iter()
+            .map(|name| name.as_str())
+            .collect();
+        assert_eq!(everyone, vec!["alice", "bob"]);
+
+        let only_bob = ShowLink::Specific(vec!["bob".to_string()]);
+        let bob_only: Vec<&str> = only_bob
+            .resolve_users(&all)
+            .iter()
+            .map(|name| name.as_str())
+            .collect();
+        assert_eq!(bob_only, vec!["bob"]);
+    }
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        show: ShowLink,
+    }
+
+    #[test]
+    fn show_link_serde_forms() {
+        assert_eq!(
+            toml::from_str::<Wrapper>(r#"show = "*""#).unwrap().show,
+            ShowLink::All
+        );
+        assert_eq!(
+            toml::from_str::<Wrapper>(r#"show = ["alice", "bob"]"#)
+                .unwrap()
+                .show,
+            ShowLink::Specific(vec!["alice".to_string(), "bob".to_string()])
+        );
+        assert_eq!(
+            toml::from_str::<Wrapper>("show = []").unwrap().show,
+            ShowLink::None
+        );
+
+        #[derive(Serialize)]
+        struct WrapperSer {
+            show: ShowLink,
+        }
+
+        let serialized_all = toml::to_string(&WrapperSer { show: ShowLink::All }).unwrap();
+        assert!(serialized_all.contains(r#"show = "*""#), "{serialized_all}");
+        let serialized_none =
+            toml::to_string(&WrapperSer { show: ShowLink::None }).unwrap();
+        assert!(serialized_none.contains("show = []"), "{serialized_none}");
     }
 }

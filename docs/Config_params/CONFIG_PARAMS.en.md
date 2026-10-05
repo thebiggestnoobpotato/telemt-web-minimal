@@ -16,7 +16,6 @@ This document lists all configuration keys accepted by `config.toml`.
  - [Top-level keys](#top-level-keys)
  - [logging](#logging)
  - [general](#general)
- - [general.links](#generallinks)
  - [general.telemetry](#generaltelemetry)
  - [network](#network)
  - [server](#server)
@@ -54,6 +53,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`destination`](#destination) | `"stderr"` / `"syslog"` / `"file"` | `"stderr"` | `✘` |
 | [`path`](#path) | `String` | — | `✘` |
 | [`log_level`](#log_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
+| [`show`](#show) | `"*"` or `String[]` | `"*"` | `✘` |
 | [`unknown_dc_log_enabled`](#unknown_dc_log_enabled) | `bool` | `false` | `✘` |
 
 ## destination
@@ -84,6 +84,17 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [logging]
     log_level = "normal"
+    ```
+## show
+  - **Constraints / validation**: `"*"` or `String[]`. An empty array means "show none".
+  - **Description**: Selects users whose `tg://` proxy links are shown at startup. Link lines are emitted through the `telemt::links` log target, so they follow the configured log destination (`stderr`, `syslog`, or `file`) and stay visible at `log_level = "silent"`.
+  - **Example**:
+
+    ```toml
+    [logging]
+    show = "*"
+    # or:
+    # show = ["alice", "bob"]
     ```
 ## unknown_dc_log_enabled
   - **Constraints / validation**: `bool`.
@@ -286,26 +297,6 @@ This document lists all configuration keys accepted by `config.toml`.
     # route it to this default cluster (1..=5).
     default_dc = 2
     ```
-
-# [general.links]
-
-
-| Key | Type | Default | Hot-Reload |
-| --- | ---- | ------- | ---------- |
-| [`show`](#show) | `"*"` or `String[]` | `"*"` | `✘` |
-
-## show
-  - **Constraints / validation**: `"*"` or `String[]`. An empty array means "show none".
-  - **Description**: Selects users whose `tg://` proxy links are shown at startup.
-  - **Example**:
-
-    ```toml
-    [general.links]
-    show = "*"
-    # or:
-    # show = ["alice", "bob"]
-    ```
-
 
 # [general.telemetry]
 

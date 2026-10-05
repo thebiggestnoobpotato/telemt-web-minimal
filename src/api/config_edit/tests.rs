@@ -99,15 +99,17 @@ async fn patch_revision_conflict() {
 }
 
 #[tokio::test]
-async fn patch_general_links_reports_restart_required() {
+async fn patch_logging_show_reports_restart_required() {
+    // logging.show is process-owned: links are emitted once at listener bind
+    // time, so the change is deferred until a process restart.
     let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"general": {"links": {"show": ["alice"]}}});
+    let patch: Json = serde_json::json!({"logging": {"show": ["alice"]}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.restart_required);
     assert!(resp.runtime_reload_required);
-    assert!(!resp.process_restart_required);
-    assert!(resp.deferred_process_fields.is_empty());
-    assert!(resp.changed.iter().any(|c| c == "general"));
+    assert!(resp.process_restart_required);
+    assert!(resp.deferred_process_fields.iter().any(|f| f == "logging"));
+    assert!(resp.changed.iter().any(|c| c == "logging"));
     let written = std::fs::read_to_string(&path).unwrap();
     assert!(written.contains("show = [\"alice\"]"));
     assert_eq!(
@@ -343,23 +345,23 @@ async fn patch_rejects_non_editable_top_level_section() {
 }
 
 #[tokio::test]
-async fn patch_general_links_show_is_editable() {
-    // The supported replacement path: edit show via the general.links sub-table.
+async fn patch_logging_show_is_editable() {
+    // The supported path: edit show via the [logging] section.
     let (path, _d) = temp_config(
-        "[general]\nprefer_ipv6 = false\n[general.links]\nshow = \"*\"\n",
+        "[general]\nprefer_ipv6 = false\n[logging]\nshow = \"*\"\n",
     );
-    let patch: Json = serde_json::json!({"general": {"links": {"show": ["alice"]}}});
+    let patch: Json = serde_json::json!({"logging": {"show": ["alice"]}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
-    assert!(resp.changed.iter().any(|c| c == "general"));
+    assert!(resp.changed.iter().any(|c| c == "logging"));
     let written = tokio::fs::read_to_string(&path).await.unwrap();
     let parsed: toml::Value = toml::from_str(&written).unwrap();
     assert_eq!(
-        parsed["general"]["links"]["show"][0].as_str(),
+        parsed["logging"]["show"][0].as_str(),
         Some("alice"),
         "{written}"
     );
-    // No leaked top-level [links] and no duplicate sub-tables.
-    assert_eq!(written.matches("[general.links]").count(), 1, "{written}");
+    // No duplicate [logging] tables.
+    assert_eq!(written.matches("[logging]").count(), 1, "{written}");
 }
 
 #[tokio::test]

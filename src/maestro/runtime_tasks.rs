@@ -353,3 +353,27 @@ pub(crate) async fn mark_runtime_ready(startup_tracker: &Arc<StartupTracker>) {
         .await;
     startup_tracker.mark_ready().await;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::log_filter_spec;
+    use crate::config::LogLevel;
+
+    #[test]
+    fn log_filter_spec_pins_links_target_at_silent() {
+        // Silent is the only level whose base filter (`warn`) would drop the
+        // INFO-level link lines; the dedicated target directive keeps them
+        // visible in the configured destination.
+        assert_eq!(
+            log_filter_spec(false, &LogLevel::Silent),
+            "warn,telemt::links=info"
+        );
+    }
+
+    #[test]
+    fn log_filter_spec_uses_level_filter_for_other_levels() {
+        assert_eq!(log_filter_spec(false, &LogLevel::Debug), "trace");
+        assert_eq!(log_filter_spec(false, &LogLevel::Verbose), "debug");
+        assert_eq!(log_filter_spec(false, &LogLevel::Normal), "info");
+    }
+}

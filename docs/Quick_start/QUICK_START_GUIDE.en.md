@@ -90,11 +90,9 @@ prefer_ipv6 = false
 fast_mode = true
 upstream_connect_timeout = 10
 
-[general.links]
-show = ["user"]
-
 [logging]
 log_level = "normal"
+show = ["user"]
 
 [network]
 ipv4 = true

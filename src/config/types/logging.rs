@@ -1,4 +1,5 @@
 use super::*;
+use super::links::default_links_show;
 
 /// Logging verbosity level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -79,6 +80,11 @@ pub struct LoggingConfig {
     /// once each in the main log destination.
     #[serde(default = "default_unknown_dc_log_enabled")]
     pub unknown_dc_log_enabled: bool,
+    /// Users whose WEB proxy links are emitted at startup through the
+    /// `telemt::links` log target, so they follow the configured destination.
+    /// `"*"` = all users, `["alice", "bob"]` = specific users.
+    #[serde(default = "default_links_show")]
+    pub show: ShowLink,
 }
 
 impl Default for LoggingConfig {
@@ -88,6 +94,7 @@ impl Default for LoggingConfig {
             path: None,
             log_level: LogLevel::Normal,
             unknown_dc_log_enabled: default_unknown_dc_log_enabled(),
+            show: default_links_show(),
         }
     }
 }

@@ -58,3 +58,50 @@ fn test_syslog_priority_for_level_mapping() {
         libc::LOG_DEBUG
     );
 }
+
+#[test]
+fn file_destination_captures_links_target_lines() {
+    // This test owns the process-global tracing subscriber for the remainder
+    // of the test process. Assertions use unique markers so tracing events
+    // from other parallel tests cannot affect the outcome.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("telemt.log");
+    let opts = LoggingOptions {
+        destination: LogDestination::File {
+            path: path.to_string_lossy().to_string(),
+        },
+        strict_runtime_paths: false,
+    };
+    // The Silent spec is produced by `log_filter_spec` (pinned in the
+    // runtime_tasks tests): base `warn` plus the dedicated links directive.
+    let silent_spec = "warn,telemt::links=info";
+    let (handle, guard) = init_logging(&opts, silent_spec);
+
+    tracing::info!(
+        target: "telemt::links",
+        "links target line under silent: LNK-SILENT"
+    );
+    tracing::info!("plain info line under silent: PLAIN-SILENT");
+
+    handle.reload(EnvFilter::new("info")).unwrap();
+    tracing::info!(
+        target: "telemt::links",
+        "links target line under normal: LNK-NORMAL"
+    );
+    tracing::info!("plain info line under normal: PLAIN-NORMAL");
+
+    // Dropping the guard flushes the non-blocking appender and joins its worker.
+    drop(guard);
+
+    let contents = std::fs::read_to_string(&path).unwrap_or_default();
+    assert!(
+        contents.contains("LNK-SILENT"),
+        "silent spec must pass the dedicated links target:\n{contents}"
+    );
+    assert!(
+        !contents.contains("PLAIN-SILENT"),
+        "silent spec must filter plain info lines:\n{contents}"
+    );
+    assert!(contents.contains("LNK-NORMAL"), "{contents}");
+    assert!(contents.contains("PLAIN-NORMAL"), "{contents}");
+}

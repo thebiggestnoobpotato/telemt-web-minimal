@@ -60,9 +60,6 @@ pub struct GeneralConfig {
     /// Runtime telemetry controls for counters/metrics in hot paths.
     #[serde(default)]
     pub telemetry: TelemetryConfig,
-    /// [general.links] — proxy link generation overrides.
-    #[serde(default)]
-    pub links: LinksConfig,
     /// DC address overrides for non-standard DCs (CDN, media, test, etc.)
     /// Keys are DC indices as strings, values are one or more "ip:port" addresses.
     /// Matches the C implementation's `proxy_for <dc_id> <ip>:<port>` config directive.
