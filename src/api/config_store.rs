@@ -297,6 +297,8 @@ pub(super) async fn save_config_to_disk(
 ///
 ///   - `access`    : owned by the users API.
 ///   - `network`   : carries per-node identity (`ipv4`/`ipv6`).
+///   - `metrics`   : process-owned endpoint identity (bind address, scraper
+///                   whitelist).
 ///
 /// `server` is partially editable: only the nested fields listed in
 /// [`EDITABLE_SERVER_FIELDS`] (currently `listeners`) may appear in GET/PATCH.

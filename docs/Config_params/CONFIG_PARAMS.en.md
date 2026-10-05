@@ -20,6 +20,7 @@ This document lists all configuration keys accepted by `config.toml`.
  - [server](#server)
  - [server.api](#serverapi)
  - [server.listeners](#serverlisteners)
+ - [metrics](#metrics)
  - [web](#web)
  - [web.debug](#webdebug)
  - [web.limits](#weblimits)
@@ -362,9 +363,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
 | [`port`](#port) | `u16` | `443` | `✘` |
-| [`metrics_port`](#metrics_port) | `u16` | — | `✘` |
-| [`metrics_listen`](#metrics_listen) | `String` | — | `✘` |
-| [`metrics_whitelist`](#metrics_whitelist) | `IpNetwork[]` | `["127.0.0.1/32", "::1/128"]` | `✘` |
 | [`api`](#serverapi) | `Table` | built-in defaults | `✘` |
 | [`admin_api`](#serverapi) | `Table` | alias for `api` | `✘` |
 | [`listeners`](#serverlisteners) | `Table[]` | `[]` | `✘` |
@@ -389,34 +387,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [server]
     listen_backlog = 1024
-    ```
-## metrics_port
-  - **Constraints / validation**: `u16` (optional).
-  - **Description**: Prometheus-compatible metrics endpoint port. When set, enables the metrics listener (bind behavior can be overridden by `metrics_listen`).
-  - **Example**:
-
-    ```toml
-    [server]
-    metrics_port = 9090
-    ```
-## metrics_listen
-  - **Constraints / validation**: `String` (optional). When set, must be in `IP:PORT` format.
-  - **Description**: Full metrics bind address (`IP:PORT`), overrides `metrics_port` and binds on the specified address only.
-  - **Example**:
-
-    ```toml
-    [server]
-    metrics_listen = "127.0.0.1:9090"
-    ```
-## metrics_whitelist
-  - **Constraints / validation**: `IpNetwork[]`.
-  - **Description**: CIDR whitelist for metrics endpoint access.
-  - **Example**:
-
-    ```toml
-    [server]
-    metrics_port = 9090
-    metrics_whitelist = ["127.0.0.1/32", "::1/128"]
     ```
 ## max_connections
   - **Constraints / validation**: `u32`. `0` means unlimited.
@@ -627,6 +597,45 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
 ## web_trusted_proxy_cidrs (server.listeners)
   - **Constraints / validation**: Non-empty CIDR array. A `/0` network is rejected.
   - **Description**: Trust boundary for the immediate NGINX or HAProxy peer. List only addresses that can connect directly to this listener; never expose the plain listener to an untrusted network.
+
+
+# [metrics]
+
+
+| Key | Type | Default | Hot-Reload |
+| --- | ---- | ------- | ---------- |
+| [`port`](#port-metrics) | `u16` | — | `✘` |
+| [`listen`](#listen-metrics) | `String` | — | `✘` |
+| [`whitelist`](#whitelist-metrics) | `IpNetwork[]` | `["127.0.0.1/32", "::1/128"]` | `✘` |
+
+## port (metrics)
+  - **Constraints / validation**: `u16` (optional).
+  - **Description**: Prometheus-compatible metrics endpoint port. When set, enables the metrics listener (bind behavior can be overridden by `listen`).
+  - **Example**:
+
+    ```toml
+    [metrics]
+    port = 9090
+    ```
+## listen (metrics)
+  - **Constraints / validation**: `String` (optional). When set, must be in `IP:PORT` format.
+  - **Description**: Full metrics bind address (`IP:PORT`), overrides `port` and binds on the specified address only.
+  - **Example**:
+
+    ```toml
+    [metrics]
+    listen = "127.0.0.1:9090"
+    ```
+## whitelist (metrics)
+  - **Constraints / validation**: `IpNetwork[]`.
+  - **Description**: CIDR whitelist for metrics endpoint access.
+  - **Example**:
+
+    ```toml
+    [metrics]
+    port = 9090
+    whitelist = ["127.0.0.1/32", "::1/128"]
+    ```
 
 
 # [web]

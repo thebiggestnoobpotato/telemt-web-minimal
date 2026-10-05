@@ -17,9 +17,12 @@ show_users = "*"
 # === Server Binding ===
 [server]
 port = 443
-# metrics_port = 9090
-# metrics_listen = "127.0.0.1:9090" # Listen address for metrics (overrides metrics_port)
-# metrics_whitelist = ["127.0.0.1/32", "::1/128"]
+
+# === Metrics Endpoint ===
+# [metrics]
+# port = 9090
+# listen = "127.0.0.1:9090" # Listen address for metrics (overrides port)
+# whitelist = ["127.0.0.1/32", "::1/128"]
 
 [server.api]
 enabled = true

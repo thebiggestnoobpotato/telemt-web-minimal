@@ -7,6 +7,7 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "logging",
     "network",
     "server",
+    "metrics",
     "web",
     "timeouts",
     "access",
@@ -45,9 +46,6 @@ const NETWORK_CONFIG_KEYS: &[&str] = &[
 
 const SERVER_CONFIG_KEYS: &[&str] = &[
     "port",
-    "metrics_port",
-    "metrics_listen",
-    "metrics_whitelist",
     "api",
     "admin_api",
     "listeners",
@@ -55,6 +53,8 @@ const SERVER_CONFIG_KEYS: &[&str] = &[
     "max_connections",
     "accept_permit_timeout_ms",
 ];
+
+const METRICS_CONFIG_KEYS: &[&str] = &["port", "listen", "whitelist"];
 
 const API_CONFIG_KEYS: &[&str] = &[
     "enabled",

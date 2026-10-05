@@ -164,6 +164,34 @@ fn network_dns_overrides_key_is_stripped_from_network() {
 }
 
 #[test]
+fn server_metrics_keys_are_moved_to_metrics() {
+    // strict: the old [server].metrics_* locations are rejected after the
+    // move to the [metrics] section.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n[server]\nmetrics_port = 9090\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("metrics_port"), "{error}");
+
+    // non-strict: the old keys are silently ignored and [metrics] keeps
+    // its defaults.
+    let cfg = load_config_from_temp_toml(
+        "[server]\nmetrics_port = 9090\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.metrics.port, None);
+
+    // the new [metrics] section loads explicit values and defaults.
+    let cfg = load_config_from_temp_toml(
+        "[metrics]\nport = 9090\nlisten = \"127.0.0.1:9090\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.metrics.port, Some(9090));
+    assert_eq!(cfg.metrics.listen.as_deref(), Some("127.0.0.1:9090"));
+    assert_eq!(cfg.metrics.whitelist, default_metrics_whitelist());
+}
+
+#[test]
 fn cidr_rate_limits_accept_auto_templates_in_strict_config() {
     let cfg = load_config_from_temp_toml(
         r#"

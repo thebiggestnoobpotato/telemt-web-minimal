@@ -94,6 +94,10 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub server: ServerConfig,
 
+    /// Prometheus-compatible metrics endpoint configuration.
+    #[serde(default)]
+    pub metrics: MetricsConfig,
+
     /// WEB carrier ingress and public-site fallback configuration.
     #[serde(default)]
     pub web: WebConfig,

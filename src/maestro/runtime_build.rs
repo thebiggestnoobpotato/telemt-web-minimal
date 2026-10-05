@@ -196,12 +196,12 @@ pub(crate) fn resolve_reload_config(
         effective.server.api.runtime_edge_events_capacity =
             old.server.api.runtime_edge_events_capacity;
     }
-    if old.server.metrics_listen != desired.server.metrics_listen
-        || old.server.metrics_port != desired.server.metrics_port
+    if old.metrics.listen != desired.metrics.listen
+        || old.metrics.port != desired.metrics.port
     {
-        fields.push("server.metrics_listen".to_string());
-        effective.server.metrics_listen = old.server.metrics_listen.clone();
-        effective.server.metrics_port = old.server.metrics_port;
+        fields.push("metrics.listen".to_string());
+        effective.metrics.listen = old.metrics.listen.clone();
+        effective.metrics.port = old.metrics.port;
     }
     if old.server.max_connections != desired.server.max_connections {
         fields.push("server.max_connections".to_string());

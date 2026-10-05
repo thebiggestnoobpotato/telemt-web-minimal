@@ -46,7 +46,7 @@ pub(crate) fn bind(
         let addr: SocketAddr = listen_addr.parse().map_err(|error| {
             std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                format!("invalid metrics_listen address {listen_addr}: {error}"),
+                format!("invalid metrics.listen address {listen_addr}: {error}"),
             )
         })?;
         // Match `server.api.listen`: `[::]:port` is a dual-stack wildcard
@@ -142,10 +142,10 @@ async fn serve_listener(
 
         let runtime = active_runtime.load_full();
         let config = runtime.config();
-        if !config.server.metrics_whitelist.is_empty()
+        if !config.metrics.whitelist.is_empty()
             && !config
-                .server
-                .metrics_whitelist
+                .metrics
+                .whitelist
                 .iter()
                 .any(|net| net.contains(peer.ip()))
         {

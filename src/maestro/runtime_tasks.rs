@@ -276,26 +276,26 @@ pub(crate) async fn spawn_metrics_if_configured(
     web_runtime_rx: tokio::sync::watch::Receiver<crate::web::control::WebRuntimePublication>,
     control_plane: ProcessControlPlane,
 ) -> std::io::Result<()> {
-    // metrics_listen takes precedence; fall back to metrics_port for backward compat.
+    // metrics.listen takes precedence; fall back to metrics.port.
     let metrics_target: Option<(u16, Option<String>)> =
-        if let Some(ref listen) = config.server.metrics_listen {
+        if let Some(ref listen) = config.metrics.listen {
             match listen.parse::<std::net::SocketAddr>() {
                 Ok(addr) => Some((addr.port(), Some(listen.clone()))),
                 Err(e) => {
                     startup_tracker
                         .fail_component(
                             COMPONENT_METRICS_START,
-                            Some(format!("invalid metrics_listen \"{}\": {}", listen, e)),
+                            Some(format!("invalid metrics.listen \"{}\": {}", listen, e)),
                         )
                         .await;
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidInput,
-                        format!("invalid metrics_listen \"{}\": {}", listen, e),
+                        format!("invalid metrics.listen \"{}\": {}", listen, e),
                     ));
                 }
             }
         } else {
-            config.server.metrics_port.map(|p| (p, None))
+            config.metrics.port.map(|p| (p, None))
         };
 
     if let Some((port, listen)) = metrics_target {
@@ -332,11 +332,11 @@ pub(crate) async fn spawn_metrics_if_configured(
                 Some("metrics listeners bound and supervised".to_string()),
             )
             .await;
-    } else if config.server.metrics_listen.is_none() {
+    } else if config.metrics.listen.is_none() {
         startup_tracker
             .skip_component(
                 COMPONENT_METRICS_START,
-                Some("server.metrics_port is not configured".to_string()),
+                Some("metrics.port is not configured".to_string()),
             )
             .await;
     }

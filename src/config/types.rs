@@ -19,6 +19,7 @@ mod general;
 mod general_impl;
 mod links;
 mod logging;
+mod metrics;
 mod network;
 mod policies;
 mod server;
@@ -36,6 +37,7 @@ pub use general::GeneralConfig;
 #[allow(unused_imports)]
 pub use links::ShowLink;
 pub use logging::{LogLevel, LoggingConfig, LoggingDestination};
+pub use metrics::MetricsConfig;
 pub use network::{NetworkConfig, UpstreamConfig, UpstreamType};
 pub use policies::UserMaxUniqueIpsMode;
 #[allow(unused_imports)]

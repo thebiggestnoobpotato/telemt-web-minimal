@@ -80,9 +80,9 @@ curl -s http://127.0.0.1:9091/v1/users | jq
 1. Open the configuration file: `nano /etc/telemt/config.toml`.
 2. Add the following parameters:
 ```toml
-[server]
-metrics_listen = "127.0.0.1:9090"
-metrics_whitelist = ["127.0.0.1/32", "::1/128"]
+[metrics]
+listen = "127.0.0.1:9090"
+whitelist = ["127.0.0.1/32", "::1/128"]
 ```
 3. Save the changes (Ctrl+S -> Ctrl+X).
 4. Metrics will be available locally at `http://127.0.0.1:9090/metrics`.
