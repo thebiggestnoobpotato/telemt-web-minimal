@@ -1001,7 +1001,7 @@ curl -s -H "Authorization: <token>" http://127.0.0.1:<api>/v1/system/info | jq -
 # patch the log level with optimistic concurrency
 curl -s -X PATCH -H "Authorization: <token>" -H "If-Match: <revision>" \
   -H "Content-Type: application/json" \
-  -d '{"general":{"log_level":"verbose"}}' \
+  -d '{"logging":{"log_level":"verbose"}}' \
   'http://127.0.0.1:<api>/v1/config?reload=instant'
 ```
 
