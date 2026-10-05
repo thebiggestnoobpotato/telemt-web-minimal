@@ -16,7 +16,7 @@ impl Default for GeneralConfig {
             upstream_connect_retry_attempts: default_upstream_connect_retry_attempts(),
             upstream_connect_retry_backoff_ms: default_upstream_connect_retry_backoff_ms(),
             upstream_connect_budget_ms: default_upstream_connect_budget_ms(),
-            tg_connect: default_connect_timeout(),
+            upstream_connect_timeout: default_upstream_connect_timeout(),
             upstream_unhealthy_fail_threshold: default_upstream_unhealthy_fail_threshold(),
             upstream_connect_failfast_hard_errors: default_upstream_connect_failfast_hard_errors(),
             telemetry: TelemetryConfig::default(),

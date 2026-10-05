@@ -548,7 +548,7 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | --- | --- | --- |
 | `client_handshake_secs` | `u64` | Client handshake timeout. |
 | `client_first_byte_idle_secs` | `u64` | First-byte idle timeout before protocol classification. |
-| `tg_connect_secs` | `u64` | Upstream Telegram connect timeout. |
+| `upstream_connect_timeout_secs` | `u64` | Per-attempt TCP connect timeout (seconds) to Telegram DC servers. |
 | `client_keepalive_secs` | `u64` | Client keepalive interval. |
 | `client_ack_secs` | `u64` | ACK timeout. |
 

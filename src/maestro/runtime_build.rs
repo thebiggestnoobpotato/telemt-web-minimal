@@ -73,7 +73,7 @@ pub(crate) async fn prepare_runtime(
             config.general.upstream_connect_retry_attempts,
             config.general.upstream_connect_retry_backoff_ms,
             config.general.upstream_connect_budget_ms,
-            config.general.tg_connect,
+            config.general.upstream_connect_timeout,
             config.general.upstream_unhealthy_fail_threshold,
             config.general.upstream_connect_failfast_hard_errors,
             stats.clone(),

@@ -46,7 +46,7 @@ pub(crate) fn default_client_first_byte_idle_secs() -> u64 {
     300
 }
 
-pub(crate) fn default_connect_timeout() -> u64 {
+pub(crate) fn default_upstream_connect_timeout() -> u64 {
     10
 }
 

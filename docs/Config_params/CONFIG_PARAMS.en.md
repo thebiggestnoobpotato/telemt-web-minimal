@@ -113,7 +113,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`upstream_connect_retry_attempts`](#upstream_connect_retry_attempts) | `u32` | `2` | `✘` |
 | [`upstream_connect_retry_backoff_ms`](#upstream_connect_retry_backoff_ms) | `u64` | `100` | `✘` |
 | [`upstream_connect_budget_ms`](#upstream_connect_budget_ms) | `u64` | `3000` | `✘` |
-| [`tg_connect`](#tg_connect) | `u64` | `10` | `✘` |
+| [`upstream_connect_timeout`](#upstream_connect_timeout) | `u64` | `10` | `✘` |
 | [`upstream_unhealthy_fail_threshold`](#upstream_unhealthy_fail_threshold) | `u32` | `5` | `✘` |
 | [`upstream_connect_failfast_hard_errors`](#upstream_connect_failfast_hard_errors) | `bool` | `false` | `✘` |
 | [`rst_on_close`](#rst_on_close) | `"off"`, `"errors"`, or `"always"` | `"off"` | `✘` |
@@ -239,14 +239,14 @@ This document lists all configuration keys accepted by `config.toml`.
     [general]
     upstream_connect_budget_ms = 3000
     ```
-## tg_connect
+## upstream_connect_timeout
   - **Constraints / validation**: Must be `> 0` (seconds).
-  - **Description**: Upstream Telegram connect timeout.
+  - **Description**: Per-attempt TCP connect timeout, in seconds, for outbound connections from the proxy to Telegram DC servers — the relay egress leg, whether direct or through an `[upstreams]` entry. Each individual connect attempt must complete within this time or it is aborted as a timeout and retried. The effective per-attempt timeout is capped by the remaining `upstream_connect_budget_ms`, so the overall budget can shorten it; retry behavior is controlled by `upstream_connect_retry_attempts` and `upstream_connect_retry_backoff_ms`. A successful connect also refreshes the per-DC latency estimate used for upstream selection. Lower the value to fail over quickly from blackholed or censored DC routes; raise it when your path to a DC is slow or lossy. Bounds the TCP connect phase only, not the MTProto handshake.
   - **Example**:
 
     ```toml
     [general]
-    tg_connect = 10
+    upstream_connect_timeout = 10
     ```
 ## upstream_unhealthy_fail_threshold
   - **Constraints / validation**: Must be `> 0`.

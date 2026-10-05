@@ -41,7 +41,7 @@ pub(super) struct RuntimeGatesData {
 pub(super) struct EffectiveTimeoutLimits {
     pub(super) client_first_byte_idle_secs: u64,
     pub(super) client_handshake_secs: u64,
-    pub(super) tg_connect_secs: u64,
+    pub(super) upstream_connect_timeout_secs: u64,
     pub(super) client_keepalive_secs: u64,
     pub(super) client_ack_secs: u64,
 }
@@ -160,7 +160,7 @@ pub(super) fn build_limits_effective_data(cfg: &ProxyConfig) -> EffectiveLimitsD
         timeouts: EffectiveTimeoutLimits {
             client_first_byte_idle_secs: cfg.timeouts.client_first_byte_idle_secs,
             client_handshake_secs: cfg.timeouts.client_handshake,
-            tg_connect_secs: cfg.general.tg_connect,
+            upstream_connect_timeout_secs: cfg.general.upstream_connect_timeout,
             client_keepalive_secs: cfg.timeouts.client_keepalive,
             client_ack_secs: cfg.timeouts.client_ack,
         },

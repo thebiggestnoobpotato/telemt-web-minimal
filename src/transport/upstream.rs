@@ -303,8 +303,9 @@ pub struct UpstreamManager {
     connect_retry_attempts: u32,
     connect_retry_backoff: Duration,
     connect_budget: Duration,
-    /// Per-attempt TCP connect timeout to Telegram DC (`[general] tg_connect`, seconds).
-    tg_connect_timeout_secs: u64,
+    /// Per-attempt TCP connect timeout to Telegram DC servers
+    /// (`[general] upstream_connect_timeout`, seconds).
+    upstream_connect_timeout_secs: u64,
     unhealthy_fail_threshold: u32,
     connect_failfast_hard_errors: bool,
     no_upstreams_warn_epoch_ms: Arc<AtomicU64>,

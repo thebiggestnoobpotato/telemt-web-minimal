@@ -48,9 +48,9 @@ pub struct GeneralConfig {
     /// Total wall-clock budget in milliseconds for one upstream connect request across retries.
     #[serde(default = "default_upstream_connect_budget_ms")]
     pub upstream_connect_budget_ms: u64,
-    /// Per-attempt TCP connect timeout to Telegram DC (seconds).
-    #[serde(default = "default_connect_timeout")]
-    pub tg_connect: u64,
+    /// Per-attempt TCP connect timeout to Telegram DC servers (seconds).
+    #[serde(default = "default_upstream_connect_timeout")]
+    pub upstream_connect_timeout: u64,
     /// Consecutive failed requests before upstream is marked unhealthy.
     #[serde(default = "default_upstream_unhealthy_fail_threshold")]
     pub upstream_unhealthy_fail_threshold: u32,

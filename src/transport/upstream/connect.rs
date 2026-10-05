@@ -22,7 +22,7 @@ impl UpstreamManager {
             }
             let remaining_budget = self.connect_budget.saturating_sub(elapsed);
             let attempt_timeout =
-                Duration::from_secs(self.tg_connect_timeout_secs).min(remaining_budget);
+                Duration::from_secs(self.upstream_connect_timeout_secs).min(remaining_budget);
             if attempt_timeout.is_zero() {
                 last_error = Some(ProxyError::ConnectionTimeout {
                     addr: target.to_string(),

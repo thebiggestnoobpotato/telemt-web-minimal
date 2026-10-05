@@ -97,7 +97,8 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
     if old.general.upstream_connect_retry_attempts != new.general.upstream_connect_retry_attempts
         || old.general.upstream_connect_retry_backoff_ms
             != new.general.upstream_connect_retry_backoff_ms
-        || old.general.tg_connect != new.general.tg_connect
+        || old.general.upstream_connect_timeout
+            != new.general.upstream_connect_timeout
         || old.general.upstream_unhealthy_fail_threshold
             != new.general.upstream_unhealthy_fail_threshold
         || old.general.upstream_connect_failfast_hard_errors

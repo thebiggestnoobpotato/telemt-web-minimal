@@ -88,7 +88,7 @@ The following is the minimal WEB configuration (what `telemt --init` generates):
 # prefer_ipv6 is deprecated; use [network].prefer
 prefer_ipv6 = false
 fast_mode = true
-tg_connect = 10
+upstream_connect_timeout = 10
 
 [general.links]
 show = ["user"]

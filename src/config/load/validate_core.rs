@@ -13,9 +13,9 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    if config.general.tg_connect == 0 {
+    if config.general.upstream_connect_timeout == 0 {
         return Err(ProxyError::Config(
-            "general.tg_connect must be > 0".to_string(),
+            "general.upstream_connect_timeout must be > 0".to_string(),
         ));
     }
 

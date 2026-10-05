@@ -248,7 +248,7 @@ fn generate_config(username: &str, secret: &str, port: u16, domain: &str) -> Str
 # prefer_ipv6 is deprecated; use [network].prefer
 prefer_ipv6 = false
 fast_mode = true
-tg_connect = 10
+upstream_connect_timeout = 10
 
 [general.links]
 show = ["{username}"]
