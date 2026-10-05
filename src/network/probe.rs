@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![allow(clippy::items_after_test_module)]
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket};

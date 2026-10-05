@@ -124,7 +124,7 @@ impl BufferPool {
     fn decrement_allocated(&self) {
         let _ = self
             .allocated
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
                 Some(current.saturating_sub(1))
             });
     }

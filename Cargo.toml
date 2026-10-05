@@ -2,7 +2,7 @@
 name = "telemt"
 version = "3.5.13"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.95"
 
 [dependencies]
 # C

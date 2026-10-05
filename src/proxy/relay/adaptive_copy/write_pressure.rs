@@ -52,7 +52,7 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for WritePressureIo<W> {
                 Poll::Ready(Err(error))
             }
             Poll::Pending => {
-                let _ = this.counters.s2c_consecutive_pending_writes.fetch_update(
+                let _ = this.counters.s2c_consecutive_pending_writes.try_update(
                     Ordering::Relaxed,
                     Ordering::Relaxed,
                     |current| Some(current.saturating_add(1)),

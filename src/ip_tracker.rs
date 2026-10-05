@@ -161,7 +161,7 @@ impl UserIpTracker {
             return;
         }
         let amount = amount as u64;
-        let _ = counter.fetch_update(Ordering::AcqRel, Ordering::Relaxed, |current| {
+        let _ = counter.try_update(Ordering::AcqRel, Ordering::Relaxed, |current| {
             Some(current.saturating_sub(amount))
         });
     }
@@ -196,7 +196,7 @@ impl UserIpTracker {
 
     pub(super) fn try_increment_counter(counter: &AtomicU64, cap: u64) -> bool {
         counter
-            .fetch_update(Ordering::AcqRel, Ordering::Relaxed, |current| {
+            .try_update(Ordering::AcqRel, Ordering::Relaxed, |current| {
                 (current < cap).then_some(current + 1)
             })
             .is_ok()

@@ -51,7 +51,7 @@ impl SlotBudget {
         }
         let released = self
             .used
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |current| {
                 current.checked_sub(amount)
             });
         debug_assert!(

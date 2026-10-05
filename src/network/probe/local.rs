@@ -18,14 +18,6 @@ pub(super) fn detect_local_ip_v6() -> Option<Ipv6Addr> {
     }
 }
 
-pub fn detect_interface_ipv4() -> Option<Ipv4Addr> {
-    detect_local_ip_v4()
-}
-
-pub fn detect_interface_ipv6() -> Option<Ipv6Addr> {
-    detect_local_ip_v6()
-}
-
 pub fn log_probe_result(probe: &NetworkProbe, decision: &NetworkDecision) {
     info!(
         ipv4 = probe
