@@ -162,7 +162,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`config_strict`](#config_strict) | `bool` | `false` | `✘` |
 | [`prefer_ipv6`](#prefer_ipv6) | `bool` | `false` | `✘` |
 | [`fast_mode`](#fast_mode) | `bool` | `true` | `✘` |
-| [`stun_nat_probe_concurrency`](#stun_nat_probe_concurrency) | `usize` | `8` | `✘` |
 | [`direct_relay_copy_buf_c2s_bytes`](#direct_relay_copy_buf_c2s_bytes) | `usize` | `65536` | `✔` |
 | [`direct_relay_copy_buf_s2c_bytes`](#direct_relay_copy_buf_s2c_bytes) | `usize` | `262144` | `✔` |
 | [`direct_relay_buffer_budget_max_bytes`](#direct_relay_buffer_budget_max_bytes) | `usize` | `0` | `✘` |
@@ -222,15 +221,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     fast_mode = true
-    ```
-## stun_nat_probe_concurrency
-  - **Constraints / validation**: Must be `> 0`.
-  - **Description**: Maximum number of parallel STUN probes during NAT/public endpoint discovery.
-  - **Example**:
-
-    ```toml
-    [general]
-    stun_nat_probe_concurrency = 8
     ```
 ## direct_relay_copy_buf_c2s_bytes
   - **Constraints / validation**: Must be within `4096..=1048576` (bytes).
@@ -400,11 +390,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`ipv4`](#ipv4) | `bool` | `true` | `✘` |
 | [`ipv6`](#ipv6) | `bool` | `false` | `✘` |
 | [`prefer`](#prefer) | `u8` | `4` | `✘` |
-| [`stun_use`](#stun_use) | `bool` | `true` | `✘` |
-| [`stun_servers`](#stun_servers) | `String[]` | Built-in STUN list (13 hosts) | `✘` |
-| [`stun_tcp_fallback`](#stun_tcp_fallback) | `bool` | `true` | `✘` |
-| [`http_ip_detect_urls`](#http_ip_detect_urls) | `String[]` | `["https://ifconfig.me/ip", "https://api.ipify.org"]` | `✘` |
-| [`cache_public_ip_path`](#cache_public_ip_path) | `String` | `"cache/public_ip.txt"` | `✘` |
 | [`dns_overrides`](#dns_overrides) | `String[]` | `[]` | `✔` |
 
 ## ipv4
@@ -437,54 +422,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [network]
     prefer = 6
-    ```
-## stun_use
-  - **Constraints / validation**: `bool`.
-  - **Description**: Global STUN switch; when `false`, STUN probing is disabled and only non-STUN detection remains.
-  - **Example**:
-
-    ```toml
-    [network]
-    stun_use = false
-    ```
-## stun_servers
-  - **Constraints / validation**: `String[]`. Values are trimmed; empty values are removed; list is deduplicated. If this key is **not** explicitly set, Telemt keeps the built-in default STUN list.
-  - **Description**: STUN servers list for public IP discovery.
-  - **Example**:
-
-    ```toml
-    [network]
-    stun_servers = [
-      "stun.l.google.com:19302",
-      "stun.stunprotocol.org:3478",
-    ]
-    ```
-## stun_tcp_fallback
-  - **Constraints / validation**: `bool`.
-  - **Description**: Enables TCP fallback for STUN when the UDP path is blocked/unavailable.
-  - **Example**:
-
-    ```toml
-    [network]
-    stun_tcp_fallback = true
-    ```
-## http_ip_detect_urls
-  - **Constraints / validation**: `String[]`.
-  - **Description**: HTTP endpoints used for public IP detection (fallback after STUN).
-  - **Example**:
-
-    ```toml
-    [network]
-    http_ip_detect_urls = ["https://ifconfig.me/ip", "https://api.ipify.org"]
-    ```
-## cache_public_ip_path
-  - **Constraints / validation**: `String`.
-  - **Description**: File path used to cache the detected public IP.
-  - **Example**:
-
-    ```toml
-    [network]
-    cache_public_ip_path = "cache/public_ip.txt"
     ```
 ## dns_overrides
   - **Constraints / validation**: `String[]`. Each entry must use `host:port:ip` format.

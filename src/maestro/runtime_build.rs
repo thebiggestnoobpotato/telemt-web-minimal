@@ -87,13 +87,7 @@ pub(crate) async fn prepare_runtime(
         user_admission,
     );
 
-    let probe = run_probe(
-        &config.network,
-        &config.upstreams,
-        config.general.stun_nat_probe_concurrency,
-    )
-    .await
-    .map_err(|error| format!("network probe failed: {}", error))?;
+    let probe = run_probe(&config.upstreams);
     let decision = decide_network_capabilities(&config.network, &probe);
     let prefer_ipv6 = decision.prefer_ipv6();
 

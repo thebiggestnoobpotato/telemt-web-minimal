@@ -12,8 +12,6 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
 
     assert_eq!(cfg.logging, LoggingConfig::default());
     assert_eq!(cfg.network.ipv6, default_network_ipv6());
-    assert_eq!(cfg.network.stun_use, default_true());
-    assert_eq!(cfg.network.stun_tcp_fallback, default_stun_tcp_fallback());
     assert_eq!(
         cfg.general.upstream_connect_retry_attempts,
         default_upstream_connect_retry_attempts()
@@ -241,8 +239,6 @@ fn file_logging_requires_path() {
 fn impl_defaults_are_sourced_from_default_helpers() {
     let network = NetworkConfig::default();
     assert_eq!(network.ipv6, default_network_ipv6());
-    assert_eq!(network.stun_use, default_true());
-    assert_eq!(network.stun_tcp_fallback, default_stun_tcp_fallback());
 
     let general = GeneralConfig::default();
     assert_eq!(

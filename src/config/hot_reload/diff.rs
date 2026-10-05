@@ -86,19 +86,9 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: network.ipv4/ipv6 changed; restart required");
     }
-    if old.network.prefer != new.network.prefer
-        || old.network.stun_use != new.network.stun_use
-        || old.network.stun_servers != new.network.stun_servers
-        || old.network.stun_tcp_fallback != new.network.stun_tcp_fallback
-        || old.network.http_ip_detect_urls != new.network.http_ip_detect_urls
-        || old.network.cache_public_ip_path != new.network.cache_public_ip_path
-    {
+    if old.network.prefer != new.network.prefer {
         warned = true;
         warn!("config reload: non-hot network settings changed; restart required");
-    }
-    if old.general.stun_nat_probe_concurrency != new.general.stun_nat_probe_concurrency {
-        warned = true;
-        warn!("config reload: general.stun_nat_probe_concurrency changed; restart required");
     }
     if old.logging.unknown_dc_log_path != new.logging.unknown_dc_log_path
         || old.logging.unknown_dc_file_log_enabled != new.logging.unknown_dc_file_log_enabled

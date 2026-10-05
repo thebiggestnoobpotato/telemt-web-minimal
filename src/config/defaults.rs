@@ -7,7 +7,6 @@ pub(crate) use extended::*;
 
 // Helper defaults kept private to the config module.
 const DEFAULT_NETWORK_IPV6: Option<bool> = Some(false);
-const DEFAULT_STUN_TCP_FALLBACK: bool = true;
 const DEFAULT_DIRECT_RELAY_COPY_BUF_C2S_BYTES: usize = 64 * 1024;
 const DEFAULT_DIRECT_RELAY_COPY_BUF_S2C_BYTES: usize = 256 * 1024;
 pub(crate) const DIRECT_RELAY_BUFFER_BUDGET_UNIT_BYTES: usize = 4 * 1024;
@@ -120,20 +119,12 @@ pub(crate) fn default_network_ipv6() -> Option<bool> {
     DEFAULT_NETWORK_IPV6
 }
 
-pub(crate) fn default_stun_tcp_fallback() -> bool {
-    DEFAULT_STUN_TCP_FALLBACK
-}
-
 pub(crate) fn default_unknown_dc_log_path() -> Option<String> {
     Some("unknown-dc.txt".to_string())
 }
 
 pub(crate) fn default_unknown_dc_file_log_enabled() -> bool {
     false
-}
-
-pub(crate) fn default_stun_nat_probe_concurrency() -> usize {
-    8
 }
 
 pub(crate) fn default_direct_relay_copy_buf_c2s_bytes() -> usize {

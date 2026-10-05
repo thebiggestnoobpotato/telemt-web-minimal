@@ -8,7 +8,6 @@ impl Default for GeneralConfig {
             config_strict: false,
             prefer_ipv6: false,
             fast_mode: default_true(),
-            stun_nat_probe_concurrency: default_stun_nat_probe_concurrency(),
             direct_relay_copy_buf_c2s_bytes: default_direct_relay_copy_buf_c2s_bytes(),
             direct_relay_copy_buf_s2c_bytes: default_direct_relay_copy_buf_s2c_bytes(),
             direct_relay_buffer_budget_max_bytes: default_direct_relay_buffer_budget_max_bytes(),

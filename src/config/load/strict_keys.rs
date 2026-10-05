@@ -23,7 +23,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "config_strict",
     "prefer_ipv6",
     "fast_mode",
-    "stun_nat_probe_concurrency",
     "direct_relay_copy_buf_c2s_bytes",
     "direct_relay_copy_buf_s2c_bytes",
     "direct_relay_buffer_budget_max_bytes",
@@ -44,11 +43,6 @@ const NETWORK_CONFIG_KEYS: &[&str] = &[
     "ipv4",
     "ipv6",
     "prefer",
-    "stun_use",
-    "stun_servers",
-    "stun_tcp_fallback",
-    "http_ip_detect_urls",
-    "cache_public_ip_path",
     "dns_overrides",
 ];
 

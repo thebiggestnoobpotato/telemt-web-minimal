@@ -32,35 +32,6 @@ pub(crate) fn default_max_client_frame() -> usize {
     16 * 1024 * 1024
 }
 
-pub(crate) fn default_stun_servers() -> Vec<String> {
-    vec![
-        "stun.l.google.com:5349".to_string(),
-        "stun1.l.google.com:3478".to_string(),
-        "stun.gmx.net:3478".to_string(),
-        "stun.l.google.com:19302".to_string(),
-        "stun.1und1.de:3478".to_string(),
-        "stun1.l.google.com:19302".to_string(),
-        "stun2.l.google.com:19302".to_string(),
-        "stun3.l.google.com:19302".to_string(),
-        "stun4.l.google.com:19302".to_string(),
-        "stun.services.mozilla.com:3478".to_string(),
-        "stun.stunprotocol.org:3478".to_string(),
-        "stun.nextcloud.com:3478".to_string(),
-        "stun.voip.eutelia.it:3478".to_string(),
-    ]
-}
-
-pub(crate) fn default_http_ip_detect_urls() -> Vec<String> {
-    vec![
-        "https://ifconfig.me/ip".to_string(),
-        "https://api.ipify.org".to_string(),
-    ]
-}
-
-pub(crate) fn default_cache_public_ip_path() -> String {
-    "cache/public_ip.txt".to_string()
-}
-
 pub(crate) fn default_access_users() -> HashMap<String, String> {
     HashMap::from([(
         DEFAULT_ACCESS_USER.to_string(),

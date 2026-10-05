@@ -15,9 +15,6 @@ pub struct GeneralConfig {
     /// Fast nonce mode: pre-fills the client enc key/iv into the relay nonce.
     #[serde(default = "default_true")]
     pub fast_mode: bool,
-    /// Maximum number of concurrent STUN probes during NAT detection.
-    #[serde(default = "default_stun_nat_probe_concurrency")]
-    pub stun_nat_probe_concurrency: usize,
     /// Copy buffer ceiling for client->DC direction in direct relay.
     ///
     /// This is also the upper bound for one amortized upload rate-limit burst:

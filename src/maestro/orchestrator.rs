@@ -245,12 +245,7 @@ pub(super) async fn run_telemt_core(
             Some("probe network capabilities".to_string()),
         )
         .await;
-    let probe = run_probe(
-        &config.network,
-        &config.upstreams,
-        config.general.stun_nat_probe_concurrency,
-    )
-    .await?;
+    let probe = run_probe(&config.upstreams);
     let decision = decide_network_capabilities(&config.network, &probe);
     log_probe_result(&probe, &decision);
     startup_tracker

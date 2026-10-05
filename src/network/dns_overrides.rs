@@ -45,13 +45,6 @@ pub struct GenerationDnsResolver {
 }
 
 impl GenerationDnsResolver {
-    /// Creates one resolver from a validated immutable entry set.
-    pub fn from_entries(entries: &[String]) -> Result<Self> {
-        Ok(Self {
-            snapshot: ArcSwap::from_pointee(DnsOverrides::from_entries(entries)?),
-        })
-    }
-
     /// Validates and atomically publishes a new generation-local snapshot.
     pub fn apply_entries(&self, entries: &[String]) -> Result<()> {
         let snapshot = DnsOverrides::from_entries(entries)?;
@@ -206,7 +199,8 @@ mod tests {
     #[test]
     fn generation_resolver_updates_are_case_insensitive_for_host() {
         let entries = vec!["MyPetrovich.ru:8443:127.0.0.1".to_string()];
-        let resolver = GenerationDnsResolver::from_entries(&entries).unwrap();
+        let resolver = GenerationDnsResolver::default();
+        resolver.apply_entries(&entries).unwrap();
 
         assert_eq!(
             resolver.resolve_socket_addr("mypetrovich.ru", 8443),
