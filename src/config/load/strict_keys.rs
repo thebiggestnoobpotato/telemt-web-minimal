@@ -247,7 +247,7 @@ const LOGGING_CONFIG_KEYS: &[&str] = &[
     "destination",
     "path",
     "log_level",
-    "show",
+    "show_users",
     "unknown_dc_log_enabled",
 ];
 

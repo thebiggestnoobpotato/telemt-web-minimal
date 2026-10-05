@@ -252,7 +252,7 @@ upstream_connect_timeout = 10
 
 [logging]
 log_level = "normal"
-show = ["{username}"]
+show_users = ["{username}"]
 
 [network]
 ipv4 = true

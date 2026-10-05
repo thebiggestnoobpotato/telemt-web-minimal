@@ -11,8 +11,8 @@
 # RUST_LOG env var takes absolute priority over all of these
 [logging]
 log_level = "normal"
-show = "*"
-# show = ["alice", "bob"] # Only show links for alice and bob
+show_users = "*"
+# show_users = ["alice", "bob"] # Only show links for alice and bob
 
 # === Server Binding ===
 [server]

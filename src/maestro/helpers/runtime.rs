@@ -7,10 +7,10 @@ use crate::config::ProxyConfig;
 // the configured destination (stderr, syslog, or file) even at Silent level.
 const WEB_LINKS_LOG_TARGET: &str = "telemt::links";
 
-/// Emits WEB links for profiles selected by `[logging].show` through the
-/// tracing subscriber so they follow the configured log destination.
+/// Emits WEB links for profiles selected by `[logging].show_users` through
+/// the tracing subscriber so they follow the configured log destination.
 pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
-    if !config.web.enabled || config.logging.show.is_empty() {
+    if !config.web.enabled || config.logging.show_users.is_empty() {
         return;
     }
     let Some(runtime) = config.web.runtime.as_ref() else {
@@ -18,7 +18,7 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
     };
     let shown = config
         .logging
-        .show
+        .show_users
         .resolve_users(&config.access.users);
     let mut heading_printed = false;
     for profile in &runtime.profiles {

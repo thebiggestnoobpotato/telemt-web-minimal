@@ -99,11 +99,11 @@ async fn patch_revision_conflict() {
 }
 
 #[tokio::test]
-async fn patch_logging_show_reports_restart_required() {
-    // logging.show is process-owned: links are emitted once at listener bind
-    // time, so the change is deferred until a process restart.
+async fn patch_logging_show_users_reports_restart_required() {
+    // logging.show_users is process-owned: links are emitted once at listener
+    // bind time, so the change is deferred until a process restart.
     let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"logging": {"show": ["alice"]}});
+    let patch: Json = serde_json::json!({"logging": {"show_users": ["alice"]}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.restart_required);
     assert!(resp.runtime_reload_required);
@@ -111,7 +111,7 @@ async fn patch_logging_show_reports_restart_required() {
     assert!(resp.deferred_process_fields.iter().any(|f| f == "logging"));
     assert!(resp.changed.iter().any(|c| c == "logging"));
     let written = std::fs::read_to_string(&path).unwrap();
-    assert!(written.contains("show = [\"alice\"]"));
+    assert!(written.contains("show_users = [\"alice\"]"));
     assert_eq!(
         resp.revision,
         crate::api::config_store::current_revision(&path)
@@ -345,18 +345,18 @@ async fn patch_rejects_non_editable_top_level_section() {
 }
 
 #[tokio::test]
-async fn patch_logging_show_is_editable() {
-    // The supported path: edit show via the [logging] section.
+async fn patch_logging_show_users_is_editable() {
+    // The supported path: edit show_users via the [logging] section.
     let (path, _d) = temp_config(
-        "[general]\nprefer_ipv6 = false\n[logging]\nshow = \"*\"\n",
+        "[general]\nprefer_ipv6 = false\n[logging]\nshow_users = \"*\"\n",
     );
-    let patch: Json = serde_json::json!({"logging": {"show": ["alice"]}});
+    let patch: Json = serde_json::json!({"logging": {"show_users": ["alice"]}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.changed.iter().any(|c| c == "logging"));
     let written = tokio::fs::read_to_string(&path).await.unwrap();
     let parsed: toml::Value = toml::from_str(&written).unwrap();
     assert_eq!(
-        parsed["logging"]["show"][0].as_str(),
+        parsed["logging"]["show_users"][0].as_str(),
         Some("alice"),
         "{written}"
     );

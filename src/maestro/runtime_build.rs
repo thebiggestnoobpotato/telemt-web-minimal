@@ -225,12 +225,12 @@ pub(crate) fn resolve_reload_config(
         effective.general.data_path = old.general.data_path.clone();
     }
     // `logging.log_level` is hot-reloadable; the remaining logging fields are
-    // process-owned and deferred until restart. `logging.show` is
+    // process-owned and deferred until restart. `logging.show_users` is
     // process-owned too: links are emitted once at listener bind time.
     let logging_process_fields_changed =
         old.logging.destination != desired.logging.destination
             || old.logging.path != desired.logging.path
-            || old.logging.show != desired.logging.show
+            || old.logging.show_users != desired.logging.show_users
             || old.logging.unknown_dc_log_enabled
                 != desired.logging.unknown_dc_log_enabled;
     if logging_process_fields_changed {

@@ -94,9 +94,9 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: logging.unknown_dc_log_enabled changed; restart required");
     }
-    if old.logging.show != new.logging.show {
+    if old.logging.show_users != new.logging.show_users {
         warned = true;
-        warn!("config reload: logging.show changed; restart required");
+        warn!("config reload: logging.show_users changed; restart required");
     }
     if old.general.upstream_connect_retry_attempts != new.general.upstream_connect_retry_attempts
         || old.general.upstream_connect_retry_backoff_ms

@@ -1,10 +1,10 @@
-//! WEB proxy link display policy backing `[logging].show`.
+//! WEB proxy link display policy backing `[logging].show_users`.
 
 use super::*;
 
 /// In TOML, this can be:
-/// - `show = "*"`          — show links for all users
-/// - `show = ["a", "b"]`   — show links for specific users
+/// - `show_users = "*"`          — show links for all users
+/// - `show_users = ["a", "b"]`   — show links for specific users
 /// - omitted                — defaults to `"*"` (all users)
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum ShowLink {
@@ -144,35 +144,46 @@ mod tests {
 
     #[derive(Deserialize)]
     struct Wrapper {
-        show: ShowLink,
+        show_users: ShowLink,
     }
 
     #[test]
     fn show_link_serde_forms() {
         assert_eq!(
-            toml::from_str::<Wrapper>(r#"show = "*""#).unwrap().show,
+            toml::from_str::<Wrapper>(r#"show_users = "*""#).unwrap().show_users,
             ShowLink::All
         );
         assert_eq!(
-            toml::from_str::<Wrapper>(r#"show = ["alice", "bob"]"#)
+            toml::from_str::<Wrapper>(r#"show_users = ["alice", "bob"]"#)
                 .unwrap()
-                .show,
+                .show_users,
             ShowLink::Specific(vec!["alice".to_string(), "bob".to_string()])
         );
         assert_eq!(
-            toml::from_str::<Wrapper>("show = []").unwrap().show,
+            toml::from_str::<Wrapper>("show_users = []").unwrap().show_users,
             ShowLink::None
         );
 
         #[derive(Serialize)]
         struct WrapperSer {
-            show: ShowLink,
+            show_users: ShowLink,
         }
 
-        let serialized_all = toml::to_string(&WrapperSer { show: ShowLink::All }).unwrap();
-        assert!(serialized_all.contains(r#"show = "*""#), "{serialized_all}");
-        let serialized_none =
-            toml::to_string(&WrapperSer { show: ShowLink::None }).unwrap();
-        assert!(serialized_none.contains("show = []"), "{serialized_none}");
+        let serialized_all = toml::to_string(&WrapperSer {
+            show_users: ShowLink::All,
+        })
+        .unwrap();
+        assert!(
+            serialized_all.contains(r#"show_users = "*""#),
+            "{serialized_all}"
+        );
+        let serialized_none = toml::to_string(&WrapperSer {
+            show_users: ShowLink::None,
+        })
+        .unwrap();
+        assert!(
+            serialized_none.contains("show_users = []"),
+            "{serialized_none}"
+        );
     }
 }
