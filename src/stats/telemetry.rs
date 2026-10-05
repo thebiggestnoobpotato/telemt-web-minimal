@@ -1,4 +1,4 @@
-use crate::config::TelemetryConfig;
+use crate::config::GeneralConfig;
 
 /// Runtime telemetry policy used by hot-path counters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,10 +17,10 @@ impl Default for TelemetryPolicy {
 }
 
 impl TelemetryPolicy {
-    pub fn from_config(cfg: &TelemetryConfig) -> Self {
+    pub fn from_config(cfg: &GeneralConfig) -> Self {
         Self {
-            core_enabled: cfg.core_enabled,
-            user_enabled: cfg.user_enabled,
+            core_enabled: cfg.telemetry_core_enabled,
+            user_enabled: cfg.telemetry_user_enabled,
         }
     }
 }

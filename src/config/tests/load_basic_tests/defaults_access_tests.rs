@@ -28,6 +28,8 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
         cfg.general.upstream_connect_failfast_hard_errors,
         default_upstream_connect_failfast_hard_errors()
     );
+    assert_eq!(cfg.general.telemetry_core_enabled, default_true());
+    assert_eq!(cfg.general.telemetry_user_enabled, default_true());
     assert_eq!(cfg.server.api.listen, default_api_listen());
     assert_eq!(cfg.server.api.whitelist, default_api_whitelist());
     assert_eq!(cfg.server.api.gray_action, ApiGrayAction::Drop);
@@ -120,6 +122,26 @@ fn general_links_key_is_stripped_from_general() {
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.logging.show_users, ShowLink::All);
+}
+
+#[test]
+fn general_telemetry_key_is_stripped_from_general() {
+    // strict: the old [general.telemetry] location is rejected after the
+    // move to flat [general].telemetry_*_enabled keys.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n[general.telemetry]\ncore_enabled = true\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("general.telemetry"), "{error}");
+
+    // non-strict: the old sub-table is silently ignored and the flat keys
+    // keep their defaults.
+    let cfg = load_config_from_temp_toml(
+        "[general]\n[general.telemetry]\ncore_enabled = false\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.general.telemetry_core_enabled, default_true());
+    assert_eq!(cfg.general.telemetry_user_enabled, default_true());
 }
 
 #[test]

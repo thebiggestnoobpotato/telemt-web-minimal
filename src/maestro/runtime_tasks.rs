@@ -158,7 +158,7 @@ pub(crate) async fn spawn_runtime_tasks(
             }
             let cfg = config_rx_policy.borrow_and_update().clone();
             stats_policy
-                .apply_telemetry_policy(TelemetryPolicy::from_config(&cfg.general.telemetry));
+                .apply_telemetry_policy(TelemetryPolicy::from_config(&cfg.general));
         }
     });
 

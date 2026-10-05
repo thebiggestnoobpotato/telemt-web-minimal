@@ -54,7 +54,7 @@ pub(super) async fn run_telemt_core(
     let runtime_task_scope = generation::RuntimeTaskScope::new();
     let runtime_task_scope_guard =
         generation::RuntimeTaskScopePreparationGuard::new(runtime_task_scope.clone());
-    stats.apply_telemetry_policy(TelemetryPolicy::from_config(&config.general.telemetry));
+    stats.apply_telemetry_policy(TelemetryPolicy::from_config(&config.general));
     let quota_state_path = config.general.quota_state_path.clone();
     let quota_state =
         crate::quota_state::QuotaStateOwner::new(quota_state_path, quota_store.clone());

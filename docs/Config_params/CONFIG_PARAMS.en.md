@@ -16,7 +16,6 @@ This document lists all configuration keys accepted by `config.toml`.
  - [Top-level keys](#top-level-keys)
  - [logging](#logging)
  - [general](#general)
- - [general.telemetry](#generaltelemetry)
  - [network](#network)
  - [server](#server)
  - [server.api](#serverapi)
@@ -129,6 +128,8 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`upstream_connect_failfast_hard_errors`](#upstream_connect_failfast_hard_errors) | `bool` | `false` | `✘` |
 | [`dc_overrides`](#dc_overrides) | `Map<String, String or String[]>` | `{}` | `✘` |
 | [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
+| [`telemetry_core_enabled`](#telemetry_core_enabled) | `bool` | `true` | `✔` |
+| [`telemetry_user_enabled`](#telemetry_user_enabled) | `bool` | `true` | `✔` |
 
 ## data_path
   - **Constraints / validation**: `String` (optional).
@@ -297,32 +298,23 @@ This document lists all configuration keys accepted by `config.toml`.
     # route it to this default cluster (1..=5).
     default_dc = 2
     ```
-
-# [general.telemetry]
-
-
-| Key | Type | Default | Hot-Reload |
-| --- | ---- | ------- | ---------- |
-| [`core_enabled`](#core_enabled) | `bool` | `true` | `✔` |
-| [`user_enabled`](#user_enabled) | `bool` | `true` | `✔` |
-
-## core_enabled
+## telemetry_core_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables core hot-path telemetry counters.
   - **Example**:
 
     ```toml
-    [general.telemetry]
-    core_enabled = true
+    [general]
+    telemetry_core_enabled = true
     ```
-## user_enabled
+## telemetry_user_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables per-user telemetry counters.
   - **Example**:
 
     ```toml
-    [general.telemetry]
-    user_enabled = true
+    [general]
+    telemetry_user_enabled = true
     ```
 # [network]
 

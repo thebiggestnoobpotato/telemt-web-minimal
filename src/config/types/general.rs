@@ -57,9 +57,12 @@ pub struct GeneralConfig {
     /// Skip additional retries for hard non-transient upstream connect errors.
     #[serde(default = "default_upstream_connect_failfast_hard_errors")]
     pub upstream_connect_failfast_hard_errors: bool,
-    /// Runtime telemetry controls for counters/metrics in hot paths.
-    #[serde(default)]
-    pub telemetry: TelemetryConfig,
+    /// Enable core hot-path telemetry counters (process, buffer, traffic).
+    #[serde(default = "default_true")]
+    pub telemetry_core_enabled: bool,
+    /// Enable per-user telemetry counters (bounded per-user metrics).
+    #[serde(default = "default_true")]
+    pub telemetry_user_enabled: bool,
     /// DC address overrides for non-standard DCs (CDN, media, test, etc.)
     /// Keys are DC indices as strings, values are one or more "ip:port" addresses.
     /// Matches the C implementation's `proxy_for <dc_id> <ip>:<port>` config directive.

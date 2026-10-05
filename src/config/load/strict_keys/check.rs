@@ -45,7 +45,6 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         ACCESS_CONFIG_KEYS,
         RATE_LIMIT_BPS_CONFIG_KEYS,
         UPSTREAM_CONFIG_KEYS,
-        TELEMETRY_CONFIG_KEYS,
         LOGGING_CONFIG_KEYS,
     ] {
         keys.extend_from_slice(group);
@@ -159,13 +158,6 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         &known_for_suggestion,
         &["general"],
         GENERAL_CONFIG_KEYS,
-    );
-    check_known_table(
-        parsed_toml,
-        &mut unknown,
-        &known_for_suggestion,
-        &["general", "telemetry"],
-        TELEMETRY_CONFIG_KEYS,
     );
     check_known_table(
         parsed_toml,

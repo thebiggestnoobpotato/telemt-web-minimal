@@ -54,37 +54,37 @@ fn find_bounds_matches_header_with_inline_comment() {
 }
 
 #[tokio::test]
-async fn save_general_section_keeps_subtables_dotted_without_duplicates() {
+async fn save_web_section_keeps_subtables_dotted_without_duplicates() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.toml");
     tokio::fs::write(
         &path,
-        "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
+        "[web]\nenabled = false\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
          [server]\nport = 443\n",
     )
     .await
     .unwrap();
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.prefer_ipv6 = true;
+    cfg.web.enabled = true;
 
-    save_sections_to_disk(&path, &cfg, &["general"])
+    save_sections_to_disk(&path, &cfg, &["web"])
         .await
         .unwrap();
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
 
-    // No bare top-level [telemetry] header leaked.
+    // No bare top-level [timeouts] header leaked.
     for line in written.lines() {
         let header = line.trim();
-        assert_ne!(header, "[telemetry]", "leaked top-level [telemetry]:\n{written}");
+        assert_ne!(header, "[timeouts]", "leaked top-level [timeouts]:\n{written}");
     }
 
     // The sub-table kept its dotted prefix exactly once.
     assert_eq!(
-        written.matches("[general.telemetry]").count(),
+        written.matches("[web.timeouts]").count(),
         1,
-        "[general.telemetry] must appear exactly once:\n{written}"
+        "[web.timeouts] must appear exactly once:\n{written}"
     );
 
     // Result parses (duplicate tables would error here).
@@ -96,44 +96,44 @@ async fn save_general_section_keeps_subtables_dotted_without_duplicates() {
 }
 
 #[tokio::test]
-async fn save_general_section_is_idempotent_across_repeated_saves() {
+async fn save_web_section_is_idempotent_across_repeated_saves() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.toml");
     tokio::fs::write(
         &path,
-        "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n",
+        "[web]\nenabled = false\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n",
     )
     .await
     .unwrap();
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.prefer_ipv6 = true;
+    cfg.web.enabled = true;
 
-    save_sections_to_disk(&path, &cfg, &["general"])
+    save_sections_to_disk(&path, &cfg, &["web"])
         .await
         .unwrap();
-    save_sections_to_disk(&path, &cfg, &["general"])
+    save_sections_to_disk(&path, &cfg, &["web"])
         .await
         .unwrap();
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
-    assert_eq!(written.matches("[general.telemetry]").count(), 1, "{written}");
-    assert_eq!(written.matches("[general]").count(), 1, "{written}");
+    assert_eq!(written.matches("[web.timeouts]").count(), 1, "{written}");
+    assert_eq!(written.matches("[web]").count(), 1, "{written}");
     toml::from_str::<toml::Value>(&written)
         .unwrap_or_else(|e| panic!("written config must parse: {e}\n{written}"));
 }
 
 #[test]
 fn find_bounds_spans_dotted_subtables() {
-    let src = "[general]\nprefer_ipv6 = false\n\n[general.telemetry]\ncore_enabled = true\n\n\
+    let src = "[web]\nenabled = true\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
                [server]\nport = 1\n";
-    let bounds = find_toml_table_bounds(src, "general");
-    assert!(bounds.is_some(), "should locate [general] block");
+    let bounds = find_toml_table_bounds(src, "web");
+    assert!(bounds.is_some(), "should locate [web] block");
     let (start, end) = bounds.unwrap();
     let slice = &src[start..end];
-    assert!(slice.starts_with("[general]"));
+    assert!(slice.starts_with("[web]"));
     // Nested sub-tables belong to the parent table bound.
-    assert!(slice.contains("[general.telemetry]"));
+    assert!(slice.contains("[web.timeouts]"));
     // The bound terminates before an unrelated header.
     assert!(!slice.contains("[server]"));
 }
@@ -159,30 +159,30 @@ fn nested_include_detection_does_not_reject_similar_access_keys() {
 }
 
 #[tokio::test]
-async fn save_general_handles_non_contiguous_subtables() {
+async fn save_web_handles_non_contiguous_subtables() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.toml");
-    // Hand-edited layout: [general.telemetry] sits AFTER an unrelated [server].
+    // Hand-edited layout: [web.timeouts] sits AFTER an unrelated [server].
     tokio::fs::write(
         &path,
-        "[general]\nprefer_ipv6 = false\n\n[server]\nport = 443\n\n\
-         [general.telemetry]\ncore_enabled = true\n",
+        "[web]\nenabled = false\n\n[server]\nport = 443\n\n\
+         [web.timeouts]\nhttp_overload_timeout_ms = 1\n",
     )
     .await
     .unwrap();
 
     let mut cfg = ProxyConfig::default();
-    cfg.general.prefer_ipv6 = true;
+    cfg.web.enabled = true;
 
-    save_sections_to_disk(&path, &cfg, &["general"])
+    save_sections_to_disk(&path, &cfg, &["web"])
         .await
         .unwrap();
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
     assert_eq!(
-        written.matches("[general.telemetry]").count(),
+        written.matches("[web.timeouts]").count(),
         1,
-        "non-contiguous [general.telemetry] must not duplicate:\n{written}"
+        "non-contiguous [web.timeouts] must not duplicate:\n{written}"
     );
     toml::from_str::<toml::Value>(&written)
         .unwrap_or_else(|e| panic!("written config must parse: {e}\n{written}"));

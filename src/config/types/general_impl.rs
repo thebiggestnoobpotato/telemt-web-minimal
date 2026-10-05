@@ -19,7 +19,8 @@ impl Default for GeneralConfig {
             upstream_connect_timeout: default_upstream_connect_timeout(),
             upstream_unhealthy_fail_threshold: default_upstream_unhealthy_fail_threshold(),
             upstream_connect_failfast_hard_errors: default_upstream_connect_failfast_hard_errors(),
-            telemetry: TelemetryConfig::default(),
+            telemetry_core_enabled: default_true(),
+            telemetry_user_enabled: default_true(),
             dc_overrides: HashMap::new(),
             default_dc: None,
         }

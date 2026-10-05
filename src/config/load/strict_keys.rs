@@ -31,7 +31,8 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "upstream_connect_timeout",
     "upstream_unhealthy_fail_threshold",
     "upstream_connect_failfast_hard_errors",
-    "telemetry",
+    "telemetry_core_enabled",
+    "telemetry_user_enabled",
     "dc_overrides",
     "default_dc",
 ];
@@ -242,7 +243,6 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
     "prefer",
 ];
 
-const TELEMETRY_CONFIG_KEYS: &[&str] = &["core_enabled", "user_enabled"];
 const LOGGING_CONFIG_KEYS: &[&str] = &[
     "destination",
     "path",

@@ -27,7 +27,7 @@ pub(super) fn log_changes(
         || old_hot.telemetry_user_enabled != new_hot.telemetry_user_enabled
     {
         info!(
-            "config reload: telemetry: core_enabled={} user_enabled={}",
+            "config reload: telemetry_core_enabled={} telemetry_user_enabled={}",
             new_hot.telemetry_core_enabled,
             new_hot.telemetry_user_enabled,
         );

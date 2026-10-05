@@ -29,8 +29,8 @@ impl HotFields {
         Self {
             log_level: cfg.logging.log_level.clone(),
             dns_overrides: cfg.network.dns_overrides.clone(),
-            telemetry_core_enabled: cfg.general.telemetry.core_enabled,
-            telemetry_user_enabled: cfg.general.telemetry.user_enabled,
+            telemetry_core_enabled: cfg.general.telemetry_core_enabled,
+            telemetry_user_enabled: cfg.general.telemetry_user_enabled,
             direct_relay_copy_buf_c2s_bytes: cfg.general.direct_relay_copy_buf_c2s_bytes,
             direct_relay_copy_buf_s2c_bytes: cfg.general.direct_relay_copy_buf_s2c_bytes,
             users: cfg.access.users.clone(),
@@ -55,7 +55,8 @@ pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyC
 
     cfg.logging.log_level = new.logging.log_level.clone();
     cfg.network.dns_overrides = new.network.dns_overrides.clone();
-    cfg.general.telemetry = new.general.telemetry.clone();
+    cfg.general.telemetry_core_enabled = new.general.telemetry_core_enabled;
+    cfg.general.telemetry_user_enabled = new.general.telemetry_user_enabled;
     cfg.general.direct_relay_copy_buf_c2s_bytes = new.general.direct_relay_copy_buf_c2s_bytes;
     cfg.general.direct_relay_copy_buf_s2c_bytes = new.general.direct_relay_copy_buf_s2c_bytes;
 

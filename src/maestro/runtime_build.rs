@@ -65,7 +65,7 @@ pub(crate) async fn prepare_runtime(
         quota_store,
         connection_authority,
     ));
-    stats.apply_telemetry_policy(TelemetryPolicy::from_config(&config.general.telemetry));
+    stats.apply_telemetry_policy(TelemetryPolicy::from_config(&config.general));
 
     let upstream_manager = Arc::new(
         UpstreamManager::new(
