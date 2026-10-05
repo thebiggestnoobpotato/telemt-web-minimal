@@ -266,8 +266,15 @@ impl UpstreamManager {
                             "SOCKS5 interface binding is not supported for hostname addresses, ignoring"
                         );
                     }
-                    self.connect_hostname_with_dns_override(address, connect_timeout)
-                        .await?
+                    match tokio::time::timeout(connect_timeout, TcpStream::connect(address))
+                        .await
+                    {
+                        Ok(Ok(stream)) => stream,
+                        Ok(Err(e)) => return Err(ProxyError::Io(e)),
+                        Err(_) => return Err(ProxyError::ConnectionTimeout {
+                            addr: address.to_string(),
+                        }),
+                    }
                 };
 
                 debug!(config = ?config, "Socks5 connection");

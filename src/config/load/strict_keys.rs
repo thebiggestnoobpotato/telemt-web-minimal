@@ -41,7 +41,6 @@ const NETWORK_CONFIG_KEYS: &[&str] = &[
     "ipv4",
     "ipv6",
     "prefer",
-    "dns_overrides",
 ];
 
 const SERVER_CONFIG_KEYS: &[&str] = &[

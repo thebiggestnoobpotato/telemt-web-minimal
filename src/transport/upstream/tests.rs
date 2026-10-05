@@ -1,46 +1,4 @@
 use super::*;
-use std::sync::Arc;
-
-use crate::stats::Stats;
-
-fn manager_with_dns(entries: &[String]) -> UpstreamManager {
-    UpstreamManager::new(Vec::new(), 1, 1, 1, 1, 1, false, Arc::new(Stats::new()))
-        .with_dns_overrides(entries)
-        .unwrap()
-}
-
-#[tokio::test]
-async fn generation_local_dns_overrides_are_isolated_and_case_insensitive() {
-    let active = manager_with_dns(&["Front.Example:443:192.0.2.10".to_string()]);
-    let candidate = manager_with_dns(&["front.example:443:[2001:db8::10]".to_string()]);
-
-    assert_eq!(
-        active.resolve_hostname("front.example", 443).await.unwrap(),
-        "192.0.2.10:443".parse::<SocketAddr>().unwrap()
-    );
-    assert_eq!(
-        candidate
-            .resolve_hostname("FRONT.EXAMPLE", 443)
-            .await
-            .unwrap(),
-        "[2001:db8::10]:443".parse::<SocketAddr>().unwrap()
-    );
-
-    candidate
-        .update_dns_overrides(&["front.example:443:192.0.2.20".to_string()])
-        .unwrap();
-    assert_eq!(
-        active.resolve_hostname("FRONT.EXAMPLE", 443).await.unwrap(),
-        "192.0.2.10:443".parse::<SocketAddr>().unwrap()
-    );
-    assert_eq!(
-        candidate
-            .resolve_hostname("front.example", 443)
-            .await
-            .unwrap(),
-        "192.0.2.20:443".parse::<SocketAddr>().unwrap()
-    );
-}
 
 #[test]
 fn required_healthy_group_count_applies_three_group_threshold() {

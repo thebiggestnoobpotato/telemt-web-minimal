@@ -324,7 +324,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`ipv4`](#ipv4) | `bool` | `true` | `✘` |
 | [`ipv6`](#ipv6) | `bool` | `false` | `✘` |
 | [`prefer`](#prefer) | `u8` | `4` | `✘` |
-| [`dns_overrides`](#dns_overrides) | `String[]` | `[]` | `✔` |
 
 ## ipv4
   - **Constraints / validation**: `bool`.
@@ -357,23 +356,6 @@ This document lists all configuration keys accepted by `config.toml`.
     [network]
     prefer = 6
     ```
-## dns_overrides
-  - **Constraints / validation**: `String[]`. Each entry must use `host:port:ip` format.
-    - `host`: domain name (must be non-empty and must not contain `:`)
-    - `port`: `u16`
-    - `ip`: IPv4 (`1.2.3.4`) or bracketed IPv6 (`[2001:db8::1]`). **Unbracketed IPv6 is rejected**.
-  - **Description**: Runtime DNS overrides for `host:port` targets. Useful for forcing specific IPs for given upstream domains without touching system DNS.
-  - **Example**:
-
-    ```toml
-    [network]
-    dns_overrides = [
-      "example.com:443:127.0.0.1",
-      "example.net:8443:[2001:db8::10]",
-    ]
-    ```
-
-
 # [server]
 
 

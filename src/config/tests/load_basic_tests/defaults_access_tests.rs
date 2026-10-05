@@ -145,6 +145,25 @@ fn general_telemetry_key_is_stripped_from_general() {
 }
 
 #[test]
+fn network_dns_overrides_key_is_stripped_from_network() {
+    // strict: the removed [network].dns_overrides key is rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n[network]\n\
+         dns_overrides = [\"example.com:443:127.0.0.1\"]\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("dns_overrides"), "{error}");
+
+    // non-strict: the removed key is silently ignored and [network] keeps
+    // its defaults.
+    let cfg = load_config_from_temp_toml(
+        "[network]\ndns_overrides = [\"example.com:443:127.0.0.1\"]\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.network.ipv4, default_true());
+}
+
+#[test]
 fn cidr_rate_limits_accept_auto_templates_in_strict_config() {
     let cfg = load_config_from_temp_toml(
         r#"

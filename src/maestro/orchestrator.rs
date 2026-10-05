@@ -71,8 +71,7 @@ pub(super) async fn run_telemt_core(
             config.general.upstream_unhealthy_fail_threshold,
             config.general.upstream_connect_failfast_hard_errors,
             stats.clone(),
-        )
-        .with_dns_overrides(&config.network.dns_overrides)?,
+        ),
     );
     let ip_tracker = Arc::new(UserIpTracker::new());
     let _ = ip_tracker
@@ -91,12 +90,6 @@ pub(super) async fn run_telemt_core(
             global_each_limit = config.access.user_max_unique_ips_global_each,
             explicit_user_limits = config.access.user_max_unique_ips.len(),
             "User unique IP limits configured"
-        );
-    }
-    if !config.network.dns_overrides.is_empty() {
-        info!(
-            "Runtime DNS overrides configured: {} entries",
-            config.network.dns_overrides.len()
         );
     }
     let direct_buffer_hard_limit =

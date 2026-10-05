@@ -39,7 +39,5 @@ mod defaults_access_tests;
 mod legacy_policy_tests;
 #[path = "load_basic_tests/source_security_tests.rs"]
 mod source_security_tests;
-#[path = "load_basic_tests/upstream_tests.rs"]
-mod upstream_tests;
 #[path = "load_basic_tests/web_tests.rs"]
 mod web_tests;

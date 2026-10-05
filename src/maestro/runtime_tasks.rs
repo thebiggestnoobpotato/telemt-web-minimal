@@ -139,7 +139,6 @@ pub(crate) async fn spawn_runtime_tasks(
         config_path.to_path_buf(),
         config.clone(),
         task_scope.cancellation_token(),
-        Some(upstream_manager.dns_resolver()),
         config_watcher_activation,
     );
     task_scope.spawn(config_watcher_task);

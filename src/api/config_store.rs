@@ -304,7 +304,7 @@ pub(super) async fn save_config_to_disk(
 /// blocked. See also the field-level allowlist note below for `network.*`.
 ///
 /// A future field-level allowlist can re-admit specific safe fields
-/// (e.g. `network.dns_overrides`) without opening the whole section.
+/// without opening the whole section.
 pub(super) const EDITABLE_SECTIONS: &[&str] = &[
     "general",
     "logging",

@@ -8,7 +8,6 @@
 //! |-----------|--------------------------------|------------------------------------------------|
 //! | `logging` | `log_level`                    | Filter updated via `log_level_tx`              |
 //! | `general` | `telemetry`                    | Applied immediately                            |
-//! | `network` | `dns_overrides`                | Applied immediately                            |
 //! | `access`  | All user/quota fields          | Effective immediately                          |
 //! | `web`     | Carrier, timing, and debug policy | Applied to newly issued sessions             |
 //! | `web`     | `carrier_method`               | Applied to newly rendered bridge pages        |

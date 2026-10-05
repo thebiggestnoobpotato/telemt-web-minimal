@@ -12,11 +12,6 @@ pub struct NetworkConfig {
     /// 4 or 6.
     #[serde(default = "default_prefer_4")]
     pub prefer: u8,
-
-    /// Runtime DNS overrides in `host:port:ip` format.
-    /// IPv6 IP values must be bracketed: `[2001:db8::1]`.
-    #[serde(default)]
-    pub dns_overrides: Vec<String>,
 }
 
 impl Default for NetworkConfig {
@@ -25,7 +20,6 @@ impl Default for NetworkConfig {
             ipv4: default_true(),
             ipv6: default_network_ipv6(),
             prefer: default_prefer_4(),
-            dns_overrides: Vec::new(),
         }
     }
 }

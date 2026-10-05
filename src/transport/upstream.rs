@@ -20,7 +20,6 @@ use tracing::{debug, info, trace, warn};
 
 use crate::config::{UpstreamConfig, UpstreamType};
 use crate::error::{ProxyError, Result};
-use crate::network::dns_overrides::{GenerationDnsResolver, split_host_port};
 use crate::protocol::constants::{TG_DATACENTER_PORT, TG_DATACENTERS_V4, TG_DATACENTERS_V6};
 use crate::stats::Stats;
 use crate::transport::socket::{
@@ -39,7 +38,6 @@ const HEALTH_CHECK_INTERVAL_SECS: u64 = 30;
 const HEALTH_CHECK_CONNECT_TIMEOUT_SECS: u64 = 10;
 /// Upstream is considered healthy when at least this many DC groups are reachable.
 const MIN_HEALTHY_DC_GROUPS: usize = 3;
-const DNS_RESULT_MAX_ADDRESSES: usize = 64;
 
 // ============= RTT Tracking =============
 
@@ -311,7 +309,6 @@ pub struct UpstreamManager {
     no_upstreams_warn_epoch_ms: Arc<AtomicU64>,
     no_healthy_warn_epoch_ms: Arc<AtomicU64>,
     stats: Arc<Stats>,
-    dns_resolver: Arc<GenerationDnsResolver>,
 }
 
 // Upstream manager configuration, DNS resolution, and API snapshots.

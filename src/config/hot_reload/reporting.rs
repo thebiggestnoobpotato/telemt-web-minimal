@@ -15,14 +15,6 @@ pub(super) fn log_changes(
         log_tx.send(new_hot.log_level.clone()).ok();
     }
 
-    if old_hot.dns_overrides != new_hot.dns_overrides {
-        info!(
-            "config reload: network.dns_overrides updated ({} entries)",
-            new_hot.dns_overrides.len()
-        );
-    }
-
-
     if old_hot.telemetry_core_enabled != new_hot.telemetry_core_enabled
         || old_hot.telemetry_user_enabled != new_hot.telemetry_user_enabled
     {

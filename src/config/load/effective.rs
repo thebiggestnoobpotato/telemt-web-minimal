@@ -10,7 +10,6 @@ pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
     }
 
     validate_network_cfg(&mut config.network)?;
-    crate::network::dns_overrides::validate_entries(&config.network.dns_overrides)?;
 
     // Migration: listeners[].port fallback to legacy server.port.
     for listener in &mut config.server.listeners {

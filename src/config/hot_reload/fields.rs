@@ -4,7 +4,6 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotFields {
     pub log_level: LogLevel,
-    pub dns_overrides: Vec<String>,
     pub telemetry_core_enabled: bool,
     pub telemetry_user_enabled: bool,
     pub direct_relay_copy_buf_c2s_bytes: usize,
@@ -28,7 +27,6 @@ impl HotFields {
     pub fn from_config(cfg: &ProxyConfig) -> Self {
         Self {
             log_level: cfg.logging.log_level.clone(),
-            dns_overrides: cfg.network.dns_overrides.clone(),
             telemetry_core_enabled: cfg.general.telemetry_core_enabled,
             telemetry_user_enabled: cfg.general.telemetry_user_enabled,
             direct_relay_copy_buf_c2s_bytes: cfg.general.direct_relay_copy_buf_c2s_bytes,
@@ -54,7 +52,6 @@ pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyC
     let mut cfg = old.clone();
 
     cfg.logging.log_level = new.logging.log_level.clone();
-    cfg.network.dns_overrides = new.network.dns_overrides.clone();
     cfg.general.telemetry_core_enabled = new.general.telemetry_core_enabled;
     cfg.general.telemetry_user_enabled = new.general.telemetry_user_enabled;
     cfg.general.direct_relay_copy_buf_c2s_bytes = new.general.direct_relay_copy_buf_c2s_bytes;

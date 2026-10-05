@@ -250,8 +250,6 @@ impl ProxyConfig {
 
         validate_logging_config(&self.logging)?;
 
-        crate::network::dns_overrides::validate_entries(&self.network.dns_overrides)?;
-
         Ok(())
     }
 }

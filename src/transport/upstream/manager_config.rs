@@ -39,48 +39,7 @@ impl UpstreamManager {
             no_upstreams_warn_epoch_ms: Arc::new(AtomicU64::new(0)),
             no_healthy_warn_epoch_ms: Arc::new(AtomicU64::new(0)),
             stats,
-            dns_resolver: Arc::new(GenerationDnsResolver::default()),
         }
-    }
-
-    pub(crate) fn with_dns_overrides(self, entries: &[String]) -> Result<Self> {
-        self.dns_resolver.apply_entries(entries)?;
-        Ok(self)
-    }
-
-    pub(crate) fn update_dns_overrides(&self, entries: &[String]) -> Result<()> {
-        self.dns_resolver.apply_entries(entries)
-    }
-
-    pub(crate) fn dns_resolver(&self) -> Arc<GenerationDnsResolver> {
-        Arc::clone(&self.dns_resolver)
-    }
-
-    pub(crate) async fn resolve_all(&self, host: &str, port: u16) -> Result<Vec<SocketAddr>> {
-        if let Some(addr) = self.dns_resolver.resolve_socket_addr(host, port) {
-            return Ok(vec![addr]);
-        }
-        let addrs = tokio::net::lookup_host((host, port))
-            .await
-            .map_err(ProxyError::Io)?
-            .take(DNS_RESULT_MAX_ADDRESSES)
-            .collect::<Vec<_>>();
-        if addrs.is_empty() {
-            return Err(ProxyError::Proxy(format!(
-                "DNS returned no addresses for {host}:{port}"
-            )));
-        }
-        Ok(addrs)
-    }
-
-    pub(crate) async fn resolve_hostname(&self, host: &str, port: u16) -> Result<SocketAddr> {
-        let addrs = self.resolve_all(host, port).await?;
-        if let Some(addr) = addrs.iter().copied().find(SocketAddr::is_ipv4) {
-            return Ok(addr);
-        }
-        addrs.first().copied().ok_or_else(|| {
-            ProxyError::Proxy(format!("DNS returned no addresses for {host}:{port}"))
-        })
     }
 
     pub(super) fn now_epoch_ms() -> u64 {
@@ -405,32 +364,6 @@ impl UpstreamManager {
         }
 
         None
-    }
-
-    pub(super) async fn connect_hostname_with_dns_override(
-        &self,
-        address: &str,
-        connect_timeout: Duration,
-    ) -> Result<TcpStream> {
-        if let Some((host, port)) = split_host_port(address)
-            && let Some(addr) = self.dns_resolver.resolve_socket_addr(&host, port)
-        {
-            return match tokio::time::timeout(connect_timeout, TcpStream::connect(addr)).await {
-                Ok(Ok(stream)) => Ok(stream),
-                Ok(Err(e)) => Err(ProxyError::Io(e)),
-                Err(_) => Err(ProxyError::ConnectionTimeout {
-                    addr: addr.to_string(),
-                }),
-            };
-        }
-
-        match tokio::time::timeout(connect_timeout, TcpStream::connect(address)).await {
-            Ok(Ok(stream)) => Ok(stream),
-            Ok(Err(e)) => Err(ProxyError::Io(e)),
-            Err(_) => Err(ProxyError::ConnectionTimeout {
-                addr: address.to_string(),
-            }),
-        }
     }
 
     pub(super) fn retry_backoff_with_jitter(&self) -> Duration {

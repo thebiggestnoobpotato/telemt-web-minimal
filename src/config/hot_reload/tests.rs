@@ -288,7 +288,6 @@ async fn candidate_watcher_waits_for_activation_and_reconciles_disk() {
         path.clone(),
         initial,
         cancellation.clone(),
-        None,
         Some(activation_rx),
     );
     let watcher = tokio::spawn(watcher);
@@ -388,18 +387,6 @@ fn reload_publishes_web_negotiation_policy_outside_hot_field_reporting() {
     assert!(!applied.web.carrier_learning);
 
     let _ = std::fs::remove_file(path);
-}
-
-#[test]
-fn classify_dns_overrides_change_is_hot() {
-    // network.dns_overrides IS in overlay_hot_fields -> no restart.
-    let old = ProxyConfig::default();
-    let mut new = ProxyConfig::default();
-    new.network.dns_overrides.push("1.1.1.1".to_string());
-
-    let class = classify_config_changes(&old, &new);
-    assert!(!class.restart_required);
-    assert!(class.changed.iter().any(|c| c == "network"));
 }
 
 #[test]

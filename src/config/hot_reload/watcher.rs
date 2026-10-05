@@ -133,12 +133,11 @@ fn apply_watch_manifest<W1: Watcher, W2: Watcher>(
 }
 
 /// Load config, validate, diff against current, and broadcast if changed.
-fn reload_config_with_resolver(
+fn reload_config_once(
     config_path: &PathBuf,
     config_tx: &watch::Sender<Arc<ProxyConfig>>,
     log_tx: &watch::Sender<LogLevel>,
     reload_state: &mut ReloadState,
-    dns_resolver: Option<&crate::network::dns_overrides::GenerationDnsResolver>,
 ) -> Option<WatchManifest> {
     let loaded = match ProxyConfig::load_with_metadata(config_path) {
         Ok(loaded) => loaded,
@@ -193,17 +192,6 @@ fn reload_config_with_resolver(
         return Some(next_manifest);
     }
 
-    if old_hot.dns_overrides != applied_hot.dns_overrides
-        && let Some(dns_resolver) = dns_resolver
-        && let Err(e) = dns_resolver.apply_entries(&applied_hot.dns_overrides)
-    {
-        error!(
-            "config reload: invalid network.dns_overrides: {}; keeping old config",
-            e
-        );
-        return Some(next_manifest);
-    }
-
     log_changes(&old_hot, &applied_hot, &applied_cfg, log_tx);
     config_tx.send(Arc::new(applied_cfg)).ok();
     reload_state.mark_applied(rendered_hash);
@@ -217,7 +205,7 @@ pub(super) fn reload_config(
     log_tx: &watch::Sender<LogLevel>,
     reload_state: &mut ReloadState,
 ) -> Option<WatchManifest> {
-    reload_config_with_resolver(config_path, config_tx, log_tx, reload_state, None)
+    reload_config_once(config_path, config_tx, log_tx, reload_state)
 }
 
 /// Spawn the hot-reload watcher task.
@@ -230,7 +218,6 @@ pub fn spawn_config_watcher(
     config_path: PathBuf,
     initial: Arc<ProxyConfig>,
     cancellation: tokio_util::sync::CancellationToken,
-    dns_resolver: Option<Arc<crate::network::dns_overrides::GenerationDnsResolver>>,
     mut activation: Option<watch::Receiver<bool>>,
 ) -> (
     watch::Receiver<Arc<ProxyConfig>>,
@@ -382,22 +369,20 @@ pub fn spawn_config_watcher(
             tokio::time::sleep(HOT_RELOAD_DEBOUNCE).await;
             while notify_rx.try_recv().is_ok() {}
 
-            let mut next_manifest = reload_config_with_resolver(
+            let mut next_manifest = reload_config_once(
                 &config_path,
                 &config_tx,
                 &log_tx,
                 &mut reload_state,
-                dns_resolver.as_deref(),
             );
             if next_manifest.is_none() {
                 tokio::time::sleep(HOT_RELOAD_DEBOUNCE).await;
                 while notify_rx.try_recv().is_ok() {}
-                next_manifest = reload_config_with_resolver(
+                next_manifest = reload_config_once(
                     &config_path,
                     &config_tx,
                     &log_tx,
                     &mut reload_state,
-                    dns_resolver.as_deref(),
                 );
             }
 
