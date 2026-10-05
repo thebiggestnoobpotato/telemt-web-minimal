@@ -11,7 +11,6 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "timeouts",
     "access",
     "upstreams",
-    "show_link",
     "dc_overrides",
     "default_dc",
     "include",

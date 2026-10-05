@@ -110,10 +110,6 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub upstreams: Vec<UpstreamConfig>,
 
-    /// Optional proxy link rendering controls.
-    #[serde(default)]
-    pub show_link: ShowLink,
-
     /// DC address overrides for non-standard DCs (CDN, media, test, etc.)
     /// Keys are DC indices as strings, values are one or more "ip:port" addresses.
     /// Matches the C implementation's `proxy_for <dc_id> <ip>:<port>` config directive.

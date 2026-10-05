@@ -84,13 +84,14 @@ journalctl -u telemt
 The following is the minimal WEB configuration (what `telemt --init` generates):
 
 ```toml
-show_link = ["user"]
-
 [general]
 # prefer_ipv6 is deprecated; use [network].prefer
 prefer_ipv6 = false
 fast_mode = true
 tg_connect = 10
+
+[general.links]
+show = ["user"]
 
 [logging]
 log_level = "normal"

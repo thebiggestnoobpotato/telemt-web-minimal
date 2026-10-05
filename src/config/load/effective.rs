@@ -19,11 +19,6 @@ pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
         }
     }
 
-    // Migration: show_link (top-level) → general.links.show.
-    if !config.show_link.is_empty() && config.general.links.show.is_empty() {
-        config.general.links.show = config.show_link.clone();
-    }
-
     // Migration: Populate upstreams if empty (Default Direct).
     if config.upstreams.is_empty() {
         config.upstreams.push(UpstreamConfig {

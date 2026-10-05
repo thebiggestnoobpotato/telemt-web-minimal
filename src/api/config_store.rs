@@ -297,11 +297,6 @@ pub(super) async fn save_config_to_disk(
 ///
 ///   - `access`    : owned by the users API.
 ///   - `network`   : carries per-node identity (`ipv4`/`ipv6`).
-///   - `show_link` : legacy top-level scalar/array (not a `[table]`), superseded
-///                   by the editable `general.links.show` sub-table. The
-///                   section-upsert machinery here only handles `[table]` /
-///                   `[[array-of-tables]]` blocks; a bare top-level key cannot be
-///                   located or replaced safely, so it is edited via `general`.
 ///
 /// `server` is partially editable: only the nested fields listed in
 /// [`EDITABLE_SERVER_FIELDS`] (currently `listeners`) may appear in GET/PATCH.

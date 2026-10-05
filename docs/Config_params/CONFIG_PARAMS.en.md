@@ -38,7 +38,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
 | [`include`](#include) | `String` (special directive) | — | `✔` |
-| [`show_link`](#show_link) | `"*"` or `String[]` | `[]` (`ShowLink::None`) | `✘` |
 | [`logging`](#logging) | Table | default values | `✘` |
 | [`dc_overrides`](#dc_overrides) | `Map<String, String or String[]>` | `{}` | `✘` |
 | [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
@@ -50,18 +49,6 @@ This document lists all configuration keys accepted by `config.toml`.
 
     ```toml
     include = "secrets.toml"
-    ```
-## show_link
-  - **Constraints / validation**: Accepts `"*"` or an array of usernames. Empty array means "show none".
-  - **Description**: Legacy top-level link visibility selector (`"*"` for all users or explicit usernames list).
-  - **Example**:
-
-    ```toml
-    # show links for all configured users
-    show_link = "*"
-
-    # or: show links only for selected users
-    # show_link = ["alice", "bob"]
     ```
 ## dc_overrides
   - **Constraints / validation**: Key must be a positive integer DC index encoded as string (e.g. `"203"`). Values must parse as `SocketAddr` (`ip:port`). Empty strings are ignored.

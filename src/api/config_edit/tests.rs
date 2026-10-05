@@ -333,11 +333,11 @@ async fn patch_server_listeners_preserves_api() {
 }
 
 #[tokio::test]
-async fn patch_rejects_show_link_section() {
-    // show_link is a legacy top-level scalar/array (not a [table]); it cannot
-    // be upserted safely and is superseded by the editable general.links.show.
+async fn patch_rejects_non_editable_top_level_section() {
+    // Top-level sections outside the editable allowlist are rejected wholesale;
+    // `network` carries per-node identity and is intentionally excluded.
     let (path, _d) = temp_config("[general]\nprefer_ipv6 = false\n");
-    let patch: Json = serde_json::json!({"show_link": "*"});
+    let patch: Json = serde_json::json!({"network": {"ipv4": false}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
     assert_eq!(err.code, "section_not_editable");
 }

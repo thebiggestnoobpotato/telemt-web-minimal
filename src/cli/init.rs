@@ -244,13 +244,14 @@ fn generate_config(username: &str, secret: &str, port: u16, domain: &str) -> Str
         r#"# Telemt WEB MTProxy — auto-generated config
 # Re-run `telemt --init` to regenerate
 
-show_link = ["{username}"]
-
 [general]
 # prefer_ipv6 is deprecated; use [network].prefer
 prefer_ipv6 = false
 fast_mode = true
 tg_connect = 10
+
+[general.links]
+show = ["{username}"]
 
 [logging]
 log_level = "normal"

@@ -18,9 +18,9 @@ impl Default for LinksConfig {
 }
 
 /// In TOML, this can be:
-/// - `show_link = "*"`          — show links for all users
-/// - `show_link = ["a", "b"]`   — show links for specific users
-/// - omitted                    — default depends on the owning config field
+/// - `show = "*"`          — show links for all users
+/// - `show = ["a", "b"]`   — show links for specific users
+/// - omitted                — default depends on the owning config field
 #[derive(Debug, Clone, Default)]
 pub enum ShowLink {
     /// Don't show any links (default when omitted).
