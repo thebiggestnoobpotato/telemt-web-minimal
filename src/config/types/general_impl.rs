@@ -21,7 +21,6 @@ impl Default for GeneralConfig {
             upstream_connect_failfast_hard_errors: default_upstream_connect_failfast_hard_errors(),
             telemetry: TelemetryConfig::default(),
             links: LinksConfig::default(),
-            rst_on_close: RstOnCloseMode::default(),
             dc_overrides: HashMap::new(),
             default_dc: None,
         }

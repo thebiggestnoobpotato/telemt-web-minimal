@@ -1,20 +1,5 @@
 use super::*;
 
-/// RST-on-close mode for accepted client sockets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum RstOnCloseMode {
-    /// Normal FIN on all closes (default, no behaviour change).
-    #[default]
-    Off,
-    /// SO_LINGER(0) on accept; cleared after successful auth.
-    /// Pre-handshake failures (scanners, DPI, timeouts) send RST;
-    /// authenticated relay sessions close gracefully with FIN.
-    Errors,
-    /// SO_LINGER(0) on accept, never cleared — all closes send RST.
-    Always,
-}
-
 /// Per-user unique source IP limit mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]

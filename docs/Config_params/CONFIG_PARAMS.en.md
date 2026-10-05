@@ -116,7 +116,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`upstream_connect_timeout`](#upstream_connect_timeout) | `u64` | `10` | `✘` |
 | [`upstream_unhealthy_fail_threshold`](#upstream_unhealthy_fail_threshold) | `u32` | `5` | `✘` |
 | [`upstream_connect_failfast_hard_errors`](#upstream_connect_failfast_hard_errors) | `bool` | `false` | `✘` |
-| [`rst_on_close`](#rst_on_close) | `"off"`, `"errors"`, or `"always"` | `"off"` | `✘` |
 | [`dc_overrides`](#dc_overrides) | `Map<String, String or String[]>` | `{}` | `✘` |
 | [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
 
@@ -265,20 +264,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     upstream_connect_failfast_hard_errors = false
-    ```
-## rst_on_close
-  - **Constraints / validation**: one of `"off"`, `"errors"`, `"always"`.
-  - **Description**: Controls `SO_LINGER(0)` behaviour on accepted client TCP sockets.
-    High-traffic proxy servers accumulate `FIN-WAIT-1` and orphaned sockets from connections that never complete the Telegram handshake (scanners, DPI probes, bots).
-    This option allows sending an immediate `RST` instead of a graceful `FIN` for such connections, freeing kernel resources instantly.
-    - `"off"` — default. Normal `FIN` on all closes; no behaviour change.
-    - `"errors"` — `SO_LINGER(0)` is set on `accept()`. If the client successfully completes authentication, linger is cleared and the relay session closes gracefully with `FIN`. Connections closed before handshake completion (timeouts, bad crypto, scanners) send `RST`.
-    - `"always"` — `SO_LINGER(0)` is set on `accept()` and never cleared. All closes send `RST` regardless of handshake outcome.
-  - **Example**:
-
-    ```toml
-    [general]
-    rst_on_close = "errors"
     ```
 ## dc_overrides
   - **Constraints / validation**: Key must be a positive integer DC index encoded as string (e.g. `"203"`). Values must parse as `SocketAddr` (`ip:port`). Empty strings are ignored.

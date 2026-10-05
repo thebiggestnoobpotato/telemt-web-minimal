@@ -33,7 +33,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "upstream_connect_failfast_hard_errors",
     "telemetry",
     "links",
-    "rst_on_close",
     "dc_overrides",
     "default_dc",
 ];

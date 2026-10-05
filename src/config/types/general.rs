@@ -63,13 +63,6 @@ pub struct GeneralConfig {
     /// [general.links] — proxy link generation overrides.
     #[serde(default)]
     pub links: LinksConfig,
-    /// RST-on-close mode for accepted client sockets.
-    /// `off`    — normal FIN on all closes (default).
-    /// `errors` — SO_LINGER(0) on accept, cleared after successful auth;
-    ///            pre-handshake failures send RST, relayed sessions close gracefully.
-    /// `always` — SO_LINGER(0) on accept, never cleared; all closes send RST.
-    #[serde(default)]
-    pub rst_on_close: RstOnCloseMode,
     /// DC address overrides for non-standard DCs (CDN, media, test, etc.)
     /// Keys are DC indices as strings, values are one or more "ip:port" addresses.
     /// Matches the C implementation's `proxy_for <dc_id> <ip>:<port>` config directive.

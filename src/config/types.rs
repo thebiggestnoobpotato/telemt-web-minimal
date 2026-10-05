@@ -37,7 +37,7 @@ pub use general::GeneralConfig;
 pub use links::{LinksConfig, ShowLink};
 pub use logging::{LogLevel, LoggingConfig, LoggingDestination};
 pub use network::{NetworkConfig, UpstreamConfig, UpstreamType};
-pub use policies::{RstOnCloseMode, TelemetryConfig, UserMaxUniqueIpsMode};
+pub use policies::{TelemetryConfig, UserMaxUniqueIpsMode};
 #[allow(unused_imports)]
 pub use server::{
     ListenerConfig, ListenerTransport, ServerConfig, TimeoutsConfig, WebClientIpSource,
