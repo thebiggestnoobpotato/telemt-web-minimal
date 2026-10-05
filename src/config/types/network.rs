@@ -1,29 +1,5 @@
 use super::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkConfig {
-    #[serde(default = "default_true")]
-    pub ipv4: bool,
-
-    /// None = auto-detect IPv6 availability.
-    #[serde(default = "default_network_ipv6")]
-    pub ipv6: Option<bool>,
-
-    /// 4 or 6.
-    #[serde(default = "default_prefer_4")]
-    pub prefer: u8,
-}
-
-impl Default for NetworkConfig {
-    fn default() -> Self {
-        Self {
-            ipv4: default_true(),
-            ipv6: default_network_ipv6(),
-            prefer: default_prefer_4(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum UpstreamType {
@@ -69,7 +45,7 @@ pub struct UpstreamConfig {
     #[serde(default)]
     pub ipv6: Option<bool>,
     /// Per-upstream IP family preference for Telegram DC targets.
-    /// `None` inherits the effective global `[network].prefer` decision.
+    /// `None` inherits the effective global `[general].network_prefer` decision.
     #[serde(default)]
     pub prefer: Option<u8>,
 }

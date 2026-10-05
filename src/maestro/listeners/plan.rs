@@ -30,10 +30,10 @@ pub(crate) fn listener_bind_plan(
             listener.ip,
             listener_port_or_legacy(listener, &config.server),
         );
-        if addr.is_ipv4() && !config.network.ipv4 {
+        if addr.is_ipv4() && !config.general.network_ipv4 {
             continue;
         }
-        if addr.is_ipv6() && config.network.ipv6 == Some(false) {
+        if addr.is_ipv6() && config.general.network_ipv6 == Some(false) {
             continue;
         }
         let spec = ListenerBindSpec {
@@ -112,13 +112,13 @@ mod tests {
     fn plan_depends_on_inbound_family_policy_only() {
         let mut config = ProxyConfig::default();
         config.server.listeners = vec![listener("0.0.0.0", 443), listener("::", 443)];
-        config.network.ipv4 = true;
-        config.network.ipv6 = None;
+        config.general.network_ipv4 = true;
+        config.general.network_ipv6 = None;
 
         let plan = listener_bind_plan(&config).unwrap();
 
         assert_eq!(plan.len(), 2);
-        config.network.ipv6 = Some(false);
+        config.general.network_ipv6 = Some(false);
         let plan = listener_bind_plan(&config).unwrap();
         assert_eq!(plan.len(), 1);
         assert!(plan.keys().all(SocketAddr::is_ipv4));

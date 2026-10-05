@@ -82,13 +82,15 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: web.decoy_fasttrack_mode changed; restart required");
     }
-    if old.network.ipv4 != new.network.ipv4 || old.network.ipv6 != new.network.ipv6 {
+    if old.general.network_ipv4 != new.general.network_ipv4
+        || old.general.network_ipv6 != new.general.network_ipv6
+    {
         warned = true;
-        warn!("config reload: network.ipv4/ipv6 changed; restart required");
+        warn!("config reload: general.network_ipv4/network_ipv6 changed; restart required");
     }
-    if old.network.prefer != new.network.prefer {
+    if old.general.network_prefer != new.general.network_prefer {
         warned = true;
-        warn!("config reload: non-hot network settings changed; restart required");
+        warn!("config reload: general.network_prefer changed; restart required");
     }
     if old.logging.unknown_dc_log_enabled != new.logging.unknown_dc_log_enabled {
         warned = true;

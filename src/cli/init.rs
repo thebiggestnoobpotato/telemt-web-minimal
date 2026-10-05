@@ -245,19 +245,17 @@ fn generate_config(username: &str, secret: &str, port: u16, domain: &str) -> Str
 # Re-run `telemt --init` to regenerate
 
 [general]
-# prefer_ipv6 is deprecated; use [network].prefer
+# prefer_ipv6 is deprecated; use [general].network_prefer
 prefer_ipv6 = false
 fast_mode = true
 upstream_connect_timeout = 10
+network_ipv4 = true
+network_ipv6 = true
+network_prefer = 4
 
 [logging]
 log_level = "normal"
 show_users = ["{username}"]
-
-[network]
-ipv4 = true
-ipv6 = true
-prefer = 4
 
 [server]
 port = {port}

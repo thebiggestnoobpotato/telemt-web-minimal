@@ -86,7 +86,7 @@ pub(crate) async fn prepare_runtime(
     );
 
     let probe = run_probe(&config.upstreams);
-    let decision = decide_network_capabilities(&config.network, &probe);
+    let decision = decide_network_capabilities(&config.general, &probe);
     let prefer_ipv6 = decision.prefer_ipv6();
 
     let rng = Arc::new(SecureRandom::new());

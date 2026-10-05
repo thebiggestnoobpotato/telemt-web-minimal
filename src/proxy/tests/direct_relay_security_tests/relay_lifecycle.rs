@@ -4,8 +4,8 @@ use super::*;
 #[test]
 fn fallback_dc_never_panics_with_single_dc_list() {
     let mut cfg = ProxyConfig::default();
-    cfg.network.prefer = 6;
-    cfg.network.ipv6 = Some(true);
+    cfg.general.network_prefer = 6;
+    cfg.general.network_ipv6 = Some(true);
     cfg.general.default_dc = Some(42);
 
     let addr = get_dc_addr_static(999, &cfg).expect("fallback dc must resolve safely");

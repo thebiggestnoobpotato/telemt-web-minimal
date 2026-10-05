@@ -239,7 +239,7 @@ pub(super) async fn run_telemt_core(
         )
         .await;
     let probe = run_probe(&config.upstreams);
-    let decision = decide_network_capabilities(&config.network, &probe);
+    let decision = decide_network_capabilities(&config.general, &probe);
     log_probe_result(&probe, &decision);
     startup_tracker
         .complete_component(

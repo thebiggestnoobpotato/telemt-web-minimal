@@ -3,7 +3,6 @@ use super::*;
 #[test]
 fn serde_defaults_remain_unchanged_for_present_sections() {
     let toml = r#"
-        [network]
         [general]
         [server]
         [access]
@@ -11,7 +10,7 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
     let cfg: ProxyConfig = toml::from_str(toml).unwrap();
 
     assert_eq!(cfg.logging, LoggingConfig::default());
-    assert_eq!(cfg.network.ipv6, default_network_ipv6());
+    assert_eq!(cfg.general.network_ipv6, default_network_ipv6());
     assert_eq!(
         cfg.general.upstream_connect_retry_attempts,
         default_upstream_connect_retry_attempts()
@@ -145,22 +144,31 @@ fn general_telemetry_key_is_stripped_from_general() {
 }
 
 #[test]
-fn network_dns_overrides_key_is_stripped_from_network() {
-    // strict: the removed [network].dns_overrides key is rejected.
+fn network_section_is_stripped_into_general() {
+    // strict: the removed [network] section is rejected; its keys now live
+    // in [general] as network_ipv4 / network_ipv6 / network_prefer.
     let error = load_config_error_from_temp_toml(
-        "[general]\nconfig_strict = true\n[network]\n\
-         dns_overrides = [\"example.com:443:127.0.0.1\"]\n\
+        "[general]\nconfig_strict = true\n[network]\nipv4 = false\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert!(error.contains("dns_overrides"), "{error}");
+    assert!(error.contains("network"), "{error}");
 
-    // non-strict: the removed key is silently ignored and [network] keeps
-    // its defaults.
+    // non-strict: the removed section is silently ignored and [general]
+    // keeps its defaults.
     let cfg = load_config_from_temp_toml(
-        "[network]\ndns_overrides = [\"example.com:443:127.0.0.1\"]\n\
+        "[network]\nipv4 = false\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert_eq!(cfg.network.ipv4, default_true());
+    assert_eq!(cfg.general.network_ipv4, default_true());
+
+    // the new [general] location loads explicit values.
+    let cfg = load_config_from_temp_toml(
+        "[general]\nnetwork_ipv4 = false\nnetwork_ipv6 = true\nnetwork_prefer = 6\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.general.network_ipv4, false);
+    assert_eq!(cfg.general.network_ipv6, Some(true));
+    assert_eq!(cfg.general.network_prefer, 6);
 }
 
 #[test]
@@ -326,10 +334,9 @@ fn file_logging_requires_path() {
 
 #[test]
 fn impl_defaults_are_sourced_from_default_helpers() {
-    let network = NetworkConfig::default();
-    assert_eq!(network.ipv6, default_network_ipv6());
-
     let general = GeneralConfig::default();
+    assert_eq!(general.network_ipv6, default_network_ipv6());
+    assert_eq!(general.network_prefer, default_prefer_4());
     assert_eq!(
         general.upstream_connect_retry_attempts,
         default_upstream_connect_retry_attempts()

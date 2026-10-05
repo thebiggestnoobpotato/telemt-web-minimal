@@ -85,19 +85,17 @@ The following is the minimal WEB configuration (what `telemt --init` generates):
 
 ```toml
 [general]
-# prefer_ipv6 is deprecated; use [network].prefer
+# prefer_ipv6 is deprecated; use [general].network_prefer
 prefer_ipv6 = false
 fast_mode = true
 upstream_connect_timeout = 10
+network_ipv4 = true
+network_ipv6 = true
+network_prefer = 4
 
 [logging]
 log_level = "normal"
 show_users = ["user"]
-
-[network]
-ipv4 = true
-ipv6 = true
-prefer = 4
 
 [server]
 port = 443

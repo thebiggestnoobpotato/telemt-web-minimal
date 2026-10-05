@@ -6,8 +6,8 @@ fn prefer_v6_override_matrix_prefers_matching_family_then_degrades_safely() {
     let dc_idx: i16 = 2;
 
     let mut cfg_a = ProxyConfig::default();
-    cfg_a.network.prefer = 6;
-    cfg_a.network.ipv6 = Some(true);
+    cfg_a.general.network_prefer = 6;
+    cfg_a.general.network_ipv6 = Some(true);
     cfg_a.general.dc_overrides.insert(
         dc_idx.to_string(),
         vec![
@@ -22,8 +22,8 @@ fn prefer_v6_override_matrix_prefers_matching_family_then_degrades_safely() {
     );
 
     let mut cfg_b = ProxyConfig::default();
-    cfg_b.network.prefer = 6;
-    cfg_b.network.ipv6 = Some(true);
+    cfg_b.general.network_prefer = 6;
+    cfg_b.general.network_ipv6 = Some(true);
     cfg_b
         .general.dc_overrides
         .insert(dc_idx.to_string(), vec!["203.0.113.91:443".to_string()]);
@@ -34,8 +34,8 @@ fn prefer_v6_override_matrix_prefers_matching_family_then_degrades_safely() {
     );
 
     let mut cfg_c = ProxyConfig::default();
-    cfg_c.network.prefer = 6;
-    cfg_c.network.ipv6 = Some(true);
+    cfg_c.general.network_prefer = 6;
+    cfg_c.general.network_ipv6 = Some(true);
     let c = get_dc_addr_static(dc_idx, &cfg_c).expect("table fallback must resolve");
     assert_eq!(
         c,
@@ -49,8 +49,8 @@ fn prefer_v6_override_matrix_ignores_invalid_entries_and_keeps_fail_closed_fallb
     let dc_idx: i16 = 3;
 
     let mut cfg = ProxyConfig::default();
-    cfg.network.prefer = 6;
-    cfg.network.ipv6 = Some(true);
+    cfg.general.network_prefer = 6;
+    cfg.general.network_ipv6 = Some(true);
     cfg.general.dc_overrides.insert(
         dc_idx.to_string(),
         vec![
@@ -69,8 +69,8 @@ fn prefer_v6_override_matrix_ignores_invalid_entries_and_keeps_fail_closed_fallb
 fn stress_prefer_v6_override_matrix_is_deterministic_under_mixed_inputs() {
     for idx in 1..=5i16 {
         let mut cfg = ProxyConfig::default();
-        cfg.network.prefer = 6;
-        cfg.network.ipv6 = Some(true);
+        cfg.general.network_prefer = 6;
+        cfg.general.network_ipv6 = Some(true);
         cfg.general.dc_overrides.insert(
             idx.to_string(),
             vec![

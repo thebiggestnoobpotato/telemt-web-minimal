@@ -6,7 +6,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
         r#"
         [server]
         [general]
-        [network]
         [access]
         "#,
     )
@@ -17,7 +16,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
         r#"
         [server]
         [general]
-        [network]
         [access]
         [server.api]
         gray_action = "api"
@@ -30,7 +28,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
         r#"
         [server]
         [general]
-        [network]
         [access]
         [server.api]
         gray_action = "200"
@@ -43,7 +40,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
         r#"
         [server]
         [general]
-        [network]
         [access]
         [server.api]
         gray_action = "drop"

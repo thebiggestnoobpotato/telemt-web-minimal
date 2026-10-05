@@ -172,7 +172,7 @@ Notes:
 | --- | --- | --- |
 | `400` | `bad_request` | Invalid JSON, validation failures, malformed request body. |
 | `400` | `access_not_editable` | `PATCH /v1/config` body contains an `access` key (managed via users API). |
-| `400` | `section_not_editable` | `PATCH /v1/config` body contains `network` or an unknown top-level key. |
+| `400` | `section_not_editable` | `PATCH /v1/config` body contains an unknown top-level key (e.g. `network`). |
 | `400` | `field_not_editable` | `PATCH /v1/config` body contains a forbidden nested field under a partially editable section (e.g. `server.api`, `server.port`). |
 | `401` | `unauthorized` | Missing/invalid `Authorization` when `auth_header` is configured. |
 | `403` | `forbidden` | Source IP is not allowed by whitelist. |
@@ -277,7 +277,7 @@ A sparse JSON object containing only the top-level config sections to modify. Ea
 
 **Rejected keys:**
 - `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
-- `network` or any unknown top-level key → `400 section_not_editable`.
+- An unknown top-level key (e.g. `network`) → `400 section_not_editable`.
 - `server` with any key other than `listeners` (e.g. `port`, `api`, `admin_api`) → `400 field_not_editable`.
 - An object with no editable keys → `400 bad_request` (empty patch).
 
@@ -313,7 +313,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `web` | `object` | Complete normalized `[web]` section, including defaults. Each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 | `server` | `object?` | Partial `[server]` view when editable nested fields are present. Currently only `listeners` may appear; `api`/`admin_api`, `port`, unix sockets, and other bind-identity fields are never returned. |
 
-The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets) and `network` (per-node addresses) are always excluded. Under `server`, only the nested field-level allowlist (`listeners`) is exposed, and an empty listener array is omitted. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
+The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets) and `metrics` (endpoint identity) are always excluded. Under `server`, only the nested field-level allowlist (`listeners`) is exposed, and an empty listener array is omitted. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
 
 ### WEB runtime identity and lifecycle
 
@@ -909,7 +909,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | Key | HTTP | `error.code` |
 | --- | --- | --- |
 | `access` | `400` | `access_not_editable` |
-| `network` or any unknown top-level key | `400` | `section_not_editable` |
+| An unknown top-level key (e.g. `network`) | `400` | `section_not_editable` |
 | `server` with keys other than `listeners` | `400` | `field_not_editable` |
 | Object with no editable key | `400` | `bad_request` |
 
@@ -983,7 +983,7 @@ A valid base-path-only change reports `restart_required=false`, `runtime_reload_
 | `202` | — | Patch applied and runtime reload accepted. |
 | `400` | `bad_request` | Invalid JSON, empty patch, or config validation/deserialization failure. |
 | `400` | `access_not_editable` | Patch contains an `access` key. |
-| `400` | `section_not_editable` | Patch contains `network` or an unknown top-level key. |
+| `400` | `section_not_editable` | Patch contains an unknown top-level key (e.g. `network`). |
 | `400` | `field_not_editable` | Patch contains a forbidden nested `server.*` field (anything other than `listeners`). |
 | `401` | `unauthorized` | Missing or invalid `Authorization` header. |
 | `403` | `read_only` | API is in read-only mode. |

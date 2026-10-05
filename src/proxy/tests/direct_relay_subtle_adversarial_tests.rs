@@ -80,8 +80,8 @@ fn subtle_light_fuzz_dc_resolution_never_panics_and_preserves_port() {
         state ^= state << 17;
 
         let mut cfg = ProxyConfig::default();
-        cfg.network.prefer = if (state & 1) == 0 { 4 } else { 6 };
-        cfg.network.ipv6 = Some((state & 2) != 0);
+        cfg.general.network_prefer = if (state & 1) == 0 { 4 } else { 6 };
+        cfg.general.network_ipv6 = Some((state & 2) != 0);
         cfg.general.default_dc = Some(((state >> 8) as u8).max(1));
 
         let dc_idx = (state as i16).wrapping_sub(16_384);
@@ -91,7 +91,8 @@ fn subtle_light_fuzz_dc_resolution_never_panics_and_preserves_port() {
             resolved.port(),
             crate::protocol::constants::TG_DATACENTER_PORT
         );
-        let expect_v6 = cfg.network.prefer == 6 && cfg.network.ipv6.unwrap_or(true);
+        let expect_v6 =
+            cfg.general.network_prefer == 6 && cfg.general.network_ipv6.unwrap_or(true);
         assert_eq!(resolved.is_ipv6(), expect_v6);
     }
 }

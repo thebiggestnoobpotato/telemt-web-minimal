@@ -2,30 +2,30 @@ use tracing::warn;
 
 use crate::error::{ProxyError, Result};
 
-use super::super::types::{LoggingConfig, LoggingDestination, NetworkConfig};
+use super::super::types::{GeneralConfig, LoggingConfig, LoggingDestination};
 use super::ProxyConfig;
 
-pub(super) fn validate_network_cfg(net: &mut NetworkConfig) -> Result<()> {
-    if !net.ipv4 && matches!(net.ipv6, Some(false)) {
+pub(super) fn validate_network_cfg(net: &mut GeneralConfig) -> Result<()> {
+    if !net.network_ipv4 && matches!(net.network_ipv6, Some(false)) {
         return Err(ProxyError::Config(
-            "Both ipv4 and ipv6 are disabled in [network]".to_string(),
+            "Both network_ipv4 and network_ipv6 are disabled in [general]".to_string(),
         ));
     }
 
-    if net.prefer != 4 && net.prefer != 6 {
+    if net.network_prefer != 4 && net.network_prefer != 6 {
         return Err(ProxyError::Config(
-            "network.prefer must be 4 or 6".to_string(),
+            "general.network_prefer must be 4 or 6".to_string(),
         ));
     }
 
-    if !net.ipv4 && net.prefer == 4 {
-        warn!("prefer=4 but ipv4=false; forcing prefer=6");
-        net.prefer = 6;
+    if !net.network_ipv4 && net.network_prefer == 4 {
+        warn!("network_prefer=4 but network_ipv4=false; forcing network_prefer=6");
+        net.network_prefer = 6;
     }
 
-    if matches!(net.ipv6, Some(false)) && net.prefer == 6 {
-        warn!("prefer=6 but ipv6=false; forcing prefer=4");
-        net.prefer = 4;
+    if matches!(net.network_ipv6, Some(false)) && net.network_prefer == 6 {
+        warn!("network_prefer=6 but network_ipv6=false; forcing network_prefer=4");
+        net.network_prefer = 4;
     }
 
     Ok(())

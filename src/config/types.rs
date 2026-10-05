@@ -38,7 +38,7 @@ pub use general::GeneralConfig;
 pub use links::ShowLink;
 pub use logging::{LogLevel, LoggingConfig, LoggingDestination};
 pub use metrics::MetricsConfig;
-pub use network::{NetworkConfig, UpstreamConfig, UpstreamType};
+pub use network::{UpstreamConfig, UpstreamType};
 pub use policies::UserMaxUniqueIpsMode;
 #[allow(unused_imports)]
 pub use server::{

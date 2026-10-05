@@ -2,7 +2,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket};
 
-use crate::config::{NetworkConfig, UpstreamConfig, UpstreamType};
+use crate::config::{GeneralConfig, UpstreamConfig, UpstreamType};
 use crate::transport::UpstreamManager;
 use tracing::{info, warn};
 
@@ -108,12 +108,14 @@ pub fn run_probe(upstreams: &[UpstreamConfig]) -> NetworkProbe {
     probe
 }
 
-pub fn decide_network_capabilities(config: &NetworkConfig, probe: &NetworkProbe) -> NetworkDecision {
-    let ipv4_dc = config.ipv4 && probe.detected_ipv4.is_some();
-    let ipv6_dc =
-        config.ipv6.unwrap_or(probe.detected_ipv6.is_some()) && probe.detected_ipv6.is_some();
+pub fn decide_network_capabilities(config: &GeneralConfig, probe: &NetworkProbe) -> NetworkDecision {
+    let ipv4_dc = config.network_ipv4 && probe.detected_ipv4.is_some();
+    let ipv6_dc = config.network_ipv6.unwrap_or(probe.detected_ipv6.is_some())
+        && probe
+            .detected_ipv6
+            .is_some();
 
-    let effective_prefer = match config.prefer {
+    let effective_prefer = match config.network_prefer {
         6 if ipv6_dc => 6,
         4 if ipv4_dc => 4,
         6 => {

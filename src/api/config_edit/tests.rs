@@ -230,7 +230,7 @@ async fn invalid_web_patch_does_not_modify_the_source() {
 
 #[tokio::test]
 async fn read_managed_config_returns_only_editable_sections() {
-    // Full server (api/port) and network must not leak. Listeners-only server
+    // Full server (api/port) and metrics must not leak. Listeners-only server
     // is returned via the nested allowlist (covered in a dedicated test).
     let (path, _d) = temp_config(concat!(
         "[general]\nprefer_ipv6 = false\n",
@@ -239,7 +239,7 @@ async fn read_managed_config_returns_only_editable_sections() {
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          [web.vhosts.decoy]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
-        "[network]\nipv4 = true\n",
+        "[metrics]\nport = 9090\n",
         "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let (value, _rev) = read_managed_config(&path).await.unwrap();
@@ -249,7 +249,7 @@ async fn read_managed_config_returns_only_editable_sections() {
     assert!(server.contains_key("listeners"));
     assert!(!server.contains_key("api"));
     assert!(!server.contains_key("port"));
-    assert!(!table.contains_key("network"));
+    assert!(!table.contains_key("metrics"));
     assert!(!table.contains_key("access"));
 }
 

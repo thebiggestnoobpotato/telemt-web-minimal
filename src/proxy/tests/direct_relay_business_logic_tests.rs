@@ -37,8 +37,8 @@ fn business_negative_dc_maps_by_absolute_value() {
 #[test]
 fn business_known_dc_uses_ipv6_table_when_preferred_and_enabled() {
     let mut cfg = ProxyConfig::default();
-    cfg.network.prefer = 6;
-    cfg.network.ipv6 = Some(true);
+    cfg.general.network_prefer = 6;
+    cfg.general.network_ipv6 = Some(true);
 
     let resolved = get_dc_addr_static(1, &cfg).expect("known dc must resolve on ipv6 path");
     let expected = SocketAddr::new(TG_DATACENTERS_V6[0], TG_DATACENTER_PORT);

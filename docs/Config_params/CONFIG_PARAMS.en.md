@@ -16,7 +16,6 @@ This document lists all configuration keys accepted by `config.toml`.
  - [Top-level keys](#top-level-keys)
  - [logging](#logging)
  - [general](#general)
- - [network](#network)
  - [server](#server)
  - [server.api](#serverapi)
  - [server.listeners](#serverlisteners)
@@ -115,6 +114,9 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`quota_state_path`](#quota_state_path) | `Path` | `"telemt.limit.json"` | `✘` |
 | [`config_strict`](#config_strict) | `bool` | `false` | `✘` |
 | [`prefer_ipv6`](#prefer_ipv6) | `bool` | `false` | `✘` |
+| [`network_ipv4`](#network_ipv4) | `bool` | `true` | `✘` |
+| [`network_ipv6`](#network_ipv6) | `bool` | `false` | `✘` |
+| [`network_prefer`](#network_prefer) | `u8` | `4` | `✘` |
 | [`fast_mode`](#fast_mode) | `bool` | `true` | `✘` |
 | [`direct_relay_copy_buf_c2s_bytes`](#direct_relay_copy_buf_c2s_bytes) | `usize` | `65536` | `✔` |
 | [`direct_relay_copy_buf_s2c_bytes`](#direct_relay_copy_buf_s2c_bytes) | `usize` | `262144` | `✔` |
@@ -162,13 +164,40 @@ This document lists all configuration keys accepted by `config.toml`.
 
   - **Known limitation**: In this revision, `config_strict = true` rejects the otherwise supported `access.user_source_deny` and `[[upstreams]].prefer` keys. Keep strict mode disabled when either key is present.
 ## prefer_ipv6
-  - **Constraints / validation**: Deprecated. Use `network.prefer`.
-  - **Description**: Deprecated legacy IPv6 preference flag migrated to `network.prefer`.
+  - **Constraints / validation**: Deprecated. Use `general.network_prefer`.
+  - **Description**: Deprecated legacy IPv6 preference flag migrated to `general.network_prefer`.
   - **Example**:
 
     ```toml
-    [network]
-    prefer = 6
+    [general]
+    network_prefer = 6
+    ```
+## network_ipv4
+  - **Constraints / validation**: `bool`.
+  - **Description**: Allow IPv4 Telegram DC targets.
+  - **Example**:
+
+    ```toml
+    [general]
+    network_ipv4 = false
+    ```
+## network_ipv6
+  - **Constraints / validation**: `bool`.
+  - **Description**: Allow IPv6 Telegram DC targets. `None` = auto-detect IPv6 availability.
+  - **Example**:
+
+    ```toml
+    [general]
+    network_ipv6 = true
+    ```
+## network_prefer
+  - **Constraints / validation**: Must be `4` or `6`. If `network_prefer = 4` while `network_ipv4 = false`, Telemt forces `network_prefer = 6`. If `network_prefer = 6` while `network_ipv6 = false`, Telemt forces `network_prefer = 4`.
+  - **Description**: Preferred IP family for Telegram DC targets when both families are available.
+  - **Example**:
+
+    ```toml
+    [general]
+    network_prefer = 6
     ```
 ## fast_mode
   - **Constraints / validation**: `bool`.
@@ -316,46 +345,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     telemetry_user_enabled = true
-    ```
-# [network]
-
-
-| Key | Type | Default | Hot-Reload |
-| --- | ---- | ------- | ---------- |
-| [`ipv4`](#ipv4) | `bool` | `true` | `✘` |
-| [`ipv6`](#ipv6) | `bool` | `false` | `✘` |
-| [`prefer`](#prefer) | `u8` | `4` | `✘` |
-
-## ipv4
-  - **Constraints / validation**: `bool`.
-  - **Description**: Enables IPv4 networking.
-  - **Example**:
-
-    ```toml
-    [network]
-    ipv4 = true
-    ```
-## ipv6
-  - **Constraints / validation**: `bool`.
-  - **Description**: Enables/disables IPv6 networking. When omitted, defaults to `false`.
-  - **Example**:
-
-    ```toml
-    [network]
-    # enable IPv6 explicitly
-    ipv6 = true
-
-    # or: disable IPv6 explicitly
-    # ipv6 = false
-    ```
-## prefer
-  - **Constraints / validation**: Must be `4` or `6`. If `prefer = 4` while `ipv4 = false`, Telemt forces `prefer = 6`. If `prefer = 6` while `ipv6 = false`, Telemt forces `prefer = 4`.
-  - **Description**: Preferred IP family for selection when both families are available.
-  - **Example**:
-
-    ```toml
-    [network]
-    prefer = 6
     ```
 # [server]
 
@@ -1060,7 +1049,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`scopes`](#scopes) | `String` | `""` | `✘` |
 | [`ipv4`](#ipv4-upstreams) | `bool` | — (auto) | `✘` |
 | [`ipv6`](#ipv6-upstreams) | `bool` | — (auto) | `✘` |
-| [`prefer`](#prefer-upstreams) | `4` or `6` | effective `[network].prefer` | `✘` |
+| [`prefer`](#prefer-upstreams) | `4` or `6` | effective `[general].network_prefer` | `✘` |
 | [`interface`](#interface) | `String` | — | `✘` |
 | [`bind_addresses`](#bind_addresses) | `String[]` | — | `✘` |
 | [`bindtodevice`](#bindtodevice) | `String` | — | `✘` |
@@ -1136,7 +1125,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```
 ## prefer (upstreams)
   - **Constraints / validation**: Optional integer. Must be `4` or `6`.
-  - **Description**: Overrides the IP family preference for Telegram DC targets selected through this upstream. When omitted, the upstream inherits the effective global `[network].prefer` decision. Use `prefer = 6` together with `ipv6 = true` for a SOCKS upstream that can egress over IPv6 even when the local Telemt host is IPv4-only.
+  - **Description**: Overrides the IP family preference for Telegram DC targets selected through this upstream. When omitted, the upstream inherits the effective global `[general].network_prefer` decision. Use `prefer = 6` together with `ipv6 = true` for a SOCKS upstream that can egress over IPv6 even when the local Telemt host is IPv4-only.
   - **Example**:
 
     ```toml

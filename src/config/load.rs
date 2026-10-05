@@ -86,10 +86,6 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub logging: LoggingConfig,
 
-    /// Network binding, routing, and socket-level configuration.
-    #[serde(default)]
-    pub network: NetworkConfig,
-
     /// Server-side listener, fallback, and API configuration.
     #[serde(default)]
     pub server: ServerConfig,

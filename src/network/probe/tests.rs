@@ -1,12 +1,12 @@
 use super::*;
-use crate::config::NetworkConfig;
+use crate::config::GeneralConfig;
 
 #[test]
 fn prefer_ipv6_is_honored_when_dc_ipv6_is_detected() {
-    let config = NetworkConfig {
-        ipv4: true,
-        ipv6: Some(true),
-        prefer: 6,
+    let config = GeneralConfig {
+        network_ipv4: true,
+        network_ipv6: Some(true),
+        network_prefer: 6,
         ..Default::default()
     };
     let probe = NetworkProbe {
@@ -23,10 +23,10 @@ fn prefer_ipv6_is_honored_when_dc_ipv6_is_detected() {
 
 #[test]
 fn prefer_ipv6_falls_back_to_ipv4_when_dc_ipv6_missing() {
-    let config = NetworkConfig {
-        ipv4: true,
-        ipv6: Some(true),
-        prefer: 6,
+    let config = GeneralConfig {
+        network_ipv4: true,
+        network_ipv6: Some(true),
+        network_prefer: 6,
         ..Default::default()
     };
     let probe = NetworkProbe {

@@ -296,14 +296,13 @@ pub(super) async fn save_config_to_disk(
 /// identity invariant at the Telemt layer too):
 ///
 ///   - `access`    : owned by the users API.
-///   - `network`   : carries per-node identity (`ipv4`/`ipv6`).
 ///   - `metrics`   : process-owned endpoint identity (bind address, scraper
 ///                   whitelist).
 ///
 /// `server` is partially editable: only the nested fields listed in
 /// [`EDITABLE_SERVER_FIELDS`] (currently `listeners`) may appear in GET/PATCH.
 /// Secrets and bind identity (`api`/`admin_api`, `port`, unix sockets, …) stay
-/// blocked. See also the field-level allowlist note below for `network.*`.
+/// blocked.
 ///
 /// A future field-level allowlist can re-admit specific safe fields
 /// without opening the whole section.

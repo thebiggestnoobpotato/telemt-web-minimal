@@ -5,7 +5,6 @@ use crate::error::{ProxyError, Result};
 const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "general",
     "logging",
-    "network",
     "server",
     "metrics",
     "web",
@@ -20,6 +19,9 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "quota_state_path",
     "config_strict",
     "prefer_ipv6",
+    "network_ipv4",
+    "network_ipv6",
+    "network_prefer",
     "fast_mode",
     "direct_relay_copy_buf_c2s_bytes",
     "direct_relay_copy_buf_s2c_bytes",
@@ -36,12 +38,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "telemetry_user_enabled",
     "dc_overrides",
     "default_dc",
-];
-
-const NETWORK_CONFIG_KEYS: &[&str] = &[
-    "ipv4",
-    "ipv6",
-    "prefer",
 ];
 
 const SERVER_CONFIG_KEYS: &[&str] = &[

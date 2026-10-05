@@ -12,6 +12,15 @@ pub struct GeneralConfig {
     pub config_strict: bool,
     #[serde(default)]
     pub prefer_ipv6: bool,
+    /// Allow IPv4 Telegram DC targets.
+    #[serde(default = "default_true")]
+    pub network_ipv4: bool,
+    /// Allow IPv6 Telegram DC targets. `None` = auto-detect IPv6 availability.
+    #[serde(default = "default_network_ipv6")]
+    pub network_ipv6: Option<bool>,
+    /// Preferred IP family for Telegram DC targets: `4` or `6`.
+    #[serde(default = "default_prefer_4")]
+    pub network_prefer: u8,
     /// Fast nonce mode: pre-fills the client enc key/iv into the relay nonce.
     #[serde(default = "default_true")]
     pub fast_mode: bool,

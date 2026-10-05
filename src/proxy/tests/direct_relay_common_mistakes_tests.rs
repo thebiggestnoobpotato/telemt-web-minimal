@@ -22,8 +22,8 @@ fn common_invalid_override_entries_fallback_to_static_table() {
 #[test]
 fn common_prefer_v6_with_only_ipv4_override_uses_override_instead_of_ignoring_it() {
     let mut cfg = ProxyConfig::default();
-    cfg.network.prefer = 6;
-    cfg.network.ipv6 = Some(true);
+    cfg.general.network_prefer = 6;
+    cfg.general.network_ipv6 = Some(true);
     cfg.general.dc_overrides
         .insert("3".to_string(), vec!["203.0.113.203:443".to_string()]);
 

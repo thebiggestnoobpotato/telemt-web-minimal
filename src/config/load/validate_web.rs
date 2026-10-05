@@ -39,8 +39,8 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         .iter()
         .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| {
-            (listener.ip.is_ipv4() && config.network.ipv4)
-                || (listener.ip.is_ipv6() && config.network.ipv6 != Some(false))
+            (listener.ip.is_ipv4() && config.general.network_ipv4)
+                || (listener.ip.is_ipv6() && config.general.network_ipv6 != Some(false))
         })
         .count();
 
@@ -86,8 +86,8 @@ pub(super) fn validate_decoy_listener_separation(config: &ProxyConfig) -> Result
         .iter()
         .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| {
-            (listener.ip.is_ipv4() && config.network.ipv4)
-                || (listener.ip.is_ipv6() && config.network.ipv6 != Some(false))
+            (listener.ip.is_ipv4() && config.general.network_ipv4)
+                || (listener.ip.is_ipv6() && config.general.network_ipv6 != Some(false))
         })
         .map(|listener| SocketAddr::new(listener.ip, listener.port.unwrap_or(config.server.port)))
         .collect::<Vec<_>>();
