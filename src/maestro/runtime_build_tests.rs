@@ -134,6 +134,9 @@ fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
         web_trusted_proxy_cidrs: vec!["127.0.0.1/32".parse().unwrap()],
     });
     old.web.vhosts = vec![test_vhost()];
+    // Active configurations are fully prepared; endpoint equality compares runtime snapshots.
+    old.rebuild_runtime_user_auth().unwrap();
+    old.rebuild_runtime_web().unwrap();
     let mut desired = old.clone();
     desired
         .server
@@ -340,6 +343,9 @@ fn endpoint_only_listener_move_is_deferred_to_process_restart() {
     let mut old = ProxyConfig::default();
     old.server.listeners = vec![test_listener(443)];
     old.web.vhosts = vec![test_vhost()];
+    // Active configurations are fully prepared; endpoint equality compares runtime snapshots.
+    old.rebuild_runtime_user_auth().unwrap();
+    old.rebuild_runtime_web().unwrap();
     let mut desired = old.clone();
     desired.server.listeners[0].port = Some(8443);
 

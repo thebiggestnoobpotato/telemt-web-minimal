@@ -753,6 +753,7 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `http_overload_timeout_ms` | `u64` | `250` | `✔` | Per-phase deadline in milliseconds for an accepted saturated socket to wait for capacity or write its retryable response; validated within `1..=60000`. A timed-out wait and its response write each receive at most one phase budget. |
 | `shutdown_secs` | `u64` | `15` | `✔` | One absolute process-shutdown budget shared by all listener acceptors and connections plus WEB session and auxiliary-task drains. The active value is captured once when shutdown starts. |
 | `decoy_header_secs` | `u64` | `30` | `✔` | Connect and response-head deadline for an HTTP decoy. |
+| `decoy_resolve_secs` | `u64` | `5` | `✔` | Maximum wait for each unique HTTP decoy hostname during config preparation under `decoy.resolve = "startup"`. |
 
 # [[web.vhosts]]
 
@@ -772,7 +773,7 @@ Exactly one decoy mode is required:
 
 | Mode | Required keys | Validation |
 | --- | --- | --- |
-| `http_upstream` | `upstream` | An `http://` origin using a loopback, link-local, or private IP literal; no credentials, path, query, or fragment. |
+| `http_upstream` | `upstream`; optional `resolve = "never" \| "startup"` | An `http://` origin; no credentials, path, query, or fragment. With the default `resolve = "never"` the host must be a loopback, link-local, or private IP literal. With `resolve = "startup"` a hostname is accepted and resolved once during config preparation; every answer must remain inside loopback or a private network, the answers are pinned for the prepared generation, and a failed, timed out, or empty lookup fails the load while the old configuration is kept. `resolve` is rejected outside `http_upstream`. |
 | `static_directory` | `directory`; optional `index = "index.html"` | Absolute real directory and one safe index file name. Symlinks and escaping paths are rejected; the immutable snapshot is loaded under `[web.limits]`. |
 
 # [[web.vhosts.profiles]]

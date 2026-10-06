@@ -1,5 +1,8 @@
 use super::*;
 
+// Source polling and explicit reloads have distinct DNS preparation lifecycles.
+mod preparation;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct WatchManifest {
     files: BTreeSet<PathBuf>,
@@ -132,20 +135,26 @@ fn apply_watch_manifest<W1: Watcher, W2: Watcher>(
     }
 }
 
-/// Load config, validate, diff against current, and broadcast if changed.
+/// Builds the effective WEB snapshot without changing live state.
+fn prepare_effective_config(
+    old_cfg: &ProxyConfig,
+    new_cfg: &ProxyConfig,
+) -> crate::error::Result<ProxyConfig> {
+    new_cfg.validate()?;
+    let mut applied_cfg = overlay_hot_fields(old_cfg, new_cfg);
+    applied_cfg.validate_effective_web()?;
+    applied_cfg.rebuild_runtime_web()?;
+    Ok(applied_cfg)
+}
+
+/// Diffs and publishes a fully prepared configuration on the watcher owner task.
 fn reload_config_once(
-    config_path: &PathBuf,
+    prepared: (LoadedConfig, ProxyConfig),
     config_tx: &watch::Sender<Arc<ProxyConfig>>,
     log_tx: &watch::Sender<LogLevel>,
     reload_state: &mut ReloadState,
 ) -> Option<WatchManifest> {
-    let loaded = match ProxyConfig::load_with_metadata(config_path) {
-        Ok(loaded) => loaded,
-        Err(e) => {
-            error!("config reload: failed to parse {:?}: {}", config_path, e);
-            return None;
-        }
-    };
+    let (loaded, applied_cfg) = prepared;
     let LoadedConfig {
         config: new_cfg,
         source_files,
@@ -154,34 +163,12 @@ fn reload_config_once(
     } = loaded;
     let next_manifest = WatchManifest::from_source_files(&source_files);
 
-    if let Err(e) = new_cfg.validate() {
-        error!(
-            "config reload: validation failed: {}; keeping old config",
-            e
-        );
-        return Some(next_manifest);
-    }
-
-    if reload_state.is_applied(rendered_hash) {
-        return Some(next_manifest);
-    }
-
     let old_cfg = config_tx.borrow().clone();
-    let mut applied_cfg = overlay_hot_fields(&old_cfg, &new_cfg);
-    if let Err(error) = applied_cfg
-        .validate_effective_web()
-        .and_then(|_| applied_cfg.rebuild_runtime_web())
-    {
-        error!(
-            "config reload: effective WEB validation failed: {}; keeping old config",
-            error
-        );
-        return Some(next_manifest);
-    }
     let old_hot = HotFields::from_config(&old_cfg);
     let applied_hot = HotFields::from_config(&applied_cfg);
     let non_hot_changed = !config_equal(&applied_cfg, &new_cfg);
-    let hot_changed = !config_equal(&old_cfg, &applied_cfg);
+    let hot_changed =
+        !config_equal(&old_cfg, &applied_cfg) || !old_cfg.web_decoy_endpoints_equal(&applied_cfg);
 
     if non_hot_changed {
         warn_non_hot_changes(&old_cfg, &new_cfg, non_hot_changed);
@@ -205,7 +192,17 @@ pub(super) fn reload_config(
     log_tx: &watch::Sender<LogLevel>,
     reload_state: &mut ReloadState,
 ) -> Option<WatchManifest> {
-    reload_config_once(config_path, config_tx, log_tx, reload_state)
+    let loaded = ProxyConfig::load_with_metadata(config_path).ok()?;
+    if reload_state.is_applied(loaded.rendered_hash) {
+        return Some(WatchManifest::from_source_files(&loaded.source_files));
+    }
+    let applied = prepare_effective_config(&config_tx.borrow(), &loaded.config).ok()?;
+    reload_config_once(
+        (loaded, applied),
+        config_tx,
+        log_tx,
+        reload_state,
+    )
 }
 
 /// Spawn the hot-reload watcher task.
@@ -245,7 +242,7 @@ pub fn spawn_config_watcher(
                 }
             }
         }
-        let initial_loaded = ProxyConfig::load_with_metadata(&config_path).ok();
+        let initial_loaded = preparation::read_source(&config_path).await;
         let initial_manifest = initial_loaded
             .as_ref()
             .map(|loaded| WatchManifest::from_source_files(&loaded.source_files))
@@ -254,7 +251,7 @@ pub fn spawn_config_watcher(
             });
         let initial_matches_disk = initial_loaded
             .as_ref()
-            .is_some_and(|loaded| config_equal(config_tx.borrow().as_ref(), &loaded.config));
+            .is_some_and(|source| preparation::source_matches_active(&config_tx.borrow(), source));
         let initial_snapshot_hash = initial_loaded
             .as_ref()
             .filter(|_| initial_matches_disk)
@@ -347,12 +344,14 @@ pub fn spawn_config_watcher(
         };
 
         loop {
+            let mut force = false;
             #[cfg(unix)]
             tokio::select! {
                 msg = notify_rx.recv() => {
                     if msg.is_none() { break; }
                 }
                 _ = sighup.recv() => {
+                    force = true;
                     info!("SIGHUP received — reloading {:?}", config_path);
                 }
                 _ = cancellation.cancelled() => break,
@@ -369,21 +368,25 @@ pub fn spawn_config_watcher(
             tokio::time::sleep(HOT_RELOAD_DEBOUNCE).await;
             while notify_rx.try_recv().is_ok() {}
 
-            let mut next_manifest = reload_config_once(
+            let mut next_manifest = preparation::reload(
                 &config_path,
                 &config_tx,
                 &log_tx,
                 &mut reload_state,
-            );
+                force,
+            )
+            .await;
             if next_manifest.is_none() {
                 tokio::time::sleep(HOT_RELOAD_DEBOUNCE).await;
                 while notify_rx.try_recv().is_ok() {}
-                next_manifest = reload_config_once(
+                next_manifest = preparation::reload(
                     &config_path,
                     &config_tx,
                     &log_tx,
                     &mut reload_state,
-                );
+                    force,
+                )
+                .await;
             }
 
             if let Some(next_manifest) = next_manifest {
@@ -417,3 +420,6 @@ mod path_tests {
         assert_eq!(normalize_watch_path(&linked), linked);
     }
 }
+
+#[cfg(test)]
+mod decoy_dns_tests;
