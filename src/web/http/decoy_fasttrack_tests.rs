@@ -68,7 +68,7 @@ async fn observe_http_origin(
     let runtime_config = Arc::get_mut(config.web.runtime.as_mut().unwrap()).unwrap();
     let vhost = Arc::get_mut(runtime_config.vhosts.get_mut("proxy.example.com").unwrap()).unwrap();
     vhost.decoy = WebRuntimeDecoy::HttpUpstream {
-        addr: origin.local_addr().unwrap(),
+        endpoint: DecoyEndpoint::Tcp(origin.local_addr().unwrap()),
         authority: "decoy.example".to_string(),
     };
     let generation = test_runtime_generation(1, config);

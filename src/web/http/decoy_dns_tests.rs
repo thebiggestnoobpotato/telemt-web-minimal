@@ -17,7 +17,7 @@ async fn decoy_dns_pinned_socket_keeps_configured_hostname_in_actual_http_reques
     let vhost = Arc::get_mut(snapshot.vhosts.get_mut("proxy.example.com").unwrap()).unwrap();
     // A public hostname deliberately paired with a loopback socket proves no request-time lookup.
     vhost.decoy = WebRuntimeDecoy::HttpUpstream {
-        addr: origin.local_addr().unwrap(),
+        endpoint: DecoyEndpoint::Tcp(origin.local_addr().unwrap()),
         authority: "bsi.bund.de:8080".to_string(),
     };
     let generation = test_runtime_generation(1, config);

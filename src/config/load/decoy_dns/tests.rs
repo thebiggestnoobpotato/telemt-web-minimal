@@ -43,10 +43,12 @@ async fn prepared(answers: &[&str]) -> LoadedConfig {
     pipeline::finish(parsed).unwrap()
 }
 
-fn endpoint(config: &ProxyConfig) -> (SocketAddr, &str) {
+fn endpoint(config: &ProxyConfig) -> (DecoyEndpoint, &str) {
     let runtime = config.web.runtime.as_ref().unwrap();
     match &runtime.vhosts["proxy.example.com"].decoy {
-        WebRuntimeDecoy::HttpUpstream { addr, authority } => (*addr, authority),
+        WebRuntimeDecoy::HttpUpstream { endpoint, authority } => {
+            (endpoint.clone(), authority)
+        }
         _ => panic!("expected HTTP decoy"),
     }
 }
@@ -80,7 +82,10 @@ async fn decoy_dns_snapshot_deduplicates_normalized_origins_and_preserves_order(
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert_eq!(
         endpoint(&loaded.config),
-        ("[fd00::2]:18081".parse().unwrap(), "example.com:18081")
+        (
+            DecoyEndpoint::Tcp("[fd00::2]:18081".parse().unwrap()),
+            "example.com:18081"
+        )
     );
     assert_eq!(
         loaded
@@ -126,7 +131,7 @@ async fn decoy_dns_rejects_every_public_answer_including_non_selected() {
 async fn decoy_dns_rejects_non_selected_direct_and_wildcard_listener_loops() {
     for listener in ["127.0.0.1", "0.0.0.0"] {
         let mut parsed = source(&SOURCE.replace("Example.COM:18081", "example.com:18080"));
-        parsed.config.server.listeners[0].ip = listener.parse().unwrap();
+        parsed.config.server.listeners[0].ip = Some(listener.parse().unwrap());
         let error = prepare(&mut parsed.config, |_, _| {
             std::future::ready(Ok(vec![
                 "[fd00::2]:18080".parse().unwrap(),
@@ -186,7 +191,10 @@ async fn decoy_dns_literal_startup_never_looks_up_and_keeps_ipv6_authority() {
     let loaded = pipeline::finish(parsed).unwrap();
     assert_eq!(
         endpoint(&loaded.config),
-        ("[::1]:18081".parse().unwrap(), "[::1]:18081")
+        (
+            DecoyEndpoint::Tcp("[::1]:18081".parse().unwrap()),
+            "[::1]:18081"
+        )
     );
 }
 
@@ -236,7 +244,10 @@ async fn decoy_dns_reload_pins_old_generation_and_detects_dns_only_changes() {
         crate::maestro::runtime_build::resolve_reload_config(&old.config, &new.config).unwrap();
     assert!(resolved.runtime_changed);
     assert!(!old.config.web_decoy_endpoints_equal(&new.config));
-    assert_eq!(endpoint(&old.config).0, "10.0.0.2:18081".parse().unwrap());
+    assert_eq!(
+        endpoint(&old.config).0,
+        DecoyEndpoint::Tcp("10.0.0.2:18081".parse().unwrap())
+    );
     let same = prepared(&["10.0.0.3:18081", "10.0.0.4:18081"]).await;
     assert!(same.config.web_decoy_endpoints_equal(&new.config));
 }
@@ -272,7 +283,7 @@ async fn decoy_dns_rejects_ipv6_direct_and_wildcard_listener_loops() {
     for listener in ["::1", "::"] {
         let mut parsed = source(&SOURCE.replace("Example.COM:18081", "example.com:18080"));
         parsed.config.general.network_ipv6 = Some(true);
-        parsed.config.server.listeners[0].ip = listener.parse().unwrap();
+        parsed.config.server.listeners[0].ip = Some(listener.parse().unwrap());
         let error = prepare(&mut parsed.config, |_, _| {
             std::future::ready(Ok(vec![
                 "10.0.0.2:18080".parse().unwrap(),
@@ -327,4 +338,89 @@ async fn decoy_dns_default_port_authority_and_evidence_port_fence() {
             .contains("port mismatch")
     );
     assert!(config.rebuild_runtime_web().is_err());
+}
+
+#[test]
+fn decoy_unix_origin_requires_absolute_path_without_url_control() {
+    for upstream in [
+        "unix:",
+        "unix:run/relative.sock",
+        "unix:/run/telemt.sock?query=1",
+        "unix:/run/telemt.sock#fragment",
+        "unix:/run/telemt sock",
+        "unix:/run/telemt\\sock",
+    ] {
+        assert!(
+            parse_origin(0, upstream, WebDecoyResolve::Never).is_err(),
+            "accepted {upstream}"
+        );
+    }
+    let parsed = parse_origin(0, "unix:/run/telemt.sock", WebDecoyResolve::Never).unwrap();
+    assert!(matches!(
+        parsed,
+        DecoyOrigin::Unix { ref path } if path == std::path::Path::new("/run/telemt.sock")
+    ));
+}
+
+#[test]
+fn decoy_unix_origin_rejects_startup_resolve() {
+    assert!(parse_origin(0, "unix:/run/telemt.sock", WebDecoyResolve::Startup).is_err());
+}
+
+const UNIX_DECOY_SOURCE: &str = "upstream = \"unix:/run/telemt-decoy.sock\"";
+
+#[tokio::test]
+async fn decoy_unix_upstream_uses_vhost_host_authority_without_dns() {
+    let mut parsed = source(&SOURCE.replace(
+        "upstream = \"http://Example.COM:18081\"\nresolve = \"startup\"",
+        UNIX_DECOY_SOURCE,
+    ));
+    prepare(&mut parsed.config, |_, _| {
+        std::future::ready(Err(std::io::Error::other("unix origins must not reach DNS")))
+    })
+    .await
+    .unwrap();
+    let loaded = pipeline::finish(parsed).unwrap();
+    assert_eq!(
+        endpoint(&loaded.config),
+        (
+            DecoyEndpoint::Unix(std::path::PathBuf::from("/run/telemt-decoy.sock")),
+            "proxy.example.com"
+        )
+    );
+}
+
+#[test]
+fn decoy_unix_upstream_overlapping_unix_listener_is_rejected() {
+    let text = SOURCE
+        .replace(
+            "upstream = \"http://Example.COM:18081\"\nresolve = \"startup\"",
+            UNIX_DECOY_SOURCE,
+        )
+        .replace(
+            "ip = \"127.0.0.1\"\nport = 18080\ntransport = \"web\"\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]",
+            "socket_path = \"/run/telemt-decoy.sock\"\ntransport = \"web\"",
+        );
+    let error = pipeline::parse_source_graph(ConfigSourceGraph {
+        rendered: text.to_string(),
+        source_contents: BTreeMap::new(),
+    })
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("overlaps WEB listener"), "{error}");
+}
+
+#[tokio::test]
+async fn decoy_unix_upstream_does_not_collide_with_tcp_listener() {
+    let mut parsed = source(&SOURCE.replace(
+        "upstream = \"http://Example.COM:18081\"\nresolve = \"startup\"",
+        UNIX_DECOY_SOURCE,
+    ));
+    // A unix decoy endpoint never overlaps the TCP listener on the same host.
+    prepare(&mut parsed.config, |_, _| {
+        std::future::ready(Err(std::io::Error::other("unix origins must not reach DNS")))
+    })
+    .await
+    .unwrap();
+    pipeline::finish(parsed).unwrap();
 }

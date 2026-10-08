@@ -219,6 +219,63 @@ fn server_metrics_keys_are_moved_to_metrics() {
 }
 
 #[test]
+fn server_port_is_removed_and_listener_endpoints_are_explicit() {
+    // strict: the legacy [server].port location is rejected after the move
+    // to the per-listener [[server.listeners]] entries.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n[server]\nport = 443\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("port"), "{error}");
+
+    // non-strict: the legacy key is ignored and the listeners stay empty.
+    let cfg = load_config_from_temp_toml(
+        "[server]\nport = 443\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(cfg.server.listeners.is_empty());
+
+    // a listener entry requires both ip and port, or socket_path.
+    let error = load_config_error_from_temp_toml(
+        "[server]\n[[server.listeners]]\ntransport = \"web\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("port"), "{error}");
+
+    // a unix socket listener entry loads with the socket file as its trust
+    // boundary; no proxy CIDRs are required.
+    let cfg = load_config_from_temp_toml(
+        "[server]\n[[server.listeners]]\n\
+         socket_path = \"/run/telemt/listener.sock\"\ntransport = \"web\"\n\
+         [[web.vhosts]]\nhost = \"proxy.example.com\"\n\
+         public_addr = \"203.0.113.10:443\"\n\
+         [web.vhosts.decoy]\nmode = \"http_upstream\"\n\
+         upstream = \"http://127.0.0.1:18090\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.server.listeners.len(), 1);
+    assert_eq!(
+        cfg.server.listeners[0].socket_path.as_deref(),
+        Some("/run/telemt/listener.sock")
+    );
+
+    // socket_path cannot be combined with ip or port.
+    let error = load_config_error_from_temp_toml(
+        "[server]\n[[server.listeners]]\n\
+         socket_path = \"/run/telemt/listener.sock\"\nip = \"127.0.0.1\"\nport = 443\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("socket_path"), "{error}");
+
+    // socket_path must be an absolute path.
+    let error = load_config_error_from_temp_toml(
+        "[server]\n[[server.listeners]]\nsocket_path = \"run/telemt/listener.sock\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("absolute path"), "{error}");
+}
+
+#[test]
 fn cidr_rate_limits_accept_auto_templates_in_strict_config() {
     let cfg = load_config_from_temp_toml(
         r#"

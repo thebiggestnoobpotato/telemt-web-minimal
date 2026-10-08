@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -511,6 +512,6 @@ impl Default for WebConfig {
 // Immutable runtime WEB configuration consumed by hot paths.
 mod runtime;
 pub(crate) use runtime::{
-    WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile, WebRuntimeVhost, WebStaticAsset,
-    WebStaticSite,
+    DecoyEndpoint, WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile, WebRuntimeVhost,
+    WebStaticAsset, WebStaticSite,
 };

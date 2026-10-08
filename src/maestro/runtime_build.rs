@@ -5,7 +5,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Semaphore, watch};
 
 use crate::config::{
-    ProxyConfig, ServerConfig, WEB_CARRIER_LEARNING_MIN_ENTRIES, web_debug_fits_limits,
+    ListenerEndpoint, ProxyConfig, ServerConfig, WEB_CARRIER_LEARNING_MIN_ENTRIES,
+    web_debug_fits_limits,
 };
 use crate::crypto::SecureRandom;
 use crate::ip_tracker::UserIpTracker;
@@ -170,15 +171,13 @@ pub(crate) fn resolve_reload_config(
     let mut effective = desired.clone();
     let mut fields = Vec::new();
     let listener_identity_matches = listeners_have_same_bind_identity(&old.server, &desired.server);
-    let global_listener_policy_changed = old.server.port != desired.server.port
-        || old.server.listen_backlog != desired.server.listen_backlog;
+    let global_listener_policy_changed = old.server.listen_backlog != desired.server.listen_backlog;
     let listener_policy_changed =
         listener_identity_matches && !listener_process_fields_equal(&old.server, &desired.server);
     let unsupported_identity_change =
         !listener_identity_matches && !listener_rebind_supported(old, desired);
     if global_listener_policy_changed || listener_policy_changed || unsupported_identity_change {
         fields.push("server.listeners".to_string());
-        effective.server.port = old.server.port;
         effective.server.listen_backlog = old.server.listen_backlog;
         effective.server.listeners = old.server.listeners.clone();
     }
@@ -285,9 +284,8 @@ fn listeners_have_same_bind_identity(old: &ServerConfig, desired: &ServerConfig)
             .iter()
             .zip(&desired.listeners)
             .all(|(old_listener, desired_listener)| {
-                old_listener.ip == desired_listener.ip
-                    && old_listener.port.unwrap_or(old.port)
-                        == desired_listener.port.unwrap_or(desired.port)
+                ListenerEndpoint::from_listener(old_listener)
+                    == ListenerEndpoint::from_listener(desired_listener)
             })
 }
 

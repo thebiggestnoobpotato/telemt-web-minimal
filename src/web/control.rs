@@ -1,10 +1,11 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use tokio::sync::watch;
+
+use crate::config::ListenerEndpoint;
 
 use super::manager::WebProcessRuntime;
 use super::telemetry::WebTelemetry;
@@ -59,8 +60,8 @@ pub(crate) struct WebRuntimePublication {
     pub(crate) lifecycle: WebRuntimeLifecycle,
     /// Monotonic transition time used only for relative age.
     pub(crate) since: Instant,
-    /// Actual WEB listener addresses frozen for this process.
-    pub(crate) listeners: Arc<[SocketAddr]>,
+    /// Actual WEB listener endpoints frozen for this process.
+    pub(crate) listeners: Arc<[ListenerEndpoint]>,
     /// Weak runtime access that never extends data-plane ownership.
     pub(crate) runtime: Weak<WebProcessRuntime>,
     /// Process-owned counters that remain readable after runtime release.
@@ -109,7 +110,7 @@ impl WebRuntimeControl {
     pub(crate) fn publish(
         &self,
         lifecycle: WebRuntimeLifecycle,
-        listeners: Arc<[SocketAddr]>,
+        listeners: Arc<[ListenerEndpoint]>,
         runtime: Weak<WebProcessRuntime>,
     ) {
         let epoch = self.epoch.fetch_add(1, Ordering::AcqRel).saturating_add(1);

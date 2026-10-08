@@ -42,7 +42,8 @@ pub use network::{UpstreamConfig, UpstreamType};
 pub use policies::UserMaxUniqueIpsMode;
 #[allow(unused_imports)]
 pub use server::{
-    ListenerConfig, ListenerTransport, ServerConfig, TimeoutsConfig, WebClientIpSource,
+    ListenerConfig, ListenerEndpoint, ListenerTransport, ServerConfig, TimeoutsConfig,
+    WebClientIpSource,
 };
 #[allow(unused_imports)]
 pub use web::{
@@ -51,8 +52,8 @@ pub use web::{
     WebSecretMode, WebTimeoutsConfig, WebVhostConfig,
 };
 pub(crate) use web::{
-    WebDecoyDnsSnapshot, WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile, WebRuntimeVhost,
-    WebStaticAsset, WebStaticSite,
+    DecoyEndpoint, WebDecoyDnsSnapshot, WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile,
+    WebRuntimeVhost, WebStaticAsset, WebStaticSite,
 };
 pub(crate) use web_carrier::WEB_CARRIER_LEARNING_MIN_ENTRIES;
 #[allow(unused_imports)]

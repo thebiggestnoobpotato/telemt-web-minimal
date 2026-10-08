@@ -4,13 +4,6 @@ use super::*;
 pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
     validate_network_cfg(&mut config.general)?;
 
-    // Migration: listeners[].port fallback to legacy server.port.
-    for listener in &mut config.server.listeners {
-        if listener.port.is_none() {
-            listener.port = Some(config.server.port);
-        }
-    }
-
     // Migration: Populate upstreams if empty (Default Direct).
     if config.upstreams.is_empty() {
         config.upstreams.push(UpstreamConfig {

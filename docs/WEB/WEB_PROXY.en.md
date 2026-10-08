@@ -243,6 +243,31 @@ WEB capacity is enforced after successful `accept(2)`. Exhausting `max_http_conn
 
 Use `GET /v1/runtime/web/status` to correlate only Telemt-owned state. `ingress.accepting_connections` requires a running publication, a readable runtime, and one live acceptor for every effective WEB listener. `capacity.saturated_resources`, typed rejection totals, and overload outcomes identify failures after acceptance. `decoy_upstream` describes only Telemt's outgoing plain-HTTP decoy hop. None of these fields claims that the public NGINX TLS endpoint is reachable; use an external TCP/TLS probe and NGINX or HAProxy telemetry for that boundary.
 
+### Unix socket fronting
+
+When NGINX and Telemt share a host, the private hop can be a unix socket instead of loopback TCP. Configure one Telemt listener for the socket:
+
+```toml
+[[server.listeners]]
+socket_path = "/run/telemt/web.sock"
+socket_perm = "0660"
+transport = "web"
+web_trusted_proxy_cidrs = ["127.0.0.1/32"]
+```
+
+and point the NGINX upstream at it; every other directive from the TLS-termination example above stays the same:
+
+```nginx
+upstream telemt_web {
+    server unix:/run/telemt/web.sock;
+    keepalive 64;
+}
+```
+
+The socket file is the trust boundary: only the account that can connect to it (typically the NGINX worker user after `socket_perm`) can submit WEB traffic, and no remote host can reach the listener. Telemt presents each accepted connection as a synthetic `127.0.0.1` peer, so keep `127.0.0.1/32` in that listener's `web_trusted_proxy_cidrs`; without it, every connection on the socket is served as decoy traffic only. Overwrite `X-Forwarded-For` exactly as for the loopback-TCP hop so per-client limits see the real client. The unix socket is not subject to `network_ipv4`/`network_ipv6` family policy, and a unix listener needs no `ip`/`port`.
+
+Telemt removes a stale socket file at startup only after verifying it is no longer held by a live listener, and removes the file again when the listener stops; a file that is a regular file, a symlink, or a live socket is never deleted.
+
 ## HAProxy TLS termination
 
 ```haproxy

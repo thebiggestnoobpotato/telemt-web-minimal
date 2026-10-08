@@ -95,9 +95,6 @@ network_prefer = 4
 log_level = "normal"
 show_users = ["user"]
 
-[server]
-port = 443
-
 [[server.listeners]]
 ip = "0.0.0.0"
 port = 443

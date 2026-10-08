@@ -4,13 +4,13 @@ use std::time::Duration;
 
 use ipnetwork::IpNetwork;
 use tokio::io::AsyncWriteExt;
-use tokio::net::TcpStream;
 use tokio::sync::OwnedSemaphorePermit;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::{WebClientIpSource, WebHttpConnectionCapacityAction};
 use crate::web::manager::{HttpConnectionAdmissionError, WebProcessRuntime};
 use crate::web::telemetry::{WebHttpConnectionOverloadOutcome, WebRejectionReason};
+use crate::web::transport::WebListenerStream;
 
 /// Exact bounded retryable response emitted before HTTP request parsing.
 pub(super) const SERVICE_UNAVAILABLE_RESPONSE: &[u8] = b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nCache-Control: no-store\r\nRetry-After: 1\r\nConnection: close\r\n\r\n";
@@ -18,7 +18,7 @@ pub(super) const SERVICE_UNAVAILABLE_RESPONSE: &[u8] = b"HTTP/1.1 503 Service Un
 /// Handles one accepted WEB socket outside ordinary connection capacity.
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn serve(
-    stream: TcpStream,
+    stream: WebListenerStream,
     peer: SocketAddr,
     client_ip_source: WebClientIpSource,
     trusted_proxy_cidrs: Arc<[IpNetwork]>,
@@ -106,7 +106,7 @@ fn record_final_capacity_rejection(
 }
 
 async fn respond(
-    stream: TcpStream,
+    stream: WebListenerStream,
     cancellation: &CancellationToken,
     phase_timeout: Duration,
 ) -> WebHttpConnectionOverloadOutcome {
@@ -123,7 +123,7 @@ async fn respond(
     }
 }
 
-async fn write_service_unavailable(mut stream: TcpStream, deadline: Duration) -> bool {
+async fn write_service_unavailable(mut stream: WebListenerStream, deadline: Duration) -> bool {
     tokio::time::timeout(deadline, async {
         stream.write_all(SERVICE_UNAVAILABLE_RESPONSE).await?;
         stream.shutdown().await
@@ -146,6 +146,7 @@ mod tests {
     use crate::maestro::generation::test_runtime_generation;
     use crate::web::manager::WebProcessRuntime;
     use crate::web::telemetry::{WebHttpConnectionOverloadOutcome, WebRejectionReason};
+    use crate::web::transport::WebListenerStream;
 
     async fn tcp_pair() -> (TcpStream, TcpStream) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -159,7 +160,11 @@ mod tests {
     #[tokio::test]
     async fn overload_response_is_exact_retryable_http() {
         let (server, mut client) = tcp_pair().await;
-        assert!(super::write_service_unavailable(server, Duration::from_secs(1)).await);
+        assert!(super::write_service_unavailable(
+            WebListenerStream::Tcp(server),
+            Duration::from_secs(1)
+        )
+        .await);
 
         let mut bytes = Vec::new();
         client.read_to_end(&mut bytes).await.unwrap();
@@ -175,7 +180,7 @@ mod tests {
         let peer = server.peer_addr().unwrap();
 
         super::serve(
-            server,
+            WebListenerStream::Tcp(server),
             peer,
             WebClientIpSource::XForwardedFor,
             trusted_loopback(),
@@ -215,7 +220,7 @@ mod tests {
         let peer = server.peer_addr().unwrap();
         let cancellation = CancellationToken::new();
         let task = tokio::spawn(super::serve(
-            server,
+            WebListenerStream::Tcp(server),
             peer,
             WebClientIpSource::XForwardedFor,
             trusted_loopback(),

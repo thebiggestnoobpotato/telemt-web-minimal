@@ -255,9 +255,6 @@ network_prefer = 4
 log_level = "normal"
 show_users = ["{username}"]
 
-[server]
-port = {port}
-
 [[server.listeners]]
 ip = "0.0.0.0"
 port = {port}

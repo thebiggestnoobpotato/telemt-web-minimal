@@ -65,10 +65,31 @@ pub(crate) struct WebRuntimeProfile {
     pub(crate) max_streams_per_session: usize,
 }
 
+/// Decoy upstream endpoint frozen into the runtime snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum DecoyEndpoint {
+    /// TCP origin address captured from the configured http origin.
+    Tcp(SocketAddr),
+    /// Unix domain socket path from the configured `unix:` origin.
+    Unix(PathBuf),
+}
+
+impl fmt::Display for DecoyEndpoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DecoyEndpoint::Tcp(addr) => write!(f, "{addr}"),
+            DecoyEndpoint::Unix(path) => write!(f, "unix:{}", path.display()),
+        }
+    }
+}
+
 /// Runtime-ready ordinary-site fallback.
 #[derive(Debug)]
 pub(crate) enum WebRuntimeDecoy {
-    HttpUpstream { addr: SocketAddr, authority: String },
+    HttpUpstream {
+        endpoint: DecoyEndpoint,
+        authority: String,
+    },
     StaticDirectory(Arc<WebStaticSite>),
 }
 

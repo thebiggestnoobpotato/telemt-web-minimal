@@ -2,9 +2,11 @@ use super::*;
 
 fn test_listener(port: u16) -> crate::config::ListenerConfig {
     crate::config::ListenerConfig {
-        ip: "127.0.0.1".parse().unwrap(),
+        ip: Some("127.0.0.1".parse().unwrap()),
         transport: crate::config::ListenerTransport::Web,
         port: Some(port),
+        socket_path: None,
+        socket_perm: None,
         web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
         web_trusted_proxy_cidrs: vec!["127.0.0.1/32".parse().unwrap()],
     }
@@ -127,9 +129,11 @@ fn mixed_reload_retains_process_state_and_applies_runtime_state() {
 fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
     let mut old = ProxyConfig::default();
     old.server.listeners.push(crate::config::ListenerConfig {
-        ip: "0.0.0.0".parse().unwrap(),
+        ip: Some("0.0.0.0".parse().unwrap()),
         transport: crate::config::ListenerTransport::Web,
         port: Some(443),
+        socket_path: None,
+        socket_perm: None,
         web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
         web_trusted_proxy_cidrs: vec!["127.0.0.1/32".parse().unwrap()],
     });

@@ -24,12 +24,47 @@ pub(super) fn validate_mode_keys(document: &toml::Value) -> Result<()> {
     Ok(())
 }
 
+/// Parsed decoy origin: an http origin, or a unix socket path without DNS.
+pub(super) enum DecoyOrigin {
+    /// http origin validated for the configured resolve mode.
+    Http { url: url::Url },
+    /// `unix:` origin; the socket path is the complete target.
+    Unix { path: std::path::PathBuf },
+}
+
 /// Parses one origin and preserves the existing literal-address containment policy.
 pub(super) fn parse_origin(
     idx: usize,
     upstream: &str,
     resolve: WebDecoyResolve,
-) -> Result<url::Url> {
+) -> Result<DecoyOrigin> {
+    // The unix: prefix is intercepted before URL parsing; the remainder must
+    // be an absolute socket path without URL control characters.
+    if let Some(rest) = upstream.strip_prefix("unix:") {
+        if resolve == WebDecoyResolve::Startup {
+            return Err(ProxyError::Config(format!(
+                "web.vhosts[{idx}].decoy.resolve is only valid for http origins"
+            )));
+        }
+        if rest.is_empty() {
+            return Err(ProxyError::Config(format!(
+                "web.vhosts[{idx}].decoy.upstream unix origin requires a socket path"
+            )));
+        }
+        if rest.contains('?') || rest.contains('#') || rest.contains(' ') || rest.contains('\\') {
+            return Err(ProxyError::Config(format!(
+                "web.vhosts[{idx}].decoy.upstream unix origin must not contain a query, fragment, or whitespace"
+            )));
+        }
+        let path: std::path::PathBuf =
+            std::path::Path::new(rest).components().collect();
+        if !path.is_absolute() {
+            return Err(ProxyError::Config(format!(
+                "web.vhosts[{idx}].decoy.upstream unix origin must be an absolute socket path"
+            )));
+        }
+        return Ok(DecoyOrigin::Unix { path });
+    }
     let parsed = url::Url::parse(upstream).map_err(|error| {
         ProxyError::Config(format!(
             "web.vhosts[{idx}].decoy.upstream is invalid: {error}"
@@ -58,7 +93,7 @@ pub(super) fn parse_origin(
             )));
         }
     }
-    Ok(parsed)
+    Ok(DecoyOrigin::Http { url: parsed })
 }
 
 fn validate_address(idx: usize, ip: IpAddr) -> Result<()> {
@@ -78,13 +113,25 @@ fn validate_address(idx: usize, ip: IpAddr) -> Result<()> {
 pub(super) fn addresses(
     config: &ProxyConfig,
     idx: usize,
-    parsed: &url::Url,
+    origin: &DecoyOrigin,
     require_resolved: bool,
-) -> Result<Vec<SocketAddr>> {
-    let port = parsed
+) -> Result<Vec<DecoyEndpoint>> {
+    match origin {
+        DecoyOrigin::Unix { path } => Ok(vec![DecoyEndpoint::Unix(path.clone())]),
+        DecoyOrigin::Http { url } => http_addresses(config, idx, url, require_resolved),
+    }
+}
+
+fn http_addresses(
+    config: &ProxyConfig,
+    idx: usize,
+    url: &url::Url,
+    require_resolved: bool,
+) -> Result<Vec<DecoyEndpoint>> {
+    let port = url
         .port_or_known_default()
         .ok_or_else(|| ProxyError::Config("WEB decoy port cannot be resolved".to_string()))?;
-    let answers = match parsed.host() {
+    let answers = match url.host() {
         Some(url::Host::Ipv4(ip)) => vec![SocketAddr::new(IpAddr::V4(ip), port)],
         Some(url::Host::Ipv6(ip)) => vec![SocketAddr::new(IpAddr::V6(ip), port)],
         Some(url::Host::Domain(host)) => {
@@ -109,7 +156,10 @@ pub(super) fn addresses(
             ));
         }
     }
-    Ok(answers)
+    Ok(answers
+        .into_iter()
+        .map(DecoyEndpoint::Tcp)
+        .collect())
 }
 
 /// Captures fresh resolver evidence without publishing any partially prepared configuration.
@@ -123,11 +173,14 @@ where
         let WebDecoyConfig::HttpUpstream { upstream, resolve } = &vhost.decoy else {
             continue;
         };
-        let parsed = parse_origin(idx, upstream, *resolve)?;
-        let Some(url::Host::Domain(host)) = parsed.host() else {
+        let origin = parse_origin(idx, upstream, *resolve)?;
+        let DecoyOrigin::Http { url } = &origin else {
             continue;
         };
-        let port = parsed
+        let Some(url::Host::Domain(host)) = url.host() else {
+            continue;
+        };
+        let port = url
             .port_or_known_default()
             .ok_or_else(|| ProxyError::Config("WEB decoy port cannot be resolved".to_string()))?;
         let key = (host.to_string(), port);
@@ -172,27 +225,42 @@ pub(super) fn build_upstream(
     upstream: &str,
     resolve: WebDecoyResolve,
 ) -> Result<WebRuntimeDecoy> {
-    let parsed = parse_origin(idx, upstream, resolve)?;
-    let addr = addresses(config, idx, &parsed, true)?
-        .first()
-        .copied()
-        .ok_or_else(|| ProxyError::Config("WEB decoy DNS snapshot is empty".to_string()))?;
-    // URL authority keeps the configured hostname and brackets IPv6 literals.
-    let authority = parsed[url::Position::BeforeHost..url::Position::AfterPort].to_string();
-    Ok(WebRuntimeDecoy::HttpUpstream { addr, authority })
+    let origin = parse_origin(idx, upstream, resolve)?;
+    match &origin {
+        DecoyOrigin::Http { url } => {
+            let endpoint = addresses(config, idx, &origin, true)?
+                .into_iter()
+                .next()
+                .ok_or_else(|| ProxyError::Config("WEB decoy DNS snapshot is empty".to_string()))?;
+            // URL authority keeps the configured hostname and brackets IPv6 literals.
+            let authority = url[url::Position::BeforeHost..url::Position::AfterPort].to_string();
+            Ok(WebRuntimeDecoy::HttpUpstream { endpoint, authority })
+        }
+        DecoyOrigin::Unix { path } => {
+            // The unix upstream has no origin authority; the spoofed vhost
+            // identity selects the fronting site.
+            let authority = config.web.vhosts[idx].host.clone();
+            Ok(WebRuntimeDecoy::HttpUpstream {
+                endpoint: DecoyEndpoint::Unix(path.clone()),
+                authority,
+            })
+        }
+    }
 }
 
 impl ProxyConfig {
     /// Compares selected endpoints separately from source-only configuration equality.
     pub(crate) fn web_decoy_endpoints_equal(&self, other: &Self) -> bool {
-        fn selected(config: &ProxyConfig) -> impl Iterator<Item = (&String, SocketAddr)> {
+        fn selected(config: &ProxyConfig) -> impl Iterator<Item = (&String, DecoyEndpoint)> {
             config
                 .web
                 .runtime
                 .iter()
                 .flat_map(|runtime| runtime.vhosts.iter())
-                .filter_map(|(host, vhost)| match vhost.decoy {
-                    WebRuntimeDecoy::HttpUpstream { addr, .. } => Some((host, addr)),
+                .filter_map(|(host, vhost)| match &vhost.decoy {
+                    WebRuntimeDecoy::HttpUpstream { endpoint, .. } => {
+                        Some((host, endpoint.clone()))
+                    }
                     WebRuntimeDecoy::StaticDirectory(_) => None,
                 })
         }

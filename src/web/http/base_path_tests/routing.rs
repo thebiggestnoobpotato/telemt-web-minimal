@@ -199,7 +199,7 @@ async fn decoy_forwarding_preserves_every_reference_request_target() {
             base: previous.base.clone(),
             decoy_fasttrack_mode: previous.decoy_fasttrack_mode,
             decoy: WebRuntimeDecoy::HttpUpstream {
-                addr: site_addr,
+                endpoint: DecoyEndpoint::Tcp(site_addr),
                 authority: "decoy.internal".to_string(),
             },
             decoy_header_secs: 1,

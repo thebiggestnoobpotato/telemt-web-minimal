@@ -341,7 +341,6 @@ This document lists all configuration keys accepted by `config.toml`.
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
-| [`port`](#port) | `u16` | `443` | `✘` |
 | [`api`](#serverapi) | `Table` | built-in defaults | `✘` |
 | [`admin_api`](#serverapi) | `Table` | alias for `api` | `✘` |
 | [`listeners`](#serverlisteners) | `Table[]` | `[]` | `✘` |
@@ -349,15 +348,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`accept_permit_timeout_ms`](#accept_permit_timeout_ms) | `u64` | `250` | `✘` |
 | [`listen_backlog`](#listen_backlog) | `u32` | `1024` | `✘` |
 
-## port
-  - **Constraints / validation**: `u16`.
-  - **Description**: Default TCP port. Used as the fallback for `[[server.listeners]]` entries without an explicit `port` and as the relay local port in the MTProxy KDF tuple.
-  - **Example**:
-
-    ```toml
-    [server]
-    port = 443
-    ```
 ## listen_backlog
   - **Constraints / validation**: `u32`. `0` uses the OS default backlog behavior.
   - **Description**: Listen backlog passed to `listen(2)` for TCP sockets.
@@ -532,13 +522,17 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
 | [`ip`](#ip) | `IpAddr` | — | `✘` |
-| [`port`](#port-serverlisteners) | `u16` | `server.port` | `✘` |
+| [`port`](#port-serverlisteners) | `u16` | — | `✘` |
+| [`socket_path`](#socket_path-serverlisteners) | `String` | — | `✘` |
+| [`socket_perm`](#socket_perm-serverlisteners) | `String` | — | `✘` |
 | [`transport`](#transport-serverlisteners) | `"web"` | `"web"` | `✘` |
 | [`web_client_ip_source`](#web_client_ip_source-serverlisteners) | `"x_forwarded_for"` | `"x_forwarded_for"` | `✘` |
 | [`web_trusted_proxy_cidrs`](#web_trusted_proxy_cidrs-serverlisteners) | `IpNetwork[]` | `[]` | `✘` |
 
+Each entry binds exactly one endpoint: either a TCP pair (`ip` + `port`) or one `socket_path`.
+
 ## ip
-  - **Constraints / validation**: Required field. Must be an `IpAddr`.
+  - **Constraints / validation**: `IpAddr`. Required for TCP listeners together with `port`; omitted for unix socket listeners.
   - **Description**: Listener bind IP.
   - **Example**:
 
@@ -547,7 +541,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
     ip = "0.0.0.0"
     ```
 ## port (server.listeners)
-  - **Constraints / validation**: `u16` (optional). When omitted, falls back to `server.port`.
+  - **Constraints / validation**: `u16`. Required for TCP listeners together with `ip`; omitted for unix socket listeners.
   - **Description**: Per-listener TCP port.
   - **Example**:
 
@@ -555,6 +549,28 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
     [[server.listeners]]
     ip = "0.0.0.0"
     port = 443
+    ```
+## socket_path (server.listeners)
+  - **Constraints / validation**: Absolute unix domain socket path. Cannot be combined with `ip` or `port`. The parent directory must exist and be traversable; an existing path that is not a socket is rejected, a stale socket file is removed, and a live listener is never deleted.
+  - **Description**: Binds this listener to a local unix socket instead of a TCP endpoint. A local fronting process such as NGINX connects to the socket, and the socket file permissions are the trust boundary: no remote host can reach this listener, so the TCP-only peer checks are skipped. Each accepted connection is presented as a synthetic `127.0.0.1` peer. To let the fronting process's `X-Forwarded-For` header determine the client identity, keep `127.0.0.1/32` in this listener's `web_trusted_proxy_cidrs`; when the synthetic peer is untrusted, the connection is served as decoy traffic only.
+  - **Example**:
+
+    ```toml
+    [[server.listeners]]
+    socket_path = "/run/telemt/web.sock"
+    socket_perm = "0660"
+    transport = "web"
+    ```
+## socket_perm (server.listeners)
+  - **Constraints / validation**: Octal permission string such as `"0660"`. Applied via `chmod` after bind; an invalid value is reported with a warning and the umask-derived mode is kept.
+  - **Description**: Permissions of the unix socket file. Only meaningful with `socket_path`.
+  - **Example**:
+
+    ```toml
+    [[server.listeners]]
+    socket_path = "/run/telemt/web.sock"
+    socket_perm = "0660"
+    transport = "web"
     ```
 ## transport (server.listeners)
   - **Constraints / validation**: `"web"`.
@@ -773,7 +789,7 @@ Exactly one decoy mode is required:
 
 | Mode | Required keys | Validation |
 | --- | --- | --- |
-| `http_upstream` | `upstream`; optional `resolve = "never" \| "startup"` | An `http://` origin; no credentials, path, query, or fragment. With the default `resolve = "never"` the host must be a loopback, link-local, or private IP literal. With `resolve = "startup"` a hostname is accepted and resolved once during config preparation; every answer must remain inside loopback or a private network, the answers are pinned for the prepared generation, and a failed, timed out, or empty lookup fails the load while the old configuration is kept. `resolve` is rejected outside `http_upstream`. |
+| `http_upstream` | `upstream`; optional `resolve = "never" \| "startup"` | An `http://` origin; no credentials, path, query, or fragment. With the default `resolve = "never"` the host must be a loopback, link-local, or private IP literal. With `resolve = "startup"` a hostname is accepted and resolved once during config preparation; every answer must remain inside loopback or a private network, the answers are pinned for the prepared generation, and a failed, timed out, or empty lookup fails the load while the old configuration is kept. `resolve` is rejected outside `http_upstream`. Alternatively `upstream = "unix:/absolute/path.sock"` points the decoy at a local unix socket; the path must be absolute without URL control characters, `resolve` is rejected, no DNS is performed, and the vhost `host` is used as the request authority. A unix decoy target must not equal any `socket_path` of a WEB listener. |
 | `static_directory` | `directory`; optional `index = "index.html"` | Absolute real directory and one safe index file name. Symlinks and escaping paths are rejected; the immutable snapshot is loaded under `[web.limits]`. |
 
 # [[web.vhosts.profiles]]

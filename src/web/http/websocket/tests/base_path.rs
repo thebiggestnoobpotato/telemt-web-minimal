@@ -12,7 +12,7 @@ async fn rejected_upgrade(
     let mut client = client.unwrap();
     let permit = runtime.try_http_connection().unwrap();
     let task = tokio::spawn(super::super::super::serve_connection(
-        server,
+        WebListenerStream::Tcp(server),
         peer,
         WebClientIpSource::XForwardedFor,
         Arc::from(["127.0.0.1/32".parse().unwrap()]),

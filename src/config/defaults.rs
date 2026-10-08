@@ -24,10 +24,6 @@ pub(crate) fn default_true() -> bool {
     true
 }
 
-pub(crate) fn default_port() -> u16 {
-    443
-}
-
 pub(crate) fn default_replay_check_len() -> usize {
     65_536
 }

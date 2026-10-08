@@ -34,7 +34,7 @@ async fn request_without_body(
     let mut client = client.unwrap();
     let permit = runtime.try_http_connection().unwrap();
     let task = tokio::spawn(serve_connection(
-        server,
+        WebListenerStream::Tcp(server),
         peer,
         WebClientIpSource::XForwardedFor,
         Arc::from(["127.0.0.1/32".parse().unwrap()]),
@@ -402,7 +402,7 @@ async fn prefixed_decoy_request_keeps_its_original_path_and_query() {
         base: "/relay/".to_string(),
         decoy_fasttrack_mode: WebDecoyFastTrackMode::Off,
         decoy: WebRuntimeDecoy::HttpUpstream {
-            addr: site_addr,
+            endpoint: DecoyEndpoint::Tcp(site_addr),
             authority: "decoy.internal".to_string(),
         },
         decoy_header_secs: 1,

@@ -46,13 +46,6 @@ fn listeners_equal(
 /// Warns when the requested snapshot contains fields that require restart.
 pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot_changed: bool) {
     let mut warned = false;
-    if old.server.port != new.server.port {
-        warned = true;
-        warn!(
-            "config reload: server.port changed ({} → {}); restart required",
-            old.server.port, new.server.port
-        );
-    }
     if old.server.api.enabled != new.server.api.enabled
         || old.server.api.listen != new.server.api.listen
         || old.server.api.whitelist != new.server.api.whitelist

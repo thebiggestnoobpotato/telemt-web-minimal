@@ -313,8 +313,7 @@ pub(super) async fn save_config_to_disk(
 ///
 /// `server` is partially editable: only the nested fields listed in
 /// [`EDITABLE_SERVER_FIELDS`] (currently `listeners`) may appear in GET/PATCH.
-/// Secrets and bind identity (`api`/`admin_api`, `port`, unix sockets, …) stay
-/// blocked.
+/// Secrets and bind identity (`api`/`admin_api`, …) stay blocked.
 ///
 /// A future field-level allowlist can re-admit specific safe fields
 /// without opening the whole section.

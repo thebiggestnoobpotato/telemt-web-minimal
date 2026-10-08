@@ -20,11 +20,6 @@ pub enum WebClientIpSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
-    /// Legacy listener port used for backward compatibility.
-    /// For new configs prefer `[[server.listeners]].port`.
-    #[serde(default = "default_port")]
-    pub port: u16,
-
     #[serde(default, alias = "admin_api")]
     pub api: ApiConfig,
 
@@ -50,7 +45,6 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            port: default_port(),
             api: ApiConfig::default(),
             listeners: Vec::new(),
             listen_backlog: default_listen_backlog(),
@@ -89,15 +83,56 @@ impl Default for TimeoutsConfig {
     }
 }
 
+/// Bind identity of one process-owned listener endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ListenerEndpoint {
+    /// TCP endpoint with a concrete IP and port.
+    Tcp(std::net::SocketAddr),
+    /// Unix domain socket path.
+    Unix(PathBuf),
+}
+
+impl ListenerEndpoint {
+    /// Complete endpoint of a validated listener entry.
+    pub(crate) fn from_listener(listener: &ListenerConfig) -> Option<ListenerEndpoint> {
+        if let Some(path) = &listener.socket_path {
+            return Some(ListenerEndpoint::Unix(PathBuf::from(path)));
+        }
+        Some(ListenerEndpoint::Tcp(std::net::SocketAddr::new(
+            listener.ip?,
+            listener.port?,
+        )))
+    }
+}
+
+impl fmt::Display for ListenerEndpoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ListenerEndpoint::Tcp(addr) => write!(f, "{addr}"),
+            ListenerEndpoint::Unix(path) => write!(f, "unix:{}", path.display()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListenerConfig {
-    pub ip: IpAddr,
+    /// TCP bind IP. Required for TCP listeners, omitted for unix socket listeners.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ip: Option<IpAddr>,
     /// Application protocol accepted by this listener.
     #[serde(default)]
     pub transport: ListenerTransport,
-    /// Per-listener TCP port. If omitted, falls back to legacy `server.port`.
-    #[serde(default)]
+    /// TCP port. Required for TCP listeners, omitted for unix socket listeners.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
+    /// Unix domain socket path. Required for unix socket listeners,
+    /// omitted for TCP listeners.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub socket_path: Option<String>,
+    /// Unix socket file permissions (octal, e.g. "0660"). Applied via chmod
+    /// after bind. Omitted keeps the umask-derived mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub socket_perm: Option<String>,
     /// L7 header policy used by WEB listeners.
     #[serde(default)]
     pub web_client_ip_source: WebClientIpSource,

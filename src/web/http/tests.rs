@@ -8,11 +8,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::sync::CancellationToken;
 
-use super::serve_connection;
+use super::{serve_connection, WebListenerStream};
 use crate::config::{
-    ProxyConfig, WebCarrier, WebCarriers, WebClientIpSource, WebDecoyFastTrackMode,
-    WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile, WebRuntimeVhost, WebSecretMode,
-    WebStaticAsset, WebStaticSite,
+    DecoyEndpoint, ProxyConfig, WebCarrier, WebCarriers, WebClientIpSource,
+    WebDecoyFastTrackMode, WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile,
+    WebRuntimeVhost, WebSecretMode, WebStaticAsset, WebStaticSite,
 };
 use crate::maestro::generation::test_runtime_generation;
 use crate::web::frame::{self, FrameType};
@@ -52,6 +52,9 @@ mod decoy_fasttrack_tests;
 // Base-path routing and credential containment share reference-contract coverage.
 #[path = "base_path_tests.rs"]
 mod base_path_tests;
+// Unix socket listener transport is covered end-to-end with synthetic peers.
+#[path = "unix_socket_tests.rs"]
+mod unix_socket_tests;
 // Raw response parsing helpers are shared by the HTTP integration test modules.
 #[path = "response_test_support.rs"]
 mod response_test_support;
@@ -210,7 +213,7 @@ pub(super) async fn request(
     let mut client = client.unwrap();
     let permit = runtime.try_http_connection().unwrap();
     let task = tokio::spawn(serve_connection(
-        server,
+        WebListenerStream::Tcp(server),
         peer,
         WebClientIpSource::XForwardedFor,
         Arc::from(["127.0.0.1/32".parse().unwrap()]),

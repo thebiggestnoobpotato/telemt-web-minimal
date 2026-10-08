@@ -4,7 +4,7 @@ fn sample_config() -> ProxyConfig {
     ProxyConfig::default()
 }
 
-fn write_reload_config(path: &Path, log_level: Option<&str>, server_port: Option<u16>) {
+fn write_reload_config(path: &Path, log_level: Option<&str>, listen_backlog: Option<u32>) {
     let mut config = String::from(
         r#"
                 [access.users]
@@ -19,9 +19,9 @@ fn write_reload_config(path: &Path, log_level: Option<&str>, server_port: Option
         }
     }
 
-    if let Some(port) = server_port {
+    if let Some(backlog) = listen_backlog {
         config.push_str("\n[server]\n");
-        config.push_str(&format!("port = {port}\n"));
+        config.push_str(&format!("listen_backlog = {backlog}\n"));
     }
 
     std::fs::write(path, config).unwrap();
@@ -90,28 +90,28 @@ fn overlay_applies_hot_and_preserves_non_hot() {
     let old = sample_config();
     let mut new = old.clone();
     new.general.direct_relay_copy_buf_c2s_bytes = old.general.direct_relay_copy_buf_c2s_bytes + 1;
-    new.server.port = old.server.port.saturating_add(1);
+    new.server.listen_backlog = old.server.listen_backlog.saturating_add(1);
 
     let applied = overlay_hot_fields(&old, &new);
     assert_eq!(
         applied.general.direct_relay_copy_buf_c2s_bytes,
         new.general.direct_relay_copy_buf_c2s_bytes
     );
-    assert_eq!(applied.server.port, old.server.port);
+    assert_eq!(applied.server.listen_backlog, old.server.listen_backlog);
 }
 
 #[test]
 fn non_hot_only_change_does_not_change_hot_snapshot() {
     let old = sample_config();
     let mut new = old.clone();
-    new.server.port = old.server.port.saturating_add(1);
+    new.server.listen_backlog = old.server.listen_backlog.saturating_add(1);
 
     let applied = overlay_hot_fields(&old, &new);
     assert_eq!(
         HotFields::from_config(&old),
         HotFields::from_config(&applied)
     );
-    assert_eq!(applied.server.port, old.server.port);
+    assert_eq!(applied.server.listen_backlog, old.server.listen_backlog);
 }
 
 #[test]
@@ -219,14 +219,14 @@ fn mixed_hot_and_non_hot_change_applies_only_hot_subset() {
     let old = sample_config();
     let mut new = old.clone();
     new.general.direct_relay_copy_buf_s2c_bytes = old.general.direct_relay_copy_buf_s2c_bytes + 1;
-    new.server.port = old.server.port.saturating_add(1);
+    new.server.listen_backlog = old.server.listen_backlog.saturating_add(1);
 
     let applied = overlay_hot_fields(&old, &new);
     assert_eq!(
         applied.general.direct_relay_copy_buf_s2c_bytes,
         new.general.direct_relay_copy_buf_s2c_bytes
     );
-    assert_eq!(applied.server.port, old.server.port);
+    assert_eq!(applied.server.listen_backlog, old.server.listen_backlog);
     assert!(!config_equal(&applied, &new));
 }
 
@@ -234,21 +234,23 @@ fn mixed_hot_and_non_hot_change_applies_only_hot_subset() {
 fn listener_web_policy_fields_are_process_owned() {
     let mut old = sample_config();
     old.server.listeners.push(ListenerConfig {
-        ip: "0.0.0.0".parse().unwrap(),
+        ip: Some("0.0.0.0".parse().unwrap()),
         transport: crate::config::ListenerTransport::Web,
         port: Some(443),
+        socket_path: None,
+        socket_perm: None,
         web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
         web_trusted_proxy_cidrs: Vec::new(),
     });
     let mut new = old.clone();
-    new.server.port = 8443;
+    new.server.listeners[0].port = Some(8443);
     new.server.listeners[0]
         .web_trusted_proxy_cidrs
         .push("127.0.0.1/32".parse().unwrap());
 
     let applied = overlay_hot_fields(&old, &new);
     let listener = &applied.server.listeners[0];
-    assert_eq!(applied.server.port, old.server.port);
+    assert_eq!(applied.server.listeners[0].port, old.server.listeners[0].port);
     assert!(listener.web_trusted_proxy_cidrs.is_empty());
     assert!(classify_config_changes(&old, &new).restart_required);
 }
@@ -325,12 +327,12 @@ fn reload_keeps_hot_apply_when_non_hot_fields_change() {
     let (log_tx, _log_rx) = watch::channel(initial_cfg.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
-    write_reload_config(&path, Some("verbose"), Some(initial_cfg.server.port + 1));
+    write_reload_config(&path, Some("verbose"), Some(initial_cfg.server.listen_backlog + 1));
     reload_config(&path, &config_tx, &log_tx, &mut reload_state).unwrap();
 
     let applied = config_tx.borrow().clone();
     assert_eq!(applied.logging.log_level, LogLevel::Verbose);
-    assert_eq!(applied.server.port, initial_cfg.server.port);
+    assert_eq!(applied.server.listen_backlog, initial_cfg.server.listen_backlog);
 
     let _ = std::fs::remove_file(path);
 }

@@ -1,16 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
 
+use crate::config::ListenerEndpoint;
 use crate::config::ListenerTransport;
 use crate::config::ProxyConfig;
 use crate::maestro::generation::RuntimeGeneration;
 
 use super::accept::ListenerSlot;
-use super::bind::{BoundListeners, BoundTcpListener, PreparedTcpListener, prepare_listener};
+use super::bind::{BoundListener, BoundListeners, PreparedListener, prepare_listener};
 use super::plan::{ListenerBindSpec, listener_bind_plan};
 use crate::web::control::{WebRuntimeControl, WebRuntimeLifecycle};
 use crate::web::manager::{WebProcessRuntime, WebShutdownOutcome};
@@ -19,24 +19,24 @@ use crate::web::trace::WebTraceStore;
 /// Process-owned listener inventory and accept-task lifecycle controller.
 pub(crate) struct ListenerManager {
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
-    slots: BTreeMap<SocketAddr, ListenerSlot>,
+    slots: BTreeMap<ListenerEndpoint, ListenerSlot>,
     web_runtime: Option<Arc<WebProcessRuntime>>,
     web_control: WebRuntimeControl,
-    web_listeners: Arc<[SocketAddr]>,
+    web_listeners: Arc<[ListenerEndpoint]>,
 }
 
 /// Socket changes prepared without activating or stopping accept loops.
 pub(crate) struct PreparedListenerTransition {
-    target_specs: BTreeMap<SocketAddr, ListenerBindSpec>,
-    additions: Vec<PreparedTcpListener>,
-    removals: Vec<SocketAddr>,
+    target_specs: BTreeMap<ListenerEndpoint, ListenerBindSpec>,
+    additions: Vec<PreparedListener>,
+    removals: Vec<ListenerEndpoint>,
 }
 
 /// Activated additions and stopped removals awaiting runtime publication.
 pub(crate) struct PendingListenerTransition {
-    target_specs: BTreeMap<SocketAddr, ListenerBindSpec>,
-    additions: Vec<BoundTcpListener>,
-    removals: Vec<SocketAddr>,
+    target_specs: BTreeMap<ListenerEndpoint, ListenerBindSpec>,
+    additions: Vec<BoundListener>,
+    removals: Vec<ListenerEndpoint>,
 }
 
 impl ListenerManager {
@@ -47,11 +47,11 @@ impl ListenerManager {
         trace: Arc<WebTraceStore>,
         web_control: WebRuntimeControl,
     ) -> Self {
-        let web_listeners: Arc<[SocketAddr]> = bound
+        let web_listeners: Arc<[ListenerEndpoint]> = bound
             .listeners
             .iter()
             .filter(|listener| listener.spec.transport == ListenerTransport::Web)
-            .map(|listener| listener.spec.addr)
+            .map(|listener| listener.spec.endpoint.clone())
             .collect();
         let has_web = !web_listeners.is_empty();
         let web_runtime = has_web.then(|| {
@@ -63,9 +63,9 @@ impl ListenerManager {
         });
         let mut slots = BTreeMap::new();
         for listener in bound.listeners {
-            let addr = listener.spec.addr;
+            let endpoint = listener.spec.endpoint.clone();
             slots.insert(
-                addr,
+                endpoint,
                 ListenerSlot::start(listener, active_runtime.clone(), web_runtime.clone()),
             );
         }
@@ -116,20 +116,20 @@ impl ListenerManager {
             .slots
             .iter()
             .filter(|(_, slot)| slot.spec.transport == ListenerTransport::Web)
-            .map(|(addr, slot)| (*addr, slot.spec.clone()))
+            .map(|(addr, slot)| (addr.clone(), slot.spec.clone()))
             .collect::<BTreeMap<_, _>>()
             != target_specs
                 .iter()
                 .filter(|(_, spec)| spec.transport == ListenerTransport::Web)
-                .map(|(addr, spec)| (*addr, spec.clone()))
+                .map(|(addr, spec)| (addr.clone(), spec.clone()))
                 .collect::<BTreeMap<_, _>>();
         if web_inventory_changed {
             return Err(
                 "WEB listener inventory is process-owned; process restart required".to_string(),
             );
         }
-        let current_addresses: BTreeSet<_> = self.slots.keys().copied().collect();
-        let target_addresses: BTreeSet<_> = target_specs.keys().copied().collect();
+        let current_addresses: BTreeSet<_> = self.slots.keys().cloned().collect();
+        let target_addresses: BTreeSet<_> = target_specs.keys().cloned().collect();
         if current_addresses == target_addresses
             && self
                 .slots
@@ -160,7 +160,7 @@ impl ListenerManager {
         }
         let removals = current_addresses
             .difference(&target_addresses)
-            .copied()
+            .cloned()
             .collect();
         Ok(Some(PreparedListenerTransition {
             target_specs,
@@ -201,7 +201,7 @@ impl ListenerManager {
                     .restart(self.active_runtime.clone());
                 return Err(error_value);
             }
-            stopped.push(*addr);
+            stopped.push(addr.clone());
         }
 
         Ok(PendingListenerTransition {
@@ -213,13 +213,13 @@ impl ListenerManager {
 
     /// Publishes new acceptors after the runtime generation has been swapped.
     pub(crate) fn finish_transition(&mut self, pending: PendingListenerTransition) {
-        for addr in pending.removals {
-            self.slots.remove(&addr);
+        for endpoint in pending.removals {
+            self.slots.remove(&endpoint);
         }
         for listener in pending.additions {
-            let addr = listener.spec.addr;
+            let endpoint = listener.spec.endpoint.clone();
             self.slots.insert(
-                addr,
+                endpoint,
                 ListenerSlot::start(
                     listener,
                     self.active_runtime.clone(),
@@ -230,7 +230,7 @@ impl ListenerManager {
         debug_assert_eq!(
             self.slots
                 .iter()
-                .map(|(addr, slot)| (*addr, slot.spec.clone()))
+                .map(|(endpoint, slot)| (endpoint.clone(), slot.spec.clone()))
                 .collect::<BTreeMap<_, _>>(),
             pending.target_specs
         );
@@ -330,6 +330,7 @@ impl ListenerManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::SocketAddr;
     use crate::config::ListenerConfig;
     use crate::maestro::generation::test_runtime_generation;
     use crate::transport::ListenOptions;
@@ -337,19 +338,21 @@ mod tests {
 
     fn listener_config(addr: SocketAddr) -> ListenerConfig {
         ListenerConfig {
-            ip: addr.ip(),
+            ip: Some(addr.ip()),
             transport: crate::config::ListenerTransport::Web,
             port: Some(addr.port()),
+            socket_path: None,
+            socket_perm: None,
             web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
             web_trusted_proxy_cidrs: Vec::new(),
         }
     }
 
-    async fn bound_listener() -> (BoundTcpListener, SocketAddr) {
+    async fn bound_listener() -> (BoundListener, SocketAddr) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let spec = ListenerBindSpec {
-            addr,
+            endpoint: crate::config::ListenerEndpoint::Tcp(addr),
             transport: crate::config::ListenerTransport::Web,
             options: ListenOptions {
                 reuse_port: false,
@@ -357,10 +360,11 @@ mod tests {
             },
             web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
             web_trusted_proxy_cidrs: Arc::from([]),
+            socket_perm: None,
         };
         (
-            BoundTcpListener {
-                listener: Arc::new(listener),
+            BoundListener {
+                handle: crate::maestro::listeners::bind::ListenerHandle::Tcp(Arc::new(listener)),
                 spec,
             },
             addr,

@@ -12,7 +12,6 @@ use ipnetwork::IpNetwork;
 use sha1::{Digest as _, Sha1};
 use sha2::Sha256;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::net::TcpStream;
 use tokio::sync::OwnedSemaphorePermit;
 
 use super::body::RequestBody;
@@ -23,6 +22,7 @@ use super::{HttpResponse, request_trace, set_trace_route};
 use crate::config::{WebCarrier, WebClientIpSource, WebRuntimeVhost};
 use crate::web::manager::{TokenHash, WebProcessRuntime, WebSocketKind};
 use crate::web::trace::TraceRoute;
+use crate::web::transport::WebListenerStream;
 
 // Codec buffers and fixed driver state are charged before HTTP 101 commits.
 const BASE_BUDGET_BYTES: usize = 132 * 1024;
@@ -30,13 +30,13 @@ const WEBSOCKET_GUID: &[u8] = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 /// Accepted connection IO retains the process HTTP slot after an upgrade.
 pub(super) struct ConnectionIo {
-    stream: TcpStream,
+    stream: WebListenerStream,
     _connection_permit: OwnedSemaphorePermit,
     websocket_read: Option<WebSocketReadBoundary>,
 }
 
 impl ConnectionIo {
-    pub(super) fn new(stream: TcpStream, connection_permit: OwnedSemaphorePermit) -> Self {
+    pub(super) fn new(stream: WebListenerStream, connection_permit: OwnedSemaphorePermit) -> Self {
         Self {
             stream,
             _connection_permit: connection_permit,

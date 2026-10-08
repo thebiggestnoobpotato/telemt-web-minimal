@@ -18,5 +18,7 @@ pub(crate) mod session;
 pub(crate) mod stream;
 /// Process-owned fixed-cardinality WEB operational telemetry.
 pub(crate) mod telemetry;
+/// Transport streams shared by listener ingress and decoy upstream egress.
+pub(crate) mod transport;
 /// Process-owned bounded WEB debugging records and capture lifecycle.
 pub(crate) mod trace;

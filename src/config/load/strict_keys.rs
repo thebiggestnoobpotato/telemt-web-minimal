@@ -40,7 +40,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
 ];
 
 const SERVER_CONFIG_KEYS: &[&str] = &[
-    "port",
     "api",
     "admin_api",
     "listeners",
@@ -71,6 +70,8 @@ const LISTENER_CONFIG_KEYS: &[&str] = &[
     "ip",
     "transport",
     "port",
+    "socket_path",
+    "socket_perm",
     "web_client_ip_source",
     "web_trusted_proxy_cidrs",
 ];

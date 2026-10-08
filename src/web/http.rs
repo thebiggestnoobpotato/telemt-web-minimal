@@ -13,7 +13,6 @@ use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use ipnetwork::IpNetwork;
-use tokio::net::TcpStream;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::{WebClientIpSource, WebDecoyFastTrackMode, WebRuntimeVhost};
@@ -21,6 +20,7 @@ use crate::maestro::generation::RuntimeGeneration;
 use crate::web::bridge;
 use crate::web::manager::{ManagerError, WebProcessRuntime};
 use crate::web::telemetry::WebDecoyFastTrackDisposition;
+use crate::web::transport::WebListenerStream;
 
 // Response-body activity keeps connection idle accounting lifecycle-correct.
 mod activity;
@@ -84,9 +84,10 @@ const TRANSPORT_SUFFIXES: [&str; 4] = [
 ];
 const WEBSOCKET_SUFFIX: &str = "api/v1/ws";
 
-/// Serves one bounded HTTP/1.1 connection accepted from an external TLS terminator.
+/// Serves one bounded HTTP/1.1 connection accepted from an external TLS
+/// terminator (TCP) or a local fronting process (unix socket).
 pub(crate) async fn serve_connection(
-    stream: TcpStream,
+    stream: WebListenerStream,
     peer: SocketAddr,
     client_ip_source: WebClientIpSource,
     trusted_proxy_cidrs: Arc<[IpNetwork]>,

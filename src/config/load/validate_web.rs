@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::path::Path;
 
 use super::*;
 
@@ -44,10 +45,7 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
         .listeners
         .iter()
         .filter(|listener| listener.transport == ListenerTransport::Web)
-        .filter(|listener| {
-            (listener.ip.is_ipv4() && config.general.network_ipv4)
-                || (listener.ip.is_ipv6() && config.general.network_ipv6 != Some(false))
-        })
+        .filter(|listener| listener_is_network_eligible(listener, config))
         .count();
 
     for (idx, listener) in config.server.listeners.iter().enumerate() {
@@ -93,34 +91,56 @@ fn validate_decoy_listener_separation_inner(
     config: &ProxyConfig,
     require_resolved: bool,
 ) -> Result<()> {
-    let web_listeners = config
+    let web_endpoints = config
         .server
         .listeners
         .iter()
         .filter(|listener| listener.transport == ListenerTransport::Web)
-        .filter(|listener| {
-            (listener.ip.is_ipv4() && config.general.network_ipv4)
-                || (listener.ip.is_ipv6() && config.general.network_ipv6 != Some(false))
-        })
-        .map(|listener| SocketAddr::new(listener.ip, listener.port.unwrap_or(config.server.port)))
+        .filter(|listener| listener_is_network_eligible(listener, config))
+        .filter_map(ListenerEndpoint::from_listener)
         .collect::<Vec<_>>();
     for (vhost_idx, vhost) in config.web.vhosts.iter().enumerate() {
         let WebDecoyConfig::HttpUpstream { upstream, resolve } = &vhost.decoy else {
             continue;
         };
-        let parsed = decoy_dns::parse_origin(vhost_idx, upstream, *resolve)?;
-        for upstream_addr in decoy_dns::addresses(config, vhost_idx, &parsed, require_resolved)? {
-            if web_listeners
+        let origin = decoy_dns::parse_origin(vhost_idx, upstream, *resolve)?;
+        for endpoint in decoy_dns::addresses(config, vhost_idx, &origin, require_resolved)? {
+            if web_endpoints
                 .iter()
-                .any(|listener| listener_covers(*listener, upstream_addr))
+                .any(|listener| decoy_endpoint_overlaps(listener, &endpoint))
             {
                 return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].decoy upstream overlaps WEB listener {upstream_addr}"
+                    "web.vhosts[{vhost_idx}].decoy upstream overlaps WEB listener {endpoint}"
                 ));
             }
         }
     }
     Ok(())
+}
+
+/// Unix socket paths and TCP endpoints never collide across namespaces.
+fn decoy_endpoint_overlaps(listener: &ListenerEndpoint, target: &DecoyEndpoint) -> bool {
+    match (listener, target) {
+        (ListenerEndpoint::Tcp(listener), DecoyEndpoint::Tcp(target)) => {
+            listener_covers(*listener, *target)
+        }
+        (ListenerEndpoint::Unix(listener), DecoyEndpoint::Unix(target)) => listener == target,
+        _ => false,
+    }
+}
+
+/// Unix socket listeners are eligible on every address family; TCP listeners
+/// follow the configured family policy.
+fn listener_is_network_eligible(listener: &ListenerConfig, config: &ProxyConfig) -> bool {
+    matches!(
+        ListenerEndpoint::from_listener(listener),
+        Some(ListenerEndpoint::Unix(_))
+    ) || matches!(
+        ListenerEndpoint::from_listener(listener),
+        Some(ListenerEndpoint::Tcp(addr))
+            if (addr.is_ipv4() && config.general.network_ipv4)
+                || (addr.is_ipv6() && config.general.network_ipv6 != Some(false))
+    )
 }
 
 fn listener_covers(listener: SocketAddr, target: SocketAddr) -> bool {
@@ -133,6 +153,28 @@ fn validate_web_listener(
     idx: usize,
     listener: &ListenerConfig,
 ) -> Result<()> {
+    if let Some(path) = &listener.socket_path {
+        // The socket file is the trust boundary: no remote host can reach
+        // this listener, so the TCP-only non-empty and /0 CIDR checks are
+        // skipped. The synthetic loopback peer is still matched against the
+        // configured CIDRs at request time.
+        if !Path::new(path).is_absolute() {
+            return Err(ProxyError::Config(format!(
+                "server.listeners[{idx}].socket_path must be an absolute path"
+            )));
+        }
+        if listener.ip.is_some() || listener.port.is_some() {
+            return Err(ProxyError::Config(format!(
+                "server.listeners[{idx}].socket_path cannot be combined with ip or port"
+            )));
+        }
+        return Ok(());
+    }
+    if listener.ip.is_none() || listener.port.is_none() {
+        return Err(ProxyError::Config(format!(
+            "server.listeners[{idx}] requires both ip and port, or socket_path"
+        )));
+    }
     if listener.web_trusted_proxy_cidrs.is_empty() {
         return Err(ProxyError::Config(format!(
             "server.listeners[{idx}].web_trusted_proxy_cidrs must be non-empty for transport=web"

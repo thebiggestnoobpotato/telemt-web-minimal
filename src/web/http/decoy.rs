@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -8,14 +7,14 @@ use http_body_util::{BodyExt, Empty};
 use hyper::header::{self, HeaderName, HeaderValue};
 use hyper::{Method, Request, StatusCode, Uri};
 use hyper_util::rt::TokioIo;
-use tokio::net::TcpStream;
 
 use super::{
     BoxError, HttpBody, HttpResponse, bad_gateway, full_response, generic_not_found, insert_header,
 };
-use crate::config::{WebRuntimeDecoy, WebRuntimeVhost};
+use crate::config::{DecoyEndpoint, WebRuntimeDecoy, WebRuntimeVhost};
 use crate::web::manager::WebProcessRuntime;
 use crate::web::telemetry::WebDecoyUpstreamOutcome;
+use crate::web::transport;
 
 /// Serves the configured ordinary site after optionally removing carrier material.
 /// Transport-sanitized static fallbacks remain uncacheable after query removal.
@@ -56,10 +55,10 @@ where
             }
             response
         }
-        WebRuntimeDecoy::HttpUpstream { addr, authority } => {
+        WebRuntimeDecoy::HttpUpstream { endpoint, authority } => {
             proxy_to_upstream(
                 request,
-                *addr,
+                endpoint,
                 authority,
                 Duration::from_secs(vhost.decoy_header_secs),
                 runtime,
@@ -183,7 +182,7 @@ fn resolve_static_path<'a>(path: &str, site: &'a crate::config::WebStaticSite) -
 
 async fn proxy_to_upstream(
     mut request: Request<HttpBody>,
-    addr: SocketAddr,
+    endpoint: &DecoyEndpoint,
     authority: &str,
     header_timeout: Duration,
     runtime: &WebProcessRuntime,
@@ -208,7 +207,7 @@ async fn proxy_to_upstream(
             return decoy_failure(runtime, WebDecoyUpstreamOutcome::DeadlineExhausted);
         }
     };
-    let stream = match connect_upstream(addr, header_timeout).await {
+    let stream = match transport::connect_decoy(endpoint, header_timeout).await {
         Ok(stream) => stream,
         Err(outcome) => return decoy_failure(runtime, outcome),
     };
@@ -266,20 +265,6 @@ async fn proxy_to_upstream(
         body.map_err(|error| -> BoxError { Box::new(error) })
             .boxed_unsync()
     })
-}
-
-async fn connect_upstream(
-    addr: SocketAddr,
-    timeout: Duration,
-) -> Result<TcpStream, WebDecoyUpstreamOutcome> {
-    match tokio::time::timeout(timeout, TcpStream::connect(addr)).await {
-        Ok(Ok(stream)) => Ok(stream),
-        Ok(Err(error)) if error.kind() == std::io::ErrorKind::ConnectionRefused => {
-            Err(WebDecoyUpstreamOutcome::ConnectRefused)
-        }
-        Ok(Err(_)) => Err(WebDecoyUpstreamOutcome::ConnectError),
-        Err(_) => Err(WebDecoyUpstreamOutcome::ConnectTimeout),
-    }
 }
 
 fn decoy_failure(runtime: &WebProcessRuntime, outcome: WebDecoyUpstreamOutcome) -> HttpResponse {
@@ -370,7 +355,22 @@ mod tests {
         drop(listener);
 
         assert_eq!(
-            connect_upstream(addr, Duration::from_secs(1)).await.err(),
+            transport::connect_decoy(&DecoyEndpoint::Tcp(addr), Duration::from_secs(1))
+                .await
+                .err(),
+            Some(WebDecoyUpstreamOutcome::ConnectRefused)
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_unix_upstream_is_classified_as_connect_refused() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("missing.sock");
+
+        assert_eq!(
+            transport::connect_decoy(&DecoyEndpoint::Unix(path.clone()), Duration::from_secs(1))
+                .await
+                .err(),
             Some(WebDecoyUpstreamOutcome::ConnectRefused)
         );
     }

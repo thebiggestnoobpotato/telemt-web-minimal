@@ -8,19 +8,19 @@ async fn save_sections_preserves_other_tables_and_comments() {
     let path = dir.join("config.toml");
     std::fs::write(
         &path,
-        "# top comment\n[server]\nport = 443\n\n[access.users]\nalice = \"000102030405060708090a0b0c0d0e0f\"\n",
+        "# top comment\n[server]\nlisten_backlog = 4096\n\n[access.users]\nalice = \"000102030405060708090a0b0c0d0e0f\"\n",
     )
     .unwrap();
 
     let mut cfg = ProxyConfig::default();
-    cfg.server.port = 443;
+    cfg.server.listen_backlog = 4096;
 
     let rev = save_sections_to_disk(&path, &cfg, &["server"])
         .await
         .unwrap();
 
     let written = std::fs::read_to_string(&path).unwrap();
-    assert!(written.contains("port = 443"));
+    assert!(written.contains("listen_backlog = 4096"));
     // Untouched comments and tables remain byte content.
     assert!(written.contains("# top comment"));
     assert!(written.contains("[access.users]"));
@@ -215,7 +215,7 @@ async fn manifest_revision_changes_when_an_included_source_changes() {
 async fn manifest_revision_does_not_require_typed_config_validation() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
-    tokio::fs::write(&root, "[server]\nport = \"invalid\"\n")
+    tokio::fs::write(&root, "[server]\nlisten_backlog = \"invalid\"\n")
         .await
         .unwrap();
 

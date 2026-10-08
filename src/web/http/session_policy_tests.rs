@@ -11,7 +11,7 @@ pub(super) async fn open_keepalive(
     let cancellation = CancellationToken::new();
     let permit = runtime.try_http_connection().unwrap();
     let task = tokio::spawn(serve_connection(
-        server,
+        WebListenerStream::Tcp(server),
         peer,
         WebClientIpSource::XForwardedFor,
         Arc::from(["127.0.0.1/32".parse().unwrap()]),
@@ -60,7 +60,7 @@ async fn request_with_body_delay(
     let mut client = client.unwrap();
     let permit = runtime.try_http_connection().unwrap();
     let task = tokio::spawn(serve_connection(
-        server,
+        WebListenerStream::Tcp(server),
         peer,
         WebClientIpSource::XForwardedFor,
         Arc::from(["127.0.0.1/32".parse().unwrap()]),

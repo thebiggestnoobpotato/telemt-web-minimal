@@ -1,18 +1,20 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
-use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::error;
 
-use crate::config::ListenerTransport;
+use crate::config::{ListenerEndpoint, ListenerTransport};
 use crate::web::manager::{HttpConnectionAdmissionError, WebProcessRuntime};
 use crate::web::telemetry::{WebAcceptorGuard, WebHttpConnectionOverloadOutcome};
+use crate::web::transport::WebListenerStream;
 
-use super::bind::BoundTcpListener;
+use super::bind::{BoundListener, ListenerHandle, remove_unix_listener_file};
 use super::plan::ListenerBindSpec;
 use super::web_overload;
 use crate::maestro::generation::RuntimeGeneration;
@@ -20,7 +22,7 @@ use crate::maestro::generation::RuntimeGeneration;
 /// One bound listener and all connection tasks accepted through its lifecycle.
 pub(super) struct ListenerSlot {
     pub(super) spec: ListenerBindSpec,
-    listener: Arc<TcpListener>,
+    handle: ListenerHandle,
     cancellation: CancellationToken,
     task: Option<JoinHandle<()>>,
     connections: TaskTracker,
@@ -28,25 +30,52 @@ pub(super) struct ListenerSlot {
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
 }
 
+async fn accept_next(
+    handle: &ListenerHandle,
+    connection_counter: &AtomicU64,
+) -> std::io::Result<(WebListenerStream, SocketAddr)> {
+    match handle {
+        ListenerHandle::Tcp(listener) => {
+            listener
+                .accept()
+                .await
+                .map(|(stream, peer)| (WebListenerStream::Tcp(stream), peer))
+        }
+        ListenerHandle::Unix(listener) => {
+            listener.accept().await.map(|(stream, _)| {
+                // The fronting process is local; a synthetic loopback peer
+                // keeps XFF and per-connection accounting identical to a TCP
+                // peer on the fronting host.
+                let connection_id = connection_counter.fetch_add(1, Ordering::Relaxed);
+                (
+                    WebListenerStream::Unix(stream),
+                    SocketAddr::from(([127, 0, 0, 1], (connection_id % 65535) as u16)),
+                )
+            })
+        }
+    }
+}
+
 async fn run_accept_loop(
-    listener: Arc<TcpListener>,
+    handle: ListenerHandle,
     spec: ListenerBindSpec,
     web_runtime: Option<Arc<WebProcessRuntime>>,
     connections: TaskTracker,
     cancellation: CancellationToken,
     _web_acceptor_guard: Option<WebAcceptorGuard>,
 ) {
+    let connection_counter = AtomicU64::new(1);
     loop {
         let accepted = tokio::select! {
             biased;
             _ = cancellation.cancelled() => return,
-            accepted = listener.accept() => accepted,
+            accepted = accept_next(&handle, &connection_counter) => accepted,
         };
         match accepted {
             Ok((stream, peer_addr)) => {
                 if spec.transport == ListenerTransport::Web {
                     let Some(web_runtime) = web_runtime.as_ref() else {
-                        error!(addr = %spec.addr, "WEB listener has no process runtime");
+                        error!(endpoint = %spec.endpoint, "WEB listener has no process runtime");
                         return;
                     };
                     web_runtime.telemetry().record_accept();
@@ -89,17 +118,23 @@ async fn run_accept_loop(
                             let overload_permit = match web_runtime.try_http_overload_connection() {
                                 Ok(permit) => permit,
                                 Err(HttpConnectionAdmissionError::Closed) => {
-                                    web_runtime.telemetry().record_rejection(
-                                        crate::web::telemetry::WebRejectionReason::RuntimeClosed,
-                                    );
-                                    web_runtime.telemetry().record_overload(
-                                        WebHttpConnectionOverloadOutcome::ShutdownDrop,
-                                    );
+                                    web_runtime
+                                        .telemetry()
+                                        .record_rejection(
+                                            crate::web::telemetry::WebRejectionReason::RuntimeClosed,
+                                        );
+                                    web_runtime
+                                        .telemetry()
+                                        .record_overload(
+                                            WebHttpConnectionOverloadOutcome::ShutdownDrop,
+                                        );
                                     drop(stream);
                                     continue;
                                 }
                                 Err(HttpConnectionAdmissionError::AtCapacity) => {
-                                    web_runtime.telemetry().record_rejection(
+                                    web_runtime
+                                        .telemetry()
+                                        .record_rejection(
                                             crate::web::telemetry::WebRejectionReason::HttpConnectionCapacity,
                                         );
                                     web_runtime.telemetry().record_overload(
@@ -136,7 +171,7 @@ async fn run_accept_loop(
                 }
                 // Raw TCP MTProxy transports are not served in this WEB-only build.
                 error!(
-                    addr = %spec.addr,
+                    endpoint = %spec.endpoint,
                     "Listener transport is not supported in this build; dropping connection"
                 );
                 drop(stream);
@@ -145,7 +180,11 @@ async fn run_accept_loop(
                 if let Some(web_runtime) = &web_runtime {
                     web_runtime.telemetry().record_accept_error();
                 }
-                error!(addr = %spec.addr, error = %error_value, "TCP accept error");
+                error!(
+                    endpoint = %spec.endpoint,
+                    error = %error_value,
+                    "listener accept error"
+                );
                 tokio::select! {
                     biased;
                     _ = cancellation.cancelled() => return,
@@ -158,7 +197,7 @@ async fn run_accept_loop(
 
 impl ListenerSlot {
     pub(super) fn start(
-        bound: BoundTcpListener,
+        bound: BoundListener,
         active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
         web_runtime: Option<Arc<WebProcessRuntime>>,
     ) -> Self {
@@ -173,7 +212,7 @@ impl ListenerSlot {
             .as_ref()
             .map(|runtime| runtime.telemetry().acceptor_guard());
         let task = tokio::spawn(run_accept_loop(
-            bound.listener.clone(),
+            bound.handle.clone(),
             bound.spec.clone(),
             web_runtime.clone(),
             connections.clone(),
@@ -182,7 +221,7 @@ impl ListenerSlot {
         ));
         Self {
             spec: bound.spec,
-            listener: bound.listener,
+            handle: bound.handle,
             cancellation,
             task: Some(task),
             connections,
@@ -191,13 +230,24 @@ impl ListenerSlot {
         }
     }
 
+    /// Removes the unix socket file after the accept loop stops; the inode
+    /// guard in the helper keeps a rapid-restart replacement safe.
+    fn remove_unix_socket_file(&self) {
+        if let ListenerHandle::Unix(listener) = &self.handle {
+            if let ListenerEndpoint::Unix(path) = &self.spec.endpoint {
+                remove_unix_listener_file(path, listener);
+            }
+        }
+    }
+
     pub(super) async fn stop(&mut self) -> Result<(), String> {
         self.request_stop();
         if let Some(task) = self.task.take() {
             task.await.map_err(|error_value| {
-                format!("listener {} task failed: {error_value}", self.spec.addr)
+                format!("listener {} task failed: {error_value}", self.spec.endpoint)
             })?;
         }
+        self.remove_unix_socket_file();
         self.connections.close();
         let connection_stop_timeout = Duration::from_secs(
             self.active_runtime
@@ -209,7 +259,12 @@ impl ListenerSlot {
         );
         tokio::time::timeout(connection_stop_timeout, self.connections.wait())
             .await
-            .map_err(|_| format!("listener {} connection shutdown timed out", self.spec.addr))?;
+            .map_err(|_| {
+                format!(
+                    "listener {} connection shutdown timed out",
+                    self.spec.endpoint
+                )
+            })?;
         Ok(())
     }
 
@@ -242,14 +297,15 @@ impl ListenerSlot {
                 Some(Ok(())) => {}
                 Some(Err(error_value)) => errors.push(format!(
                     "listener {} task failed: {error_value}",
-                    self.spec.addr
+                    self.spec.endpoint
                 )),
                 None => errors.push(format!(
                     "listener {} accept shutdown timed out",
-                    self.spec.addr
+                    self.spec.endpoint
                 )),
             }
         }
+        self.remove_unix_socket_file();
         self.connections.close();
         if !self.connections.is_empty()
             && tokio::time::timeout_at(deadline, self.connections.wait())
@@ -258,7 +314,7 @@ impl ListenerSlot {
         {
             errors.push(format!(
                 "listener {} connection shutdown timed out",
-                self.spec.addr
+                self.spec.endpoint
             ));
         }
         if errors.is_empty() {
@@ -277,7 +333,7 @@ impl ListenerSlot {
             .as_ref()
             .map(|runtime| runtime.telemetry().acceptor_guard());
         self.task = Some(tokio::spawn(run_accept_loop(
-            self.listener.clone(),
+            self.handle.clone(),
             self.spec.clone(),
             self.web_runtime.clone(),
             self.connections.clone(),

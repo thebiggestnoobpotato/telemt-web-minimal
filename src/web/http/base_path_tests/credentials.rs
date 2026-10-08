@@ -67,7 +67,7 @@ async fn every_authentic_credential_placement_stays_out_of_the_upstream() {
             base: "/relay/".to_string(),
             decoy_fasttrack_mode: WebDecoyFastTrackMode::Off,
             decoy: WebRuntimeDecoy::HttpUpstream {
-                addr: site_addr,
+                endpoint: DecoyEndpoint::Tcp(site_addr),
                 authority: "decoy.internal".to_string(),
             },
             decoy_header_secs: 1,
@@ -82,7 +82,7 @@ async fn every_authentic_credential_placement_stays_out_of_the_upstream() {
             base: "/other/".to_string(),
             decoy_fasttrack_mode: WebDecoyFastTrackMode::Off,
             decoy: WebRuntimeDecoy::HttpUpstream {
-                addr: site_addr,
+                endpoint: DecoyEndpoint::Tcp(site_addr),
                 authority: "decoy.internal".to_string(),
             },
             decoy_header_secs: 1,
