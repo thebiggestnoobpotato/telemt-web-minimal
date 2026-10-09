@@ -132,6 +132,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
 | [`telemetry_core_enabled`](#telemetry_core_enabled) | `bool` | `true` | `✔` |
 | [`telemetry_user_enabled`](#telemetry_user_enabled) | `bool` | `true` | `✔` |
+| [`listen_backlog`](#listen_backlog) | `u32` | `1024` | `✘` |
 
 ## data_path
   - **Constraints / validation**: `String` (optional).
@@ -336,6 +337,15 @@ This document lists all configuration keys accepted by `config.toml`.
     [general]
     telemetry_user_enabled = true
     ```
+## listen_backlog
+  - **Constraints / validation**: `u32`, within `[1, 2147483647]`. `0` is rejected: the kernel treats a zero backlog as a literal accept-queue limit (connections beyond the first queued one are SYN-dropped), not as a request for the OS default.
+  - **Description**: Listen backlog passed to `listen(2)` for every client-facing listener (TCP and unix socket) and for the metrics HTTP listener. The kernel clamps the effective queue to `net.core.somaxconn` at `listen(2)` time; a running process keeps the value captured at bind time, so raising the limit or `somaxconn` takes effect after a process restart.
+  - **Example**:
+
+    ```toml
+    [general]
+    listen_backlog = 4096
+    ```
 # [server]
 
 
@@ -346,17 +356,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`listeners`](#serverlisteners) | `Table[]` | `[]` | `✘` |
 | [`max_connections`](#max_connections) | `u32` | `10000` | `✘` |
 | [`accept_permit_timeout_ms`](#accept_permit_timeout_ms) | `u64` | `250` | `✘` |
-| [`listen_backlog`](#listen_backlog) | `u32` | `1024` | `✘` |
 
-## listen_backlog
-  - **Constraints / validation**: `u32`. `0` uses the OS default backlog behavior.
-  - **Description**: Listen backlog passed to `listen(2)` for TCP sockets.
-  - **Example**:
-
-    ```toml
-    [server]
-    listen_backlog = 1024
-    ```
 ## max_connections
   - **Constraints / validation**: `u32`. `0` means unlimited.
   - **Description**: Maximum number of concurrent client connections.

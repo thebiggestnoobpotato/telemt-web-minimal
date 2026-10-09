@@ -38,13 +38,6 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    if config.server.listen_backlog == 0 || config.server.listen_backlog > i32::MAX as u32 {
-        return Err(ProxyError::Config(format!(
-            "server.listen_backlog must be within [1, {}]",
-            i32::MAX
-        )));
-    }
-
     if config.server.accept_permit_timeout_ms > 60_000 {
         return Err(ProxyError::Config(
             "server.accept_permit_timeout_ms must be within [0, 60000]".to_string(),

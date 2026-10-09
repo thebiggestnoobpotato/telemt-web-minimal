@@ -171,14 +171,14 @@ pub(crate) fn resolve_reload_config(
     let mut effective = desired.clone();
     let mut fields = Vec::new();
     let listener_identity_matches = listeners_have_same_bind_identity(&old.server, &desired.server);
-    let global_listener_policy_changed = old.server.listen_backlog != desired.server.listen_backlog;
+    let global_listener_policy_changed = old.general.listen_backlog != desired.general.listen_backlog;
     let listener_policy_changed =
         listener_identity_matches && !listener_process_fields_equal(&old.server, &desired.server);
     let unsupported_identity_change =
         !listener_identity_matches && !listener_rebind_supported(old, desired);
     if global_listener_policy_changed || listener_policy_changed || unsupported_identity_change {
         fields.push("server.listeners".to_string());
-        effective.server.listen_backlog = old.server.listen_backlog;
+        effective.general.listen_backlog = old.general.listen_backlog;
         effective.server.listeners = old.server.listeners.clone();
     }
     if old.server.api.listen != desired.server.api.listen

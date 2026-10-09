@@ -8,14 +8,14 @@ async fn save_sections_preserves_other_tables_and_comments() {
     let path = dir.join("config.toml");
     std::fs::write(
         &path,
-        "# top comment\n[server]\nlisten_backlog = 4096\n\n[access.users]\nalice = \"000102030405060708090a0b0c0d0e0f\"\n",
+        "# top comment\n[general]\nlisten_backlog = 4096\n\n[access.users]\nalice = \"000102030405060708090a0b0c0d0e0f\"\n",
     )
     .unwrap();
 
     let mut cfg = ProxyConfig::default();
-    cfg.server.listen_backlog = 4096;
+    cfg.general.listen_backlog = 4096;
 
-    let rev = save_sections_to_disk(&path, &cfg, &["server"])
+    let rev = save_sections_to_disk(&path, &cfg, &["general"])
         .await
         .unwrap();
 
@@ -215,7 +215,7 @@ async fn manifest_revision_changes_when_an_included_source_changes() {
 async fn manifest_revision_does_not_require_typed_config_validation() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
-    tokio::fs::write(&root, "[server]\nlisten_backlog = \"invalid\"\n")
+    tokio::fs::write(&root, "[general]\nlisten_backlog = \"invalid\"\n")
         .await
         .unwrap();
 

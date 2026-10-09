@@ -83,4 +83,8 @@ pub struct GeneralConfig {
     /// If not set, defaults to 2 (matching Telegram's official `default 2;` in proxy-multi.conf).
     #[serde(default)]
     pub default_dc: Option<u8>,
+    /// TCP `listen(2)` backlog for client-facing sockets (also used for the metrics HTTP listener).
+    /// The effective queue is capped by the kernel (for example `somaxconn` on Linux).
+    #[serde(default = "default_listen_backlog")]
+    pub listen_backlog: u32,
 }

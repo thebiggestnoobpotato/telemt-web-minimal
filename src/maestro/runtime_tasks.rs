@@ -307,7 +307,7 @@ pub(crate) async fn spawn_metrics_if_configured(
                 Some(format!("spawn metrics endpoint on {}", label)),
             )
             .await;
-        let listen_backlog = config.server.listen_backlog;
+        let listen_backlog = config.general.listen_backlog;
         let bound = match metrics::bind(port, listen, listen_backlog) {
             Ok(bound) => bound,
             Err(error) => {

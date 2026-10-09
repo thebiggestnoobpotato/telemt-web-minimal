@@ -37,13 +37,13 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "telemetry_user_enabled",
     "dc_overrides",
     "default_dc",
+    "listen_backlog",
 ];
 
 const SERVER_CONFIG_KEYS: &[&str] = &[
     "api",
     "admin_api",
     "listeners",
-    "listen_backlog",
     "max_connections",
     "accept_permit_timeout_ms",
 ];

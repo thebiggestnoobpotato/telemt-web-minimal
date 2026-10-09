@@ -66,7 +66,7 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warn!("config reload: server.api changed; restart required");
     }
     if !listeners_equal(&old.server.listeners, &new.server.listeners)
-        || old.server.listen_backlog != new.server.listen_backlog
+        || old.general.listen_backlog != new.general.listen_backlog
     {
         warned = true;
         warn!("config reload: server listener settings changed; restart required");

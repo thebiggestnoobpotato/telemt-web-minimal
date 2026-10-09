@@ -41,7 +41,7 @@ pub(crate) fn listener_bind_plan(
                 // affinity, so multi-instance SO_REUSEPORT is never applied here.
                 reuse_port: false,
                 ipv6_only: matches!(endpoint, ListenerEndpoint::Tcp(addr) if addr.is_ipv6()),
-                backlog: config.server.listen_backlog,
+                backlog: config.general.listen_backlog,
                 ..Default::default()
             },
             web_client_ip_source: listener.web_client_ip_source,

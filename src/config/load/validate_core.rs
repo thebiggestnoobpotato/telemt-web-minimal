@@ -25,6 +25,16 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
+    // The kernel treats a zero backlog as a literal accept-queue limit, not a
+    // request for the OS default, so zero would drop every connection beyond
+    // the first queued one; the upper bound is the i32 argument of listen(2).
+    if config.general.listen_backlog == 0 || config.general.listen_backlog > i32::MAX as u32 {
+        return Err(ProxyError::Config(format!(
+            "general.listen_backlog must be within [1, {}]",
+            i32::MAX
+        )));
+    }
+
 
     if config.timeouts.client_handshake == 0 {
         return Err(ProxyError::Config(

@@ -66,7 +66,7 @@ secret_mode = "plain"
 fn process_socket_and_logging_changes_are_deferred() {
     let old = ProxyConfig::default();
     let mut new = old.clone();
-    new.server.listen_backlog = new.server.listen_backlog.saturating_add(1);
+    new.general.listen_backlog = new.general.listen_backlog.saturating_add(1);
     new.logging.destination = crate::config::LoggingDestination::File;
 
     let fields = deferred_process_fields(&old, &new).unwrap();
@@ -111,12 +111,12 @@ fn process_wide_connection_and_direct_buffer_envelopes_are_restart_only() {
 fn mixed_reload_retains_process_state_and_applies_runtime_state() {
     let old = ProxyConfig::default();
     let mut desired = old.clone();
-    desired.server.listen_backlog = desired.server.listen_backlog.saturating_add(1);
+    desired.general.listen_backlog = desired.general.listen_backlog.saturating_add(1);
     desired.web.carrier = crate::config::WebCarrier::Websocket;
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 
-    assert_eq!(resolved.effective.server.listen_backlog, old.server.listen_backlog);
+    assert_eq!(resolved.effective.general.listen_backlog, old.general.listen_backlog);
     assert_eq!(resolved.effective.web.carrier, desired.web.carrier);
     assert!(resolved.runtime_changed);
     assert_eq!(
@@ -165,7 +165,7 @@ fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
 fn process_field_labels_are_stable_ordered_and_unique() {
     let old = ProxyConfig::default();
     let mut desired = old.clone();
-    desired.server.listen_backlog = desired.server.listen_backlog.saturating_add(1);
+    desired.general.listen_backlog = desired.general.listen_backlog.saturating_add(1);
     desired.server.api.enabled = !desired.server.api.enabled;
     desired.server.api.runtime_edge_events_capacity = desired
         .server
@@ -371,7 +371,7 @@ fn deferred_listener_identity_cannot_create_an_effective_decoy_loop() {
     old.server.listeners[0].transport = crate::config::ListenerTransport::Web;
     let mut desired = old.clone();
     desired.server.listeners[0].port = Some(18081);
-    desired.server.listen_backlog = desired.server.listen_backlog.saturating_add(1);
+    desired.general.listen_backlog = desired.general.listen_backlog.saturating_add(1);
     desired.web.vhosts = vec![
         serde_json::from_value(serde_json::json!({
             "host": "proxy.example",

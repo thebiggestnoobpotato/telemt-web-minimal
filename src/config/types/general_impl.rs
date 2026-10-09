@@ -25,6 +25,7 @@ impl Default for GeneralConfig {
             telemetry_user_enabled: default_true(),
             dc_overrides: HashMap::new(),
             default_dc: None,
+            listen_backlog: default_listen_backlog(),
         }
     }
 }
