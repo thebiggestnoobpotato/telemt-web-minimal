@@ -110,7 +110,7 @@ To display a domain instead of an IP address in `tg://webproxy` links, use the `
 ### Total server connection limit
 This parameter limits the total number of active connections to the server:
 ```toml
-[server]
+[general]
 # Zero disables the limit; 10000 is the default.
 max_connections = 10000
 ```

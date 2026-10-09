@@ -78,7 +78,7 @@ fn process_socket_and_logging_changes_are_deferred() {
 fn process_wide_connection_and_direct_buffer_envelopes_are_restart_only() {
     let old = ProxyConfig::default();
     let mut desired = old.clone();
-    desired.server.max_connections = old.server.max_connections.saturating_add(1);
+    desired.general.max_connections = old.general.max_connections.saturating_add(1);
     desired.general.direct_relay_buffer_budget_max_bytes = old
         .general
         .direct_relay_buffer_budget_max_bytes
@@ -89,13 +89,13 @@ fn process_wide_connection_and_direct_buffer_envelopes_are_restart_only() {
     assert_eq!(
         resolved.deferred_process_fields,
         vec![
-            "server.max_connections".to_string(),
+            "general.max_connections".to_string(),
             "general.direct_relay_buffer_budget_max_bytes".to_string(),
         ]
     );
     assert_eq!(
-        resolved.effective.server.max_connections,
-        old.server.max_connections
+        resolved.effective.general.max_connections,
+        old.general.max_connections
     );
     assert_eq!(
         resolved

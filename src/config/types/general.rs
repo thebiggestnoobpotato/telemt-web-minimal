@@ -87,4 +87,8 @@ pub struct GeneralConfig {
     /// The effective queue is capped by the kernel (for example `somaxconn` on Linux).
     #[serde(default = "default_listen_backlog")]
     pub listen_backlog: u32,
+    /// Maximum number of concurrent client connections.
+    /// 0 means unlimited.
+    #[serde(default = "default_server_max_connections")]
+    pub max_connections: u32,
 }

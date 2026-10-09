@@ -5,7 +5,7 @@ async fn config_file() -> (tempfile::TempDir, PathBuf, String) {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
     let mut config = ProxyConfig::default();
-    config.server.max_connections = 4_242;
+    config.general.max_connections = 4_242;
     let body = toml::to_string_pretty(&config).unwrap();
     tokio::fs::write(&path, &body).await.unwrap();
     let revision = config_store::current_revision(&path).await.unwrap();
@@ -34,7 +34,7 @@ async fn reload_submission_uses_matching_disk_revision_and_snapshot() {
     assert_eq!(accepted.config_revision, revision);
     assert_eq!(command.config_revision, revision);
     assert_eq!(command.request, request);
-    assert_eq!(command.config.server.max_connections, 4_242);
+    assert_eq!(command.config.general.max_connections, 4_242);
 }
 
 #[tokio::test]

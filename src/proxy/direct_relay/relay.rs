@@ -111,7 +111,7 @@ where
         tg_writer,
         config.general.direct_relay_copy_buf_c2s_bytes,
         config.general.direct_relay_copy_buf_s2c_bytes,
-        config.server.max_connections,
+        config.general.max_connections,
         user,
         Arc::clone(&stats),
         quota_handle,

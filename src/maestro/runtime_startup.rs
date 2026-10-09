@@ -105,7 +105,7 @@ pub(super) async fn prepare_runtime(
         buffer_pool.clone(),
         stats,
         max_connections.clone(),
-        config.server.max_connections,
+        config.general.max_connections,
     ));
 
     RuntimeStartupState {

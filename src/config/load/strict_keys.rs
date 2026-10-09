@@ -38,13 +38,13 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "dc_overrides",
     "default_dc",
     "listen_backlog",
+    "max_connections",
 ];
 
 const SERVER_CONFIG_KEYS: &[&str] = &[
     "api",
     "admin_api",
     "listeners",
-    "max_connections",
     "accept_permit_timeout_ms",
 ];
 

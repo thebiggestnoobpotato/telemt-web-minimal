@@ -173,7 +173,7 @@ Notes:
 | `400` | `bad_request` | Invalid JSON, validation failures, malformed request body. |
 | `400` | `access_not_editable` | `PATCH /v1/config` body contains an `access` key (managed via users API). |
 | `400` | `section_not_editable` | `PATCH /v1/config` body contains an unknown top-level key (e.g. `network`). |
-| `400` | `field_not_editable` | `PATCH /v1/config` body contains a forbidden nested field under a partially editable section (e.g. `server.api`, `server.max_connections`). |
+| `400` | `field_not_editable` | `PATCH /v1/config` body contains a forbidden nested field under a partially editable section (e.g. `server.api`, `server.accept_permit_timeout_ms`). |
 | `401` | `unauthorized` | Missing/invalid `Authorization` when `auth_header` is configured. |
 | `403` | `forbidden` | Source IP is not allowed by whitelist. |
 | `403` | `read_only` | Mutating endpoint called while `read_only=true`. |
@@ -953,7 +953,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `restart_required` — legacy file-watcher classification retained for compatibility.
 - `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `server.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
+- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 

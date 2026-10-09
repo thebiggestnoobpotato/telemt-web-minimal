@@ -133,6 +133,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`telemetry_core_enabled`](#telemetry_core_enabled) | `bool` | `true` | `✔` |
 | [`telemetry_user_enabled`](#telemetry_user_enabled) | `bool` | `true` | `✔` |
 | [`listen_backlog`](#listen_backlog) | `u32` | `1024` | `✘` |
+| [`max_connections`](#max_connections) | `u32` | `10000` | `✘` |
 
 ## data_path
   - **Constraints / validation**: `String` (optional).
@@ -346,6 +347,15 @@ This document lists all configuration keys accepted by `config.toml`.
     [general]
     listen_backlog = 4096
     ```
+## max_connections
+  - **Constraints / validation**: `u32`. `0` means unlimited.
+  - **Description**: Maximum number of concurrent client connections.
+  - **Example**:
+
+    ```toml
+    [general]
+    max_connections = 10000
+    ```
 # [server]
 
 
@@ -354,18 +364,8 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`api`](#serverapi) | `Table` | built-in defaults | `✘` |
 | [`admin_api`](#serverapi) | `Table` | alias for `api` | `✘` |
 | [`listeners`](#serverlisteners) | `Table[]` | `[]` | `✘` |
-| [`max_connections`](#max_connections) | `u32` | `10000` | `✘` |
 | [`accept_permit_timeout_ms`](#accept_permit_timeout_ms) | `u64` | `250` | `✘` |
 
-## max_connections
-  - **Constraints / validation**: `u32`. `0` means unlimited.
-  - **Description**: Maximum number of concurrent client connections.
-  - **Example**:
-
-    ```toml
-    [server]
-    max_connections = 10000
-    ```
 ## accept_permit_timeout_ms
   - **Constraints / validation**: `0..=60000` (milliseconds). `0` keeps legacy unbounded wait behavior.
   - **Description**: Maximum wait for acquiring a connection-slot permit before the accepted connection is dropped.

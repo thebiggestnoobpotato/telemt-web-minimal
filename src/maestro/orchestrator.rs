@@ -119,10 +119,10 @@ pub(super) async fn run_telemt_core(
         &config.access.users,
         &config.access.user_enabled,
     );
-    let max_connections_limit = if config.server.max_connections == 0 {
+    let max_connections_limit = if config.general.max_connections == 0 {
         Semaphore::MAX_PERMITS
     } else {
-        config.server.max_connections as usize
+        config.general.max_connections as usize
     };
     let max_connections = Arc::new(Semaphore::new(max_connections_limit));
     let web_trace = WebTraceStore::new(config.web.debug.clone(), &config.web.limits);

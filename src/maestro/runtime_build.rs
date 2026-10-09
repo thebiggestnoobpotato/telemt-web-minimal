@@ -128,7 +128,7 @@ pub(crate) async fn prepare_runtime(
         buffer_pool.clone(),
         stats.clone(),
         max_connections.clone(),
-        config.server.max_connections,
+        config.general.max_connections,
     ));
     let generation = RuntimeGeneration::new(
         generation_id,
@@ -202,9 +202,9 @@ pub(crate) fn resolve_reload_config(
         effective.metrics.listen = old.metrics.listen.clone();
         effective.metrics.port = old.metrics.port;
     }
-    if old.server.max_connections != desired.server.max_connections {
-        fields.push("server.max_connections".to_string());
-        effective.server.max_connections = old.server.max_connections;
+    if old.general.max_connections != desired.general.max_connections {
+        fields.push("general.max_connections".to_string());
+        effective.general.max_connections = old.general.max_connections;
     }
     if old.general.direct_relay_buffer_budget_max_bytes
         != desired.general.direct_relay_buffer_budget_max_bytes

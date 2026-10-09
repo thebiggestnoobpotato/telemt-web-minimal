@@ -26,11 +26,6 @@ pub struct ServerConfig {
     #[serde(default)]
     pub listeners: Vec<ListenerConfig>,
 
-    /// Maximum number of concurrent client connections.
-    /// 0 means unlimited.
-    #[serde(default = "default_server_max_connections")]
-    pub max_connections: u32,
-
     /// Maximum wait in milliseconds while acquiring a connection slot permit.
     /// `0` keeps legacy unbounded wait behavior.
     #[serde(default = "default_accept_permit_timeout_ms")]
@@ -42,7 +37,6 @@ impl Default for ServerConfig {
         Self {
             api: ApiConfig::default(),
             listeners: Vec::new(),
-            max_connections: default_server_max_connections(),
             accept_permit_timeout_ms: default_accept_permit_timeout_ms(),
         }
     }
