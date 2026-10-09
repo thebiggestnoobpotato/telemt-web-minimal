@@ -17,7 +17,7 @@ This document lists all configuration keys accepted by `config.toml`.
  - [logging](#logging)
  - [general](#general)
  - [server](#server)
- - [server.api](#serverapi)
+ - [api](#api)
  - [server.listeners](#serverlisteners)
  - [metrics](#metrics)
  - [web](#web)
@@ -361,13 +361,9 @@ This document lists all configuration keys accepted by `config.toml`.
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
-| [`api`](#serverapi) | `Table` | built-in defaults | `✘` |
-| [`admin_api`](#serverapi) | `Table` | alias for `api` | `✘` |
 | [`listeners`](#serverlisteners) | `Table[]` | `[]` | `✘` |
 
-# [server.api]
-
-Note: This section also accepts the legacy alias `[server.admin_api]` (same schema as `[server.api]`).
+# [api]
 
 
 | Key | Type | Default | Hot-Reload |
@@ -392,7 +388,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     enabled = true
     ```
 ## gray_action
@@ -401,7 +397,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     gray_action = "drop"
     ```
 ## listen
@@ -410,7 +406,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     listen = "0.0.0.0:9091"
     ```
 ## whitelist
@@ -419,7 +415,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     whitelist = ["127.0.0.0/8"]
     ```
 ## auth_header
@@ -428,7 +424,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     auth_header = "Bearer MY_TOKEN"
     ```
 ## request_body_limit_bytes
@@ -437,7 +433,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     request_body_limit_bytes = 65536
     ```
 ## minimal_runtime_enabled
@@ -446,7 +442,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     minimal_runtime_enabled = true
     ```
 ## minimal_runtime_cache_ttl_ms
@@ -455,7 +451,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     minimal_runtime_cache_ttl_ms = 1000
     ```
 ## runtime_edge_enabled
@@ -464,7 +460,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     runtime_edge_enabled = false
     ```
 ## runtime_edge_cache_ttl_ms
@@ -473,7 +469,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     runtime_edge_cache_ttl_ms = 1000
     ```
 ## runtime_edge_top_n
@@ -482,7 +478,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     runtime_edge_top_n = 10
     ```
 ## runtime_edge_events_capacity
@@ -491,7 +487,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     runtime_edge_events_capacity = 256
     ```
 ## read_only
@@ -500,7 +496,7 @@ Note: This section also accepts the legacy alias `[server.admin_api]` (same sche
   - **Example**:
 
     ```toml
-    [server.api]
+    [api]
     read_only = false
     ```
 

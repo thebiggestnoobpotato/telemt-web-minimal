@@ -79,7 +79,6 @@ pub(super) struct RuntimeUpstreamQualityData {
 
 pub(super) fn build_security_whitelist_data(cfg: &ProxyConfig) -> SecurityWhitelistData {
     let entries = cfg
-        .server
         .api
         .whitelist
         .iter()

@@ -181,19 +181,19 @@ pub(crate) fn resolve_reload_config(
         effective.general.listen_backlog = old.general.listen_backlog;
         effective.server.listeners = old.server.listeners.clone();
     }
-    if old.server.api.listen != desired.server.api.listen
-        || old.server.api.enabled != desired.server.api.enabled
+    if old.api.listen != desired.api.listen
+        || old.api.enabled != desired.api.enabled
     {
-        fields.push("server.api.listen".to_string());
-        effective.server.api.listen = old.server.api.listen.clone();
-        effective.server.api.enabled = old.server.api.enabled;
+        fields.push("api.listen".to_string());
+        effective.api.listen = old.api.listen.clone();
+        effective.api.enabled = old.api.enabled;
     }
-    if old.server.api.runtime_edge_events_capacity
-        != desired.server.api.runtime_edge_events_capacity
+    if old.api.runtime_edge_events_capacity
+        != desired.api.runtime_edge_events_capacity
     {
-        fields.push("server.api.runtime_edge_events_capacity".to_string());
-        effective.server.api.runtime_edge_events_capacity =
-            old.server.api.runtime_edge_events_capacity;
+        fields.push("api.runtime_edge_events_capacity".to_string());
+        effective.api.runtime_edge_events_capacity =
+            old.api.runtime_edge_events_capacity;
     }
     if old.metrics.listen != desired.metrics.listen
         || old.metrics.port != desired.metrics.port

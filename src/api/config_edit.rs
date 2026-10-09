@@ -317,7 +317,7 @@ pub(super) async fn read_managed_config(config_path: &Path) -> Result<(Toml, Str
         .cloned()
         .unwrap_or_else(toml::value::Table::new);
     // Whitelist: return ONLY the editable sections. A blacklist (just removing
-    // `access`) would leak `server.api` (auth_header) and `network` (per-node
+    // `access`) would leak `api` (auth_header) and `network` (per-node
     // addresses). Mirror the PATCH contract, including the nested server
     // field-level allowlist.
     let mut table = toml::value::Table::new();

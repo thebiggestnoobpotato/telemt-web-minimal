@@ -166,9 +166,8 @@ fn process_field_labels_are_stable_ordered_and_unique() {
     let old = ProxyConfig::default();
     let mut desired = old.clone();
     desired.general.listen_backlog = desired.general.listen_backlog.saturating_add(1);
-    desired.server.api.enabled = !desired.server.api.enabled;
-    desired.server.api.runtime_edge_events_capacity = desired
-        .server
+    desired.api.enabled = !desired.api.enabled;
+    desired.api.runtime_edge_events_capacity = desired
         .api
         .runtime_edge_events_capacity
         .saturating_add(1);
@@ -180,8 +179,8 @@ fn process_field_labels_are_stable_ordered_and_unique() {
         resolved.deferred_process_fields,
         vec![
             "server.listeners".to_string(),
-            "server.api.listen".to_string(),
-            "server.api.runtime_edge_events_capacity".to_string(),
+            "api.listen".to_string(),
+            "api.runtime_edge_events_capacity".to_string(),
             "logging".to_string(),
         ]
     );

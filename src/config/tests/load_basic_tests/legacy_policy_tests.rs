@@ -10,43 +10,43 @@ fn api_gray_action_parses_and_defaults_to_drop() {
         "#,
     )
     .unwrap();
-    assert_eq!(cfg_default.server.api.gray_action, ApiGrayAction::Drop);
+    assert_eq!(cfg_default.api.gray_action, ApiGrayAction::Drop);
 
     let cfg_api: ProxyConfig = toml::from_str(
         r#"
         [server]
         [general]
         [access]
-        [server.api]
+        [api]
         gray_action = "api"
         "#,
     )
     .unwrap();
-    assert_eq!(cfg_api.server.api.gray_action, ApiGrayAction::Api);
+    assert_eq!(cfg_api.api.gray_action, ApiGrayAction::Api);
 
     let cfg_200: ProxyConfig = toml::from_str(
         r#"
         [server]
         [general]
         [access]
-        [server.api]
+        [api]
         gray_action = "200"
         "#,
     )
     .unwrap();
-    assert_eq!(cfg_200.server.api.gray_action, ApiGrayAction::Ok200);
+    assert_eq!(cfg_200.api.gray_action, ApiGrayAction::Ok200);
 
     let cfg_drop: ProxyConfig = toml::from_str(
         r#"
         [server]
         [general]
         [access]
-        [server.api]
+        [api]
         gray_action = "drop"
         "#,
     )
     .unwrap();
-    assert_eq!(cfg_drop.server.api.gray_action, ApiGrayAction::Drop);
+    assert_eq!(cfg_drop.api.gray_action, ApiGrayAction::Drop);
 }
 
 #[test]

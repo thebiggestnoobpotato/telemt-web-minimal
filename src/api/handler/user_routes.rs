@@ -11,7 +11,7 @@ pub(super) async fn handle(
     request_id: u64,
     body_limit: usize,
 ) -> Result<Response<Full<Bytes>>, ApiFailure> {
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
     if method == Method::GET
         && let Some(reload_id) = reload_status_route_id(normalized_path)
     {

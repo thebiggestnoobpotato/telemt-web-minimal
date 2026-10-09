@@ -31,6 +31,7 @@ mod effective;
 mod pipeline;
 // Candidate-owned DNS preparation is separate from pure runtime reconstruction.
 mod decoy_dns;
+mod validate_api;
 mod validate_core;
 mod validate_runtime;
 mod validate_server;
@@ -100,9 +101,13 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub logging: LoggingConfig,
 
-    /// Server-side listener, fallback, and API configuration.
+    /// Server-side listener configuration.
     #[serde(default)]
     pub server: ServerConfig,
+
+    /// Control-plane REST API endpoint configuration.
+    #[serde(default)]
+    pub api: ApiConfig,
 
     /// Prometheus-compatible metrics endpoint configuration.
     #[serde(default)]

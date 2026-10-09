@@ -29,35 +29,35 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
     );
     assert_eq!(cfg.general.telemetry_core_enabled, default_true());
     assert_eq!(cfg.general.telemetry_user_enabled, default_true());
-    assert_eq!(cfg.server.api.listen, default_api_listen());
-    assert_eq!(cfg.server.api.whitelist, default_api_whitelist());
-    assert_eq!(cfg.server.api.gray_action, ApiGrayAction::Drop);
+    assert_eq!(cfg.api.listen, default_api_listen());
+    assert_eq!(cfg.api.whitelist, default_api_whitelist());
+    assert_eq!(cfg.api.gray_action, ApiGrayAction::Drop);
     assert_eq!(
-        cfg.server.api.request_body_limit_bytes,
+        cfg.api.request_body_limit_bytes,
         default_api_request_body_limit_bytes()
     );
     assert_eq!(
-        cfg.server.api.minimal_runtime_enabled,
+        cfg.api.minimal_runtime_enabled,
         default_api_minimal_runtime_enabled()
     );
     assert_eq!(
-        cfg.server.api.minimal_runtime_cache_ttl_ms,
+        cfg.api.minimal_runtime_cache_ttl_ms,
         default_api_minimal_runtime_cache_ttl_ms()
     );
     assert_eq!(
-        cfg.server.api.runtime_edge_enabled,
+        cfg.api.runtime_edge_enabled,
         default_api_runtime_edge_enabled()
     );
     assert_eq!(
-        cfg.server.api.runtime_edge_cache_ttl_ms,
+        cfg.api.runtime_edge_cache_ttl_ms,
         default_api_runtime_edge_cache_ttl_ms()
     );
     assert_eq!(
-        cfg.server.api.runtime_edge_top_n,
+        cfg.api.runtime_edge_top_n,
         default_api_runtime_edge_top_n()
     );
     assert_eq!(
-        cfg.server.api.runtime_edge_events_capacity,
+        cfg.api.runtime_edge_events_capacity,
         default_api_runtime_edge_events_capacity()
     );
     assert_eq!(cfg.access.users, default_access_users());
@@ -430,36 +430,36 @@ fn impl_defaults_are_sourced_from_default_helpers() {
         default_upstream_connect_failfast_hard_errors()
     );
 
-    let server = ServerConfig::default();
-    assert_eq!(server.api.listen, default_api_listen());
-    assert_eq!(server.api.whitelist, default_api_whitelist());
-    assert_eq!(server.api.gray_action, ApiGrayAction::Drop);
+    let api = ApiConfig::default();
+    assert_eq!(api.listen, default_api_listen());
+    assert_eq!(api.whitelist, default_api_whitelist());
+    assert_eq!(api.gray_action, ApiGrayAction::Drop);
     assert_eq!(
-        server.api.request_body_limit_bytes,
+        api.request_body_limit_bytes,
         default_api_request_body_limit_bytes()
     );
     assert_eq!(
-        server.api.minimal_runtime_enabled,
+        api.minimal_runtime_enabled,
         default_api_minimal_runtime_enabled()
     );
     assert_eq!(
-        server.api.minimal_runtime_cache_ttl_ms,
+        api.minimal_runtime_cache_ttl_ms,
         default_api_minimal_runtime_cache_ttl_ms()
     );
     assert_eq!(
-        server.api.runtime_edge_enabled,
+        api.runtime_edge_enabled,
         default_api_runtime_edge_enabled()
     );
     assert_eq!(
-        server.api.runtime_edge_cache_ttl_ms,
+        api.runtime_edge_cache_ttl_ms,
         default_api_runtime_edge_cache_ttl_ms()
     );
     assert_eq!(
-        server.api.runtime_edge_top_n,
+        api.runtime_edge_top_n,
         default_api_runtime_edge_top_n()
     );
     assert_eq!(
-        server.api.runtime_edge_events_capacity,
+        api.runtime_edge_events_capacity,
         default_api_runtime_edge_events_capacity()
     );
 

@@ -94,7 +94,7 @@ pub(super) async fn build_runtime_connections_summary_data(
     cfg: &ProxyConfig,
 ) -> RuntimeEdgeConnectionsSummaryData {
     let now_epoch_secs = now_epoch_secs();
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
     if !api_cfg.runtime_edge_enabled {
         return RuntimeEdgeConnectionsSummaryData {
             enabled: false,
@@ -136,7 +136,7 @@ pub(super) fn build_runtime_events_recent_data(
     query: Option<&str>,
 ) -> RuntimeEdgeEventsData {
     let now_epoch_secs = now_epoch_secs();
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
     if !api_cfg.runtime_edge_enabled {
         return RuntimeEdgeEventsData {
             enabled: false,

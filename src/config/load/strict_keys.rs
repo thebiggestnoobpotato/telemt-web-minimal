@@ -3,6 +3,7 @@ use tracing::warn;
 use crate::error::{ProxyError, Result};
 
 const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
+    "api",
     "general",
     "logging",
     "server",
@@ -41,11 +42,7 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "max_connections",
 ];
 
-const SERVER_CONFIG_KEYS: &[&str] = &[
-    "api",
-    "admin_api",
-    "listeners",
-];
+const SERVER_CONFIG_KEYS: &[&str] = &["listeners"];
 
 const METRICS_CONFIG_KEYS: &[&str] = &["port", "listen", "whitelist"];
 

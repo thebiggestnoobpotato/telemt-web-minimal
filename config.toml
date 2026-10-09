@@ -15,8 +15,7 @@ show_users = "*"
 # show_users = ["alice", "bob"] # Only show links for alice and bob
 
 # === Server Binding ===
-[server]
-port = 443
+# (bind identity lives in the [[server.listeners]] entries below)
 
 # === Metrics Endpoint ===
 # [metrics]
@@ -24,7 +23,7 @@ port = 443
 # listen = "127.0.0.1:9090" # Listen address for metrics (overrides port)
 # whitelist = ["127.0.0.1/32", "::1/128"]
 
-[server.api]
+[api]
 enabled = true
 listen = "127.0.0.1:9091"
 whitelist = ["127.0.0.1/32", "::1/128"]

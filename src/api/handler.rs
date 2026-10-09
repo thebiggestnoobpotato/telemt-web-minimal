@@ -25,7 +25,7 @@ pub(super) async fn handle(
         .store(*runtime.admission_rx.borrow(), Ordering::Relaxed);
     let request_id = shared.next_request_id();
     let cfg = config_rx.borrow().clone();
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
 
     if !api_cfg.enabled {
         return Ok(error_response(

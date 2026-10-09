@@ -184,14 +184,7 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         parsed_toml,
         &mut unknown,
         &known_for_suggestion,
-        &["server", "api"],
-        API_CONFIG_KEYS,
-    );
-    check_known_table(
-        parsed_toml,
-        &mut unknown,
-        &known_for_suggestion,
-        &["server", "admin_api"],
+        &["api"],
         API_CONFIG_KEYS,
     );
     check_known_table(

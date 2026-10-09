@@ -8,7 +8,7 @@ pub(super) async fn create_user_route(
     request_id: u64,
     body_limit: usize,
 ) -> Result<Response<Full<Bytes>>, ApiFailure> {
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
     if api_cfg.read_only {
         return Ok(error_response(
             request_id,
@@ -59,7 +59,7 @@ pub(super) async fn reload_route(
     request_id: u64,
     body_limit: usize,
 ) -> Result<Response<Full<Bytes>>, ApiFailure> {
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
     if api_cfg.read_only {
         return Ok(error_response(
             request_id,
@@ -95,7 +95,7 @@ pub(super) async fn patch_config_route(
     request_id: u64,
     body_limit: usize,
 ) -> Result<Response<Full<Bytes>>, ApiFailure> {
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
     if api_cfg.read_only {
         return Ok(error_response(
             request_id,

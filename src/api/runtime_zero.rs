@@ -184,10 +184,10 @@ pub(super) fn build_limits_effective_data(cfg: &ProxyConfig) -> EffectiveLimitsD
 
 pub(super) fn build_security_posture_data(cfg: &ProxyConfig) -> SecurityPostureData {
     SecurityPostureData {
-        api_read_only: cfg.server.api.read_only,
-        api_whitelist_enabled: !cfg.server.api.whitelist.is_empty(),
-        api_whitelist_entries: cfg.server.api.whitelist.len(),
-        api_auth_header_enabled: !cfg.server.api.auth_header.is_empty(),
+        api_read_only: cfg.api.read_only,
+        api_whitelist_enabled: !cfg.api.whitelist.is_empty(),
+        api_whitelist_entries: cfg.api.whitelist.len(),
+        api_auth_header_enabled: !cfg.api.auth_header.is_empty(),
         log_level: cfg.logging.log_level.to_string(),
         telemetry_core_enabled: cfg.general.telemetry_core_enabled,
         telemetry_user_enabled: cfg.general.telemetry_user_enabled,

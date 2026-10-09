@@ -11,6 +11,7 @@ pub(super) fn parse_source_graph(graph: ConfigSourceGraph) -> Result<ParsedConfi
         decode::decode_source_graph(graph)?;
     validate_core::validate(&mut config)?;
     validate_runtime::validate(&mut config)?;
+    validate_api::validate(&mut config)?;
     validate_server::validate(&mut config)?;
     validate_web::validate_source(&mut config)?;
     effective::apply(&mut config)?;

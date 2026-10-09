@@ -20,9 +20,6 @@ pub enum WebClientIpSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
-    #[serde(default, alias = "admin_api")]
-    pub api: ApiConfig,
-
     #[serde(default)]
     pub listeners: Vec<ListenerConfig>,
 }
@@ -30,7 +27,6 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            api: ApiConfig::default(),
             listeners: Vec::new(),
         }
     }

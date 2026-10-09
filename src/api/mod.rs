@@ -339,7 +339,7 @@ pub(crate) async fn serve(
         runtime_edge_recompute_lock: Arc::new(Mutex::new(())),
         cache_generation: Arc::new(AtomicU64::new(1)),
         runtime_events: Arc::new(ApiEventStore::new(
-            config_rx.borrow().server.api.runtime_edge_events_capacity,
+            config_rx.borrow().api.runtime_edge_events_capacity,
         )),
         request_id: Arc::new(AtomicU64::new(1)),
         runtime_state: runtime_state.clone(),

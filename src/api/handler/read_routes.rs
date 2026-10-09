@@ -8,7 +8,7 @@ pub(super) async fn handle(
     cfg: &ProxyConfig,
     config_rx: &watch::Receiver<Arc<ProxyConfig>>,
 ) -> Result<Option<Response<Full<Bytes>>>, ApiFailure> {
-    let api_cfg = &cfg.server.api;
+    let api_cfg = &cfg.api;
     match (method.as_str(), normalized_path) {
         ("GET", "/web-status") => Ok(web_status::render(query, &shared.web_trace).await),
         ("GET", "/v1/health") => {

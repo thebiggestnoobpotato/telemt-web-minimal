@@ -402,7 +402,7 @@ fn runtime_unavailable(lifecycle: WebRuntimeLifecycle) -> ApiFailure {
 }
 
 fn require_mutable(config: &ProxyConfig) -> Result<(), ApiFailure> {
-    if config.server.api.read_only {
+    if config.api.read_only {
         return Err(ApiFailure::new(
             StatusCode::FORBIDDEN,
             "read_only",

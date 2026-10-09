@@ -392,7 +392,7 @@ WEB configuration, runtime status, and bounded runtime controls share the authen
 Bind the API to loopback, keep its direct-peer whitelist narrow, configure an exact authorization header, and leave `read_only = false` only when mutation is required:
 
 ```toml
-[server.api]
+[api]
 enabled = true
 listen = "127.0.0.1:9091"
 whitelist = ["127.0.0.0/8"]
@@ -400,7 +400,7 @@ auth_header = "Bearer replace-with-a-random-control-token"
 read_only = false
 ```
 
-The API whitelist checks the direct TCP peer and does not trust `X-Forwarded-For`. Changes to `[server.api]` itself require a process restart.
+The API whitelist checks the direct TCP peer and does not trust `X-Forwarded-For`. Changes to `[api]` itself require a process restart.
 
 ### Runtime status and control
 

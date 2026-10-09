@@ -5,7 +5,7 @@ Control-plane HTTP API for runtime visibility and user/config management.
 Data-plane MTProto traffic is out of scope.
 
 ## Runtime Configuration
-API runtime is configured in `[server.api]`.
+API runtime is configured in `[api]`.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -22,15 +22,13 @@ API runtime is configured in `[server.api]`.
 | `runtime_edge_events_capacity` | `usize` | `256` | Ring-buffer size for `/v1/runtime/events/recent`. |
 | `read_only` | `bool` | `false` | Disables mutating endpoints. |
 
-`server.admin_api` is accepted as an alias for backward compatibility.
-
 Runtime validation for API config:
-- `server.api.listen` must be a valid `IP:PORT`.
-- `server.api.request_body_limit_bytes` must be within `[1, 1048576]`.
-- `server.api.minimal_runtime_cache_ttl_ms` must be within `[0, 60000]`.
-- `server.api.runtime_edge_cache_ttl_ms` must be within `[0, 60000]`.
-- `server.api.runtime_edge_top_n` must be within `[1, 1000]`.
-- `server.api.runtime_edge_events_capacity` must be within `[16, 4096]`.
+- `api.listen` must be a valid `IP:PORT`.
+- `api.request_body_limit_bytes` must be within `[1, 1048576]`.
+- `api.minimal_runtime_cache_ttl_ms` must be within `[0, 60000]`.
+- `api.runtime_edge_cache_ttl_ms` must be within `[0, 60000]`.
+- `api.runtime_edge_top_n` must be within `[1, 1000]`.
+- `api.runtime_edge_events_capacity` must be within `[16, 4096]`.
 
 ## Protocol Contract
 
@@ -278,7 +276,7 @@ A sparse JSON object containing only the top-level config sections to modify. Ea
 **Rejected keys:**
 - `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
 - An unknown top-level key (e.g. `network`) → `400 section_not_editable`.
-- `server` with any key other than `listeners` (e.g. `port`, `api`, `admin_api`) → `400 field_not_editable`.
+- `server` with any key other than `listeners` (e.g. `port`, `api`) → `400 field_not_editable`.
 - An object with no editable keys → `400 bad_request` (empty patch).
 
 Example — patch one `logging` field:
@@ -286,7 +284,7 @@ Example — patch one `logging` field:
 {"logging": {"log_level": "verbose"}}
 ```
 
-Example — replace `[[server.listeners]]` (other `[server]` fields including `[server.api]` are preserved):
+Example — replace `[[server.listeners]]`:
 ```json
 {"server": {"listeners": [{"ip": "0.0.0.0", "port": 443, "transport": "web", "web_trusted_proxy_cidrs": ["127.0.0.1/32"]}]}}
 ```
@@ -311,9 +309,9 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `timeouts` | `object` | Complete normalized `[timeouts]` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
 | `web` | `object` | Complete normalized `[web]` section, including defaults. Each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
-| `server` | `object?` | Partial `[server]` view when editable nested fields are present. Currently only `listeners` may appear; `api`/`admin_api`, `port`, unix sockets, and other bind-identity fields are never returned. |
+| `server` | `object?` | Partial `[server]` view when editable nested fields are present. Currently only `listeners` may appear; `port`, unix sockets, and other bind-identity fields are never returned. |
 
-The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets) and `metrics` (endpoint identity) are always excluded. Under `server`, only the nested field-level allowlist (`listeners`) is exposed, and an empty listener array is omitted. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
+The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. Under `server`, only the nested field-level allowlist (`listeners`) is exposed, and an empty listener array is omitted. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
 
 ### WEB runtime identity and lifecycle
 
@@ -952,7 +950,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `restart_required` — legacy file-watcher classification retained for compatibility.
 - `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `server.api.listen`, `server.api.enabled`, `server.api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
+- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 
@@ -1087,7 +1085,7 @@ Docker deployment note:
 - Mutating endpoints require `config.toml` to live inside a writable mounted directory.
 - Do not mount `config.toml` as a single bind-mounted file when API mutations are enabled; atomic `tmp + rename` writes can fail with `Device or resource busy`.
 - Mount the config directory instead, for example `./config:/etc/telemt:rw`, and start Telemt with `/etc/telemt/config.toml`.
-- A read-only single-file mount remains valid only for read-only deployments or when `[server.api].read_only=true`.
+- A read-only single-file mount remains valid only for read-only deployments or when `[api].read_only=true`.
 
 Delete path cleanup guarantees:
 - Config cleanup removes only the requested username keys.
@@ -1130,12 +1128,12 @@ The current runtime exports these additional bounded-cardinality families. All u
 
 | Topic | Details |
 | --- | --- |
-| API startup | API listener is spawned only when `[server.api].enabled=true`. |
+| API startup | API listener is spawned only when `[api].enabled=true`. |
 | `listen` port `0` | API spawn is skipped when parsed listen port is `0` (treated as disabled bind target). |
 | Bind failure | Failed API bind logs warning and API task exits (no auto-retry loop). |
-| Upstream runtime endpoint | `/v1/stats/upstreams` always returns `zero`, but runtime fields (`summary`, `upstreams`) require `[server.api].minimal_runtime_enabled=true`. |
-| Restart requirements | `server.api` changes are restart-required for predictable behavior. |
-| Hot-reload nuance | A pure `server.api`-only config change may not propagate through watcher broadcast; a mixed change (with hot fields) may propagate API flags while still warning that restart is required. |
+| Upstream runtime endpoint | `/v1/stats/upstreams` always returns `zero`, but runtime fields (`summary`, `upstreams`) require `[api].minimal_runtime_enabled=true`. |
+| Restart requirements | `api` changes are restart-required for predictable behavior. |
+| Hot-reload nuance | A pure `api`-only config change may not propagate through watcher broadcast; a mixed change (with hot fields) may propagate API flags while still warning that restart is required. |
 | Runtime apply path | Successful writes are picked up by existing config watcher/hot-reload path. |
 | Exposure | Built-in TLS/mTLS is not provided. Use loopback bind + reverse proxy if needed. |
 | Pagination | User list currently has no pagination/filtering. |
@@ -1143,4 +1141,4 @@ The current runtime exports these additional bounded-cardinality families. All u
 
 ## Known Limitations (Current Release)
 
-- API runtime controls under `server.api` are documented as restart-required; hot-reload behavior for these fields is not strictly uniform in all change combinations.
+- API runtime controls under `api` are documented as restart-required; hot-reload behavior for these fields is not strictly uniform in all change combinations.

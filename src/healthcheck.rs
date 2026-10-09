@@ -50,7 +50,7 @@ fn run_inner(config_path: &str, mode: HealthcheckMode) -> Result<(), String> {
     let config = ProxyConfig::parse_source(config_path)
         .map_err(|error| format!("config load failed: {error}"))?
         .config;
-    let api_cfg = &config.server.api;
+    let api_cfg = &config.api;
     if !api_cfg.enabled {
         return Ok(());
     }
@@ -243,7 +243,7 @@ mod tests {
         std::fs::write(
             &path,
             r#"
-[server.api]
+[api]
 enabled = false
 [[web.vhosts]]
 host = "proxy.example.com"

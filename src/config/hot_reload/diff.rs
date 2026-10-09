@@ -46,24 +46,24 @@ fn listeners_equal(
 /// Warns when the requested snapshot contains fields that require restart.
 pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot_changed: bool) {
     let mut warned = false;
-    if old.server.api.enabled != new.server.api.enabled
-        || old.server.api.listen != new.server.api.listen
-        || old.server.api.whitelist != new.server.api.whitelist
-        || old.server.api.gray_action != new.server.api.gray_action
-        || old.server.api.auth_header != new.server.api.auth_header
-        || old.server.api.request_body_limit_bytes != new.server.api.request_body_limit_bytes
-        || old.server.api.minimal_runtime_enabled != new.server.api.minimal_runtime_enabled
-        || old.server.api.minimal_runtime_cache_ttl_ms
-            != new.server.api.minimal_runtime_cache_ttl_ms
-        || old.server.api.runtime_edge_enabled != new.server.api.runtime_edge_enabled
-        || old.server.api.runtime_edge_cache_ttl_ms != new.server.api.runtime_edge_cache_ttl_ms
-        || old.server.api.runtime_edge_top_n != new.server.api.runtime_edge_top_n
-        || old.server.api.runtime_edge_events_capacity
-            != new.server.api.runtime_edge_events_capacity
-        || old.server.api.read_only != new.server.api.read_only
+    if old.api.enabled != new.api.enabled
+        || old.api.listen != new.api.listen
+        || old.api.whitelist != new.api.whitelist
+        || old.api.gray_action != new.api.gray_action
+        || old.api.auth_header != new.api.auth_header
+        || old.api.request_body_limit_bytes != new.api.request_body_limit_bytes
+        || old.api.minimal_runtime_enabled != new.api.minimal_runtime_enabled
+        || old.api.minimal_runtime_cache_ttl_ms
+            != new.api.minimal_runtime_cache_ttl_ms
+        || old.api.runtime_edge_enabled != new.api.runtime_edge_enabled
+        || old.api.runtime_edge_cache_ttl_ms != new.api.runtime_edge_cache_ttl_ms
+        || old.api.runtime_edge_top_n != new.api.runtime_edge_top_n
+        || old.api.runtime_edge_events_capacity
+            != new.api.runtime_edge_events_capacity
+        || old.api.read_only != new.api.read_only
     {
         warned = true;
-        warn!("config reload: server.api changed; restart required");
+        warn!("config reload: api changed; restart required");
     }
     if !listeners_equal(&old.server.listeners, &new.server.listeners)
         || old.general.listen_backlog != new.general.listen_backlog
