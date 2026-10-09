@@ -38,9 +38,6 @@ impl Stats {
         out
     }
 
-    pub fn get_accept_permit_timeout_total(&self) -> u64 {
-        self.accept_permit_timeout_total.load(Ordering::Relaxed)
-    }
     pub fn get_current_connections_direct(&self) -> u64 {
         self.current_connections_direct.load(Ordering::Relaxed)
     }

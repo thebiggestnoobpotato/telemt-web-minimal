@@ -25,11 +25,6 @@ pub struct ServerConfig {
 
     #[serde(default)]
     pub listeners: Vec<ListenerConfig>,
-
-    /// Maximum wait in milliseconds while acquiring a connection slot permit.
-    /// `0` keeps legacy unbounded wait behavior.
-    #[serde(default = "default_accept_permit_timeout_ms")]
-    pub accept_permit_timeout_ms: u64,
 }
 
 impl Default for ServerConfig {
@@ -37,7 +32,6 @@ impl Default for ServerConfig {
         Self {
             api: ApiConfig::default(),
             listeners: Vec::new(),
-            accept_permit_timeout_ms: default_accept_permit_timeout_ms(),
         }
     }
 }

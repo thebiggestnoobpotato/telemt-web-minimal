@@ -108,7 +108,6 @@ pub(super) struct ZeroCoreData {
     pub(super) connections_bad_by_class: Vec<ClassCount>,
     pub(super) handshake_failures_by_class: Vec<ClassCount>,
     pub(super) handshake_timeouts_total: u64,
-    pub(super) accept_permit_timeout_total: u64,
     pub(super) configured_users: usize,
     pub(super) telemetry_core_enabled: bool,
     pub(super) telemetry_user_enabled: bool,

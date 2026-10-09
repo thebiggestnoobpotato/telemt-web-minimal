@@ -65,13 +65,6 @@ impl Stats {
         }
     }
 
-    pub fn increment_accept_permit_timeout_total(&self) {
-        if self.telemetry_core_enabled() {
-            self.accept_permit_timeout_total
-                .fetch_add(1, Ordering::Relaxed);
-        }
-    }
-
     pub fn increment_upstream_connect_attempt_total(&self) {
         if self.telemetry_core_enabled() {
             self.upstream_connect_attempt_total

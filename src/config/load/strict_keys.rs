@@ -45,7 +45,6 @@ const SERVER_CONFIG_KEYS: &[&str] = &[
     "api",
     "admin_api",
     "listeners",
-    "accept_permit_timeout_ms",
 ];
 
 const METRICS_CONFIG_KEYS: &[&str] = &["port", "listen", "whitelist"];

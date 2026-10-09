@@ -38,12 +38,6 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    if config.server.accept_permit_timeout_ms > 60_000 {
-        return Err(ProxyError::Config(
-            "server.accept_permit_timeout_ms must be within [0, 60000]".to_string(),
-        ));
-    }
-
     // Validate secrets.
     for (user, secret) in &config.access.users {
         if !secret.chars().all(|c| c.is_ascii_hexdigit()) || secret.len() != 32 {

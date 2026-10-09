@@ -72,7 +72,6 @@ pub struct Stats {
     handshake_failure_classes: DashMap<&'static str, AtomicU64>,
     current_connections_direct: AtomicU64,
     handshake_timeouts: AtomicU64,
-    accept_permit_timeout_total: AtomicU64,
     upstream_connect_attempt_total: AtomicU64,
     upstream_connect_success_total: AtomicU64,
     upstream_connect_fail_total: AtomicU64,

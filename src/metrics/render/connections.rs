@@ -123,21 +123,6 @@ pub(super) fn render(
 
     let _ = writeln!(
         out,
-        "# HELP telemt_accept_permit_timeout_total Accepted connections dropped due to permit wait timeout"
-    );
-    let _ = writeln!(out, "# TYPE telemt_accept_permit_timeout_total counter");
-    let _ = writeln!(
-        out,
-        "telemt_accept_permit_timeout_total {}",
-        if core_enabled {
-            stats.get_accept_permit_timeout_total()
-        } else {
-            0
-        }
-    );
-
-    let _ = writeln!(
-        out,
         "# HELP telemt_quota_refund_bytes_total Reserved quota bytes returned before commit"
     );
     let _ = writeln!(out, "# TYPE telemt_quota_refund_bytes_total counter");

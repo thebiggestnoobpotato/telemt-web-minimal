@@ -12,7 +12,6 @@ const DEFAULT_DIRECT_RELAY_COPY_BUF_S2C_BYTES: usize = 256 * 1024;
 pub(crate) const DIRECT_RELAY_BUFFER_BUDGET_UNIT_BYTES: usize = 4 * 1024;
 const DEFAULT_DIRECT_RELAY_BUFFER_BUDGET_MAX_BYTES: usize = 0;
 const DEFAULT_USER_MAX_UNIQUE_IPS_WINDOW_SECS: u64 = 30;
-const DEFAULT_ACCEPT_PERMIT_TIMEOUT_MS: u64 = 250;
 
 const DEFAULT_UPSTREAM_CONNECT_RETRY_ATTEMPTS: u32 = 2;
 const DEFAULT_UPSTREAM_UNHEALTHY_FAIL_THRESHOLD: u32 = 5;
@@ -101,10 +100,6 @@ pub(crate) fn default_server_max_connections() -> u32 {
 
 pub(crate) fn default_listen_backlog() -> u32 {
     1024
-}
-
-pub(crate) fn default_accept_permit_timeout_ms() -> u64 {
-    DEFAULT_ACCEPT_PERMIT_TIMEOUT_MS
 }
 
 pub(crate) fn default_prefer_4() -> u8 {

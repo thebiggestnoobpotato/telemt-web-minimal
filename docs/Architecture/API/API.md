@@ -173,7 +173,7 @@ Notes:
 | `400` | `bad_request` | Invalid JSON, validation failures, malformed request body. |
 | `400` | `access_not_editable` | `PATCH /v1/config` body contains an `access` key (managed via users API). |
 | `400` | `section_not_editable` | `PATCH /v1/config` body contains an unknown top-level key (e.g. `network`). |
-| `400` | `field_not_editable` | `PATCH /v1/config` body contains a forbidden nested field under a partially editable section (e.g. `server.api`, `server.accept_permit_timeout_ms`). |
+| `400` | `field_not_editable` | `PATCH /v1/config` body contains a forbidden nested field under a partially editable section (e.g. `server.api`). |
 | `401` | `unauthorized` | Missing/invalid `Authorization` when `auth_header` is configured. |
 | `403` | `forbidden` | Source IP is not allowed by whitelist. |
 | `403` | `read_only` | Mutating endpoint called while `read_only=true`. |
@@ -739,7 +739,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `connections_bad_by_class` | `ClassCount[]` | Failed/invalid connections grouped by class. |
 | `handshake_failures_by_class` | `ClassCount[]` | Handshake failures grouped by class. |
 | `handshake_timeouts_total` | `u64` | Handshake timeouts. |
-| `accept_permit_timeout_total` | `u64` | Listener admission permit acquisition timeouts. |
 | `configured_users` | `usize` | Configured user count. |
 | `telemetry_core_enabled` | `bool` | Core telemetry toggle. |
 | `telemetry_user_enabled` | `bool` | User telemetry toggle. |

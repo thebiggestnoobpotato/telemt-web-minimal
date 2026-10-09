@@ -36,7 +36,6 @@ pub(super) fn build_zero_all_data(stats: &Stats, configured_users: usize) -> Zer
             connections_bad_by_class: bad_connection_classes,
             handshake_failures_by_class: handshake_failure_classes,
             handshake_timeouts_total: stats.get_handshake_timeouts(),
-            accept_permit_timeout_total: stats.get_accept_permit_timeout_total(),
             configured_users,
             telemetry_core_enabled: telemetry.core_enabled,
             telemetry_user_enabled: telemetry.user_enabled,

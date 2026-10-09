@@ -364,17 +364,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`api`](#serverapi) | `Table` | built-in defaults | `✘` |
 | [`admin_api`](#serverapi) | `Table` | alias for `api` | `✘` |
 | [`listeners`](#serverlisteners) | `Table[]` | `[]` | `✘` |
-| [`accept_permit_timeout_ms`](#accept_permit_timeout_ms) | `u64` | `250` | `✘` |
-
-## accept_permit_timeout_ms
-  - **Constraints / validation**: `0..=60000` (milliseconds). `0` keeps legacy unbounded wait behavior.
-  - **Description**: Maximum wait for acquiring a connection-slot permit before the accepted connection is dropped.
-  - **Example**:
-
-    ```toml
-    [server]
-    accept_permit_timeout_ms = 250
-    ```
 
 # [server.api]
 
