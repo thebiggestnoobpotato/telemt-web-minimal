@@ -214,7 +214,7 @@ impl UpstreamManager {
                     },
                 ))
             }
-            UpstreamType::Socks5 {
+            UpstreamType::Socks {
                 address,
                 interface,
                 username,

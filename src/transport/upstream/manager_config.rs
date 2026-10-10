@@ -131,7 +131,7 @@ impl UpstreamManager {
     pub(super) fn describe_upstream(upstream_type: &UpstreamType) -> (UpstreamRouteKind, String) {
         match upstream_type {
             UpstreamType::Direct { .. } => (UpstreamRouteKind::Direct, "direct".to_string()),
-            UpstreamType::Socks5 { address, .. } => (UpstreamRouteKind::Socks5, address.clone()),
+            UpstreamType::Socks { address, .. } => (UpstreamRouteKind::Socks5, address.clone()),
         }
     }
 

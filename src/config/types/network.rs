@@ -13,7 +13,7 @@ pub enum UpstreamType {
         #[serde(default, alias = "force_bind")]
         bindtodevice: Option<String>,
     },
-    Socks5 {
+    Socks {
         address: String,
         #[serde(default)]
         interface: Option<String>,

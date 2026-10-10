@@ -498,3 +498,29 @@ fn impl_defaults_are_sourced_from_default_helpers() {
         default_user_max_tcp_conns_global_each()
     );
 }
+
+#[test]
+fn upstream_type_value_socks_loads_as_socks_upstream() {
+    let toml = r#"
+        [[upstreams]]
+        type = "socks"
+        address = "1.2.3.4:1080"
+    "#;
+    let cfg = load_config_from_temp_toml(toml);
+    assert_eq!(cfg.upstreams.len(), 1);
+    assert!(matches!(
+        cfg.upstreams[0].upstream_type,
+        UpstreamType::Socks { .. }
+    ));
+}
+
+#[test]
+fn legacy_upstream_type_value_socks5_is_rejected() {
+    let toml = r#"
+        [[upstreams]]
+        type = "socks5"
+        address = "1.2.3.4:1080"
+    "#;
+    let err = load_config_error_from_temp_toml(toml);
+    assert!(err.contains("socks5"), "error should name the rejected value: {err}");
+}

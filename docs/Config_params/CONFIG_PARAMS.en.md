@@ -1027,7 +1027,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
-| [`type`](#type) | `"direct"` or `"socks5"` | — | `✘` |
+| [`type`](#type) | `"direct"` or `"socks"` | — | `✘` |
 | [`weight`](#weight) | `u16` | `1` | `✘` |
 | [`enabled`](#enabled) | `bool` | `true` | `✘` |
 | [`scopes`](#scopes) | `String` | `""` | `✘` |
@@ -1043,7 +1043,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`password`](#password) | `String` | — | `✘` |
 
 ## type
-  - **Constraints / validation**: Required field. Must be one of: `"direct"` or `"socks5"`.
+  - **Constraints / validation**: Required field. Must be one of: `"direct"` or `"socks"`.
   - **Description**: Selects the upstream transport implementation for this `[[upstreams]]` entry.
   - **Example**:
 
@@ -1052,7 +1052,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
     type = "direct"
 
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "127.0.0.1:9050"
     ```
 ## weight
@@ -1072,7 +1072,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
     ```toml
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "127.0.0.1:9050"
     enabled = false
     ```
@@ -1083,7 +1083,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
     ```toml
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "10.0.0.10:1080"
     scopes = "me, fetch, dc2"
     ```
@@ -1114,7 +1114,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
     ```toml
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "192.0.2.10:1080"
     ipv6 = true
     prefer = 6
@@ -1122,7 +1122,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 ## interface
   - **Constraints / validation**: `String` (optional).
     - For `"direct"`: may be an IP address (used as explicit local bind) or an OS interface name (resolved to an IP at runtime; Unix only).
-    - For `"socks5"`: supported only when `address` is an `IP:port` literal; when `address` is a hostname, interface binding is ignored.
+    - For `"socks"`: supported only when `address` is an `IP:port` literal; when `address` is a hostname, interface binding is ignored.
   - **Description**: Optional outbound interface / local bind hint for the upstream connect socket.
   - **Example**:
 
@@ -1132,7 +1132,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
     interface = "eth0"
 
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "203.0.113.10:1080"
     # Use an explicit local bind IP.
     interface = "192.0.2.10"
@@ -1170,34 +1170,34 @@ Profile limits must be non-zero and no greater than their corresponding global l
     force_bind = "eth0"
     ```
 ## address
-  - **Constraints / validation**: Required for `type = "socks5"`. Must be `host:port` or `ip:port`.
+  - **Constraints / validation**: Required for `type = "socks"`. Must be `host:port` or `ip:port`.
   - **Description**: SOCKS proxy server endpoint used for upstream connects.
   - **Example**:
 
     ```toml
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "127.0.0.1:9050"
     ```
 ## username
-  - **Constraints / validation**: `String` (optional). Only for `type = "socks5"`.
+  - **Constraints / validation**: `String` (optional). Only for `type = "socks"`.
   - **Description**: SOCKS5 username (for username/password authentication). Note: when a request scope is selected, Telemt may override this with the selected scope value.
   - **Example**:
 
     ```toml
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "127.0.0.1:9050"
     username = "alice"
     ```
 ## password
-  - **Constraints / validation**: `String` (optional). Only for `type = "socks5"`.
+  - **Constraints / validation**: `String` (optional). Only for `type = "socks"`.
   - **Description**: SOCKS5 password (for username/password authentication). Note: when a request scope is selected, Telemt may override this with the selected scope value.
   - **Example**:
 
     ```toml
     [[upstreams]]
-    type = "socks5"
+    type = "socks"
     address = "127.0.0.1:9050"
     username = "alice"
     password = "secret"
