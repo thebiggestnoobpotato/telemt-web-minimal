@@ -30,7 +30,7 @@ async fn save_sections_preserves_other_tables_and_comments() {
 
 #[test]
 fn find_bounds_matches_array_of_tables() {
-    let src = "[server]\nport = 1\n\n[[upstreams]]\nkind = \"a\"\n\n[[upstreams]]\nkind = \"b\"\n";
+    let src = "[other]\nport = 1\n\n[[upstreams]]\nkind = \"a\"\n\n[[upstreams]]\nkind = \"b\"\n";
     let bounds = find_toml_table_bounds(src, "upstreams");
     assert!(bounds.is_some(), "should locate [[upstreams]] block start");
     let (start, end) = bounds.unwrap();
@@ -42,15 +42,15 @@ fn find_bounds_matches_array_of_tables() {
 
 #[test]
 fn find_bounds_matches_header_with_inline_comment() {
-    let src = "[network] # notes\nipv6 = false\n\n[server]\nport = 1\n";
-    let bounds = find_toml_table_bounds(src, "network");
+    let src = "[first] # notes\nipv6 = false\n\n[other]\nport = 1\n";
+    let bounds = find_toml_table_bounds(src, "first");
     assert!(bounds.is_some(), "commented header must still match");
     let (start, end) = bounds.unwrap();
     let slice = &src[start..end];
-    assert!(slice.starts_with("[network] # notes"));
+    assert!(slice.starts_with("[first] # notes"));
     assert!(slice.contains("ipv6"));
     // The bound terminates at the next header.
-    assert!(!slice.contains("[server]"));
+    assert!(!slice.contains("[other]"));
 }
 
 #[tokio::test]
@@ -60,7 +60,7 @@ async fn save_web_section_keeps_subtables_dotted_without_duplicates() {
     tokio::fs::write(
         &path,
         "[web]\nenabled = false\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
-         [server]\nport = 443\n",
+         [other]\nport = 443\n",
     )
     .await
     .unwrap();
@@ -92,7 +92,7 @@ async fn save_web_section_keeps_subtables_dotted_without_duplicates() {
         .unwrap_or_else(|e| panic!("written config must parse: {e}\n{written}"));
 
     // The unrelated table remains untouched.
-    assert!(written.contains("[server]\nport = 443"));
+    assert!(written.contains("[other]\nport = 443"));
 }
 
 #[tokio::test]
@@ -126,7 +126,7 @@ async fn save_web_section_is_idempotent_across_repeated_saves() {
 #[test]
 fn find_bounds_spans_dotted_subtables() {
     let src = "[web]\nenabled = true\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
-               [server]\nport = 1\n";
+               [other]\nport = 1\n";
     let bounds = find_toml_table_bounds(src, "web");
     assert!(bounds.is_some(), "should locate [web] block");
     let (start, end) = bounds.unwrap();
@@ -135,7 +135,7 @@ fn find_bounds_spans_dotted_subtables() {
     // Nested sub-tables belong to the parent table bound.
     assert!(slice.contains("[web.timeouts]"));
     // The bound terminates before an unrelated header.
-    assert!(!slice.contains("[server]"));
+    assert!(!slice.contains("[other]"));
 }
 
 #[test]
@@ -162,10 +162,10 @@ fn nested_include_detection_does_not_reject_similar_access_keys() {
 async fn save_web_handles_non_contiguous_subtables() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.toml");
-    // Hand-edited layout: [web.timeouts] sits AFTER an unrelated [server].
+    // Hand-edited layout: [web.timeouts] sits AFTER an unrelated [other].
     tokio::fs::write(
         &path,
-        "[web]\nenabled = false\n\n[server]\nport = 443\n\n\
+        "[web]\nenabled = false\n\n[other]\nport = 443\n\n\
          [web.timeouts]\nhttp_overload_timeout_ms = 1\n",
     )
     .await
@@ -187,7 +187,7 @@ async fn save_web_handles_non_contiguous_subtables() {
     toml::from_str::<toml::Value>(&written)
         .unwrap_or_else(|e| panic!("written config must parse: {e}\n{written}"));
     // The unrelated section remains present.
-    assert!(written.contains("[server]"));
+    assert!(written.contains("[other]"));
 }
 
 #[tokio::test]
