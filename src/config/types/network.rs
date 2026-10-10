@@ -36,26 +36,4 @@ pub struct UpstreamConfig {
     pub scopes: String,
     #[serde(skip)]
     pub selected_scope: String,
-    /// Allow IPv4 DC targets for this upstream.
-    /// `None` means auto-detect from runtime connectivity state.
-    #[serde(default)]
-    pub ipv4: Option<bool>,
-    /// Allow IPv6 DC targets for this upstream.
-    /// `None` means auto-detect from runtime connectivity state.
-    #[serde(default)]
-    pub ipv6: Option<bool>,
-    /// Per-upstream IP family preference for Telegram DC targets.
-    /// `None` inherits the effective global `[general].network_prefer` decision.
-    #[serde(default)]
-    pub prefer: Option<u8>,
-}
-
-impl UpstreamConfig {
-    pub fn prefer_ipv6(&self, default_prefer_ipv6: bool) -> bool {
-        match self.prefer {
-            Some(6) => true,
-            Some(4) => false,
-            _ => default_prefer_ipv6,
-        }
-    }
 }

@@ -105,9 +105,6 @@ fn unscoped_selection_detects_default_route_upstream() {
         enabled: true,
         scopes: String::new(),
         selected_scope: String::new(),
-        ipv4: None,
-        ipv6: None,
-        prefer: None,
     };
 
     assert!(UpstreamManager::is_unscoped_upstream(&upstream));

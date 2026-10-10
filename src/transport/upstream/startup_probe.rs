@@ -31,9 +31,6 @@ impl UpstreamManager {
                 continue;
             }
 
-            let (upstream_ipv4_enabled, upstream_ipv6_enabled) =
-                Self::resolve_probe_dc_families(upstream_config, ipv4_enabled, ipv6_enabled);
-            let upstream_prefer_ipv6 = upstream_config.prefer_ipv6(prefer_ipv6);
             let upstream_name = match &upstream_config.upstream_type {
                 UpstreamType::Direct {
                     interface,
@@ -60,7 +57,7 @@ impl UpstreamManager {
             };
 
             let mut v6_results = Vec::with_capacity(NUM_DCS);
-            if upstream_ipv6_enabled {
+            if ipv6_enabled {
                 for dc_zero_idx in 0..NUM_DCS {
                     let dc_v6 = TG_DATACENTERS_V6[dc_zero_idx];
                     let addr_v6 = SocketAddr::new(dc_v6, TG_DATACENTER_PORT);
@@ -111,17 +108,13 @@ impl UpstreamManager {
                         dc_idx: dc_zero_idx + 1,
                         dc_addr: SocketAddr::new(dc_v6, TG_DATACENTER_PORT),
                         rtt_ms: None,
-                        error: Some(if ipv6_enabled {
-                            "ipv6 disabled by upstream policy".to_string()
-                        } else {
-                            "ipv6 disabled".to_string()
-                        }),
+                        error: Some("ipv6 disabled".to_string()),
                     });
                 }
             }
 
             let mut v4_results = Vec::with_capacity(NUM_DCS);
-            if upstream_ipv4_enabled {
+            if ipv4_enabled {
                 for dc_zero_idx in 0..NUM_DCS {
                     let dc_v4 = TG_DATACENTERS_V4[dc_zero_idx];
                     let addr_v4 = SocketAddr::new(dc_v4, TG_DATACENTER_PORT);
@@ -172,11 +165,7 @@ impl UpstreamManager {
                         dc_idx: dc_zero_idx + 1,
                         dc_addr: SocketAddr::new(dc_v4, TG_DATACENTER_PORT),
                         rtt_ms: None,
-                        error: Some(if ipv4_enabled {
-                            "ipv4 disabled by upstream policy".to_string()
-                        } else {
-                            "ipv4 disabled".to_string()
-                        }),
+                        error: Some("ipv4 disabled".to_string()),
                     });
                 }
             }
@@ -196,9 +185,7 @@ impl UpstreamManager {
                     match addr_str.parse::<SocketAddr>() {
                         Ok(addr) => {
                             let is_v6 = addr.is_ipv6();
-                            if (is_v6 && !upstream_ipv6_enabled)
-                                || (!is_v6 && !upstream_ipv4_enabled)
-                            {
+                            if (is_v6 && !ipv6_enabled) || (!is_v6 && !ipv4_enabled) {
                                 continue;
                             }
                             let result = tokio::time::timeout(
@@ -273,7 +260,7 @@ impl UpstreamManager {
                 v6_results,
                 v4_results,
                 upstream_name,
-                prefer_ipv6: upstream_prefer_ipv6,
+                prefer_ipv6: prefer_ipv6,
                 both_available,
             });
         }

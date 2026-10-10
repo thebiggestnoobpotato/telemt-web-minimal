@@ -162,7 +162,7 @@ This document lists all configuration keys accepted by `config.toml`.
     config_strict = true
     ```
 
-  - **Known limitation**: In this revision, `config_strict = true` rejects the otherwise supported `access.user_source_deny` and `[[upstreams]].prefer` keys. Keep strict mode disabled when either key is present.
+  - **Known limitation**: In this revision, `config_strict = true` rejects the otherwise supported `access.user_source_deny` key. Keep strict mode disabled when that key is present.
 ## network_ipv4
   - **Constraints / validation**: `bool`.
   - **Description**: Allow IPv4 Telegram DC targets.
@@ -1031,9 +1031,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`weight`](#weight) | `u16` | `1` | `✘` |
 | [`enabled`](#enabled) | `bool` | `true` | `✘` |
 | [`scopes`](#scopes) | `String` | `""` | `✘` |
-| [`ipv4`](#ipv4-upstreams) | `bool` | — (auto) | `✘` |
-| [`ipv6`](#ipv6-upstreams) | `bool` | — (auto) | `✘` |
-| [`prefer`](#prefer-upstreams) | `4` or `6` | effective `[general].network_prefer` | `✘` |
 | [`interface`](#interface) | `String` | — | `✘` |
 | [`bind_addresses`](#bind_addresses) | `String[]` | — | `✘` |
 | [`bindtodevice`](#bindtodevice) | `String` | — | `✘` |
@@ -1086,38 +1083,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
     type = "socks"
     address = "10.0.0.10:1080"
     scopes = "me, fetch, dc2"
-    ```
-## ipv4 (upstreams)
-  - **Constraints / validation**: `bool` (optional).
-  - **Description**: Allows IPv4 DC targets for this upstream. When omitted, Telemt auto-detects support from runtime connectivity state.
-  - **Example**:
-
-    ```toml
-    [[upstreams]]
-    type = "direct"
-    ipv4 = true
-    ```
-## ipv6 (upstreams)
-  - **Constraints / validation**: `bool` (optional).
-  - **Description**: Allows IPv6 DC targets for this upstream. When omitted, Telemt auto-detects support from runtime connectivity state. Set this to `true` when the upstream proxy is reachable from the local host over IPv4 but the proxy itself can connect to Telegram DCs over IPv6.
-  - **Example**:
-
-    ```toml
-    [[upstreams]]
-    type = "direct"
-    ipv6 = false
-    ```
-## prefer (upstreams)
-  - **Constraints / validation**: Optional integer. Must be `4` or `6`.
-  - **Description**: Overrides the IP family preference for Telegram DC targets selected through this upstream. When omitted, the upstream inherits the effective global `[general].network_prefer` decision. Use `prefer = 6` together with `ipv6 = true` for a SOCKS upstream that can egress over IPv6 even when the local Telemt host is IPv4-only.
-  - **Example**:
-
-    ```toml
-    [[upstreams]]
-    type = "socks"
-    address = "192.0.2.10:1080"
-    ipv6 = true
-    prefer = 6
     ```
 ## interface
   - **Constraints / validation**: `String` (optional).

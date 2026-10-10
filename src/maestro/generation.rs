@@ -341,6 +341,7 @@ pub(crate) fn test_runtime_generation_with_admission(
         config.general.upstream_connect_timeout,
         config.general.upstream_unhealthy_fail_threshold,
         config.general.upstream_connect_failfast_hard_errors,
+        config.general.network_prefer == 6,
         stats.clone(),
     ));
     let _config_tx = config_tx;

@@ -129,7 +129,7 @@ impl UpstreamManager {
         }
 
         let target = if dc_idx.is_some() {
-            Self::resolve_runtime_dc_target(target, dc_idx, &upstream, dc_preference)?
+            Self::resolve_runtime_dc_target(target, dc_idx, self.prefer_ipv6, dc_preference)?
         } else {
             target
         };

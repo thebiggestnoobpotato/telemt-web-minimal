@@ -16,12 +16,8 @@ pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
             enabled: true,
             scopes: String::new(),
             selected_scope: String::new(),
-            ipv4: None,
-            ipv6: None,
-            prefer: None,
         });
     }
-    normalize_upstream_family_policy(config);
 
     // Ensure default DC203 override is present.
     config
@@ -30,7 +26,6 @@ pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
         .or_insert_with(|| vec!["91.105.192.100:443".to_string()]);
 
     validate_logging_config(&config.logging)?;
-    validate_upstreams(config)?;
     config.rebuild_runtime_user_auth()?;
     Ok(())
 }

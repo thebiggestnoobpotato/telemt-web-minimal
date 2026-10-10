@@ -70,6 +70,7 @@ pub(super) async fn run_telemt_core(
             config.general.upstream_connect_timeout,
             config.general.upstream_unhealthy_fail_threshold,
             config.general.upstream_connect_failfast_hard_errors,
+            config.general.network_prefer == 6,
             stats.clone(),
         ),
     );

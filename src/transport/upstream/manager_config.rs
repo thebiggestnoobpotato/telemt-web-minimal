@@ -20,6 +20,7 @@ impl UpstreamManager {
         upstream_connect_timeout_secs: u64,
         unhealthy_fail_threshold: u32,
         connect_failfast_hard_errors: bool,
+        prefer_ipv6: bool,
         stats: Arc<Stats>,
     ) -> Self {
         let states = configs
@@ -36,6 +37,7 @@ impl UpstreamManager {
             upstream_connect_timeout_secs: upstream_connect_timeout_secs.max(1),
             unhealthy_fail_threshold: unhealthy_fail_threshold.max(1),
             connect_failfast_hard_errors,
+            prefer_ipv6,
             no_upstreams_warn_epoch_ms: Arc::new(AtomicU64::new(0)),
             no_healthy_warn_epoch_ms: Arc::new(AtomicU64::new(0)),
             stats,
@@ -145,35 +147,6 @@ impl UpstreamManager {
         }
     }
 
-    pub(super) fn resolve_probe_dc_families(
-        upstream: &UpstreamConfig,
-        ipv4_available: bool,
-        ipv6_available: bool,
-    ) -> (bool, bool) {
-        (
-            upstream.ipv4.unwrap_or(ipv4_available),
-            upstream.ipv6.unwrap_or(ipv6_available),
-        )
-    }
-
-    pub(super) fn resolve_runtime_dc_families(
-        upstream: &UpstreamConfig,
-        dc_preference: IpPreference,
-    ) -> (bool, bool) {
-        let (auto_ipv4, auto_ipv6) = match dc_preference {
-            IpPreference::PreferV4 => (true, false),
-            IpPreference::PreferV6 => (false, true),
-            IpPreference::BothWork | IpPreference::Unknown | IpPreference::Unavailable => {
-                (true, true)
-            }
-        };
-
-        (
-            upstream.ipv4.unwrap_or(auto_ipv4),
-            upstream.ipv6.unwrap_or(auto_ipv6),
-        )
-    }
-
     pub(super) fn dc_table_addr(dc_idx: i16, ipv6: bool, port: u16) -> Option<SocketAddr> {
         let arr_idx = UpstreamState::dc_array_idx(dc_idx)?;
         let ip = if ipv6 {
@@ -187,15 +160,21 @@ impl UpstreamManager {
     pub(super) fn resolve_runtime_dc_target(
         target: SocketAddr,
         dc_idx: Option<i16>,
-        upstream: &UpstreamConfig,
+        prefer_ipv6: bool,
         dc_preference: IpPreference,
     ) -> Result<SocketAddr> {
-        let (allow_ipv4, allow_ipv6) = Self::resolve_runtime_dc_families(upstream, dc_preference);
+        let (allow_ipv4, allow_ipv6) = match dc_preference {
+            IpPreference::PreferV4 => (true, false),
+            IpPreference::PreferV6 => (false, true),
+            IpPreference::BothWork | IpPreference::Unknown | IpPreference::Unavailable => {
+                (true, true)
+            }
+        };
         let preferred_ipv6 = match dc_preference {
             IpPreference::PreferV6 => Some(true),
             IpPreference::PreferV4 => Some(false),
             IpPreference::BothWork | IpPreference::Unknown | IpPreference::Unavailable => {
-                upstream.prefer.map(|prefer| prefer == 6)
+                Some(prefer_ipv6)
             }
         };
         if let Some(preferred_ipv6) = preferred_ipv6

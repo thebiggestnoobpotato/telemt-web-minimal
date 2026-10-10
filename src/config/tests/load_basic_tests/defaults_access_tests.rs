@@ -524,3 +524,22 @@ fn legacy_upstream_type_value_socks5_is_rejected() {
     let err = load_config_error_from_temp_toml(toml);
     assert!(err.contains("socks5"), "error should name the rejected value: {err}");
 }
+
+#[test]
+fn upstream_family_keys_are_stripped_from_upstreams() {
+    // strict: the removed per-upstream family keys are rejected; the
+    // family policy now lives only in the [general] network_* keys.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [[upstreams]]\ntype = \"direct\"\nipv4 = false\nipv6 = false\nprefer = 4\n",
+    );
+    assert!(error.contains("upstreams[0].ipv4"), "{error}");
+    assert!(error.contains("upstreams[0].ipv6"), "{error}");
+    assert!(error.contains("upstreams[0].prefer"), "{error}");
+
+    // non-strict: the removed keys are ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[[upstreams]]\ntype = \"direct\"\nipv4 = false\nipv6 = false\nprefer = 4\n",
+    );
+    assert_eq!(cfg.upstreams.len(), 1);
+}

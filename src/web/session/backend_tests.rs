@@ -101,9 +101,6 @@ fn test_runtime_with_dc(
             enabled: true,
             scopes: String::new(),
             selected_scope: String::new(),
-            ipv4: Some(true),
-            ipv6: Some(false),
-            prefer: Some(4),
         });
     }
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {

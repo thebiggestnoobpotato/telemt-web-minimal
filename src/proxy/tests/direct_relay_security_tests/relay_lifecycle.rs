@@ -42,9 +42,6 @@ async fn direct_relay_abort_midflight_releases_route_gauge() {
             enabled: true,
             scopes: String::new(),
             selected_scope: String::new(),
-            ipv4: None,
-            ipv6: None,
-            prefer: None,
         }],
         1,
         1,
@@ -52,6 +49,7 @@ async fn direct_relay_abort_midflight_releases_route_gauge() {
         10,
         1,
         false,
+        config.general.network_prefer == 6,
         stats.clone(),
     ));
 

@@ -44,10 +44,7 @@ use self::includes::{
 use self::normalize::normalize_domain_to_ascii;
 pub(crate) use self::runtime_auth::UserAuthSnapshot;
 use self::strict_keys::handle_unknown_config_keys;
-use self::validation::{
-    normalize_upstream_family_policy, validate_logging_config, validate_network_cfg,
-    validate_upstreams,
-};
+use self::validation::{validate_logging_config, validate_network_cfg};
 
 const MIN_DIRECT_RELAY_BUFFER_BUDGET_BYTES: usize = 16 * 1024 * 1024;
 const MAX_DIRECT_RELAY_BUFFER_BUDGET_BYTES: usize = 2 * 1024 * 1024 * 1024;

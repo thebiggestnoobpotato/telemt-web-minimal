@@ -126,9 +126,6 @@ async fn negative_direct_relay_dc_connection_refused_fails_fast() {
                 bindtodevice: None,
             },
             selected_scope: String::new(),
-            ipv4: None,
-            ipv6: None,
-            prefer: None,
         }],
         1,
         100,
@@ -136,6 +133,7 @@ async fn negative_direct_relay_dc_connection_refused_fails_fast() {
         10,
         3,
         false,
+        config.general.network_prefer == 6,
         stats.clone(),
     ));
 

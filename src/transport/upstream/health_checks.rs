@@ -10,24 +10,7 @@ impl UpstreamManager {
         ipv6_enabled: bool,
         dc_overrides: HashMap<String, Vec<String>>,
     ) {
-        let (health_ipv4_enabled, health_ipv6_enabled) = {
-            let guard = self.upstreams.read().await;
-            (
-                ipv4_enabled
-                    || guard
-                        .iter()
-                        .any(|upstream| upstream.config.ipv4 == Some(true)),
-                ipv6_enabled
-                    || guard
-                        .iter()
-                        .any(|upstream| upstream.config.ipv6 == Some(true)),
-            )
-        };
-        let groups = Self::build_health_check_groups(
-            health_ipv4_enabled,
-            health_ipv6_enabled,
-            &dc_overrides,
-        );
+        let groups = Self::build_health_check_groups(ipv4_enabled, ipv6_enabled, &dc_overrides);
         let required_healthy_groups = Self::required_healthy_group_count(groups.len());
         let mut endpoint_rotation: HashMap<(usize, i16, bool), usize> = HashMap::new();
 
@@ -66,10 +49,6 @@ impl UpstreamManager {
                     let u = &guard[i];
                     (u.config.clone(), u.bind_rr.clone())
                 };
-                let (upstream_ipv4_enabled, upstream_ipv6_enabled) =
-                    Self::resolve_probe_dc_families(&config, ipv4_enabled, ipv6_enabled);
-                let upstream_prefer_ipv6 = config.prefer_ipv6(prefer_ipv6);
-
                 let mut healthy_groups = 0usize;
                 let mut latency_updates: Vec<(usize, f64)> = Vec::new();
 
@@ -77,8 +56,7 @@ impl UpstreamManager {
                     let mut group_ok = false;
                     let mut group_rtt_ms = None;
 
-                    for (is_primary, endpoints) in
-                        Self::health_check_endpoint_order(group, upstream_prefer_ipv6)
+                    for (is_primary, endpoints) in Self::health_check_endpoint_order(group, prefer_ipv6)
                     {
                         if endpoints.is_empty() {
                             continue;
@@ -89,9 +67,9 @@ impl UpstreamManager {
                             .copied()
                             .filter(|endpoint| {
                                 if endpoint.is_ipv4() {
-                                    upstream_ipv4_enabled
+                                    ipv4_enabled
                                 } else {
-                                    upstream_ipv6_enabled
+                                    ipv6_enabled
                                 }
                             })
                             .collect();

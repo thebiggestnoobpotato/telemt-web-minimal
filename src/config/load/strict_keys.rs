@@ -228,9 +228,6 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
     "weight",
     "enabled",
     "scopes",
-    "ipv4",
-    "ipv6",
-    "prefer",
 ];
 
 const LOGGING_CONFIG_KEYS: &[&str] = &[
