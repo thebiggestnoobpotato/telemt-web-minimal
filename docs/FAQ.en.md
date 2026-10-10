@@ -133,7 +133,7 @@ interface = "192.168.1.100"
 ```toml
 [[upstreams]]
 # SOCKS server address.
-address = "1.2.3.4:1234"
+socks_address = "1.2.3.4:1234"
 # Selection weight.
 weight = 1
 enabled = true
@@ -143,11 +143,11 @@ enabled = true
 ```toml
 [[upstreams]]
 # SOCKS server address.
-address = "1.2.3.4:1234"
+socks_address = "1.2.3.4:1234"
 # SOCKS username.
-username = "user"
+socks_username = "user"
 # SOCKS password.
-password = "pass"
+socks_password = "pass"
 # Selection weight.
 weight = 1
 enabled = true

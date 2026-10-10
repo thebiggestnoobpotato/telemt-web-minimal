@@ -504,7 +504,7 @@ fn upstream_type_value_socks_loads_as_socks_upstream() {
     let toml = r#"
         [[upstreams]]
         type = "socks"
-        address = "1.2.3.4:1080"
+        socks_address = "1.2.3.4:1080"
     "#;
     let cfg = load_config_from_temp_toml(toml);
     assert_eq!(cfg.upstreams.len(), 1);
@@ -519,7 +519,7 @@ fn legacy_upstream_type_value_socks5_is_rejected() {
     let toml = r#"
         [[upstreams]]
         type = "socks5"
-        address = "1.2.3.4:1080"
+        socks_address = "1.2.3.4:1080"
     "#;
     let err = load_config_error_from_temp_toml(toml);
     assert!(err.contains("socks5"), "error should name the rejected value: {err}");
@@ -592,4 +592,48 @@ fn legacy_upstream_bind_keys_are_stripped() {
         "[[upstreams]]\ntype = \"direct\"\nbindtodevice = \"eth0\"\nforce_bind = \"eth0\"\n",
     );
     assert_eq!(cfg.upstreams.len(), 1);
+}
+
+#[test]
+fn upstream_socks_keys_load_into_socks_variant() {
+    let cfg = load_config_from_temp_toml(
+        "[[upstreams]]\ntype = \"socks\"\nsocks_address = \"127.0.0.1:9050\"\nsocks_username = \"alice\"\nsocks_password = \"secret\"\n",
+    );
+    let UpstreamType::Socks {
+        socks_address,
+        socks_username,
+        socks_password,
+        ..
+    } = &cfg.upstreams[0].upstream_type
+    else {
+        panic!("expected a socks upstream");
+    };
+    assert_eq!(socks_address, "127.0.0.1:9050");
+    assert_eq!(socks_username.as_deref(), Some("alice"));
+    assert_eq!(socks_password.as_deref(), Some("secret"));
+}
+
+#[test]
+fn legacy_upstream_socks_keys_are_stripped() {
+    // strict: the removed address/username/password keys are rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [[upstreams]]\ntype = \"socks\"\nsocks_address = \"127.0.0.1:9050\"\naddress = \"127.0.0.1:9050\"\nusername = \"alice\"\npassword = \"secret\"\n",
+    );
+    assert!(error.contains("upstreams[0].address"), "{error}");
+    assert!(error.contains("upstreams[0].username"), "{error}");
+    assert!(error.contains("upstreams[0].password"), "{error}");
+
+    // non-strict: the removed keys are ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[[upstreams]]\ntype = \"socks\"\nsocks_address = \"127.0.0.1:9050\"\naddress = \"127.0.0.1:9050\"\nusername = \"alice\"\npassword = \"secret\"\n",
+    );
+    assert!(matches!(
+        cfg.upstreams[0].upstream_type,
+        UpstreamType::Socks {
+            socks_username: None,
+            socks_password: None,
+            ..
+        }
+    ));
 }

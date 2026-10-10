@@ -1033,9 +1033,9 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`interface`](#interface) | `String` | — | `✘` |
 | [`bind_addresses`](#bind_addresses) | `String[]` | — | `✘` |
 | [`bind_device`](#bind_device) | `String` | — | `✘` |
-| [`address`](#address) | `String` | — | `✘` |
-| [`username`](#username) | `String` | — | `✘` |
-| [`password`](#password) | `String` | — | `✘` |
+| [`socks_address`](#socks_address) | `String` | — | `✘` |
+| [`socks_username`](#socks_username) | `String` | — | `✘` |
+| [`socks_password`](#socks_password) | `String` | — | `✘` |
 
 ## type
   - **Constraints / validation**: Required field. Must be one of: `"direct"` or `"socks"`.
@@ -1048,7 +1048,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
     [[upstreams]]
     type = "socks"
-    address = "127.0.0.1:9050"
+    socks_address = "127.0.0.1:9050"
     ```
 ## weight
   - **Constraints / validation**: `u16` (0..=65535).
@@ -1068,13 +1068,13 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```toml
     [[upstreams]]
     type = "socks"
-    address = "127.0.0.1:9050"
+    socks_address = "127.0.0.1:9050"
     enabled = false
     ```
 ## interface
   - **Constraints / validation**: `String` (optional).
     - For `"direct"`: may be an IP address (used as explicit local bind) or an OS interface name (resolved to an IP at runtime; Unix only).
-    - For `"socks"`: supported only when `address` is an `IP:port` literal; when `address` is a hostname, interface binding is ignored.
+    - For `"socks"`: supported only when `socks_address` is an `IP:port` literal; when `socks_address` is a hostname, interface binding is ignored.
   - **Description**: Optional outbound interface / local bind hint for the upstream connect socket.
   - **Example**:
 
@@ -1085,7 +1085,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
     [[upstreams]]
     type = "socks"
-    address = "203.0.113.10:1080"
+    socks_address = "203.0.113.10:1080"
     # Use an explicit local bind IP.
     interface = "192.0.2.10"
     ```
@@ -1111,7 +1111,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
     type = "direct"
     bind_device = "eth0"
     ```
-## address
+## socks_address
   - **Constraints / validation**: Required for `type = "socks"`. Must be `host:port` or `ip:port`.
   - **Description**: SOCKS proxy server endpoint used for upstream connects.
   - **Example**:
@@ -1119,28 +1119,28 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```toml
     [[upstreams]]
     type = "socks"
-    address = "127.0.0.1:9050"
+    socks_address = "127.0.0.1:9050"
     ```
-## username
+## socks_username
   - **Constraints / validation**: `String` (optional). Only for `type = "socks"`.
-  - **Description**: SOCKS5 username (for username/password authentication). Note: when a request scope is selected, Telemt may override this with the selected scope value.
+  - **Description**: SOCKS5 username (for username/password authentication).
   - **Example**:
 
     ```toml
     [[upstreams]]
     type = "socks"
-    address = "127.0.0.1:9050"
-    username = "alice"
+    socks_address = "127.0.0.1:9050"
+    socks_username = "alice"
     ```
-## password
+## socks_password
   - **Constraints / validation**: `String` (optional). Only for `type = "socks"`.
-  - **Description**: SOCKS5 password (for username/password authentication). Note: when a request scope is selected, Telemt may override this with the selected scope value.
+  - **Description**: SOCKS5 password (for username/password authentication).
   - **Example**:
 
     ```toml
     [[upstreams]]
     type = "socks"
-    address = "127.0.0.1:9050"
-    username = "alice"
-    password = "secret"
+    socks_address = "127.0.0.1:9050"
+    socks_username = "alice"
+    socks_password = "secret"
     ```

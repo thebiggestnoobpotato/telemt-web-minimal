@@ -220,10 +220,10 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
     "interface",
     "bind_addresses",
     "bind_device",
-    "address",
+    "socks_address",
     "user_id",
-    "username",
-    "password",
+    "socks_username",
+    "socks_password",
     "weight",
     "enabled",
 ];

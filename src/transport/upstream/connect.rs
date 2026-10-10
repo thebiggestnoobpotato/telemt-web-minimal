@@ -215,13 +215,13 @@ impl UpstreamManager {
                 ))
             }
             UpstreamType::Socks {
-                address,
+                socks_address,
                 interface,
-                username,
-                password,
+                socks_username,
+                socks_password,
             } => {
                 // Try to parse as SocketAddr first (IP:port), otherwise treat as hostname:port
-                let mut stream = if let Ok(proxy_addr) = address.parse::<SocketAddr>() {
+                let mut stream = if let Ok(proxy_addr) = socks_address.parse::<SocketAddr>() {
                     // IP:port format - use socket with optional interface binding
                     let bind_ip = Self::resolve_bind_address(
                         interface,
@@ -266,13 +266,16 @@ impl UpstreamManager {
                             "SOCKS5 interface binding is not supported for hostname addresses, ignoring"
                         );
                     }
-                    match tokio::time::timeout(connect_timeout, TcpStream::connect(address))
-                        .await
+                    match tokio::time::timeout(
+                        connect_timeout,
+                        TcpStream::connect(socks_address),
+                    )
+                    .await
                     {
                         Ok(Ok(stream)) => stream,
                         Ok(Err(e)) => return Err(ProxyError::Io(e)),
                         Err(_) => return Err(ProxyError::ConnectionTimeout {
-                            addr: address.to_string(),
+                            addr: socks_address.to_string(),
                         }),
                     }
                 };
@@ -284,8 +287,8 @@ impl UpstreamManager {
                     connect_socks5(
                         &mut stream,
                         target,
-                        username.as_deref(),
-                        password.as_deref(),
+                        socks_username.as_deref(),
+                        socks_password.as_deref(),
                     ),
                 )
                 .await

@@ -13,13 +13,13 @@ pub enum UpstreamType {
         bind_device: Option<String>,
     },
     Socks {
-        address: String,
+        socks_address: String,
         #[serde(default)]
         interface: Option<String>,
         #[serde(default)]
-        username: Option<String>,
+        socks_username: Option<String>,
         #[serde(default)]
-        password: Option<String>,
+        socks_password: Option<String>,
     },
 }
 
