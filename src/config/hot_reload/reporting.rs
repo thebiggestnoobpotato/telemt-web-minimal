@@ -26,13 +26,13 @@ pub(super) fn log_changes(
     }
 
 
-    if old_hot.direct_relay_copy_buf_c2s_bytes != new_hot.direct_relay_copy_buf_c2s_bytes
-        || old_hot.direct_relay_copy_buf_s2c_bytes != new_hot.direct_relay_copy_buf_s2c_bytes
+    if old_hot.dc_copy_buf_c2s_bytes != new_hot.dc_copy_buf_c2s_bytes
+        || old_hot.dc_copy_buf_s2c_bytes != new_hot.dc_copy_buf_s2c_bytes
     {
         info!(
             "config reload: direct relay buffers: c2s={} s2c={}",
-            new_hot.direct_relay_copy_buf_c2s_bytes,
-            new_hot.direct_relay_copy_buf_s2c_bytes,
+            new_hot.dc_copy_buf_c2s_bytes,
+            new_hot.dc_copy_buf_s2c_bytes,
         );
     }
 

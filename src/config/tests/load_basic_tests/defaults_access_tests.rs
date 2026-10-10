@@ -158,6 +158,33 @@ fn prefer_ipv6_key_is_stripped_from_general() {
 }
 
 #[test]
+fn legacy_general_direct_relay_keys_are_stripped() {
+    // strict: the renamed legacy keys are rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         direct_relay_copy_buf_c2s_bytes = 65536\n\
+         direct_relay_copy_buf_s2c_bytes = 262144\n\
+         direct_relay_buffer_budget_max_bytes = 0\n\
+         default_dc = 2\n",
+    );
+    assert!(error.contains("general.direct_relay_copy_buf_c2s_bytes"), "{error}");
+    assert!(error.contains("general.direct_relay_copy_buf_s2c_bytes"), "{error}");
+    assert!(error.contains("general.direct_relay_buffer_budget_max_bytes"), "{error}");
+    assert!(error.contains("general.default_dc"), "{error}");
+
+    // non-strict: the removed keys are ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[general]\n\
+         direct_relay_copy_buf_c2s_bytes = 65536\n\
+         direct_relay_copy_buf_s2c_bytes = 262144\n\
+         direct_relay_buffer_budget_max_bytes = 0\n\
+         default_dc = 2\n",
+    );
+    assert_eq!(cfg.general.dc_copy_buf_c2s_bytes, default_dc_copy_buf_c2s_bytes());
+    assert_eq!(cfg.general.dc_default, None);
+}
+
+#[test]
 fn network_section_is_stripped_into_general() {
     // strict: the removed [network] section is rejected; its keys now live
     // in [general] as network_ipv4 / network_ipv6 / network_prefer.

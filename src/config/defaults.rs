@@ -114,14 +114,14 @@ pub(crate) fn default_unknown_dc_log_enabled() -> bool {
     false
 }
 
-pub(crate) fn default_direct_relay_copy_buf_c2s_bytes() -> usize {
+pub(crate) fn default_dc_copy_buf_c2s_bytes() -> usize {
     DEFAULT_DIRECT_RELAY_COPY_BUF_C2S_BYTES
 }
 
-pub(crate) fn default_direct_relay_copy_buf_s2c_bytes() -> usize {
+pub(crate) fn default_dc_copy_buf_s2c_bytes() -> usize {
     DEFAULT_DIRECT_RELAY_COPY_BUF_S2C_BYTES
 }
 
-pub(crate) fn default_direct_relay_buffer_budget_max_bytes() -> usize {
+pub(crate) fn default_dc_buffer_budget_max_bytes() -> usize {
     DEFAULT_DIRECT_RELAY_BUFFER_BUDGET_MAX_BYTES
 }

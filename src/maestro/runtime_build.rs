@@ -199,12 +199,12 @@ pub(crate) fn resolve_reload_config(
         fields.push("general.max_connections".to_string());
         effective.general.max_connections = old.general.max_connections;
     }
-    if old.general.direct_relay_buffer_budget_max_bytes
-        != desired.general.direct_relay_buffer_budget_max_bytes
+    if old.general.dc_buffer_budget_max_bytes
+        != desired.general.dc_buffer_budget_max_bytes
     {
-        fields.push("general.direct_relay_buffer_budget_max_bytes".to_string());
-        effective.general.direct_relay_buffer_budget_max_bytes =
-            old.general.direct_relay_buffer_budget_max_bytes;
+        fields.push("general.dc_buffer_budget_max_bytes".to_string());
+        effective.general.dc_buffer_budget_max_bytes =
+            old.general.dc_buffer_budget_max_bytes;
     }
     if old.general.data_path != desired.general.data_path {
         fields.push("general.data_path".to_string());

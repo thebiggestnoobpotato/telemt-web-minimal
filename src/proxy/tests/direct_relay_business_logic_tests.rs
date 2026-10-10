@@ -34,7 +34,7 @@ fn business_known_dc_uses_ipv6_table_when_preferred_and_enabled() {
 #[test]
 fn business_unknown_dc_uses_configured_default_dc_when_in_range() {
     let mut cfg = ProxyConfig::default();
-    cfg.general.default_dc = Some(4);
+    cfg.general.dc_default = Some(4);
 
     let resolved =
         get_dc_addr_static(29_999, &cfg).expect("unknown dc must resolve to configured default");

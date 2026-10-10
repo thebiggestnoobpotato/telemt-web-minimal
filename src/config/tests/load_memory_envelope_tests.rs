@@ -41,14 +41,14 @@ fn load_rejects_unaligned_direct_relay_buffer_budget() {
     let path = write_temp_config(
         r#"
 [general]
-direct_relay_buffer_budget_max_bytes = 16777217
+dc_buffer_budget_max_bytes = 16777217
 "#,
     );
 
     let err = ProxyConfig::load(&path).expect_err("unaligned direct relay buffer budget must fail");
     assert!(
         err.to_string().contains(
-            "general.direct_relay_buffer_budget_max_bytes must be 0 or a multiple of 4096"
+            "general.dc_buffer_budget_max_bytes must be 0 or a multiple of 4096"
         )
     );
     remove_temp_config(&path);
@@ -59,14 +59,14 @@ fn load_rejects_direct_relay_buffer_budget_above_hard_cap() {
     let path = write_temp_config(
         r#"
 [general]
-direct_relay_buffer_budget_max_bytes = 2147487744
+dc_buffer_budget_max_bytes = 2147487744
 "#,
     );
 
     let err =
         ProxyConfig::load(&path).expect_err("direct relay buffer budget above hard cap must fail");
     assert!(err.to_string().contains(
-        "general.direct_relay_buffer_budget_max_bytes must be 0 or within [16777216, 2147483648]"
+        "general.dc_buffer_budget_max_bytes must be 0 or within [16777216, 2147483648]"
     ));
     remove_temp_config(&path);
 }
@@ -114,14 +114,14 @@ fn load_accepts_memory_limits_at_hard_upper_bounds() {
     let path = write_temp_config(
         r#"
 [general]
-direct_relay_buffer_budget_max_bytes = 2147483648
+dc_buffer_budget_max_bytes = 2147483648
 max_client_frame = 16777216
 "#,
     );
 
     let cfg = ProxyConfig::load(&path).expect("hard upper bound values must be accepted");
     assert_eq!(
-        cfg.general.direct_relay_buffer_budget_max_bytes,
+        cfg.general.dc_buffer_budget_max_bytes,
         2 * 1024 * 1024 * 1024
     );
     assert_eq!(cfg.general.max_client_frame, 16 * 1024 * 1024);

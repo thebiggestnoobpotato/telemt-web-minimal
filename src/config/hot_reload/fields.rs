@@ -6,8 +6,8 @@ pub struct HotFields {
     pub log_level: LogLevel,
     pub telemetry_core_enabled: bool,
     pub telemetry_user_enabled: bool,
-    pub direct_relay_copy_buf_c2s_bytes: usize,
-    pub direct_relay_copy_buf_s2c_bytes: usize,
+    pub dc_copy_buf_c2s_bytes: usize,
+    pub dc_copy_buf_s2c_bytes: usize,
     pub users: std::collections::HashMap<String, String>,
     pub user_enabled: std::collections::HashMap<String, bool>,
     pub user_max_unique_ips: std::collections::HashMap<String, usize>,
@@ -23,8 +23,8 @@ impl HotFields {
             log_level: cfg.logging.log_level.clone(),
             telemetry_core_enabled: cfg.general.telemetry_core_enabled,
             telemetry_user_enabled: cfg.general.telemetry_user_enabled,
-            direct_relay_copy_buf_c2s_bytes: cfg.general.direct_relay_copy_buf_c2s_bytes,
-            direct_relay_copy_buf_s2c_bytes: cfg.general.direct_relay_copy_buf_s2c_bytes,
+            dc_copy_buf_c2s_bytes: cfg.general.dc_copy_buf_c2s_bytes,
+            dc_copy_buf_s2c_bytes: cfg.general.dc_copy_buf_s2c_bytes,
             users: cfg.access.users.clone(),
             user_enabled: cfg.access.user_enabled.clone(),
             user_max_unique_ips: cfg.access.user_max_unique_ips.clone(),
@@ -42,8 +42,8 @@ pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyC
     cfg.logging.log_level = new.logging.log_level.clone();
     cfg.general.telemetry_core_enabled = new.general.telemetry_core_enabled;
     cfg.general.telemetry_user_enabled = new.general.telemetry_user_enabled;
-    cfg.general.direct_relay_copy_buf_c2s_bytes = new.general.direct_relay_copy_buf_c2s_bytes;
-    cfg.general.direct_relay_copy_buf_s2c_bytes = new.general.direct_relay_copy_buf_s2c_bytes;
+    cfg.general.dc_copy_buf_c2s_bytes = new.general.dc_copy_buf_c2s_bytes;
+    cfg.general.dc_copy_buf_s2c_bytes = new.general.dc_copy_buf_s2c_bytes;
 
     cfg.access.users = new.access.users.clone();
     cfg.access.user_enabled = new.access.user_enabled.clone();

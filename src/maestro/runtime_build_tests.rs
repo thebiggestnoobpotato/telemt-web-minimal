@@ -79,9 +79,9 @@ fn process_wide_connection_and_direct_buffer_envelopes_are_restart_only() {
     let old = ProxyConfig::default();
     let mut desired = old.clone();
     desired.general.max_connections = old.general.max_connections.saturating_add(1);
-    desired.general.direct_relay_buffer_budget_max_bytes = old
+    desired.general.dc_buffer_budget_max_bytes = old
         .general
-        .direct_relay_buffer_budget_max_bytes
+        .dc_buffer_budget_max_bytes
         .saturating_add(4 * 1024);
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
@@ -90,7 +90,7 @@ fn process_wide_connection_and_direct_buffer_envelopes_are_restart_only() {
         resolved.deferred_process_fields,
         vec![
             "general.max_connections".to_string(),
-            "general.direct_relay_buffer_budget_max_bytes".to_string(),
+            "general.dc_buffer_budget_max_bytes".to_string(),
         ]
     );
     assert_eq!(
@@ -101,8 +101,8 @@ fn process_wide_connection_and_direct_buffer_envelopes_are_restart_only() {
         resolved
             .effective
             .general
-            .direct_relay_buffer_budget_max_bytes,
-        old.general.direct_relay_buffer_budget_max_bytes
+            .dc_buffer_budget_max_bytes,
+        old.general.dc_buffer_budget_max_bytes
     );
     assert!(!resolved.runtime_changed);
 }

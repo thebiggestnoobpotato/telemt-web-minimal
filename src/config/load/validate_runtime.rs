@@ -10,32 +10,32 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
     }
 
 
-    if !(4096..=1024 * 1024).contains(&config.general.direct_relay_copy_buf_c2s_bytes) {
+    if !(4096..=1024 * 1024).contains(&config.general.dc_copy_buf_c2s_bytes) {
         return Err(ProxyError::Config(
-            "general.direct_relay_copy_buf_c2s_bytes must be within [4096, 1048576]".to_string(),
+            "general.dc_copy_buf_c2s_bytes must be within [4096, 1048576]".to_string(),
         ));
     }
 
-    if !(8192..=2 * 1024 * 1024).contains(&config.general.direct_relay_copy_buf_s2c_bytes) {
+    if !(8192..=2 * 1024 * 1024).contains(&config.general.dc_copy_buf_s2c_bytes) {
         return Err(ProxyError::Config(
-            "general.direct_relay_copy_buf_s2c_bytes must be within [8192, 2097152]".to_string(),
+            "general.dc_copy_buf_s2c_bytes must be within [8192, 2097152]".to_string(),
         ));
     }
 
-    if config.general.direct_relay_buffer_budget_max_bytes != 0 {
-        if config.general.direct_relay_buffer_budget_max_bytes
+    if config.general.dc_buffer_budget_max_bytes != 0 {
+        if config.general.dc_buffer_budget_max_bytes
             % DIRECT_RELAY_BUFFER_BUDGET_UNIT_BYTES
             != 0
         {
             return Err(ProxyError::Config(format!(
-                "general.direct_relay_buffer_budget_max_bytes must be 0 or a multiple of {DIRECT_RELAY_BUFFER_BUDGET_UNIT_BYTES}"
+                "general.dc_buffer_budget_max_bytes must be 0 or a multiple of {DIRECT_RELAY_BUFFER_BUDGET_UNIT_BYTES}"
             )));
         }
         if !(MIN_DIRECT_RELAY_BUFFER_BUDGET_BYTES..=MAX_DIRECT_RELAY_BUFFER_BUDGET_BYTES)
-            .contains(&config.general.direct_relay_buffer_budget_max_bytes)
+            .contains(&config.general.dc_buffer_budget_max_bytes)
         {
             return Err(ProxyError::Config(format!(
-                "general.direct_relay_buffer_budget_max_bytes must be 0 or within [{MIN_DIRECT_RELAY_BUFFER_BUDGET_BYTES}, {MAX_DIRECT_RELAY_BUFFER_BUDGET_BYTES}]"
+                "general.dc_buffer_budget_max_bytes must be 0 or within [{MIN_DIRECT_RELAY_BUFFER_BUDGET_BYTES}, {MAX_DIRECT_RELAY_BUFFER_BUDGET_BYTES}]"
             )));
         }
     }

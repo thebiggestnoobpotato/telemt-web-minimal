@@ -115,9 +115,9 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`network_ipv6`](#network_ipv6) | `bool` | `false` | `✘` |
 | [`network_prefer`](#network_prefer) | `u8` | `4` | `✘` |
 | [`fast_mode`](#fast_mode) | `bool` | `true` | `✘` |
-| [`direct_relay_copy_buf_c2s_bytes`](#direct_relay_copy_buf_c2s_bytes) | `usize` | `65536` | `✔` |
-| [`direct_relay_copy_buf_s2c_bytes`](#direct_relay_copy_buf_s2c_bytes) | `usize` | `262144` | `✔` |
-| [`direct_relay_buffer_budget_max_bytes`](#direct_relay_buffer_budget_max_bytes) | `usize` | `0` | `✘` |
+| [`dc_copy_buf_c2s_bytes`](#dc_copy_buf_c2s_bytes) | `usize` | `65536` | `✔` |
+| [`dc_copy_buf_s2c_bytes`](#dc_copy_buf_s2c_bytes) | `usize` | `262144` | `✔` |
+| [`dc_buffer_budget_max_bytes`](#dc_buffer_budget_max_bytes) | `usize` | `0` | `✘` |
 | [`crypto_pending_buffer`](#crypto_pending_buffer) | `usize` | `262144` | `✘` |
 | [`max_client_frame`](#max_client_frame) | `usize` | `16777216` | `✘` |
 | [`upstream_connect_retry_attempts`](#upstream_connect_retry_attempts) | `u32` | `2` | `✘` |
@@ -127,7 +127,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`upstream_unhealthy_fail_threshold`](#upstream_unhealthy_fail_threshold) | `u32` | `5` | `✘` |
 | [`upstream_connect_failfast_hard_errors`](#upstream_connect_failfast_hard_errors) | `bool` | `false` | `✘` |
 | [`dc_overrides`](#dc_overrides) | `Map<String, String or String[]>` | `{}` | `✘` |
-| [`default_dc`](#default_dc) | `u8` | — (effective fallback: `2`) | `✘` |
+| [`dc_default`](#dc_default) | `u8` | — (effective fallback: `2`) | `✘` |
 | [`telemetry_core_enabled`](#telemetry_core_enabled) | `bool` | `true` | `✔` |
 | [`telemetry_user_enabled`](#telemetry_user_enabled) | `bool` | `true` | `✔` |
 | [`listen_backlog`](#listen_backlog) | `u32` | `1024` | `✘` |
@@ -187,32 +187,32 @@ This document lists all configuration keys accepted by `config.toml`.
     [general]
     fast_mode = true
     ```
-## direct_relay_copy_buf_c2s_bytes
+## dc_copy_buf_c2s_bytes
   - **Constraints / validation**: Must be within `4096..=1048576` (bytes).
   - **Description**: Copy buffer size for client->DC direction in direct relay.
   - **Example**:
 
     ```toml
     [general]
-    direct_relay_copy_buf_c2s_bytes = 65536
+    dc_copy_buf_c2s_bytes = 65536
     ```
-## direct_relay_copy_buf_s2c_bytes
+## dc_copy_buf_s2c_bytes
   - **Constraints / validation**: Must be within `8192..=2097152` (bytes).
   - **Description**: Copy buffer size for DC->client direction in direct relay.
   - **Example**:
 
     ```toml
     [general]
-    direct_relay_copy_buf_s2c_bytes = 262144
+    dc_copy_buf_s2c_bytes = 262144
     ```
-## direct_relay_buffer_budget_max_bytes
+## dc_buffer_budget_max_bytes
   - **Constraints / validation**: `0`, or a multiple of `4096` within `16777216..=2147483648`.
   - **Description**: Process-wide hard ceiling for Direct relay copy buffers. `0` derives the ceiling at process startup from cgroup or host memory limits. This field is process-owned and restart-deferred.
   - **Example**:
 
     ```toml
     [general]
-    direct_relay_buffer_budget_max_bytes = 0
+    dc_buffer_budget_max_bytes = 0
     ```
 ## crypto_pending_buffer
   - **Constraints / validation**: `usize` (bytes).
@@ -296,7 +296,7 @@ This document lists all configuration keys accepted by `config.toml`.
     "201" = "149.154.175.50:443"
     "203" = ["149.154.175.100:443", "91.105.192.100:443"]
     ```
-## default_dc
+## dc_default
   - **Constraints / validation**: Intended range is `1..=5`. If set out of range, runtime falls back to DC1 behavior in direct relay.
   - **Description**: Default DC index used for unmapped non-standard DCs.
   - **Example**:
@@ -305,7 +305,7 @@ This document lists all configuration keys accepted by `config.toml`.
     [general]
     # When a client requests an unknown/non-standard DC with no override,
     # route it to this default cluster (1..=5).
-    default_dc = 2
+    dc_default = 2
     ```
 ## telemetry_core_enabled
   - **Constraints / validation**: `bool`.

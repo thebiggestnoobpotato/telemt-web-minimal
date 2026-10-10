@@ -89,13 +89,13 @@ fn temp_config_path(prefix: &str) -> PathBuf {
 fn overlay_applies_hot_and_preserves_non_hot() {
     let old = sample_config();
     let mut new = old.clone();
-    new.general.direct_relay_copy_buf_c2s_bytes = old.general.direct_relay_copy_buf_c2s_bytes + 1;
+    new.general.dc_copy_buf_c2s_bytes = old.general.dc_copy_buf_c2s_bytes + 1;
     new.general.listen_backlog = old.general.listen_backlog.saturating_add(1);
 
     let applied = overlay_hot_fields(&old, &new);
     assert_eq!(
-        applied.general.direct_relay_copy_buf_c2s_bytes,
-        new.general.direct_relay_copy_buf_c2s_bytes
+        applied.general.dc_copy_buf_c2s_bytes,
+        new.general.dc_copy_buf_c2s_bytes
     );
     assert_eq!(applied.general.listen_backlog, old.general.listen_backlog);
 }
@@ -218,13 +218,13 @@ fn web_debug_prefix_requiring_deferred_capacity_is_not_hot_applied() {
 fn mixed_hot_and_non_hot_change_applies_only_hot_subset() {
     let old = sample_config();
     let mut new = old.clone();
-    new.general.direct_relay_copy_buf_s2c_bytes = old.general.direct_relay_copy_buf_s2c_bytes + 1;
+    new.general.dc_copy_buf_s2c_bytes = old.general.dc_copy_buf_s2c_bytes + 1;
     new.general.listen_backlog = old.general.listen_backlog.saturating_add(1);
 
     let applied = overlay_hot_fields(&old, &new);
     assert_eq!(
-        applied.general.direct_relay_copy_buf_s2c_bytes,
-        new.general.direct_relay_copy_buf_s2c_bytes
+        applied.general.dc_copy_buf_s2c_bytes,
+        new.general.dc_copy_buf_s2c_bytes
     );
     assert_eq!(applied.general.listen_backlog, old.general.listen_backlog);
     assert!(!config_equal(&applied, &new));

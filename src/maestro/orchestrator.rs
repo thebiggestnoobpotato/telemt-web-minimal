@@ -81,12 +81,12 @@ pub(super) async fn run_telemt_core(
         );
     }
     let direct_buffer_hard_limit =
-        resolve_direct_buffer_hard_limit(config.general.direct_relay_buffer_budget_max_bytes).await;
+        resolve_direct_buffer_hard_limit(config.general.dc_buffer_budget_max_bytes).await;
     let direct_buffer_budget = DirectBufferBudget::new(direct_buffer_hard_limit);
     direct_buffer_budget.activate_controller(1);
     info!(
         hard_limit_bytes = direct_buffer_hard_limit,
-        configured_override_bytes = config.general.direct_relay_buffer_budget_max_bytes,
+        configured_override_bytes = config.general.dc_buffer_budget_max_bytes,
         "Direct relay buffer budget initialized"
     );
     let user_admission = UserAdmissionAuthority::new();

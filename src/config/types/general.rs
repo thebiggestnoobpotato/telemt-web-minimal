@@ -23,15 +23,15 @@ pub struct GeneralConfig {
     #[serde(default = "default_true")]
     pub fast_mode: bool,
     /// Copy buffer ceiling for client->DC direction in direct relay.
-    #[serde(default = "default_direct_relay_copy_buf_c2s_bytes")]
-    pub direct_relay_copy_buf_c2s_bytes: usize,
+    #[serde(default = "default_dc_copy_buf_c2s_bytes")]
+    pub dc_copy_buf_c2s_bytes: usize,
     /// Copy buffer ceiling for DC->client direction in direct relay.
-    #[serde(default = "default_direct_relay_copy_buf_s2c_bytes")]
-    pub direct_relay_copy_buf_s2c_bytes: usize,
+    #[serde(default = "default_dc_copy_buf_s2c_bytes")]
+    pub dc_copy_buf_s2c_bytes: usize,
     /// Process-wide hard ceiling for Direct relay copy buffers.
     /// `0` derives the ceiling from host and cgroup memory limits.
-    #[serde(default = "default_direct_relay_buffer_budget_max_bytes")]
-    pub direct_relay_buffer_budget_max_bytes: usize,
+    #[serde(default = "default_dc_buffer_budget_max_bytes")]
+    pub dc_buffer_budget_max_bytes: usize,
     /// Max pending ciphertext buffer per client writer (bytes).
     /// Controls FakeTLS backpressure vs throughput.
     #[serde(default = "default_crypto_pending_buffer")]
@@ -75,7 +75,7 @@ pub struct GeneralConfig {
     /// Matches the C implementation's `default <dc_id>` config directive.
     /// If not set, defaults to 2 (matching Telegram's official `default 2;` in proxy-multi.conf).
     #[serde(default)]
-    pub default_dc: Option<u8>,
+    pub dc_default: Option<u8>,
     /// TCP `listen(2)` backlog for client-facing sockets (also used for the metrics HTTP listener).
     /// The effective queue is capped by the kernel (for example `somaxconn` on Linux).
     #[serde(default = "default_listen_backlog")]
