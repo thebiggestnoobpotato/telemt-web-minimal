@@ -150,7 +150,7 @@ impl UpstreamManager {
             UpstreamType::Direct {
                 interface,
                 bind_addresses,
-                bindtodevice,
+                bind_device,
             } => {
                 let bind_ip = Self::resolve_bind_address(
                     interface,
@@ -166,9 +166,9 @@ impl UpstreamManager {
                 }
 
                 let socket = create_outgoing_socket_bound(target, bind_ip)?;
-                if let Some(device) = bindtodevice.as_deref().filter(|value| !value.is_empty()) {
+                if let Some(device) = bind_device.as_deref().filter(|value| !value.is_empty()) {
                     bind_outgoing_socket_to_device(&socket, device).map_err(ProxyError::Io)?;
-                    debug!(bindtodevice = %device, target = %target, "Pinned socket to interface");
+                    debug!(bind_device = %device, target = %target, "Pinned socket to interface");
                 }
                 if let Some(ip) = bind_ip {
                     debug!(bind = %ip, target = %target, "Bound outgoing socket");

@@ -148,7 +148,7 @@ pub fn bind_outgoing_socket_to_device(socket: &Socket, device: &str) -> Result<(
     if name.is_empty() {
         return Err(Error::new(
             ErrorKind::InvalidInput,
-            "bindtodevice must not be empty",
+            "bind_device must not be empty",
         ));
     }
 
@@ -156,7 +156,7 @@ pub fn bind_outgoing_socket_to_device(socket: &Socket, device: &str) -> Result<(
     if name.len() >= libc::IFNAMSIZ {
         return Err(Error::new(
             ErrorKind::InvalidInput,
-            "bindtodevice exceeds IFNAMSIZ",
+            "bind_device exceeds IFNAMSIZ",
         ));
     }
     let mut ifname = [0u8; libc::IFNAMSIZ];
@@ -184,7 +184,7 @@ pub fn bind_outgoing_socket_to_device(_socket: &Socket, _device: &str) -> Result
     use std::io::{Error, ErrorKind};
     Err(Error::new(
         ErrorKind::Unsupported,
-        "bindtodevice is supported only on Linux",
+        "bind_device is supported only on Linux",
     ))
 }
 

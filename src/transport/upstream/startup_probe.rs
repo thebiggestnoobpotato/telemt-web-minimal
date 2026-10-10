@@ -25,7 +25,7 @@ impl UpstreamManager {
                 UpstreamType::Direct {
                     interface,
                     bind_addresses,
-                    bindtodevice,
+                    bind_device,
                 } => {
                     let mut direct_parts = Vec::new();
                     if let Some(dev) = interface.as_deref().filter(|v| !v.is_empty()) {
@@ -34,8 +34,8 @@ impl UpstreamManager {
                     if let Some(src) = bind_addresses.as_ref().filter(|v| !v.is_empty()) {
                         direct_parts.push(format!("src={}", src.join(",")));
                     }
-                    if let Some(device) = bindtodevice.as_deref().filter(|v| !v.is_empty()) {
-                        direct_parts.push(format!("bindtodevice={device}"));
+                    if let Some(device) = bind_device.as_deref().filter(|v| !v.is_empty()) {
+                        direct_parts.push(format!("bind_device={device}"));
                     }
                     if direct_parts.is_empty() {
                         "direct".to_string()

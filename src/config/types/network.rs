@@ -9,9 +9,8 @@ pub enum UpstreamType {
         #[serde(default)]
         bind_addresses: Option<Vec<String>>,
         /// Linux-only hard interface pinning via `SO_BINDTODEVICE`.
-        /// Optional alias: `force_bind`.
-        #[serde(default, alias = "force_bind")]
-        bindtodevice: Option<String>,
+        #[serde(default)]
+        bind_device: Option<String>,
     },
     Socks {
         address: String,

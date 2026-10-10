@@ -559,3 +559,37 @@ fn upstream_scopes_key_is_stripped() {
     );
     assert_eq!(cfg.upstreams.len(), 1);
 }
+
+#[test]
+fn upstream_bind_device_key_replaces_bindtodevice() {
+    let cfg = load_config_from_temp_toml(
+        "[[upstreams]]\ntype = \"direct\"\nbind_device = \"eth0\"\n",
+    );
+    assert!(
+        matches!(
+            cfg.upstreams[0].upstream_type,
+            UpstreamType::Direct {
+                bind_device: Some(_),
+                ..
+            }
+        ),
+        "bind_device must load into the Direct variant"
+    );
+}
+
+#[test]
+fn legacy_upstream_bind_keys_are_stripped() {
+    // strict: the removed bindtodevice and force_bind keys are rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [[upstreams]]\ntype = \"direct\"\nbindtodevice = \"eth0\"\nforce_bind = \"eth0\"\n",
+    );
+    assert!(error.contains("upstreams[0].bindtodevice"), "{error}");
+    assert!(error.contains("upstreams[0].force_bind"), "{error}");
+
+    // non-strict: the removed keys are ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[[upstreams]]\ntype = \"direct\"\nbindtodevice = \"eth0\"\nforce_bind = \"eth0\"\n",
+    );
+    assert_eq!(cfg.upstreams.len(), 1);
+}

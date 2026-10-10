@@ -36,7 +36,7 @@ async fn direct_relay_abort_midflight_releases_route_gauge() {
             upstream_type: UpstreamType::Direct {
                 interface: None,
                 bind_addresses: None,
-                bindtodevice: None,
+                bind_device: None,
             },
             weight: 1,
             enabled: true,

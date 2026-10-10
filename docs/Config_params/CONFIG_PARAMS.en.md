@@ -1032,8 +1032,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`enabled`](#enabled) | `bool` | `true` | `✘` |
 | [`interface`](#interface) | `String` | — | `✘` |
 | [`bind_addresses`](#bind_addresses) | `String[]` | — | `✘` |
-| [`bindtodevice`](#bindtodevice) | `String` | — | `✘` |
-| [`force_bind`](#force_bind) | `String` | — | `✘` |
+| [`bind_device`](#bind_device) | `String` | — | `✘` |
 | [`address`](#address) | `String` | — | `✘` |
 | [`username`](#username) | `String` | — | `✘` |
 | [`password`](#password) | `String` | — | `✘` |
@@ -1102,7 +1101,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
     type = "direct"
     bind_addresses = ["192.0.2.10", "192.0.2.11"]
     ```
-## bindtodevice
+## bind_device
   - **Constraints / validation**: `String` (optional). Applies only to `type = "direct"` and is Linux-only.
   - **Description**: Hard interface pinning via `SO_BINDTODEVICE` for outgoing direct TCP connects.
   - **Example**:
@@ -1110,17 +1109,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```toml
     [[upstreams]]
     type = "direct"
-    bindtodevice = "eth0"
-    ```
-## force_bind
-  - **Constraints / validation**: `String` (optional). Alias for `bindtodevice`.
-  - **Description**: Backward-compatible alias for Linux `SO_BINDTODEVICE` hard interface pinning.
-  - **Example**:
-
-    ```toml
-    [[upstreams]]
-    type = "direct"
-    force_bind = "eth0"
+    bind_device = "eth0"
     ```
 ## address
   - **Constraints / validation**: Required for `type = "socks"`. Must be `host:port` or `ip:port`.

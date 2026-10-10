@@ -95,7 +95,7 @@ fn test_runtime_with_dc(
             upstream_type: UpstreamType::Direct {
                 interface: None,
                 bind_addresses: None,
-                bindtodevice: None,
+                bind_device: None,
             },
             weight: 1,
             enabled: true,

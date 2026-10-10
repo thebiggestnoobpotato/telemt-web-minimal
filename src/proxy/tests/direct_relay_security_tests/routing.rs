@@ -122,7 +122,7 @@ async fn negative_direct_relay_dc_connection_refused_fails_fast() {
             upstream_type: UpstreamType::Direct {
                 interface: None,
                 bind_addresses: None,
-                bindtodevice: None,
+                bind_device: None,
             },
         }],
         1,
