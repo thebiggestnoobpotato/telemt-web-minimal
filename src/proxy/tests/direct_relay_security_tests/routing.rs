@@ -158,7 +158,6 @@ async fn negative_direct_relay_dc_connection_refused_fails_fast() {
             config,
             buffer_pool,
             rng,
-            0xABCD_1234,
         ),
     )
     .await

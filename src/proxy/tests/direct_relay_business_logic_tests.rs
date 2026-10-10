@@ -32,7 +32,7 @@ fn business_known_dc_uses_ipv6_table_when_preferred_and_enabled() {
 }
 
 #[test]
-fn business_unknown_dc_uses_configured_default_dc_when_in_range() {
+fn business_unknown_dc_uses_configured_dc_default_when_in_range() {
     let mut cfg = ProxyConfig::default();
     cfg.general.dc_default = Some(4);
 

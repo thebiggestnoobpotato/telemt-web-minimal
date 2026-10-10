@@ -37,7 +37,7 @@ max_client_frame = 16777217
 }
 
 #[test]
-fn load_rejects_unaligned_direct_relay_buffer_budget() {
+fn load_rejects_unaligned_dc_buffer_budget() {
     let path = write_temp_config(
         r#"
 [general]
@@ -55,7 +55,7 @@ dc_buffer_budget_max_bytes = 16777217
 }
 
 #[test]
-fn load_rejects_direct_relay_buffer_budget_above_hard_cap() {
+fn load_rejects_dc_buffer_budget_above_hard_cap() {
     let path = write_temp_config(
         r#"
 [general]

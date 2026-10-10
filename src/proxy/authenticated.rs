@@ -72,7 +72,6 @@ where
         warn!(user = %user, error = %error, "User admission check failed");
         error
     })?;
-    let session_id = deps.rng.u64();
     let Some(user_session) = deps
         .shared
         .register_authenticated_user_session(&user, credential_id)
@@ -94,7 +93,6 @@ where
         client_writer,
         success,
         &deps,
-        session_id,
         session_cancel,
     )
     .await;
@@ -107,7 +105,6 @@ async fn run_direct<R, W>(
     client_writer: CryptoWriter<W>,
     success: HandshakeSuccess,
     deps: &ClientRuntimeDeps,
-    session_id: u64,
     session_cancel: tokio_util::sync::CancellationToken,
 ) -> Result<()>
 where
@@ -123,7 +120,6 @@ where
         Arc::clone(&deps.config),
         Arc::clone(&deps.buffer_pool),
         Arc::clone(&deps.rng),
-        session_id,
         session_cancel,
         Arc::clone(&deps.shared),
     )
@@ -229,17 +225,6 @@ impl Drop for UserConnectionReservation {
         }
         self.stats.increment_session_drop_fallback_total();
     }
-}
-
-/// Applies user source-IP admission atomically.
-pub(crate) async fn acquire_user_connection_reservation(
-    user: &str,
-    stats: Arc<Stats>,
-    peer_addr: SocketAddr,
-    ip_tracker: Arc<UserIpTracker>,
-) -> Result<UserConnectionReservation> {
-    acquire_user_connection_reservation_for_incarnation(user, 0, stats, peer_addr, ip_tracker)
-        .await
 }
 
 async fn acquire_user_connection_reservation_for_incarnation(

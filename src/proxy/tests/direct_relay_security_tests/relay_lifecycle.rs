@@ -80,7 +80,6 @@ async fn direct_relay_abort_midflight_releases_route_gauge() {
         config,
         buffer_pool,
         rng,
-        0xabad1dea,
     ));
 
     let started = tokio::time::timeout(Duration::from_secs(2), async {

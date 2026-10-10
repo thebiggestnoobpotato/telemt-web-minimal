@@ -11,7 +11,6 @@ pub(crate) async fn handle_via_direct<R, W>(
     config: Arc<ProxyConfig>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    session_id: u64,
 ) -> Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
@@ -26,7 +25,6 @@ where
         config.clone(),
         buffer_pool,
         rng,
-        session_id,
         CancellationToken::new(),
         ProxySharedState::new(),
     )
@@ -43,7 +41,6 @@ pub(crate) async fn handle_via_direct_with_shared<R, W>(
     config: Arc<ProxyConfig>,
     buffer_pool: Arc<BufferPool>,
     rng: Arc<SecureRandom>,
-    session_id: u64,
     session_cancel: CancellationToken,
     shared: Arc<ProxySharedState>,
 ) -> Result<()>

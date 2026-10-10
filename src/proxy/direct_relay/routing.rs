@@ -54,9 +54,9 @@ pub(super) fn get_dc_addr_static(dc_idx: i16, config: &ProxyConfig) -> Result<So
         }
     }
 
-    let default_dc = config.general.dc_default.unwrap_or(2) as usize;
-    let fallback_idx = if default_dc >= 1 && default_dc <= num_dcs {
-        default_dc - 1
+    let dc_default = config.general.dc_default.unwrap_or(2) as usize;
+    let fallback_idx = if dc_default >= 1 && dc_default <= num_dcs {
+        dc_default - 1
     } else {
         0
     };
