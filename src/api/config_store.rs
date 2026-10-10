@@ -109,7 +109,7 @@ pub(super) fn compute_source_revision(graph: &ConfigSourceGraph) -> String {
     hex::encode(hasher.finalize())
 }
 
-/// Reads a normalized source snapshot without resolving decoys or loading static assets.
+/// Reads a normalized source snapshot without resolving fallbacks or loading static assets.
 pub(super) async fn load_config_snapshot(
     config_path: &Path,
     invalid_is_bad_request: bool,
@@ -263,14 +263,14 @@ fn normalize_source_path(path: &Path) -> PathBuf {
     normalized
 }
 
-/// Reads desired user policy without acquiring runtime decoy state.
+/// Reads desired user policy without acquiring runtime fallback state.
 pub(super) async fn load_config_from_disk(config_path: &Path) -> Result<ProxyConfig, ApiFailure> {
     load_config_snapshot(config_path, false)
         .await
         .map(|source| source.config)
 }
 
-/// Acquires fresh decoy evidence for an explicit API reload, even at the same revision.
+/// Acquires fresh fallback evidence for an explicit API reload, even at the same revision.
 pub(super) async fn load_config_for_reload(
     config_path: &Path,
 ) -> Result<(ProxyConfig, String), ApiFailure> {

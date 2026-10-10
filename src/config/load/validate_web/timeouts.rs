@@ -25,8 +25,8 @@ pub(super) fn validate(timeouts: &WebTimeoutsConfig) -> Result<()> {
         ("reconnect_grace_secs", timeouts.reconnect_grace_secs),
         ("http_idle_secs", timeouts.http_idle_secs),
         ("shutdown_secs", timeouts.shutdown_secs),
-        ("decoy_header_secs", timeouts.decoy_header_secs),
-        ("decoy_resolve_secs", timeouts.decoy_resolve_secs),
+        ("fallback_header_secs", timeouts.fallback_header_secs),
+        ("fallback_resolve_secs", timeouts.fallback_resolve_secs),
     ];
     if let Some((field, _)) = values
         .into_iter()
@@ -73,7 +73,7 @@ pub(super) fn validate(timeouts: &WebTimeoutsConfig) -> Result<()> {
         .header_secs
         .max(timeouts.body_secs)
         .max(timeouts.long_poll_secs)
-        .max(timeouts.decoy_header_secs);
+        .max(timeouts.fallback_header_secs);
     if request_deadline >= timeouts.http_idle_secs {
         return config_error("web.timeouts request deadlines must be lower than http_idle_secs");
     }

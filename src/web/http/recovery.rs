@@ -19,7 +19,7 @@ pub(super) enum RootRepresentation {
     Bridge,
     /// Return fresh recovery policy and optionally retire one current bearer.
     Recovery(Option<TokenHash>),
-    /// Hide malformed recovery material behind the configured decoy.
+    /// Hide malformed recovery material behind the configured fallback.
     Invalid,
 }
 

@@ -99,7 +99,7 @@ async fn base_path_routes_only_the_exact_prefixed_contract() {
     ] {
         let response = request(&listener, &runtime, bridge_request(path)).await;
         let (_, body) = split_response(&response);
-        assert_eq!(body, b"<!doctype html><title>decoy</title>");
+        assert_eq!(body, b"site unavailable\n");
     }
 
     runtime.shutdown().await;
@@ -185,7 +185,7 @@ async fn prefixed_https_carrier_creates_uses_and_closes_a_session() {
 }
 
 #[tokio::test]
-async fn authentic_credentials_never_reach_the_decoy() {
+async fn authentic_credentials_never_reach_the_fallback() {
     let capability = [23u8; 32];
     let config = runtime_config_with_base(capability, WebCarrier::Https, "/relay/");
     let generation = test_runtime_generation(1, config);
@@ -231,10 +231,7 @@ async fn authentic_credentials_never_reach_the_decoy() {
         bridge_request(&format!("/wrong/{forged}")),
     )
     .await;
-    assert_eq!(
-        split_response(&response).1,
-        b"<!doctype html><title>decoy</title>"
-    );
+    assert_eq!(split_response(&response).1, b"site unavailable\n");
 
     runtime.shutdown().await;
     generation.stop_sessions().await;
@@ -348,10 +345,7 @@ async fn generation_swap_switches_base_path_and_capability_together() {
         bridge_request(&format!("/old-path/?bridge={initial_encoded}")),
     )
     .await;
-    assert_eq!(
-        split_response(&stale).1,
-        b"<!doctype html><title>decoy</title>"
-    );
+    assert_eq!(split_response(&stale).1, b"site unavailable\n");
 
     let replacement_encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(replacement_capability);
@@ -377,7 +371,7 @@ async fn generation_swap_switches_base_path_and_capability_together() {
 }
 
 #[tokio::test]
-async fn prefixed_decoy_request_keeps_its_original_path_and_query() {
+async fn prefixed_fallback_request_keeps_its_original_path_and_query() {
     let site = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let site_addr = site.local_addr().unwrap();
     let site_task = tokio::spawn(async move {
@@ -400,12 +394,12 @@ async fn prefixed_decoy_request_keeps_its_original_path_and_query() {
     let vhost = Arc::new(WebRuntimeVhost {
         host: "proxy.example.com".to_string(),
         base: "/relay/".to_string(),
-        decoy_fasttrack_mode: WebDecoyFastTrackMode::Off,
-        decoy: WebRuntimeDecoy::HttpUpstream {
-            endpoint: DecoyEndpoint::Tcp(site_addr),
-            authority: "decoy.internal".to_string(),
+        fallback_fasttrack_mode: WebFallbackFastTrackMode::Off,
+        fallback: WebRuntimeFallback::HttpUpstream {
+            endpoint: FallbackEndpoint::Tcp(site_addr),
+            authority: "fallback.internal".to_string(),
         },
-        decoy_header_secs: 1,
+        fallback_header_secs: 1,
         profiles: vec![Arc::clone(&profile)],
         capabilities: vec![capability].into_boxed_slice(),
     });

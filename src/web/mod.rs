@@ -6,7 +6,7 @@ pub(crate) mod bridge;
 pub(crate) mod control;
 /// Shared binary frame codec and protocol constants.
 pub(crate) mod frame;
-/// Plain HTTP ingress and decoy routing behind external TLS termination.
+/// Plain HTTP ingress and fallback routing behind external TLS termination.
 pub(crate) mod http;
 /// Operator-facing `tg://webproxy` link formatting.
 pub(crate) mod links;
@@ -18,7 +18,7 @@ pub(crate) mod session;
 pub(crate) mod stream;
 /// Process-owned fixed-cardinality WEB operational telemetry.
 pub(crate) mod telemetry;
-/// Transport streams shared by listener ingress and decoy upstream egress.
+/// Transport streams shared by listener ingress and fallback upstream egress.
 pub(crate) mod transport;
 /// Process-owned bounded WEB debugging records and capture lifecycle.
 pub(crate) mod trace;

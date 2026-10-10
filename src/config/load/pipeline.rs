@@ -36,9 +36,9 @@ pub(super) fn finish(mut parsed: ParsedConfigSource) -> Result<LoadedConfig> {
 }
 
 impl ParsedConfigSource {
-    /// Resolves each unique decoy origin once, then builds a fully validated candidate.
+    /// Resolves each unique fallback origin once, then builds a fully validated candidate.
     pub(crate) async fn prepare(mut self) -> Result<LoadedConfig> {
-        decoy_dns::prepare(&mut self.config, |host, port| async move {
+        fallback_dns::prepare(&mut self.config, |host, port| async move {
             tokio::net::lookup_host((host.as_str(), port))
                 .await
                 .map(|answers| answers.collect())

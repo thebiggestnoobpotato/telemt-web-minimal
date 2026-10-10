@@ -1,7 +1,7 @@
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 
-use super::path::AnchoredPath;
+use super::path::{AnchoredPath, open_dir_nofollow};
 use super::write::atomic_replace_after_anchor;
 use super::*;
 

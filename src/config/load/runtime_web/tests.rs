@@ -55,38 +55,3 @@ fn capability_binds_the_exact_host_and_base_path_identity() {
     assert_eq!(identities.len(), 5);
 }
 
-#[cfg(unix)]
-#[test]
-fn static_snapshot_remains_anchored_after_root_path_replacement() {
-    use std::os::unix::fs::symlink;
-
-    let temp = tempfile::tempdir().unwrap();
-    let root = temp.path().join("site");
-    let detached = temp.path().join("detached");
-    let replacement = temp.path().join("replacement");
-    fs::create_dir(&root).unwrap();
-    fs::write(root.join("index.html"), b"original").unwrap();
-    fs::create_dir(&replacement).unwrap();
-    fs::write(replacement.join("index.html"), b"replacement").unwrap();
-
-    let directory = open_static_root(&root).unwrap();
-    fs::rename(&root, &detached).unwrap();
-    symlink(&replacement, &root).unwrap();
-
-    let mut assets = BTreeMap::new();
-    let mut total_files = 0;
-    let mut total_bytes = 0;
-    load_static_directory(
-        directory,
-        Path::new(""),
-        &root,
-        &mut assets,
-        &mut total_files,
-        &mut total_bytes,
-        &WebLimitsConfig::default(),
-        0,
-    )
-    .unwrap();
-
-    assert_eq!(assets["/index.html"].body.as_ref(), b"original");
-}

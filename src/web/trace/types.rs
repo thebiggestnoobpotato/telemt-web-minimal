@@ -6,7 +6,7 @@ pub(crate) enum TraceRoute {
     /// Routing has not completed yet.
     Unknown,
     /// Ordinary static or upstream fallback traffic.
-    Decoy,
+    Fallback,
     /// Authenticated bridge page issuance.
     Bridge,
     /// Bootstrap-to-session exchange.
@@ -26,7 +26,7 @@ impl TraceRoute {
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::Unknown => "unknown",
-            Self::Decoy => "decoy",
+            Self::Fallback => "fallback",
             Self::Bridge => "bridge",
             Self::Session => "session",
             Self::Uplink => "uplink",

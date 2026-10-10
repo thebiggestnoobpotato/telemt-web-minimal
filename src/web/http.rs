@@ -15,11 +15,11 @@ use hyper_util::rt::{TokioIo, TokioTimer};
 use ipnetwork::IpNetwork;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::{WebClientIpSource, WebDecoyFastTrackMode, WebRuntimeVhost};
+use crate::config::{WebClientIpSource, WebFallbackFastTrackMode, WebRuntimeVhost};
 use crate::maestro::generation::RuntimeGeneration;
 use crate::web::bridge;
 use crate::web::manager::{ManagerError, WebProcessRuntime};
-use crate::web::telemetry::WebDecoyFastTrackDisposition;
+use crate::web::telemetry::WebFallbackFastTrackDisposition;
 use crate::web::transport::WebListenerStream;
 
 // Response-body activity keeps connection idle accounting lifecycle-correct.
@@ -30,8 +30,8 @@ mod body;
 mod capability;
 // Authentic credential containment stays independent from carrier routing.
 mod secrets;
-// Decoy routing and upstream proxying are isolated from carrier authentication.
-mod decoy;
+// Fallback routing and upstream proxying are isolated from carrier authentication.
+mod fallback;
 // Authenticated generated-bridge diagnostics remain outside carrier framing.
 mod diagnostic;
 // Downlink long-poll handling remains isolated from request routing.
@@ -59,7 +59,7 @@ use crate::web::trace::{HttpTraceExchange, TraceDirection, TraceLifecycleEvent, 
 use activity::{ActivityBody, ConnectionActivity, RequestActivity, RequestDeadlineHandle};
 use body::{CollectBodyError, CollectedBody, RequestBody, collect_body};
 use capability::bridge_candidate;
-use decoy::serve_decoy;
+use fallback::serve_fallback;
 use down::handle_down;
 use request::{
     bearer_token_hash, binary_content_type, canonical_request_host, canonical_u64_header,
@@ -174,7 +174,7 @@ async fn handle_request(
     trusted_proxy_cidrs: &[IpNetwork],
     runtime: Arc<WebProcessRuntime>,
 ) -> HttpResponse {
-    set_trace_route(&request, TraceRoute::Decoy);
+    set_trace_route(&request, TraceRoute::Fallback);
     if let Some(trace) = request_trace(&request)
         && let Some(client_ip) = client_ip(&request, peer, client_ip_source, trusted_proxy_cidrs)
     {
@@ -231,7 +231,7 @@ async fn handle_request(
     if sanitize_recovery {
         strip_query(&mut request);
     }
-    serve_decoy(request, vhost, sanitize_recovery, &runtime).await
+    serve_fallback(request, vhost, sanitize_recovery, &runtime).await
 }
 
 async fn handle_root(
@@ -246,38 +246,38 @@ async fn handle_root(
     let representation = recovery::classify(&request);
     if matches!(representation, recovery::RootRepresentation::Invalid) {
         strip_query(&mut request);
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let candidate = bridge_candidate(request.uri().query());
     let canonical = candidate.is_canonical();
     let plausible_candidate = canonical && request.method() == Method::GET;
-    let fasttrack_mode = vhost.decoy_fasttrack_mode;
+    let fasttrack_mode = vhost.fallback_fasttrack_mode;
     match fasttrack_mode {
-        WebDecoyFastTrackMode::Off => {}
-        WebDecoyFastTrackMode::Shadow => {
+        WebFallbackFastTrackMode::Off => {}
+        WebFallbackFastTrackMode::Shadow => {
             runtime
                 .telemetry()
-                .record_decoy_fasttrack(if plausible_candidate {
-                    WebDecoyFastTrackDisposition::ShadowCandidateFullScan
+                .record_fallback_fasttrack(if plausible_candidate {
+                    WebFallbackFastTrackDisposition::ShadowCandidateFullScan
                 } else {
-                    WebDecoyFastTrackDisposition::ShadowWouldFastTrack
+                    WebFallbackFastTrackDisposition::ShadowWouldFastTrack
                 });
         }
-        WebDecoyFastTrackMode::Enforce if !plausible_candidate => {
+        WebFallbackFastTrackMode::Enforce if !plausible_candidate => {
             runtime
                 .telemetry()
-                .record_decoy_fasttrack(WebDecoyFastTrackDisposition::EnforceFastTrack);
+                .record_fallback_fasttrack(WebFallbackFastTrackDisposition::EnforceFastTrack);
             let recovery_requested =
                 matches!(representation, recovery::RootRepresentation::Recovery(_));
             if recovery_requested {
                 strip_query(&mut request);
             }
-            return serve_decoy(request, vhost, recovery_requested, &runtime).await;
+            return serve_fallback(request, vhost, recovery_requested, &runtime).await;
         }
-        WebDecoyFastTrackMode::Enforce => {
+        WebFallbackFastTrackMode::Enforce => {
             runtime
                 .telemetry()
-                .record_decoy_fasttrack(WebDecoyFastTrackDisposition::EnforceCandidateFullScan);
+                .record_fallback_fasttrack(WebFallbackFastTrackDisposition::EnforceCandidateFullScan);
         }
     }
     let matched_profile = match_profile(&vhost, candidate.scan_bytes());
@@ -287,11 +287,11 @@ async fn handle_root(
         if recovery_requested {
             strip_query(&mut request);
         }
-        return serve_decoy(request, vhost, recovery_requested, &runtime).await;
+        return serve_fallback(request, vhost, recovery_requested, &runtime).await;
     };
     let Some(client_ip) = client_ip(&request, peer, client_ip_source, trusted_proxy_cidrs) else {
         strip_query(&mut request);
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     if let Some(trace) = request_trace(&request) {
         trace.set_route(TraceRoute::Bridge);
@@ -325,7 +325,7 @@ async fn handle_root(
         ),
         recovery::RootRepresentation::Invalid => {
             strip_query(&mut request);
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
     } {
         Ok(bootstrap) => bootstrap,
@@ -339,7 +339,7 @@ async fn handle_root(
                 Some(error.as_str()),
             );
             strip_query(&mut request);
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
     };
     if let Some(trace) = request_trace(&request) {
@@ -359,7 +359,7 @@ async fn handle_root(
                 .is_err()
             {
                 strip_query(&mut request);
-                return serve_decoy(request, vhost, true, &runtime).await;
+                return serve_fallback(request, vhost, true, &runtime).await;
             }
         }
         let Some(response) = recovery::response(
@@ -370,7 +370,7 @@ async fn handle_root(
             &config.web.timeouts,
         ) else {
             strip_query(&mut request);
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         };
         return response;
     }
@@ -438,16 +438,16 @@ async fn handle_api(
     vhost: Arc<WebRuntimeVhost>,
 ) -> HttpResponse {
     if request.uri().query().is_some() || !compatible_cookie_header(&request) {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let Some(client_ip) = client_ip(&request, peer, client_ip_source, trusted_proxy_cidrs) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     if let Some(trace) = request_trace(&request) {
         trace.set_effective_ip(client_ip);
     }
     let Some(token_hash) = bearer_token_hash(&request) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     match request.uri().path().strip_prefix(&vhost.base) {
         Some("api/v1/session") => {
@@ -458,7 +458,7 @@ async fn handle_api(
         Some("api/v1/diagnostic") => {
             diagnostic::handle(request, runtime, vhost, token_hash, client_ip).await
         }
-        _ => serve_decoy(request, vhost, true, &runtime).await,
+        _ => serve_fallback(request, vhost, true, &runtime).await,
     }
 }
 fn strip_query<B>(request: &mut Request<B>) {

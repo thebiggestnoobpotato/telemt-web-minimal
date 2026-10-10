@@ -48,7 +48,7 @@ pub(crate) async fn prepare_runtime(
 ) -> Result<PreparedRuntime, String> {
     let user_admission_epoch = user_admission.epoch();
     config
-        .validate_web_decoy_listener_separation()
+        .validate_web_fallback_listener_separation()
         .map_err(|error| error.to_string())?;
     let started_at_epoch_secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -229,9 +229,9 @@ pub(crate) fn resolve_reload_config(
         fields.push("web.limits".to_string());
         effective.web.limits = old.web.limits.clone();
     }
-    if old.web.decoy_fasttrack_mode != desired.web.decoy_fasttrack_mode {
-        fields.push("web.decoy_fasttrack_mode".to_string());
-        effective.web.decoy_fasttrack_mode = old.web.decoy_fasttrack_mode;
+    if old.web.fallback_fasttrack_mode != desired.web.fallback_fasttrack_mode {
+        fields.push("web.fallback_fasttrack_mode".to_string());
+        effective.web.fallback_fasttrack_mode = old.web.fallback_fasttrack_mode;
     }
     if effective.web.carrier_negotiation_enabled()
         && effective.web.carrier_learning
@@ -293,7 +293,7 @@ pub(crate) fn deferred_process_fields(
 
 fn configs_equal(old: &ProxyConfig, new: &ProxyConfig) -> bool {
     serde_json::to_value(old).ok() == serde_json::to_value(new).ok()
-        && old.web_decoy_endpoints_equal(new)
+        && old.web_fallback_endpoints_equal(new)
 }
 
 #[cfg(test)]

@@ -23,7 +23,7 @@ pub(super) fn validate(policy: &WebDebugConfig, limits: &WebLimitsConfig) -> Res
         );
     }
     if policy.body_prefix_bytes > limits.debug_bytes_global
-        || policy.decoy_body_prefix_bytes > limits.debug_bytes_global
+        || policy.fallback_body_prefix_bytes > limits.debug_bytes_global
     {
         return config_error(
             "web.debug body prefixes must not exceed web.limits.debug_bytes_global",

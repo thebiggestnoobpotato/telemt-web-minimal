@@ -8,7 +8,7 @@ mod path;
 mod write;
 
 pub(crate) use path::{
-    AnchoredPath, chdir_nofollow_or_create, open_compatible_dir, open_dir_nofollow,
+    AnchoredPath, chdir_nofollow_or_create, open_compatible_dir,
     open_trusted_dir_nofollow_or_create,
 };
 pub(crate) use write::{

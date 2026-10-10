@@ -9,29 +9,29 @@ pub(super) async fn handle_up(
     token_hash: crate::web::manager::TokenHash,
 ) -> HttpResponse {
     if !matches!(*request.method(), Method::POST | Method::PUT) || !binary_content_type(&request) {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let Some(sequence) = canonical_u64_header(&request, "x-up-seq").filter(|value| *value != 0)
     else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     let Ok(session) = runtime.get_session(token_hash, &vhost.host) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     if session.carrier().uses_websocket() {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     if let Some(trace) = request_trace(&request) {
         trace.set_route(TraceRoute::Uplink);
         trace.bind_identity(session.trace_identity());
     }
     let Some(lane_id) = carrier_lane(&request, session.carrier()) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
 
     let confirmed = if request.headers().contains_key("x-telemt-up-confirmed") {
         let Some(value) = canonical_u64_header(&request, "x-telemt-up-confirmed") else {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         };
         Some(value)
     } else {
@@ -47,7 +47,7 @@ pub(super) async fn handle_up(
         )) => {
             return service_unavailable();
         }
-        Err(_) => return serve_decoy(request, vhost, true, &runtime).await,
+        Err(_) => return serve_fallback(request, vhost, true, &runtime).await,
     };
     let limit = session.limits().max_body_bytes;
     let CollectedBody {
@@ -66,7 +66,7 @@ pub(super) async fn handle_up(
         Ok(result) => result,
         Err(CollectBodyError::Limit) => return service_unavailable(),
         Err(CollectBodyError::Invalid(request)) => {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
     };
     if let Some(trace) = request_trace(&request) {
@@ -104,6 +104,6 @@ pub(super) async fn handle_up(
         Err(ConveyorError::Manager(
             ManagerError::Backpressure | ManagerError::Concurrent | ManagerError::Limit,
         )) => service_unavailable(),
-        Err(_) => serve_decoy(request, vhost, true, &runtime).await,
+        Err(_) => serve_fallback(request, vhost, true, &runtime).await,
     }
 }

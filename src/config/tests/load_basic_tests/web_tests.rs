@@ -9,8 +9,8 @@ mod carrier_method_tests;
 
 #[path = "web_tests/conveyor_tests.rs"]
 mod conveyor_tests;
-#[path = "web_tests/decoy_dns_tests.rs"]
-mod decoy_dns_tests;
+#[path = "web_tests/fallback_dns_tests.rs"]
+mod fallback_dns_tests;
 
 const WEB_CONFIG: &str = r#"
 [access.users]
@@ -31,7 +31,7 @@ carrier = "https-lanes"
 host = "Proxy.Example.COM"
 public_addr = "203.0.113.10:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
 
@@ -56,7 +56,7 @@ fn web_config_builds_canonical_runtime_snapshot() {
     assert_eq!(vhost.capabilities.len(), vhost.profiles.len());
     assert_eq!(vhost.capabilities[0], vhost.profiles[0].capability);
     assert_eq!(runtime.capabilities.as_ref(), vhost.capabilities.as_ref());
-    assert_eq!(vhost.decoy_fasttrack_mode, WebDecoyFastTrackMode::Off);
+    assert_eq!(vhost.fallback_fasttrack_mode, WebFallbackFastTrackMode::Off);
     assert_eq!(vhost.profiles[0].user, "alice");
     assert_eq!(vhost.profiles[0].secret_mode, WebSecretMode::Dd);
     assert_eq!(vhost.profiles[0].carrier, WebCarrier::HttpsLanes);
@@ -133,34 +133,34 @@ fn web_base_path_rejects_noncanonical_forms() {
 }
 
 #[test]
-fn web_decoy_fasttrack_mode_is_typed_and_defaults_off() {
+fn web_fallback_fasttrack_mode_is_typed_and_defaults_off() {
     let defaults = ProxyConfig::default();
     assert_eq!(
-        defaults.web.decoy_fasttrack_mode,
-        WebDecoyFastTrackMode::Off
+        defaults.web.fallback_fasttrack_mode,
+        WebFallbackFastTrackMode::Off
     );
 
     for (token, expected) in [
-        ("shadow", WebDecoyFastTrackMode::Shadow),
-        ("enforce", WebDecoyFastTrackMode::Enforce),
+        ("shadow", WebFallbackFastTrackMode::Shadow),
+        ("enforce", WebFallbackFastTrackMode::Enforce),
     ] {
         let configured = WEB_CONFIG.replace(
             "carrier = \"https-lanes\"",
-            &format!("carrier = \"https-lanes\"\ndecoy_fasttrack_mode = \"{token}\""),
+            &format!("carrier = \"https-lanes\"\nfallback_fasttrack_mode = \"{token}\""),
         );
         let config = load_config_from_temp_toml(&configured);
-        assert_eq!(config.web.decoy_fasttrack_mode, expected);
+        assert_eq!(config.web.fallback_fasttrack_mode, expected);
         assert_eq!(
-            config.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].decoy_fasttrack_mode,
+            config.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].fallback_fasttrack_mode,
             expected
         );
     }
 
     let invalid = WEB_CONFIG.replace(
         "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\ndecoy_fasttrack_mode = \"automatic\"",
+        "carrier = \"https-lanes\"\nfallback_fasttrack_mode = \"automatic\"",
     );
-    assert!(load_config_error_from_temp_toml(&invalid).contains("decoy_fasttrack_mode"));
+    assert!(load_config_error_from_temp_toml(&invalid).contains("fallback_fasttrack_mode"));
 }
 
 #[test]
@@ -222,16 +222,16 @@ fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
 }
 
 #[test]
-fn web_decoy_rejects_direct_and_wildcard_listener_loops() {
+fn web_fallback_rejects_direct_and_wildcard_listener_loops() {
     let direct = WEB_CONFIG.replace("http://127.0.0.1:18081", "http://127.0.0.1:18080");
     assert!(
-        load_config_error_from_temp_toml(&direct).contains("decoy upstream overlaps WEB listener")
+        load_config_error_from_temp_toml(&direct).contains("fallback upstream overlaps WEB listener")
     );
 
     let wildcard = direct.replace("ip = \"127.0.0.1\"", "ip = \"0.0.0.0\"");
     assert!(
         load_config_error_from_temp_toml(&wildcard)
-            .contains("decoy upstream overlaps WEB listener")
+            .contains("fallback upstream overlaps WEB listener")
     );
 }
 
@@ -488,15 +488,49 @@ fn web_semaphore_limits_are_rejected_before_runtime_construction() {
 }
 
 #[test]
-fn web_ipv6_decoy_uses_a_valid_http_authority() {
+fn web_ipv6_fallback_uses_a_valid_http_authority() {
     let ipv6 = WEB_CONFIG.replace("http://127.0.0.1:18081", "http://[::1]:18081");
     let config = load_config_from_temp_toml(&ipv6);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime.vhosts.get("proxy.example.com").unwrap();
-    let WebRuntimeDecoy::HttpUpstream { authority, .. } = &vhost.decoy else {
-        panic!("expected HTTP decoy");
-    };
+    let WebRuntimeFallback::HttpUpstream { authority, .. } = &vhost.fallback;
     assert_eq!(authority, "[::1]:18081");
+}
+
+#[test]
+fn fallback_static_directory_mode_is_stripped() {
+    // The static_directory mode value was removed with the static snapshot
+    // machinery; referencing it is a parse-level error for both strict and
+    // non-strict loads.
+    let invalid = WEB_CONFIG
+        .replace("mode = \"http_upstream\"", "mode = \"static_directory\"");
+    let strict_error =
+        load_config_error_from_temp_toml(&format!("[general]\nconfig_strict = true\n{invalid}"));
+    assert!(strict_error.contains("static_directory"), "{strict_error}");
+
+    let error = load_config_error_from_temp_toml(&invalid);
+    assert!(error.contains("static_directory"), "{error}");
+}
+
+#[test]
+fn fallback_static_keys_are_stripped() {
+    let stripped = WEB_CONFIG.replace(
+        "mode = \"http_upstream\"",
+        "mode = \"http_upstream\"\ndirectory = \"/var/lib/telemt/site\"\nindex = \"index.html\"",
+    );
+    // strict: the removed static keys are rejected under
+    // [web.vhosts.fallback].
+    let error =
+        load_config_error_from_temp_toml(&format!("[general]\nconfig_strict = true\n{stripped}"));
+    assert!(error.contains("web.vhosts[0].fallback.directory"), "{error}");
+
+    // non-strict: the old keys are ignored and the http_upstream fallback
+    // loads untouched.
+    let config = load_config_from_temp_toml(&stripped);
+    let runtime = config.web.runtime.expect("WEB runtime snapshot");
+    let vhost = runtime.vhosts.get("proxy.example.com").unwrap();
+    let WebRuntimeFallback::HttpUpstream { authority, .. } = &vhost.fallback;
+    assert_eq!(authority, "127.0.0.1:18081");
 }
 
 #[test]

@@ -10,7 +10,7 @@ host = "Other.Example.COM"
 base_path = "other/path"
 public_addr = "203.0.113.11:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:18082"
 

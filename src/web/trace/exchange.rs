@@ -131,7 +131,7 @@ impl HttpTraceExchange {
         })
     }
 
-    /// Sets the final request route before body polling or decoy forwarding.
+    /// Sets the final request route before body polling or fallback forwarding.
     pub(crate) fn set_route(&self, route: TraceRoute) {
         let mut state = self.state.lock();
         if state.phase == ExchangePhase::Open {

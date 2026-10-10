@@ -129,13 +129,13 @@ pub(super) fn capture_limit(
 ) -> Option<usize> {
     let limit = match policy.body_capture {
         WebDebugBodyCapture::Off | WebDebugBodyCapture::Metadata => None,
-        WebDebugBodyCapture::Prefix => Some(if decoy_route(route) {
-            policy.decoy_body_prefix_bytes
+        WebDebugBodyCapture::Prefix => Some(if fallback_route(route) {
+            policy.fallback_body_prefix_bytes
         } else {
             policy.body_prefix_bytes
         }),
-        WebDebugBodyCapture::Full => Some(if decoy_route(route) {
-            policy.decoy_body_prefix_bytes
+        WebDebugBodyCapture::Full => Some(if fallback_route(route) {
+            policy.fallback_body_prefix_bytes
         } else {
             max_carrier_body_bytes
         }),
@@ -264,8 +264,8 @@ fn lossy_text_reservation(value: &[u8], limit: usize) -> usize {
     value.len().min(limit).saturating_mul(3)
 }
 
-fn decoy_route(route: TraceRoute) -> bool {
-    matches!(route, TraceRoute::Unknown | TraceRoute::Decoy)
+fn fallback_route(route: TraceRoute) -> bool {
+    matches!(route, TraceRoute::Unknown | TraceRoute::Fallback)
 }
 
 fn push_redaction(values: &mut Vec<Zeroizing<Vec<u8>>>, value: &[u8]) {
@@ -282,13 +282,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn full_capture_keeps_decoy_bodies_prefix_bounded() {
+    fn full_capture_keeps_fallback_bodies_prefix_bounded() {
         let policy = WebDebugConfig {
             body_capture: WebDebugBodyCapture::Full,
-            decoy_body_prefix_bytes: 123,
+            fallback_body_prefix_bytes: 123,
             ..Default::default()
         };
-        assert_eq!(capture_limit(&policy, TraceRoute::Decoy, 4096), Some(123));
+        assert_eq!(capture_limit(&policy, TraceRoute::Fallback, 4096), Some(123));
         assert_eq!(capture_limit(&policy, TraceRoute::Uplink, 4096), Some(4096));
     }
 

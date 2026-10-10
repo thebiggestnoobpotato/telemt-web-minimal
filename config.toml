@@ -46,9 +46,20 @@ enabled = true
 host = "proxy.example.com"
 public_addr = "203.0.113.1:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
+# Ordinary-site fallback for unauthenticated or invalid traffic.
+# The only mode is http_upstream.
 mode = "http_upstream"
+# http_upstream: required. An http:// origin without credentials, path, query,
+# or fragment whose host is a loopback, link-local, or private IP literal, or
+# unix:/absolute/path.sock to connect a local unix socket (no DNS; the vhost
+# host is sent as the request authority).
 upstream = "http://127.0.0.1:80"
+# http_upstream: optional. "never" = IP literals only, no DNS (default);
+# "startup" = resolve a hostname once during config preparation; every answer
+# must stay inside loopback or a private network and the answers are pinned
+# for the generation. Rejected for unix: origins.
+# resolve = "never"
 
 [[web.vhosts.profiles]]
 user = "hello"

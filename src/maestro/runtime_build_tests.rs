@@ -12,12 +12,12 @@ fn test_listener(port: u16) -> crate::config::ListenerConfig {
     }
 }
 
-// WEB listeners require a vhost; the decoy target avoids every listener port.
+// WEB listeners require a vhost; the fallback target avoids every listener port.
 fn test_vhost() -> crate::config::WebVhostConfig {
     serde_json::from_value(serde_json::json!({
         "host": "proxy.example.com",
         "public_addr": "203.0.113.10:443",
-        "decoy": {
+        "fallback": {
             "mode": "http_upstream",
             "upstream": "http://127.0.0.1:18090"
         },
@@ -43,13 +43,13 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
 [web]
 enabled = true
-decoy_fasttrack_mode = "{mode}"
+fallback_fasttrack_mode = "{mode}"
 
 [[web.vhosts]]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
 
@@ -223,7 +223,7 @@ fn web_allocation_limits_are_deferred_until_restart() {
 }
 
 #[test]
-fn web_decoy_fasttrack_mode_is_deferred_without_runtime_publication() {
+fn web_fallback_fasttrack_mode_is_deferred_without_runtime_publication() {
     let old = web_config_with_fasttrack("off");
     let desired = web_config_with_fasttrack("enforce");
 
@@ -231,17 +231,17 @@ fn web_decoy_fasttrack_mode_is_deferred_without_runtime_publication() {
 
     assert_eq!(
         resolved.deferred_process_fields,
-        vec!["web.decoy_fasttrack_mode".to_string()]
+        vec!["web.fallback_fasttrack_mode".to_string()]
     );
     assert_eq!(
-        resolved.effective.web.decoy_fasttrack_mode,
-        old.web.decoy_fasttrack_mode
+        resolved.effective.web.fallback_fasttrack_mode,
+        old.web.fallback_fasttrack_mode
     );
     let effective_runtime = resolved.effective.web.runtime.as_ref().unwrap();
     let effective_vhost = &effective_runtime.vhosts["proxy.example.com"];
     assert_eq!(
-        effective_vhost.decoy_fasttrack_mode,
-        old.web.decoy_fasttrack_mode
+        effective_vhost.fallback_fasttrack_mode,
+        old.web.fallback_fasttrack_mode
     );
     assert!(!resolved.runtime_changed);
 }
@@ -371,7 +371,7 @@ fn endpoint_only_listener_move_is_deferred_to_process_restart() {
 
 
 #[test]
-fn deferred_listener_identity_cannot_create_an_effective_decoy_loop() {
+fn deferred_listener_identity_cannot_create_an_effective_fallback_loop() {
     let mut old = ProxyConfig::default();
     old.listener = Some(test_listener(18080));
     old.listener.as_mut().unwrap().transport = crate::config::ListenerTransport::Web;
@@ -382,7 +382,7 @@ fn deferred_listener_identity_cannot_create_an_effective_decoy_loop() {
         serde_json::from_value(serde_json::json!({
             "host": "proxy.example",
             "public_addr": "203.0.113.10:443",
-            "decoy": {
+            "fallback": {
                 "mode": "http_upstream",
                 "upstream": "http://127.0.0.1:18080"
             },
@@ -391,6 +391,6 @@ fn deferred_listener_identity_cannot_create_an_effective_decoy_loop() {
         .unwrap(),
     ];
 
-    assert!(desired.validate_web_decoy_listener_separation().is_ok());
+    assert!(desired.validate_web_fallback_listener_separation().is_ok());
     assert!(resolve_reload_config(&old, &desired).is_err());
 }

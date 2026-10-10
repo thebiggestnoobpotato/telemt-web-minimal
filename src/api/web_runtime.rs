@@ -17,11 +17,11 @@ use crate::web::manager::{ControlError, OperatorLifecycleError, SessionDetail, W
 
 // Exact JSON DTOs and strict query parsing stay independent from route dispatch.
 mod request;
-// Ingress, capacity, and decoy telemetry remain separate availability planes.
+// Ingress, capacity, and fallback telemetry remain separate availability planes.
 mod observability;
 use observability::{
-    WebCapacityStatus, WebCarrierNegotiationStatus, WebDecoyFastTrackStatus,
-    WebDecoyUpstreamStatus, WebIngressStatus, WebLifecycleCountersStatus,
+    WebCapacityStatus, WebCarrierNegotiationStatus, WebFallbackFastTrackStatus,
+    WebFallbackUpstreamStatus, WebIngressStatus, WebLifecycleCountersStatus,
 };
 use request::{
     CloseRequest, DrainRequest, RuntimeInstanceRequest, parse_session_query, parse_session_ref,
@@ -279,8 +279,8 @@ struct WebStatusData {
     effective_config_enabled: bool,
     ingress: WebIngressStatus,
     capacity: WebCapacityStatus,
-    decoy_upstream: WebDecoyUpstreamStatus,
-    decoy_fasttrack: WebDecoyFastTrackStatus,
+    fallback_upstream: WebFallbackUpstreamStatus,
+    fallback_fasttrack: WebFallbackFastTrackStatus,
     carrier_negotiation: WebCarrierNegotiationStatus,
     lifecycle_counters: WebLifecycleCountersStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -315,8 +315,8 @@ impl WebStatusData {
         let operator_lifecycle = runtime.map(WebProcessRuntime::operator_lifecycle_status);
         let ingress = WebIngressStatus::new(&publication, runtime.is_some());
         let capacity = WebCapacityStatus::new(&publication, runtime, config);
-        let decoy_upstream = WebDecoyUpstreamStatus::new(&publication);
-        let decoy_fasttrack = WebDecoyFastTrackStatus::new(&publication, config);
+        let fallback_upstream = WebFallbackUpstreamStatus::new(&publication);
+        let fallback_fasttrack = WebFallbackFastTrackStatus::new(&publication, config);
         let carrier_negotiation = WebCarrierNegotiationStatus::new(&publication);
         let lifecycle_counters = WebLifecycleCountersStatus::new(&publication, config);
         Self {
@@ -333,8 +333,8 @@ impl WebStatusData {
             effective_config_enabled: config.web.enabled,
             ingress,
             capacity,
-            decoy_upstream,
-            decoy_fasttrack,
+            fallback_upstream,
+            fallback_fasttrack,
             carrier_negotiation,
             lifecycle_counters,
             operator_lifecycle,

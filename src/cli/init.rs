@@ -277,7 +277,7 @@ host = "{domain}"
 # Replace with this server's public IP and port.
 public_addr = "203.0.113.1:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:80"
 

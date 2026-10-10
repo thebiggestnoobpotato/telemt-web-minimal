@@ -13,7 +13,7 @@
 //! | `web`     | `carrier_method`               | Applied to newly rendered bridge pages        |
 //! Fields that require re-binding sockets (`listener`)
 //! are **not** applied; a warning is emitted.
-//! `web.decoy_fasttrack_mode` is also restart-only so one process never mixes
+//! `web.fallback_fasttrack_mode` is also restart-only so one process never mixes
 //! capability timing policies or process-lifetime counter semantics.
 //! Non-hot changes are never mixed into the runtime config snapshot.
 

@@ -83,7 +83,7 @@ name = "crypto_bench"
 harness = false
 
 [[bench]]
-name = "web_decoy_fasttrack"
+name = "web_fallback_fasttrack"
 harness = false
 
 [profile.release]

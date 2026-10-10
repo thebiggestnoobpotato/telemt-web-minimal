@@ -29,7 +29,7 @@ const MAX_WEB_MEMORY_ENVELOPE_BYTES: usize = 4 * 1024 * 1024 * 1024;
 /// Validates WEB policy and resource bounds before building runtime state.
 pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
     validate_source(config)?;
-    validate_decoy_listener_separation(config)
+    validate_fallback_listener_separation(config)
 }
 
 /// Validates source policy without requiring DNS evidence for opted-in origins.
@@ -76,16 +76,16 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
     timeouts::validate(&config.web.timeouts)?;
     websocket::validate(&carriers, &config.web.limits, &config.web.timeouts)?;
     validate_vhosts(config)?;
-    validate_decoy_listener_separation_inner(config, false)?;
+    validate_fallback_listener_separation_inner(config, false)?;
     Ok(())
 }
 
-/// Rejects a direct decoy recursion into an effective WEB listener.
-pub(super) fn validate_decoy_listener_separation(config: &ProxyConfig) -> Result<()> {
-    validate_decoy_listener_separation_inner(config, true)
+/// Rejects a direct fallback recursion into an effective WEB listener.
+pub(super) fn validate_fallback_listener_separation(config: &ProxyConfig) -> Result<()> {
+    validate_fallback_listener_separation_inner(config, true)
 }
 
-fn validate_decoy_listener_separation_inner(
+fn validate_fallback_listener_separation_inner(
     config: &ProxyConfig,
     require_resolved: bool,
 ) -> Result<()> {
@@ -97,17 +97,15 @@ fn validate_decoy_listener_separation_inner(
         .filter_map(ListenerEndpoint::from_listener)
         .collect::<Vec<_>>();
     for (vhost_idx, vhost) in config.web.vhosts.iter().enumerate() {
-        let WebDecoyConfig::HttpUpstream { upstream, resolve } = &vhost.decoy else {
-            continue;
-        };
-        let origin = decoy_dns::parse_origin(vhost_idx, upstream, *resolve)?;
-        for endpoint in decoy_dns::addresses(config, vhost_idx, &origin, require_resolved)? {
+        let WebFallbackConfig::HttpUpstream { upstream, resolve } = &vhost.fallback;
+        let origin = fallback_dns::parse_origin(vhost_idx, upstream, *resolve)?;
+        for endpoint in fallback_dns::addresses(config, vhost_idx, &origin, require_resolved)? {
             if web_endpoints
                 .iter()
-                .any(|listener| decoy_endpoint_overlaps(listener, &endpoint))
+                .any(|listener| fallback_endpoint_overlaps(listener, &endpoint))
             {
                 return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].decoy upstream overlaps WEB listener {endpoint}"
+                    "web.vhosts[{vhost_idx}].fallback upstream overlaps WEB listener {endpoint}"
                 ));
             }
         }
@@ -116,12 +114,12 @@ fn validate_decoy_listener_separation_inner(
 }
 
 /// Unix socket paths and TCP endpoints never collide across namespaces.
-fn decoy_endpoint_overlaps(listener: &ListenerEndpoint, target: &DecoyEndpoint) -> bool {
+fn fallback_endpoint_overlaps(listener: &ListenerEndpoint, target: &FallbackEndpoint) -> bool {
     match (listener, target) {
-        (ListenerEndpoint::Tcp(listener), DecoyEndpoint::Tcp(target)) => {
+        (ListenerEndpoint::Tcp(listener), FallbackEndpoint::Tcp(target)) => {
             listener_covers(*listener, *target)
         }
-        (ListenerEndpoint::Unix(listener), DecoyEndpoint::Unix(target)) => listener == target,
+        (ListenerEndpoint::Unix(listener), FallbackEndpoint::Unix(target)) => listener == target,
         _ => false,
     }
 }
@@ -272,9 +270,6 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         ("max_bootstraps_per_ip", limits.max_bootstraps_per_ip),
         ("max_vhosts", limits.max_vhosts),
         ("max_profiles", limits.max_profiles),
-        ("max_static_files", limits.max_static_files),
-        ("max_static_file_bytes", limits.max_static_file_bytes),
-        ("max_static_bytes", limits.max_static_bytes),
         ("debug_records_capacity", limits.debug_records_capacity),
         ("debug_bytes_global", limits.debug_bytes_global),
         ("memory_envelope_bytes", limits.memory_envelope_bytes),
@@ -330,7 +325,6 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         || limits.control_bytes_per_session > limits.control_bytes_global
         || limits.control_bytes_per_session > limits.pending_bytes_per_session
         || limits.control_bytes_global > limits.pending_bytes_global
-        || limits.max_static_file_bytes > limits.max_static_bytes
     {
         return config_error("web.limits per-owner ceilings must not exceed global ceilings");
     }
@@ -422,7 +416,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
     Ok(())
 }
 
-// Virtual-host, hostname, and decoy validation.
+// Virtual-host, hostname, and fallback validation.
 mod vhosts;
 use vhosts::*;
 

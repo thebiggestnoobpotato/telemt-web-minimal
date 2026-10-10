@@ -6,7 +6,7 @@ use hyper::header::{self, HeaderName, HeaderValue};
 use hyper::{Method, Request, StatusCode};
 
 use super::body::{CollectBodyError, CollectedBody, RequestBody, collect_body};
-use super::decoy::serve_decoy;
+use super::fallback::serve_fallback;
 use super::request::{
     binary_content_type, carrier_ip_learning_eligible, carrier_request, optional_failure_header,
 };
@@ -30,14 +30,14 @@ pub(super) async fn handle_session(
     client_ip: IpAddr,
 ) -> HttpResponse {
     if request.headers().contains_key("x-lane-id") {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     if request.method() == Method::DELETE {
         if request.headers().contains_key(header::CONTENT_TYPE) {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
         let Some(carrier_failure) = optional_failure_header(&request) else {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         };
         let session = runtime.get_session(token_hash, &vhost.host).ok();
         if let Some(trace) = request_trace(&request)
@@ -58,7 +58,7 @@ pub(super) async fn handle_session(
             Ok(result) => result,
             Err(CollectBodyError::Limit) => return service_unavailable(),
             Err(CollectBodyError::Invalid(request)) => {
-                return serve_decoy(request, vhost, true, &runtime).await;
+                return serve_fallback(request, vhost, true, &runtime).await;
             }
         };
         if !body.is_empty()
@@ -66,21 +66,21 @@ pub(super) async fn handle_session(
                 .close_token(token_hash, &vhost.host, carrier_failure)
                 .is_err()
         {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
         return carrier_empty(StatusCode::NO_CONTENT);
     }
     if request.method() != Method::POST || !binary_content_type(&request) {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let Some(carrier_request) = carrier_request(&request, &vhost.host) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     let up_window = if request.headers().contains_key("x-telemt-up-window") {
         let Some(window) = super::request::canonical_u64_header(&request, "x-telemt-up-window")
             .filter(|window| (1..=4).contains(window))
         else {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         };
         Some(window as u8)
     } else {
@@ -91,7 +91,7 @@ pub(super) async fn handle_session(
     let Some((trace_session_id, profile, body_timeout)) =
         runtime.bootstrap_trace_identity(token_hash, &vhost.host)
     else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     if let Some(trace) = request_trace(&request) {
         trace.set_route(TraceRoute::Session);
@@ -105,7 +105,7 @@ pub(super) async fn handle_session(
         Ok(result) => result,
         Err(CollectBodyError::Limit) => return service_unavailable(),
         Err(CollectBodyError::Invalid(request)) => {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
     };
     if let Some(trace) = request_trace(&request) {
@@ -240,7 +240,7 @@ pub(super) async fn handle_session(
                 None,
                 Some(error.as_str()),
             );
-            serve_decoy(request, vhost, true, &runtime).await
+            serve_fallback(request, vhost, true, &runtime).await
         }
     }
 }

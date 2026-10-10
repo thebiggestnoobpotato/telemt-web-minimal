@@ -102,7 +102,7 @@ pub(super) struct CollectedBody {
 
 // Keep rejected requests inline to avoid attacker-controlled allocations on invalid bodies.
 #[allow(clippy::large_enum_variant)]
-/// Body collection failure with sanitized request context when decoy routing is safe.
+/// Body collection failure with sanitized request context when fallback routing is safe.
 pub(super) enum CollectBodyError {
     /// The body shape, size, or deadline failed after retaining the request head.
     Invalid(Request<Empty<Bytes>>),

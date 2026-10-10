@@ -77,7 +77,7 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "carriers",
     "carrier_learning",
     "carrier_negotiation_aggressiveness",
-    "decoy_fasttrack_mode",
+    "fallback_fasttrack_mode",
     "http_connection_capacity_action",
     "debug",
     "limits",
@@ -144,7 +144,7 @@ const WEB_DEBUG_CONFIG_KEYS: &[&str] = &[
     "capture_frames",
     "body_capture",
     "body_prefix_bytes",
-    "decoy_body_prefix_bytes",
+    "fallback_body_prefix_bytes",
     "default_window_secs",
     "max_window_secs",
 ];
@@ -173,12 +173,12 @@ const WEB_TIMEOUTS_CONFIG_KEYS: &[&str] = &[
     "http_idle_secs",
     "http_overload_timeout_ms",
     "shutdown_secs",
-    "decoy_header_secs",
-    "decoy_resolve_secs",
+    "fallback_header_secs",
+    "fallback_resolve_secs",
 ];
 
-const WEB_VHOST_CONFIG_KEYS: &[&str] = &["host", "base_path", "public_addr", "decoy", "profiles"];
-const WEB_DECOY_CONFIG_KEYS: &[&str] = &["mode", "upstream", "directory", "index", "resolve"];
+const WEB_VHOST_CONFIG_KEYS: &[&str] = &["host", "base_path", "public_addr", "fallback", "profiles"];
+const WEB_FALLBACK_CONFIG_KEYS: &[&str] = &["mode", "upstream", "resolve"];
 const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "user",
     "secret_mode",

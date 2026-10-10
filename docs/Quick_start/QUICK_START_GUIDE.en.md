@@ -117,7 +117,7 @@ host = "proxy.example.com"
 # Replace with this server's public IP and port.
 public_addr = "203.0.113.1:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:80"
 
@@ -135,7 +135,7 @@ Notes:
 - The listener is a WEB listener and needs a non-empty
   `web_trusted_proxy_cidrs` list (no `/0` networks).
 - At least one `[[web.vhosts]]` entry is required whenever a listener is configured.
-- Every vhost needs a `decoy` (what browsers and scanners see) and one or
+- Every vhost needs a `fallback` (what browsers and scanners see) and one or
   more `profiles` binding an `[access]` user to the vhost.
 - See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.
 
@@ -163,7 +163,7 @@ Mount the config directory instead.
 # Verify
 
 ```bash
-# Public web surface (decoy) must answer on the vhost
+# Public web surface (fallback) must answer on the vhost
 curl -sI https://proxy.example.com/ | head -3
 
 # Read-only WEB diagnostics (API must be enabled on a private bind)

@@ -122,7 +122,7 @@ async fn user_revocation_interrupts_live_session_before_periodic_cleanup() {
 }
 
 #[tokio::test]
-async fn pause_preserves_decoy_retry_and_exact_session_replay() {
+async fn pause_preserves_fallback_retry_and_exact_session_replay() {
     let (runtime, generation, listener) = live_runtime().await;
     let bootstrap = issue_bootstrap(&runtime);
     let hello = frame::encode(FrameType::Hello, 0, &[1]);
@@ -147,15 +147,15 @@ async fn pause_preserves_decoy_retry_and_exact_session_replay() {
         Err(ManagerError::AdmissionPaused)
     ));
     let bridge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode([71; 32]);
-    let decoy = format!(
+    let fallback = format!(
         "GET /?bridge={bridge} HTTP/1.1\r\nHost: proxy.example.com\r\nX-Forwarded-For: 192.0.2.11\r\nConnection: close\r\n\r\n"
     )
     .into_bytes();
-    let decoy = request(&listener, &runtime, decoy).await;
-    let (decoy_headers, decoy_body) = split_response(&decoy);
-    assert!(decoy_headers.starts_with(b"HTTP/1.1 404"));
-    assert_eq!(response_header(decoy_headers, "cache-control"), "no-store");
-    assert_eq!(decoy_body, b"not found\n");
+    let fallback = request(&listener, &runtime, fallback).await;
+    let (fallback_headers, fallback_body) = split_response(&fallback);
+    assert!(fallback_headers.starts_with(b"HTTP/1.1 404"));
+    assert_eq!(response_header(fallback_headers, "cache-control"), "no-store");
+    assert_eq!(fallback_body, b"not found\n");
 
     runtime.resume_operator().await.unwrap();
     let created = request(&listener, &runtime, create_request(&bootstrap, &hello)).await;

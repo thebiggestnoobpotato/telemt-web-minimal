@@ -38,7 +38,7 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         WEB_DEBUG_CONFIG_KEYS,
         WEB_TIMEOUTS_CONFIG_KEYS,
         WEB_VHOST_CONFIG_KEYS,
-        WEB_DECOY_CONFIG_KEYS,
+        WEB_FALLBACK_CONFIG_KEYS,
         WEB_PROFILE_CONFIG_KEYS,
         TIMEOUTS_CONFIG_KEYS,
         ACCESS_CONFIG_KEYS,
@@ -242,13 +242,13 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
                 WEB_VHOST_CONFIG_KEYS,
             );
             if let Some(vhost) = vhost.as_table() {
-                if let Some(decoy) = vhost.get("decoy") {
+                if let Some(fallback) = vhost.get("fallback") {
                     check_nested_table_value(
                         &mut unknown,
                         &known_for_suggestion,
-                        format!("web.vhosts[{vhost_idx}].decoy"),
-                        decoy,
-                        WEB_DECOY_CONFIG_KEYS,
+                        format!("web.vhosts[{vhost_idx}].fallback"),
+                        fallback,
+                        WEB_FALLBACK_CONFIG_KEYS,
                     );
                 }
                 if let Some(profiles) = vhost.get("profiles").and_then(toml::Value::as_array) {

@@ -185,7 +185,7 @@ async fn recovery_retires_current_bearer_before_single_slot_recreation() {
 }
 
 #[tokio::test]
-async fn malformed_or_over_capacity_recovery_is_indistinguishable_from_decoy() {
+async fn malformed_or_over_capacity_recovery_is_indistinguishable_from_fallback() {
     let capability = [41u8; 32];
     let generation = test_runtime_generation(1, runtime_config(capability, WebCarrier::Https));
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
@@ -210,12 +210,8 @@ async fn malformed_or_over_capacity_recovery_is_indistinguishable_from_decoy() {
     )
     .await;
     let (invalid_headers, invalid_body) = split_response(&invalid_capability);
-    assert!(invalid_headers.starts_with(b"HTTP/1.1 200"));
-    assert_eq!(
-        response_header(invalid_headers, "cache-control"),
-        "no-store"
-    );
-    assert_eq!(invalid_body, b"<!doctype html><title>decoy</title>");
+    assert!(invalid_headers.starts_with(b"HTTP/1.1 502"));
+    assert_eq!(invalid_body, b"site unavailable\n");
 
     let malformed_accept = request(
         &listener,

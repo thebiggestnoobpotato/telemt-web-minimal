@@ -3,16 +3,15 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use base64::Engine as _;
-use bytes::Bytes;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::sync::CancellationToken;
 
 use super::{serve_connection, WebListenerStream};
 use crate::config::{
-    DecoyEndpoint, ProxyConfig, WebCarrier, WebCarriers, WebClientIpSource,
-    WebDecoyFastTrackMode, WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile,
-    WebRuntimeVhost, WebSecretMode, WebStaticAsset, WebStaticSite,
+    FallbackEndpoint, ProxyConfig, WebCarrier, WebCarriers, WebClientIpSource,
+    WebFallbackFastTrackMode, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile,
+    WebRuntimeVhost, WebSecretMode,
 };
 use crate::maestro::generation::test_runtime_generation;
 use crate::web::frame::{self, FrameType};
@@ -46,9 +45,9 @@ mod operator_lifecycle_tests;
 // Positive-only recovery representation coverage remains isolated from ordinary root routing.
 #[path = "recovery_tests.rs"]
 mod recovery_tests;
-// Decoy fast-track routing and telemetry remain isolated from carrier protocol scenarios.
-#[path = "decoy_fasttrack_tests.rs"]
-mod decoy_fasttrack_tests;
+// Fallback fast-track routing and telemetry remain isolated from carrier protocol scenarios.
+#[path = "fallback_fasttrack_tests.rs"]
+mod fallback_fasttrack_tests;
 // Base-path routing and credential containment share reference-contract coverage.
 #[path = "base_path_tests.rs"]
 mod base_path_tests;
@@ -67,12 +66,12 @@ pub(super) use runtime_test_support::runtime_config_with_base;
 
 const TEST_CARRIER_DEADLINES_SECS: [u64; 4] = [3, 5, 8, 12];
 
-/// Builds the default static-decoy runtime used by WEB HTTP tests.
+/// Builds the default fallback runtime used by WEB HTTP tests.
 pub(super) fn runtime_config(capability: [u8; 32], carrier: WebCarrier) -> ProxyConfig {
     runtime_config_with_carriers(capability, carrier, false, true, Arc::from([carrier]))
 }
 
-/// Builds a negotiation-enabled static-decoy runtime for carrier tests.
+/// Builds a negotiation-enabled fallback runtime for carrier tests.
 pub(super) fn negotiation_runtime_config(
     capability: [u8; 32],
     carrier: WebCarrier,
@@ -145,25 +144,15 @@ fn runtime_config_with_carriers_and_deadlines(
         max_streams: 16,
         max_streams_per_session: 4,
     });
-    let mut assets = BTreeMap::new();
-    assets.insert(
-        "/index.html".to_string(),
-        WebStaticAsset {
-            body: Bytes::from_static(b"<!doctype html><title>decoy</title>"),
-            content_type: "text/html; charset=utf-8",
-            etag: "\"test\"".to_string(),
-        },
-    );
-    let site = Arc::new(WebStaticSite {
-        assets,
-        index: "index.html".to_string(),
-    });
     let vhost = Arc::new(WebRuntimeVhost {
         host: "proxy.example.com".to_string(),
         base: base.to_string(),
-        decoy_fasttrack_mode: WebDecoyFastTrackMode::Off,
-        decoy: WebRuntimeDecoy::StaticDirectory(Arc::clone(&site)),
-        decoy_header_secs: 1,
+        fallback_fasttrack_mode: WebFallbackFastTrackMode::Off,
+        fallback: WebRuntimeFallback::HttpUpstream {
+            endpoint: FallbackEndpoint::Tcp("127.0.0.1:1".parse().unwrap()),
+            authority: "127.0.0.1:1".to_string(),
+        },
+        fallback_header_secs: 1,
         profiles: vec![Arc::clone(&profile)],
         capabilities: vec![capability].into_boxed_slice(),
     });
@@ -174,9 +163,12 @@ fn runtime_config_with_carriers_and_deadlines(
         Arc::new(WebRuntimeVhost {
             host: "other.example.com".to_string(),
             base: "/".to_string(),
-            decoy_fasttrack_mode: WebDecoyFastTrackMode::Off,
-            decoy: WebRuntimeDecoy::StaticDirectory(site),
-            decoy_header_secs: 1,
+            fallback_fasttrack_mode: WebFallbackFastTrackMode::Off,
+            fallback: WebRuntimeFallback::HttpUpstream {
+                endpoint: FallbackEndpoint::Tcp("127.0.0.1:1".parse().unwrap()),
+                authority: "127.0.0.1:1".to_string(),
+            },
+            fallback_header_secs: 1,
             profiles: Vec::new(),
             capabilities: Vec::new().into_boxed_slice(),
         }),
@@ -259,6 +251,8 @@ async fn https_carrier_bootstraps_and_closes_one_session() {
     .into_bytes();
     wrong_host.extend_from_slice(&hello);
     let wrong_host_response = request(&listener, &runtime, wrong_host).await;
+    // A bootstrap bound to another vhost's profile is rejected locally with
+    // an uncacheable 404 before any fallback hop.
     assert!(wrong_host_response.starts_with(b"HTTP/1.1 404"));
 
     let mut create = format!(
@@ -321,39 +315,6 @@ async fn https_carrier_bootstraps_and_closes_one_session() {
     generation.stop_background_tasks().await;
     replacement.stop_sessions().await;
     replacement.stop_background_tasks().await;
-}
-
-#[tokio::test]
-async fn rejected_bridge_bootstrap_falls_back_to_uncacheable_static_index() {
-    let capability = [15u8; 32];
-    let generation = test_runtime_generation(1, runtime_config(capability, WebCarrier::Https));
-    let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
-    let runtime = WebProcessRuntime::start(active_runtime);
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(capability);
-    let bridge_request = || {
-        format!(
-            "GET /?bridge={encoded} HTTP/1.1\r\nHost: proxy.example.com\r\nX-Forwarded-For: 192.0.2.10\r\nConnection: close\r\n\r\n"
-        )
-        .into_bytes()
-    };
-
-    let first_response = request(&listener, &runtime, bridge_request()).await;
-    let (_, first_body) = split_response(&first_response);
-    assert!(first_body.windows(11).any(|value| value == b"bootstrap=\""));
-
-    let fallback_response = request(&listener, &runtime, bridge_request()).await;
-    let (fallback_headers, fallback_body) = split_response(&fallback_response);
-    assert!(fallback_headers.starts_with(b"HTTP/1.1 404"));
-    assert_eq!(
-        response_header(fallback_headers, "cache-control"),
-        "no-store"
-    );
-    assert_eq!(fallback_body, b"not found\n");
-
-    runtime.shutdown().await;
-    generation.stop_sessions().await;
-    generation.stop_background_tasks().await;
 }
 
 #[tokio::test]

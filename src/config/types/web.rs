@@ -4,7 +4,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 use super::web_carrier::{WebCarrier, WebCarrierMethod, WebCarriers};
@@ -13,16 +12,16 @@ use super::web_debug::WebDebugConfig;
 // Serialized WEB defaults remain separate from the runtime data model.
 mod defaults;
 use defaults::*;
-// Decoy fast-track policy remains isolated from the bulky WEB data model.
+// Fallback fast-track policy remains isolated from the bulky WEB data model.
 mod fasttrack;
-pub use fasttrack::WebDecoyFastTrackMode;
+pub use fasttrack::WebFallbackFastTrackMode;
 // Accepted-socket overload policy remains separate from the bulky WEB data model.
 mod overload;
 pub use overload::WebHttpConnectionCapacityAction;
 // DNS evidence belongs to configuration generations, never request-time routing.
-mod decoy_dns;
-pub(crate) use decoy_dns::WebDecoyDnsSnapshot;
-pub use decoy_dns::WebDecoyResolve;
+mod fallback_dns;
+pub(crate) use fallback_dns::WebFallbackDnsSnapshot;
+pub use fallback_dns::WebFallbackResolve;
 
 /// Client-facing secret representation used to derive a WEB capability.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -55,22 +54,14 @@ pub struct WebProfileConfig {
 /// Public-site fallback used for requests that are not authenticated WEB traffic.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
-pub enum WebDecoyConfig {
+pub enum WebFallbackConfig {
     /// Stream requests to one fixed private HTTP origin.
     HttpUpstream {
         /// Origin URL without a query or fragment.
         upstream: String,
         /// Opt-in configuration-time resolution; literal addresses never require DNS.
         #[serde(default)]
-        resolve: WebDecoyResolve,
-    },
-    /// Serve an immutable, bounded snapshot of a local directory.
-    StaticDirectory {
-        /// Absolute directory containing public files.
-        directory: PathBuf,
-        /// File served for `/` and directory paths.
-        #[serde(default = "default_web_static_index")]
-        index: String,
+        resolve: WebFallbackResolve,
     },
 }
 
@@ -85,7 +76,7 @@ pub struct WebVhostConfig {
     /// Stable public destination tuple used by inner relay routing and KDF metadata.
     pub public_addr: SocketAddr,
     /// Ordinary-site fallback for this hostname.
-    pub decoy: WebDecoyConfig,
+    pub fallback: WebFallbackConfig,
     /// Access users and exact secret modes enabled for this hostname.
     #[serde(default)]
     pub profiles: Vec<WebProfileConfig>,
@@ -199,15 +190,6 @@ pub struct WebLimitsConfig {
     /// Maximum configured WEB access-profile count across all virtual hosts.
     #[serde(default = "default_web_max_profiles")]
     pub max_profiles: usize,
-    /// Maximum static snapshot entry count across all virtual hosts.
-    #[serde(default = "default_web_max_static_files")]
-    pub max_static_files: usize,
-    /// Maximum bytes read from one static snapshot file.
-    #[serde(default = "default_web_max_static_file_bytes")]
-    pub max_static_file_bytes: usize,
-    /// Maximum static snapshot bytes across all virtual hosts.
-    #[serde(default = "default_web_max_static_bytes")]
-    pub max_static_bytes: usize,
     /// Maximum retained WEB debug record count.
     #[serde(default = "default_web_debug_records_capacity")]
     pub debug_records_capacity: usize,
@@ -275,9 +257,6 @@ impl Default for WebLimitsConfig {
             max_bootstraps_per_ip: default_web_max_bootstraps_per_ip(),
             max_vhosts: default_web_max_vhosts(),
             max_profiles: default_web_max_profiles(),
-            max_static_files: default_web_max_static_files(),
-            max_static_file_bytes: default_web_max_static_file_bytes(),
-            max_static_bytes: default_web_max_static_bytes(),
             debug_records_capacity: default_web_debug_records_capacity(),
             debug_bytes_global: default_web_debug_bytes_global(),
             memory_envelope_bytes: default_web_memory_envelope_bytes(),
@@ -363,12 +342,12 @@ pub struct WebTimeoutsConfig {
     /// Maximum graceful wait for WEB connections and process-owned tasks.
     #[serde(default = "default_web_shutdown_secs")]
     pub shutdown_secs: u64,
-    /// Deadline for connecting to and receiving headers from an HTTP decoy.
-    #[serde(default = "default_web_decoy_header_timeout_secs")]
-    pub decoy_header_secs: u64,
-    /// Maximum wait for each unique HTTP decoy hostname during preparation.
-    #[serde(default = "default_web_decoy_resolve_secs")]
-    pub decoy_resolve_secs: u64,
+    /// Deadline for connecting to and receiving headers from an HTTP fallback.
+    #[serde(default = "default_web_fallback_header_timeout_secs")]
+    pub fallback_header_secs: u64,
+    /// Maximum wait for each unique HTTP fallback hostname during preparation.
+    #[serde(default = "default_web_fallback_resolve_secs")]
+    pub fallback_resolve_secs: u64,
 }
 
 impl Default for WebTimeoutsConfig {
@@ -397,8 +376,8 @@ impl Default for WebTimeoutsConfig {
             http_idle_secs: default_web_http_idle_secs(),
             http_overload_timeout_ms: default_web_http_overload_timeout_ms(),
             shutdown_secs: default_web_shutdown_secs(),
-            decoy_header_secs: default_web_decoy_header_timeout_secs(),
-            decoy_resolve_secs: default_web_decoy_resolve_secs(),
+            fallback_header_secs: default_web_fallback_header_timeout_secs(),
+            fallback_resolve_secs: default_web_fallback_resolve_secs(),
         }
     }
 }
@@ -442,7 +421,7 @@ pub struct WebConfig {
     pub carrier_negotiation_aggressiveness: WebCarrierNegotiationAggressiveness,
     /// Restart-only capability-scan policy for structurally impossible bridge requests.
     #[serde(default)]
-    pub decoy_fasttrack_mode: WebDecoyFastTrackMode,
+    pub fallback_fasttrack_mode: WebFallbackFastTrackMode,
     /// Action applied when accepted HTTP connection capacity is exhausted.
     #[serde(default)]
     pub http_connection_capacity_action: WebHttpConnectionCapacityAction,
@@ -463,7 +442,7 @@ pub struct WebConfig {
     pub(crate) runtime: Option<Arc<WebRuntimeConfig>>,
     /// Immutable DNS evidence omitted from serialized configuration and revisions.
     #[serde(skip)]
-    pub(crate) decoy_dns: Arc<WebDecoyDnsSnapshot>,
+    pub(crate) fallback_dns: Arc<WebFallbackDnsSnapshot>,
 }
 
 impl WebConfig {
@@ -497,14 +476,14 @@ impl Default for WebConfig {
             carriers: WebCarriers::default(),
             carrier_learning: default_web_carrier_learning(),
             carrier_negotiation_aggressiveness: WebCarrierNegotiationAggressiveness::default(),
-            decoy_fasttrack_mode: WebDecoyFastTrackMode::default(),
+            fallback_fasttrack_mode: WebFallbackFastTrackMode::default(),
             http_connection_capacity_action: WebHttpConnectionCapacityAction::default(),
             limits: WebLimitsConfig::default(),
             debug: WebDebugConfig::default(),
             timeouts: WebTimeoutsConfig::default(),
             vhosts: Vec::new(),
             runtime: None,
-            decoy_dns: Arc::default(),
+            fallback_dns: Arc::default(),
         }
     }
 }
@@ -512,6 +491,5 @@ impl Default for WebConfig {
 // Immutable runtime WEB configuration consumed by hot paths.
 mod runtime;
 pub(crate) use runtime::{
-    DecoyEndpoint, WebRuntimeConfig, WebRuntimeDecoy, WebRuntimeProfile, WebRuntimeVhost,
-    WebStaticAsset, WebStaticSite,
+    FallbackEndpoint, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile, WebRuntimeVhost,
 };

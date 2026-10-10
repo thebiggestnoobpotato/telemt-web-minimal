@@ -92,7 +92,7 @@ async fn session_token_distinguishes_the_exact_route_from_every_path_alias() {
 }
 
 #[tokio::test]
-async fn inactive_capabilities_remain_decoy_and_the_active_path_is_case_sensitive() {
+async fn inactive_capabilities_remain_fallback_and_the_active_path_is_case_sensitive() {
     let active_capability = [82u8; 32];
     let inactive_capability = [83u8; 32];
     let generation = test_runtime_generation(
@@ -124,16 +124,13 @@ async fn inactive_capabilities_remain_decoy_and_the_active_path_is_case_sensitiv
         assert_private_not_found(&request(&listener, &runtime, bridge_request(&path)).await);
     }
 
-    let decoy = request(
+    let fallback = request(
         &listener,
         &runtime,
         bridge_request(&format!("/Dobry-Cola/super_app/?bridge={inactive}")),
     )
     .await;
-    assert_eq!(
-        split_response(&decoy).1,
-        b"<!doctype html><title>decoy</title>"
-    );
+    assert_eq!(split_response(&fallback).1, b"site unavailable\n");
 
     runtime.shutdown().await;
     generation.stop_sessions().await;
@@ -141,7 +138,7 @@ async fn inactive_capabilities_remain_decoy_and_the_active_path_is_case_sensitiv
 }
 
 #[tokio::test]
-async fn decoy_forwarding_preserves_every_reference_request_target() {
+async fn fallback_forwarding_preserves_every_reference_request_target() {
     let targets = [
         "/relay/",
         "/relay/whatever?q=1",
@@ -197,12 +194,12 @@ async fn decoy_forwarding_preserves_every_reference_request_target() {
         Arc::new(WebRuntimeVhost {
             host: previous.host.clone(),
             base: previous.base.clone(),
-            decoy_fasttrack_mode: previous.decoy_fasttrack_mode,
-            decoy: WebRuntimeDecoy::HttpUpstream {
-                endpoint: DecoyEndpoint::Tcp(site_addr),
-                authority: "decoy.internal".to_string(),
+            fallback_fasttrack_mode: previous.fallback_fasttrack_mode,
+            fallback: WebRuntimeFallback::HttpUpstream {
+                endpoint: FallbackEndpoint::Tcp(site_addr),
+                authority: "fallback.internal".to_string(),
             },
-            decoy_header_secs: 1,
+            fallback_header_secs: 1,
             profiles: previous.profiles.clone(),
             capabilities: previous.capabilities.clone(),
         }),

@@ -1,7 +1,3 @@
-pub(super) fn default_web_static_index() -> String {
-    "index.html".to_string()
-}
-
 /// Enables explicitly negotiated HTTP pipelining unless the operator disables it.
 pub(super) fn default_web_conveyor() -> bool {
     true
@@ -74,9 +70,6 @@ usize_default!(default_web_max_bootstraps_global, 512);
 usize_default!(default_web_max_bootstraps_per_ip, 64);
 usize_default!(default_web_max_vhosts, 8);
 usize_default!(default_web_max_profiles, 32);
-usize_default!(default_web_max_static_files, 4096);
-usize_default!(default_web_max_static_file_bytes, 8 * 1024 * 1024);
-usize_default!(default_web_max_static_bytes, 64 * 1024 * 1024);
 usize_default!(default_web_debug_records_capacity, 65_536);
 usize_default!(default_web_debug_bytes_global, 64 * 1024 * 1024);
 usize_default!(default_web_memory_envelope_bytes, 1280 * 1024 * 1024);
@@ -114,5 +107,5 @@ u64_default!(default_web_reconnect_grace_secs, 120);
 u64_default!(default_web_http_idle_secs, 75);
 u64_default!(default_web_http_overload_timeout_ms, 250);
 u64_default!(default_web_shutdown_secs, 15);
-u64_default!(default_web_decoy_header_timeout_secs, 30);
-u64_default!(default_web_decoy_resolve_secs, 5);
+u64_default!(default_web_fallback_header_timeout_secs, 30);
+u64_default!(default_web_fallback_resolve_secs, 5);

@@ -235,10 +235,12 @@ async fn active_body_deadline_survives_reload_on_old_keepalive_connection() {
         )
         .await
         .unwrap();
+    // The bare root request follows the fixture fallback path; the fixture
+    // fallback origin is a closed loopback port, so the hop reports 502.
     assert!(
         read_http_response(&mut client)
             .await
-            .starts_with(b"HTTP/1.1 200")
+            .starts_with(b"HTTP/1.1 502")
     );
 
     let mut replacement_config = runtime_config(capability, WebCarrier::Https);

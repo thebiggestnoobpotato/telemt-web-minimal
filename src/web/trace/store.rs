@@ -141,7 +141,7 @@ impl WebTraceStore {
             || current.capture_frames != policy.capture_frames
             || current.body_capture != policy.body_capture
             || current.body_prefix_bytes != policy.body_prefix_bytes
-            || current.decoy_body_prefix_bytes != policy.decoy_body_prefix_bytes;
+            || current.fallback_body_prefix_bytes != policy.fallback_body_prefix_bytes;
         self.policy.store(Arc::new(policy.clone()));
         self.policy_generation.store(generation, Ordering::Release);
         self.enabled.store(policy.enabled, Ordering::Release);

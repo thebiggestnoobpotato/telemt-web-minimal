@@ -49,7 +49,7 @@ pub(super) fn service_unavailable() -> HttpResponse {
     response
 }
 
-/// Builds the ordinary decoy upstream failure response.
+/// Builds the ordinary fallback upstream failure response.
 pub(super) fn bad_gateway() -> HttpResponse {
     full_response(
         StatusCode::BAD_GATEWAY,

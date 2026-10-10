@@ -7,7 +7,7 @@ use super::WebTelemetry;
 /// Terminal capability-routing work selected for one WEB root request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(usize)]
-pub(crate) enum WebDecoyFastTrackDisposition {
+pub(crate) enum WebFallbackFastTrackDisposition {
     /// Shadow mode identified a request that enforce mode would bypass.
     ShadowWouldFastTrack,
     /// Shadow mode retained a full scan for a plausible capability request.
@@ -18,7 +18,7 @@ pub(crate) enum WebDecoyFastTrackDisposition {
     EnforceCandidateFullScan,
 }
 
-impl WebDecoyFastTrackDisposition {
+impl WebFallbackFastTrackDisposition {
     /// Complete fixed disposition set in stable API and metric order.
     pub(crate) const ALL: [Self; 4] = [
         Self::ShadowWouldFastTrack,
@@ -38,12 +38,12 @@ impl WebDecoyFastTrackDisposition {
     }
 }
 
-/// Fixed storage width for process-owned decoy fast-track counters.
-pub(super) const DECOY_FASTTRACK_SLOTS: usize = WebDecoyFastTrackDisposition::ALL.len();
+/// Fixed storage width for process-owned fallback fast-track counters.
+pub(super) const FALLBACK_FASTTRACK_SLOTS: usize = WebFallbackFastTrackDisposition::ALL.len();
 
-/// API-safe fixed decoy fast-track counter.
+/// API-safe fixed fallback fast-track counter.
 #[derive(Clone, Serialize)]
-pub(crate) struct WebDecoyFastTrackCounter {
+pub(crate) struct WebFallbackFastTrackCounter {
     /// Stable capability-routing disposition token.
     pub(crate) disposition: &'static str,
     /// Process-lifetime event count.
@@ -52,22 +52,22 @@ pub(crate) struct WebDecoyFastTrackCounter {
 
 impl WebTelemetry {
     /// Records one shadow or enforce capability-routing disposition.
-    pub(crate) fn record_decoy_fasttrack(&self, disposition: WebDecoyFastTrackDisposition) {
-        self.decoy_fasttrack_requests[disposition as usize].fetch_add(1, Ordering::Relaxed);
+    pub(crate) fn record_fallback_fasttrack(&self, disposition: WebFallbackFastTrackDisposition) {
+        self.fallback_fasttrack_requests[disposition as usize].fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Returns one fixed decoy fast-track counter.
-    pub(crate) fn decoy_fasttrack_total(&self, disposition: WebDecoyFastTrackDisposition) -> u64 {
-        self.decoy_fasttrack_requests[disposition as usize].load(Ordering::Relaxed)
+    /// Returns one fixed fallback fast-track counter.
+    pub(crate) fn fallback_fasttrack_total(&self, disposition: WebFallbackFastTrackDisposition) -> u64 {
+        self.fallback_fasttrack_requests[disposition as usize].load(Ordering::Relaxed)
     }
 
-    /// Captures the complete decoy fast-track counter set.
-    pub(crate) fn decoy_fasttrack_counters(&self) -> Vec<WebDecoyFastTrackCounter> {
-        WebDecoyFastTrackDisposition::ALL
+    /// Captures the complete fallback fast-track counter set.
+    pub(crate) fn fallback_fasttrack_counters(&self) -> Vec<WebFallbackFastTrackCounter> {
+        WebFallbackFastTrackDisposition::ALL
             .into_iter()
-            .map(|disposition| WebDecoyFastTrackCounter {
+            .map(|disposition| WebFallbackFastTrackCounter {
                 disposition: disposition.as_str(),
-                total: self.decoy_fasttrack_total(disposition),
+                total: self.fallback_fasttrack_total(disposition),
             })
             .collect()
     }

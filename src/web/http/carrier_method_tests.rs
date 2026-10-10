@@ -218,14 +218,14 @@ async fn carrier_method_changed_body_retry_keeps_protocol_failure() {
         changed.extend_from_slice(&pong);
         let bytes = carrier_request("PUT", "/api/v1/up", &token, &headers, &changed);
         let response = request(&listener, &runtime, bytes).await;
-        assert_private_decoy(&response);
+        assert_private_fallback(&response);
         runtime.shutdown().await;
         generation.stop_sessions().await;
         generation.stop_background_tasks().await;
     }
 }
 
-fn assert_private_decoy(response: &[u8]) {
+fn assert_private_fallback(response: &[u8]) {
     let (headers, body) = split_response(response);
     assert!(headers.starts_with(b"HTTP/1.1 404"));
     assert_eq!(response_header(headers, "cache-control"), "no-store");
@@ -309,7 +309,7 @@ async fn carrier_method_put_preserves_authenticated_request_shape_checks() {
         invalid.push(carrier_request("PUT", &path, &token, &up_headers, &pong));
         for bytes in invalid {
             let response = request(&listener, &runtime, bytes).await;
-            assert_private_decoy(&response);
+            assert_private_fallback(&response);
         }
         // Rejected shapes must not consume the first sequence or close the valid session.
         let bytes = carrier_request("PUT", &up, &token, &up_headers, &pong);
@@ -473,7 +473,7 @@ async fn carrier_method_reload_preserves_old_pages_bootstraps_sessions_and_recov
         assert!(response.starts_with(b"HTTP/1.1 204"));
         let bytes = carrier_request("PUT", "/api/v1/up", &put_session, &headers, &pong);
         let retired = request(&listener, &runtime, bytes).await;
-        assert_private_decoy(&retired);
+        assert_private_fallback(&retired);
         runtime.shutdown().await;
         for generation in [generation, put_generation, rollback_generation] {
             generation.stop_sessions().await;

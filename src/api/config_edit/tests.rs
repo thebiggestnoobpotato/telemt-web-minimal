@@ -194,11 +194,11 @@ async fn patch_web_debug_is_hot_and_limits_are_process_deferred() {
 }
 
 #[tokio::test]
-async fn patch_web_decoy_fasttrack_requires_only_process_restart() {
+async fn patch_web_fallback_fasttrack_requires_only_process_restart() {
     let (path, _directory) = temp_config("[web]\nenabled = false\n");
     let active = ProxyConfig::load(&path).unwrap();
     let patch: Json = serde_json::json!({
-        "web": {"decoy_fasttrack_mode": "shadow"}
+        "web": {"fallback_fasttrack_mode": "shadow"}
     });
 
     let mut prepared = prepare_patch_to_path(&path, &patch, None).await.unwrap();
@@ -210,7 +210,7 @@ async fn patch_web_decoy_fasttrack_requires_only_process_restart() {
     assert!(response.process_restart_required);
     assert_eq!(
         response.deferred_process_fields,
-        vec!["web.decoy_fasttrack_mode".to_string()]
+        vec!["web.fallback_fasttrack_mode".to_string()]
     );
 }
 
@@ -236,7 +236,7 @@ async fn read_managed_config_returns_only_editable_sections() {
         "[api]\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
-         [web.vhosts.decoy]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
+         [web.vhosts.fallback]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
         "[metrics]\nport = 9090\n",
         "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
@@ -257,7 +257,7 @@ async fn read_managed_config_returns_full_listener_table() {
         "[api]\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
-         [web.vhosts.decoy]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
+         [web.vhosts.fallback]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
         "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
@@ -300,7 +300,7 @@ async fn patch_listener_preserves_api() {
         "[api]\nenabled = true\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
-         [web.vhosts.decoy]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
+         [web.vhosts.fallback]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
         "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
     ));

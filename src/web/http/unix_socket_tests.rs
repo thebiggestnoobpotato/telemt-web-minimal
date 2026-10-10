@@ -78,10 +78,10 @@ async fn unix_listener_serves_bridge_request_with_synthetic_loopback_peer() {
     assert!(std::str::from_utf8(body).unwrap().contains("relayBase=relayOrigin"));
 }
 
-// An untrusted immediate peer is ordinary decoy traffic: the static site is
+// An untrusted immediate peer is ordinary fallback traffic: the static site is
 // served, but even a valid bridge capability never bootstraps from it.
 #[tokio::test]
-async fn unix_listener_with_untrusted_peer_serves_decoy_without_bootstrap() {
+async fn unix_listener_with_untrusted_peer_serves_fallback_without_bootstrap() {
     let capability = [21u8; 32];
     let config = runtime_config(capability, WebCarrier::Https);
     let generation = test_runtime_generation(1, config);
@@ -101,11 +101,11 @@ async fn unix_listener_with_untrusted_peer_serves_decoy_without_bootstrap() {
     .await;
     let (headers, body) = split_response(&response);
     assert!(
-        headers.starts_with(b"HTTP/1.1 200"),
+        headers.starts_with(b"HTTP/1.1 502"),
         "unexpected response: {:?}",
         std::str::from_utf8(&response).unwrap()
     );
-    assert!(std::str::from_utf8(body).unwrap().contains("<title>decoy</title>"));
+    assert_eq!(body, b"site unavailable\n");
 
     let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(capability);
     let request = format!(

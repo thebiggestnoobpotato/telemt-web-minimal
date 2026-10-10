@@ -1,11 +1,11 @@
 use serde::Serialize;
 
-use crate::config::{ProxyConfig, WebDecoyFastTrackMode, WebHttpConnectionCapacityAction};
+use crate::config::{ProxyConfig, WebFallbackFastTrackMode, WebHttpConnectionCapacityAction};
 use crate::web::control::{WebRuntimeLifecycle, WebRuntimePublication};
 use crate::web::manager::{WebCapacityResourceStatus, WebCapacitySnapshot, WebProcessRuntime};
 use crate::web::telemetry::{
     WebBridgeRecoveryCounter, WebCarrierFailureCounter, WebCarrierLearningCounter,
-    WebCarrierSelectionCounter, WebDecoyFastTrackCounter, WebSessionCloseCounter,
+    WebCarrierSelectionCounter, WebFallbackFastTrackCounter, WebSessionCloseCounter,
     WebSessionLifecycleObservationCounter,
 };
 use crate::web::telemetry::{WebOutcomeCounter, WebRejectionCounter};
@@ -100,9 +100,9 @@ fn runtime_unavailable_snapshot() -> WebCapacitySnapshot {
     }
 }
 
-/// Passive health of Telemt's internal plain-HTTP decoy origin hop.
+/// Passive health of Telemt's internal plain-HTTP fallback origin hop.
 #[derive(Serialize)]
-pub(super) struct WebDecoyUpstreamStatus {
+pub(super) struct WebFallbackUpstreamStatus {
     outcomes: Vec<WebOutcomeCounter>,
     #[serde(skip_serializing_if = "Option::is_none")]
     last_outcome: Option<&'static str>,
@@ -110,31 +110,31 @@ pub(super) struct WebDecoyUpstreamStatus {
     last_outcome_age_ms: Option<u64>,
 }
 
-impl WebDecoyUpstreamStatus {
-    /// Builds the fixed internal decoy-origin outcome snapshot.
+impl WebFallbackUpstreamStatus {
+    /// Builds the fixed internal fallback-origin outcome snapshot.
     pub(super) fn new(publication: &WebRuntimePublication) -> Self {
-        let last = publication.telemetry.last_decoy();
+        let last = publication.telemetry.last_fallback();
         Self {
-            outcomes: publication.telemetry.decoy_counters(),
+            outcomes: publication.telemetry.fallback_counters(),
             last_outcome: last.map(|value| value.0),
             last_outcome_age_ms: last.map(|value| value.1),
         }
     }
 }
 
-/// Fixed-cardinality process-lifetime decoy capability-routing counters.
+/// Fixed-cardinality process-lifetime fallback capability-routing counters.
 #[derive(Serialize)]
-pub(super) struct WebDecoyFastTrackStatus {
-    mode: WebDecoyFastTrackMode,
-    requests: Vec<WebDecoyFastTrackCounter>,
+pub(super) struct WebFallbackFastTrackStatus {
+    mode: WebFallbackFastTrackMode,
+    requests: Vec<WebFallbackFastTrackCounter>,
 }
 
-impl WebDecoyFastTrackStatus {
+impl WebFallbackFastTrackStatus {
     /// Builds effective policy and counters without requiring the runtime manager.
     pub(super) fn new(publication: &WebRuntimePublication, config: &ProxyConfig) -> Self {
         Self {
-            mode: config.web.decoy_fasttrack_mode,
-            requests: publication.telemetry.decoy_fasttrack_counters(),
+            mode: config.web.fallback_fasttrack_mode,
+            requests: publication.telemetry.fallback_fasttrack_counters(),
         }
     }
 }
@@ -204,9 +204,9 @@ mod tests {
         let capacity =
             serde_json::to_value(super::WebCapacityStatus::new(&publication, None, &config))
                 .unwrap();
-        let decoy = serde_json::to_value(super::WebDecoyUpstreamStatus::new(&publication)).unwrap();
+        let fallback = serde_json::to_value(super::WebFallbackUpstreamStatus::new(&publication)).unwrap();
         let fasttrack =
-            serde_json::to_value(super::WebDecoyFastTrackStatus::new(&publication, &config))
+            serde_json::to_value(super::WebFallbackFastTrackStatus::new(&publication, &config))
                 .unwrap();
         let carrier =
             serde_json::to_value(super::WebCarrierNegotiationStatus::new(&publication)).unwrap();
@@ -228,13 +228,13 @@ mod tests {
             crate::web::telemetry::WebHttpConnectionOverloadOutcome::ALL.len()
         );
         assert_eq!(
-            decoy["outcomes"].as_array().unwrap().len(),
-            crate::web::telemetry::WebDecoyUpstreamOutcome::ALL.len()
+            fallback["outcomes"].as_array().unwrap().len(),
+            crate::web::telemetry::WebFallbackUpstreamOutcome::ALL.len()
         );
         assert_eq!(fasttrack["mode"], "off");
         assert_eq!(
             fasttrack["requests"].as_array().unwrap().len(),
-            crate::web::telemetry::WebDecoyFastTrackDisposition::ALL.len()
+            crate::web::telemetry::WebFallbackFastTrackDisposition::ALL.len()
         );
         assert_eq!(capacity["partial"][0], "runtime");
         assert_eq!(

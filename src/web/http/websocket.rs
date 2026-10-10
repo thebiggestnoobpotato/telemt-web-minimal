@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::OwnedSemaphorePermit;
 
 use super::body::RequestBody;
-use super::decoy::serve_decoy;
+use super::fallback::serve_fallback;
 use super::request::client_ip;
 use super::response::{full_response, insert_header};
 use super::{HttpResponse, request_trace, set_trace_route};
@@ -256,32 +256,32 @@ pub(super) async fn handle(
 ) -> HttpResponse {
     let request_deadline = super::request_deadline(&request);
     let Some(parsed) = parse_upgrade(&request) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     if !request.body_mut().finish_empty() {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let Some(effective_ip) = client_ip(&request, peer, client_ip_source, trusted_proxy_cidrs)
     else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     let Ok(session) = runtime.get_session(parsed.token_hash, &vhost.host) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     let kind = match (parsed.carrier, session.carrier()) {
         (ParsedCarrier::Multiplex, WebCarrier::Websocket) => WebSocketKind::Multiplex,
         (ParsedCarrier::Lane(lane_id), WebCarrier::WebsocketLanes) => WebSocketKind::Lane(lane_id),
-        _ => return serve_decoy(request, vhost, true, &runtime).await,
+        _ => return serve_fallback(request, vhost, true, &runtime).await,
     };
     let mut probe_reservation = match session.reserve_websocket_probe(parsed.acknowledge_commit) {
         Ok(reservation) => reservation,
-        Err(_) => return serve_decoy(request, vhost, true, &runtime).await,
+        Err(_) => return serve_fallback(request, vhost, true, &runtime).await,
     };
     let mut lane_reservation = match kind {
         WebSocketKind::Multiplex => None,
         WebSocketKind::Lane(lane_id) => match session.reserve_websocket_lane(lane_id) {
             Ok(reservation) => Some(reservation),
-            Err(_) => return serve_decoy(request, vhost, true, &runtime).await,
+            Err(_) => return serve_fallback(request, vhost, true, &runtime).await,
         },
     };
     let timeouts = session.timeouts().clone();
@@ -289,7 +289,7 @@ pub(super) async fn handle(
         Some(deadline) => {
             match deadline.lease_for(Duration::from_secs(timeouts.websocket_eviction_secs)) {
                 Some(lease) => Some(lease),
-                None => return serve_decoy(request, vhost, true, &runtime).await,
+                None => return serve_fallback(request, vhost, true, &runtime).await,
             }
         }
         None => None,
@@ -310,17 +310,17 @@ pub(super) async fn handle(
     drop(admission_lease);
     let connection = match admitted {
         Ok(connection) => connection,
-        Err(_) => return serve_decoy(request, vhost, true, &runtime).await,
+        Err(_) => return serve_fallback(request, vhost, true, &runtime).await,
     };
     if let Some(reservation) = lane_reservation.as_mut()
         && reservation.bind(connection.id()).is_err()
     {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     if let Some(reservation) = probe_reservation.as_mut()
         && reservation.bind(connection.id()).is_err()
     {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let trace_context = runtime.trace().websocket_context(
         &request,
@@ -344,11 +344,11 @@ pub(super) async fn handle(
             let Some(until) = tokio::time::Instant::now()
                 .checked_add(Duration::from_secs(timeouts.websocket_upgrade_secs))
             else {
-                return serve_decoy(request, vhost, true, &runtime).await;
+                return serve_fallback(request, vhost, true, &runtime).await;
             };
             match deadline.upgrade_until(until) {
                 Some(lease) => Some(lease),
-                None => return serve_decoy(request, vhost, true, &runtime).await,
+                None => return serve_fallback(request, vhost, true, &runtime).await,
             }
         }
         None => None,

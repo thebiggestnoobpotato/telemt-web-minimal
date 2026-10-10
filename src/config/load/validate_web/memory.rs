@@ -86,7 +86,6 @@ pub(super) fn validate(limits: &WebLimitsConfig) -> Result<()> {
     let reserved = limits
         .pending_bytes_global
         .checked_add(limits.max_body_bytes_global)
-        .and_then(|value| value.checked_add(limits.max_static_bytes))
         .and_then(|value| value.checked_add(debug_ring_index))
         .and_then(|value| value.checked_add(status_pages))
         .and_then(|value| value.checked_add(debug_reservation))

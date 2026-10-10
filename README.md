@@ -16,7 +16,7 @@
 ## Features
 
 - WEB carrier proxying: `https`, `https-lanes`, `websocket`, and `websocket-lanes` carriers
-- Multi-vhost setup with decoy responses for unrecognized web traffic
+- Multi-vhost setup with fallback responses for unrecognized web traffic
 - Per-user profiles with `plain` and `dd` 16-byte MTProxy secrets, `tg://webproxy` link generation
 - Direct-to-DC MTProxy relay with replay protection, configurable keepalives, timeouts, IPv6, and "Fast Mode"
 - Upstream manager: direct and SOCKS5 upstreams with weights and health tracking

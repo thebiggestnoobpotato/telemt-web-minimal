@@ -13,7 +13,7 @@ pub enum WebDebugBodyCapture {
     Metadata,
     /// Retains a bounded prefix of each body.
     Prefix,
-    /// Retains complete bounded carrier bodies and bounded decoy prefixes.
+    /// Retains complete bounded carrier bodies and bounded fallback prefixes.
     Full,
 }
 
@@ -44,9 +44,9 @@ pub struct WebDebugConfig {
     /// Maximum retained body prefix for recognized WEB requests.
     #[serde(default = "default_body_prefix_bytes")]
     pub body_prefix_bytes: usize,
-    /// Maximum retained body prefix for ordinary decoy traffic.
-    #[serde(default = "default_decoy_body_prefix_bytes")]
-    pub decoy_body_prefix_bytes: usize,
+    /// Maximum retained body prefix for ordinary fallback traffic.
+    #[serde(default = "default_fallback_body_prefix_bytes")]
+    pub fallback_body_prefix_bytes: usize,
     /// Default observation window presented by the status page.
     #[serde(default = "default_window_secs")]
     pub default_window_secs: u64,
@@ -66,7 +66,7 @@ impl Default for WebDebugConfig {
             capture_frames: true,
             body_capture: WebDebugBodyCapture::Metadata,
             body_prefix_bytes: default_body_prefix_bytes(),
-            decoy_body_prefix_bytes: default_decoy_body_prefix_bytes(),
+            fallback_body_prefix_bytes: default_fallback_body_prefix_bytes(),
             default_window_secs: default_window_secs(),
             max_window_secs: default_max_window_secs(),
         }
@@ -88,7 +88,7 @@ fn default_body_prefix_bytes() -> usize {
     4096
 }
 
-fn default_decoy_body_prefix_bytes() -> usize {
+fn default_fallback_body_prefix_bytes() -> usize {
     4096
 }
 
@@ -104,5 +104,5 @@ fn default_max_window_secs() -> u64 {
 pub(crate) fn web_debug_fits_limits(policy: &WebDebugConfig, limits: &WebLimitsConfig) -> bool {
     policy.body_prefix_bytes <= limits.max_body_bytes
         && policy.body_prefix_bytes <= limits.debug_bytes_global
-        && policy.decoy_body_prefix_bytes <= limits.debug_bytes_global
+        && policy.fallback_body_prefix_bytes <= limits.debug_bytes_global
 }

@@ -168,7 +168,7 @@ fn reload_config_once(
     let applied_hot = HotFields::from_config(&applied_cfg);
     let non_hot_changed = !config_equal(&applied_cfg, &new_cfg);
     let hot_changed =
-        !config_equal(&old_cfg, &applied_cfg) || !old_cfg.web_decoy_endpoints_equal(&applied_cfg);
+        !config_equal(&old_cfg, &applied_cfg) || !old_cfg.web_fallback_endpoints_equal(&applied_cfg);
 
     if non_hot_changed {
         warn_non_hot_changes(&old_cfg, &new_cfg, non_hot_changed);
@@ -422,4 +422,4 @@ mod path_tests {
 }
 
 #[cfg(test)]
-mod decoy_dns_tests;
+mod fallback_dns_tests;

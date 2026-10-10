@@ -287,7 +287,7 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
          socket_path = \"/run/telemt/listener.sock\"\ntransport = \"web\"\n\
          [[web.vhosts]]\nhost = \"proxy.example.com\"\n\
          public_addr = \"203.0.113.10:443\"\n\
-         [web.vhosts.decoy]\nmode = \"http_upstream\"\n\
+         [web.vhosts.fallback]\nmode = \"http_upstream\"\n\
          upstream = \"http://127.0.0.1:18090\"\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
@@ -322,7 +322,7 @@ fn listener_section_is_known_in_strict_config() {
          web_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n\
          [[web.vhosts]]\nhost = \"proxy.example.com\"\n\
          public_addr = \"203.0.113.10:443\"\n\
-         [web.vhosts.decoy]\nmode = \"http_upstream\"\n\
+         [web.vhosts.fallback]\nmode = \"http_upstream\"\n\
          upstream = \"http://127.0.0.1:18090\"\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
@@ -335,7 +335,7 @@ fn listener_section_is_known_in_strict_config() {
          web_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\nbogus = 1\n\
          [[web.vhosts]]\nhost = \"proxy.example.com\"\n\
          public_addr = \"203.0.113.10:443\"\n\
-         [web.vhosts.decoy]\nmode = \"http_upstream\"\n\
+         [web.vhosts.fallback]\nmode = \"http_upstream\"\n\
          upstream = \"http://127.0.0.1:18090\"\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );

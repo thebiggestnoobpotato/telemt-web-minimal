@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Capability-scan policy for structurally impossible WEB bridge requests.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum WebDecoyFastTrackMode {
+pub enum WebFallbackFastTrackMode {
     /// Preserve the legacy full scan without collecting fast-track decisions.
     #[default]
     Off,
@@ -13,7 +13,7 @@ pub enum WebDecoyFastTrackMode {
     Enforce,
 }
 
-impl WebDecoyFastTrackMode {
+impl WebFallbackFastTrackMode {
     /// Complete fixed mode set in stable API and metric order.
     pub const ALL: [Self; 3] = [Self::Off, Self::Shadow, Self::Enforce];
 

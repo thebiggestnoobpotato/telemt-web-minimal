@@ -266,7 +266,7 @@ fn stress_decode_user_secrets_keeps_preferred_user_first_in_large_set() {
         config
             .access
             .users
-            .insert(format!("decoy-{i:04}.example"), secret_hex.clone());
+            .insert(format!("fallback-{i:04}.example"), secret_hex.clone());
     }
     config
         .access

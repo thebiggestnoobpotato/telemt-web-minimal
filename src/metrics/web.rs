@@ -7,10 +7,10 @@ use crate::web::control::{WebRuntimeLifecycle, WebRuntimePublication};
 use crate::web::manager::{CarrierFailure, OperatorLifecycleState};
 use crate::web::telemetry::{
     WebCarrierFailurePhase, WebCarrierLearningOutcome, WebCarrierSelectionDisposition,
-    WebDecoyUpstreamOutcome, WebHttpConnectionOverloadOutcome, WebRejectionReason,
+    WebFallbackUpstreamOutcome, WebHttpConnectionOverloadOutcome, WebRejectionReason,
 };
 
-// Decoy fast-track metrics stay isolated from the main WEB renderer.
+// Fallback fast-track metrics stay isolated from the main WEB renderer.
 mod fasttrack;
 // Session lifecycle and aggregate families stay isolated from capacity rendering.
 mod lifecycle;
@@ -185,18 +185,18 @@ pub(super) fn render(out: &mut String, publication: &WebRuntimePublication, conf
 
     let _ = writeln!(
         out,
-        "# HELP telemt_web_decoy_upstream_requests_total Internal plain-HTTP decoy origin outcomes"
+        "# HELP telemt_web_fallback_upstream_requests_total Internal plain-HTTP fallback origin outcomes"
     );
     let _ = writeln!(
         out,
-        "# TYPE telemt_web_decoy_upstream_requests_total counter"
+        "# TYPE telemt_web_fallback_upstream_requests_total counter"
     );
-    for outcome in WebDecoyUpstreamOutcome::ALL {
+    for outcome in WebFallbackUpstreamOutcome::ALL {
         let _ = writeln!(
             out,
-            "telemt_web_decoy_upstream_requests_total{{outcome=\"{}\"}} {}",
+            "telemt_web_fallback_upstream_requests_total{{outcome=\"{}\"}} {}",
             outcome.as_str(),
-            publication.telemetry.decoy_total(outcome)
+            publication.telemetry.fallback_total(outcome)
         );
     }
 
@@ -480,9 +480,9 @@ mod tests {
         );
         assert_eq!(
             output
-                .matches("telemt_web_decoy_upstream_requests_total{")
+                .matches("telemt_web_fallback_upstream_requests_total{")
                 .count(),
-            crate::web::telemetry::WebDecoyUpstreamOutcome::ALL.len()
+            crate::web::telemetry::WebFallbackUpstreamOutcome::ALL.len()
         );
         assert!(output.contains("telemt_web_ingress_lifecycle_state{state=\"starting\"} 1"));
         assert_eq!(

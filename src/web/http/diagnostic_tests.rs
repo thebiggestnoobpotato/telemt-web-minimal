@@ -185,7 +185,7 @@ async fn bridge_diagnostic_does_not_consume_the_bootstrap() {
 }
 
 #[tokio::test]
-async fn malformed_bridge_diagnostics_follow_the_sanitized_decoy_path() {
+async fn malformed_bridge_diagnostics_follow_the_sanitized_fallback_path() {
     let capability = [33u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Websocket);
     config.web.debug.enabled = true;
@@ -327,9 +327,18 @@ async fn malformed_bridge_diagnostics_follow_the_sanitized_decoy_path() {
         ),
     ];
 
-    for request_bytes in cases {
-        let response = request(&listener, &runtime, request_bytes).await;
-        assert!(response.starts_with(b"HTTP/1.1 404"));
+    for (idx, request_bytes) in cases.iter().enumerate() {
+        let response = request(&listener, &runtime, request_bytes.clone()).await;
+        if idx == 6 || idx == 7 {
+            // No valid token: the sanitized fallback hop is taken; the
+            // fixture fallback origin is a closed loopback port, so the
+            // hop reports 502.
+            assert!(response.starts_with(b"HTTP/1.1 502"), "case {idx}");
+        } else {
+            // A valid internal credential is contained locally with an
+            // uncacheable 404 so the token never reaches the fallback.
+            assert!(response.starts_with(b"HTTP/1.1 404"), "case {idx}");
+        }
     }
     assert!(
         runtime

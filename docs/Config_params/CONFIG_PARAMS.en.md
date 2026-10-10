@@ -24,7 +24,7 @@ This document lists all configuration keys accepted by `config.toml`.
  - [web.limits](#weblimits)
  - [web.timeouts](#webtimeouts)
  - [web.vhosts](#webvhosts)
- - [web.vhosts.decoy](#webvhostsdecoy)
+ - [web.vhosts.fallback](#webvhostsfallback)
  - [web.vhosts.profiles](#webvhostsprofiles)
  - [timeouts](#timeouts)
  - [access](#access)
@@ -517,7 +517,7 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
     ```
 ## socket_path (listener)
   - **Constraints / validation**: Absolute unix domain socket path. Cannot be combined with `ip` or `port`. The parent directory must exist and be traversable; an existing path that is not a socket is rejected, a stale socket file is removed, and a live listener is never deleted.
-  - **Description**: Binds this listener to a local unix socket instead of a TCP endpoint. A local fronting process such as NGINX connects to the socket, and the socket file permissions are the trust boundary: no remote host can reach this listener, so the TCP-only peer checks are skipped. Each accepted connection is presented as a synthetic `127.0.0.1` peer. To let the fronting process's `X-Forwarded-For` header determine the client identity, keep `127.0.0.1/32` in this listener's `web_trusted_proxy_cidrs`; when the synthetic peer is untrusted, the connection is served as decoy traffic only.
+  - **Description**: Binds this listener to a local unix socket instead of a TCP endpoint. A local fronting process such as NGINX connects to the socket, and the socket file permissions are the trust boundary: no remote host can reach this listener, so the TCP-only peer checks are skipped. Each accepted connection is presented as a synthetic `127.0.0.1` peer. To let the fronting process's `X-Forwarded-For` header determine the client identity, keep `127.0.0.1/32` in this listener's `web_trusted_proxy_cidrs`; when the synthetic peer is untrusted, the connection is served as fallback traffic only.
   - **Example**:
 
     ```toml
@@ -609,7 +609,7 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `carriers` | `false` or a non-empty array of unique carriers | `false` | `✔` |
 | `carrier_learning` | `bool` | `true` | `✔` |
 | `carrier_negotiation_aggressiveness` | `"conservative"`, `"balanced"`, or `"aggressive"` | `"conservative"` | `✔` |
-| `decoy_fasttrack_mode` | `"off"`, `"shadow"`, or `"enforce"` | `"off"` | `✘` |
+| `fallback_fasttrack_mode` | `"off"`, `"shadow"`, or `"enforce"` | `"off"` | `✘` |
 | `http_connection_capacity_action` | `"drop"`, `"wait"`, or `"respond"` | `"drop"` | `✔` |
 | `debug` | table | disabled, bounded defaults | `✔` |
 | `limits` | table | bounded defaults | `✘` |
@@ -622,7 +622,7 @@ When `carriers` is missing or `false`, auto-negotiation and learning are disable
 
 `http_connection_capacity_action` applies only after Telemt has accepted a private WEB TCP connection and `max_http_connections` is exhausted. `drop` preserves the legacy immediate close. `respond` emits an empty `503 Service Unavailable` with `Retry-After: 1`, `Cache-Control: no-store`, and `Connection: close`. `wait` waits for ordinary connection capacity for at most `http_overload_timeout_ms`, then enters normal HTTP handling; timeout emits the same bounded `503`. At most `max_http_overload_connections` accepted sockets may wait or respond outside ordinary connection capacity. This policy cannot observe or cause a TCP connect refusal before Telemt accepts the socket.
 
-`decoy_fasttrack_mode` is restart-only. `off` preserves legacy root-request scanning and collects no fast-track decisions. `shadow` records eligible requests while preserving the full scan. `enforce` skips scans only for `HEAD` or absent/noncanonical bridge queries. A canonical bridge-shaped `GET`, including an unknown capability, always scans every profile in the selected vhost. The optimization does not bound hostile canonical probes and enforce mode must be validated for request-shape timing distinguishability behind the production TLS terminator.
+`fallback_fasttrack_mode` is restart-only. `off` preserves legacy root-request scanning and collects no fast-track decisions. `shadow` records eligible requests while preserving the full scan. `enforce` skips scans only for `HEAD` or absent/noncanonical bridge queries. A canonical bridge-shaped `GET`, including an unknown capability, always scans every profile in the selected vhost. The optimization does not bound hostile canonical probes and enforce mode must be validated for request-shape timing distinguishability behind the production TLS terminator.
 
 `carrier_learning` applies only while negotiation is enabled. Learning is process-local, in-memory, bounded, and positive-only: only a carrier that reaches the server-defined healthy state contributes evidence. `conservative` requires the broadest evidence and disables IP ranking, `balanced` admits moderate User-Agent/profile evidence plus eligible public-IP tie breaking, and `aggressive` reacts to the first bounded samples. Reported client failures remain diagnostic and never create negative evidence. Reload preserves evidence across a generation change only when enabled state, aggressiveness, evidence lifetime, and health window are identical; any semantic change advances the evidence epoch and fences stale outcomes. Because `[web.limits]` is process-owned, a reload that enables learning or negotiation using only a desired larger `max_carrier_learning_entries` atomically defers the dependent learning/carrier field rather than publishing an invalid effective combination. Disabling WEB stops issuance of new bridge and session credentials after reload; use the users API to revoke one user's active sessions.
 
@@ -640,11 +640,11 @@ This hot-reloadable table controls the process-owned server-side WEB debug recor
 | `capture_frames` | `bool` | `true` | Parses bounded carrier bodies into frame type, stream ID, length, WINDOW, and error metadata without retaining frame payload separately. |
 | `body_capture` | `"off"`, `"metadata"`, `"prefix"`, or `"full"` | `"metadata"` | Controls request and response body byte retention. |
 | `body_prefix_bytes` | `usize` | `4096` | Prefix retained for recognized WEB bodies in `prefix` mode. |
-| `decoy_body_prefix_bytes` | `usize` | `4096` | Maximum retained prefix for ordinary decoy traffic in both `prefix` and `full` modes. |
+| `fallback_body_prefix_bytes` | `usize` | `4096` | Maximum retained prefix for ordinary fallback traffic in both `prefix` and `full` modes. |
 | `default_window_secs` | `u64` | `180` | Default observation window rendered by `/web-status`. |
 | `max_window_secs` | `u64` | `3600` | Largest observation window accepted by `/web-status`; validated at no more than 86400. |
 
-Changing `enabled` or any capture field clears retained records and rejects commits started under the previous policy epoch. Changing only the default or maximum observation window preserves compatible retained records. `full` retains a complete recognized carrier body only up to `web.limits.max_body_bytes`; decoy bodies always remain prefix-bounded. A prefix that depends on a simultaneously increased restart-only capacity is deferred with `web.debug` until restart. URI queries are never retained, credential header values are omitted, body copies are scrubbed for known WEB capabilities and bearer tokens, and profile keys are represented only by a domain-separated 16-hex fingerprint.
+Changing `enabled` or any capture field clears retained records and rejects commits started under the previous policy epoch. Changing only the default or maximum observation window preserves compatible retained records. `full` retains a complete recognized carrier body only up to `web.limits.max_body_bytes`; fallback bodies always remain prefix-bounded. A prefix that depends on a simultaneously increased restart-only capacity is deferred with `web.debug` until restart. URI queries are never retained, credential header values are omitted, body copies are scrubbed for known WEB capabilities and bearer tokens, and profile keys are represented only by a domain-separated 16-hex fingerprint.
 
 When `enabled`, `sideband`, and `capture_lifecycle` are all true, newly generated bridge pages send bounded one-shot lifecycle events to the exact configured base plus `api/v1/diagnostic`. The route is internal to Telemt and does not expose a public control API. Existing bridge documents do not acquire sideband behavior after reload.
 
@@ -652,7 +652,7 @@ Authenticated JSON control may clear the ring explicitly with `POST /v1/runtime/
 
 # [web.limits]
 
-These process-wide ceilings make every WEB registry, queue, request body, capability index, static snapshot, and admission path bounded. All values are validated together. Per-owner limits cannot exceed global limits, queue reserves must preserve control-frame progress, body reservations must fit their global budget, and all declared byte ceilings must fit `memory_envelope_bytes`. Changing any value in this table requires a process restart.
+These process-wide ceilings make every WEB registry, queue, request body, capability index, and admission path bounded. All values are validated together. Per-owner limits cannot exceed global limits, queue reserves must preserve control-frame progress, body reservations must fit their global budget, and all declared byte ceilings must fit `memory_envelope_bytes`. Changing any value in this table requires a process restart.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -670,7 +670,7 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `websocket_bytes_global` | `usize` | `268435456` | Transient WebSocket codec, message, and write-staging sub-budget inside `pending_bytes_global`. |
 | `websocket_admission_watermark_pct` | `u8` | `75` | WebSocket byte watermark for new base admission and the fair-share calculation used by deterministic replacement. |
 | `websocket_eviction_watermark_pct` | `u8` | `90` | WebSocket data-allocation watermark at which shared queue pressure may request deterministic cleanup. |
-| `websocket_http_connection_reserve` | `usize` | `64` | Accepted HTTP connections unavailable to WebSocket upgrades, preserving ordinary HTTP and decoy capacity. |
+| `websocket_http_connection_reserve` | `usize` | `64` | Accepted HTTP connections unavailable to WebSocket upgrades, preserving ordinary HTTP and fallback capacity. |
 | `max_websocket_evictions_in_flight` | `usize` | `8` | Process-wide ceiling for concurrent exact WebSocket eviction claims during admission and pressure cleanup. |
 | `max_carrier_learning_entries` | `usize` | `4096` | Process-wide ceiling for bounded carrier-learning evidence entries. |
 | `max_body_readers` | `usize` | `32` | Concurrent collected request bodies process-wide. |
@@ -691,12 +691,9 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `max_bootstraps_per_ip` | `usize` | `64` | Live bootstrap credentials per client IP. |
 | `max_vhosts` | `usize` | `8` | Configured WEB virtual hosts. |
 | `max_profiles` | `usize` | `32` | WEB profiles across all vhosts. |
-| `max_static_files` | `usize` | `4096` | Static snapshot entries across all vhosts. |
-| `max_static_file_bytes` | `usize` | `8388608` | Maximum bytes in one static file. |
-| `max_static_bytes` | `usize` | `67108864` | Static snapshot bytes across all vhosts. |
 | `debug_records_capacity` | `usize` | `65536` | Maximum retained WEB debug record count. |
 | `debug_bytes_global` | `usize` | `67108864` | Retained plus in-flight WEB debug byte ceiling; minimum 4096. |
-| `memory_envelope_bytes` | `usize` | `1342177280` | Declared envelope for HTTP heads, bodies, shared queues/WebSocket I/O, capability indexes, lane state, carrier learning, static snapshots, and bounded debug/status buffers; maximum 4 GiB. |
+| `memory_envelope_bytes` | `usize` | `1342177280` | Declared envelope for HTTP heads, bodies, shared queues/WebSocket I/O, capability indexes, lane state, carrier learning, and bounded debug/status buffers; maximum 4 GiB. |
 | `new_bootstraps_per_minute` | `u32` | `1200` | Sustained process-wide bootstrap issuance rate. |
 | `new_bootstraps_burst` | `u32` | `256` | Process-wide bootstrap issuance burst. |
 | `new_sessions_per_minute` | `u32` | `600` | Sustained process-wide session creation rate. |
@@ -730,11 +727,11 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `carrier_learning_secs` | `u64` | `600` | `✔` | Fixed two-window process-local evidence lifetime; validated within `2..=86400`. |
 | `bootstrap_lifetime_secs` | `u64` | `120` | `✔` | Unused bootstrap and closed-token replay lifetime. |
 | `reconnect_grace_secs` | `u64` | `120` | `✔` | Maximum validated peer inactivity before session closure; empty polls and backend-only progress do not renew this lease. |
-| `http_idle_secs` | `u64` | `75` | `✔` | Idle limit between HTTP exchanges and while an emitted response body makes no progress. Explicitly bounded request-body, long-poll, decoy, and pending-Upgrade phases keep their own deadlines instead of being truncated by this timer. The value is frozen when the connection is accepted. |
+| `http_idle_secs` | `u64` | `75` | `✔` | Idle limit between HTTP exchanges and while an emitted response body makes no progress. Explicitly bounded request-body, long-poll, fallback, and pending-Upgrade phases keep their own deadlines instead of being truncated by this timer. The value is frozen when the connection is accepted. |
 | `http_overload_timeout_ms` | `u64` | `250` | `✔` | Per-phase deadline in milliseconds for an accepted saturated socket to wait for capacity or write its retryable response; validated within `1..=60000`. A timed-out wait and its response write each receive at most one phase budget. |
 | `shutdown_secs` | `u64` | `15` | `✔` | One absolute process-shutdown budget shared by all listener acceptors and connections plus WEB session and auxiliary-task drains. The active value is captured once when shutdown starts. |
-| `decoy_header_secs` | `u64` | `30` | `✔` | Connect and response-head deadline for an HTTP decoy. |
-| `decoy_resolve_secs` | `u64` | `5` | `✔` | Maximum wait for each unique HTTP decoy hostname during config preparation under `decoy.resolve = "startup"`. |
+| `fallback_header_secs` | `u64` | `30` | `✔` | Connect and response-head deadline for an HTTP fallback. |
+| `fallback_resolve_secs` | `u64` | `5` | `✔` | Maximum wait for each unique HTTP fallback hostname during config preparation under `fallback.resolve = "startup"`. |
 
 # [[web.vhosts]]
 
@@ -743,19 +740,18 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `host` | `String` | yes | `✔` | Unique, canonical lowercase ACE FQDN without port, path, credentials, or trailing dot. |
 | `base_path` | `String` | no | `✔` | Exact case-sensitive WEB prefix without leading or trailing slash; empty by default. At most 128 ASCII bytes in slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments. |
 | `public_addr` | `SocketAddr` | yes | `✔` | Concrete public IP on port `443`; used in the inner relay destination tuple. |
-| `decoy` | table | yes | `✔` | Ordinary-site fallback for unauthenticated or invalid traffic. |
+| `fallback` | table | yes | `✔` | Ordinary-site fallback for unauthenticated or invalid traffic. |
 | `profiles` | array of tables | when enabled | `✔` | Explicit users and client secret modes exposed by this hostname. |
 
 The hostname must be accepted by Telegram Desktop and is normalized during validation. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap remains valid across a configuration reload only while the same profile identity is still active.
 
-# [web.vhosts.decoy]
+# [web.vhosts.fallback]
 
-Exactly one decoy mode is required:
+The `mode` key is required and accepts one value:
 
 | Mode | Required keys | Validation |
 | --- | --- | --- |
-| `http_upstream` | `upstream`; optional `resolve = "never" \| "startup"` | An `http://` origin; no credentials, path, query, or fragment. With the default `resolve = "never"` the host must be a loopback, link-local, or private IP literal. With `resolve = "startup"` a hostname is accepted and resolved once during config preparation; every answer must remain inside loopback or a private network, the answers are pinned for the prepared generation, and a failed, timed out, or empty lookup fails the load while the old configuration is kept. `resolve` is rejected outside `http_upstream`. Alternatively `upstream = "unix:/absolute/path.sock"` points the decoy at a local unix socket; the path must be absolute without URL control characters, `resolve` is rejected, no DNS is performed, and the vhost `host` is used as the request authority. A unix decoy target must not equal any `socket_path` of a WEB listener. |
-| `static_directory` | `directory`; optional `index = "index.html"` | Absolute real directory and one safe index file name. Symlinks and escaping paths are rejected; the immutable snapshot is loaded under `[web.limits]`. |
+| `http_upstream` | `upstream`; optional `resolve = "never" \| "startup"` | An `http://` origin; no credentials, path, query, or fragment. With the default `resolve = "never"` the host must be a loopback, link-local, or private IP literal. With `resolve = "startup"` a hostname is accepted and resolved once during config preparation; every answer must remain inside loopback or a private network, the answers are pinned for the prepared generation, and a failed, timed out, or empty lookup fails the load while the old configuration is kept. Alternatively `upstream = "unix:/absolute/path.sock"` points the fallback at a local unix socket; the path must be absolute without URL control characters, `resolve` is rejected, no DNS is performed, and the vhost `host` is used as the request authority. A unix fallback target must not equal any `socket_path` of a WEB listener. |
 
 # [[web.vhosts.profiles]]
 
@@ -771,8 +767,8 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 ## WEB lifecycle and API management
 
-- The config watcher and generation reload apply `web.enabled`, carrier and negotiation policy, `web.debug`, `web.timeouts`, vhosts, profiles, and decoy snapshots without a process restart. One immutable expanded source snapshot is validated and activated; a candidate generation's watcher starts only after that generation becomes active. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines; newly issued bridge sessions use one pinned active generation.
-- Changing `base_path` atomically replaces both the new-request route and derived capability. Reissue links and drain affected live sessions first: established WebSockets and already routed exchanges continue; later old-base requests carrying a process-authentic bootstrap or session token receive a local no-store `404`, while the now-inactive old capability follows ordinary decoy handling.
+- The config watcher and generation reload apply `web.enabled`, carrier and negotiation policy, `web.debug`, `web.timeouts`, vhosts, profiles, and fallback snapshots without a process restart. One immutable expanded source snapshot is validated and activated; a candidate generation's watcher starts only after that generation becomes active. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines; newly issued bridge sessions use one pinned active generation.
+- Changing `base_path` atomically replaces both the new-request route and derived capability. Reissue links and drain affected live sessions first: established WebSockets and already routed exchanges continue; later old-base requests carrying a process-authentic bootstrap or session token receive a local no-store `404`, while the now-inactive old capability follows ordinary fallback handling.
 - WEB listener inventory and trust policy under `[listener]`, and every `web.limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `[web]` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports `web.limits` in `deferred_process_fields` until restart.
 - `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.

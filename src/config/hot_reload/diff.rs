@@ -64,9 +64,9 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: server listener settings changed; restart required");
     }
-    if old.web.decoy_fasttrack_mode != new.web.decoy_fasttrack_mode {
+    if old.web.fallback_fasttrack_mode != new.web.fallback_fasttrack_mode {
         warned = true;
-        warn!("config reload: web.decoy_fasttrack_mode changed; restart required");
+        warn!("config reload: web.fallback_fasttrack_mode changed; restart required");
     }
     if old.general.network_ipv4 != new.general.network_ipv4
         || old.general.network_ipv6 != new.general.network_ipv6

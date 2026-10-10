@@ -19,7 +19,7 @@ enabled = true
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
 
@@ -36,7 +36,7 @@ fn vhosts_patch(base_path: &str) -> Json {
                 "host": "proxy.example.com",
                 "base_path": base_path,
                 "public_addr": "203.0.113.10:443",
-                "decoy": {
+                "fallback": {
                     "mode": "http_upstream",
                     "upstream": "http://127.0.0.1:18081"
                 },

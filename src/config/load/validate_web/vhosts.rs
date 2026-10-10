@@ -26,7 +26,7 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
                 "web.vhosts[{vhost_idx}].profiles must be non-empty when web.enabled=true"
             ));
         }
-        validate_decoy(vhost_idx, &vhost.decoy)?;
+        validate_fallback(vhost_idx, &vhost.fallback)?;
         let mut profiles = HashSet::with_capacity(vhost.profiles.len());
         for (profile_idx, profile) in vhost.profiles.iter().enumerate() {
             if profile.user.is_empty() || profile.user.len() > 64 {
@@ -148,28 +148,9 @@ pub(super) fn web_host_last_label_is_numeric(host: &str) -> bool {
     label.bytes().all(|byte| byte.is_ascii_digit())
 }
 
-pub(super) fn validate_decoy(vhost_idx: usize, decoy: &WebDecoyConfig) -> Result<()> {
-    match decoy {
-        WebDecoyConfig::HttpUpstream { upstream, resolve } => {
-            decoy_dns::parse_origin(vhost_idx, upstream, *resolve)?;
-        }
-        WebDecoyConfig::StaticDirectory { directory, index } => {
-            if !directory.is_absolute() {
-                return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].decoy.directory must be absolute"
-                ));
-            }
-            if index.is_empty()
-                || index.contains('\\')
-                || std::path::Path::new(index).components().count() != 1
-                || matches!(index.as_str(), "." | "..")
-            {
-                return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].decoy.index must be one safe file name"
-                ));
-            }
-        }
-    }
+pub(super) fn validate_fallback(vhost_idx: usize, fallback: &WebFallbackConfig) -> Result<()> {
+    let WebFallbackConfig::HttpUpstream { upstream, resolve } = fallback;
+    fallback_dns::parse_origin(vhost_idx, upstream, *resolve)?;
     Ok(())
 }
 

@@ -51,11 +51,8 @@ fn assert_private_not_found(response: &[u8]) {
     assert_eq!(body, b"not found\n");
 }
 
-fn assert_decoy(response: &[u8]) {
-    assert_eq!(
-        split_response(response).1,
-        b"<!doctype html><title>decoy</title>"
-    );
+fn assert_fallback(response: &[u8]) {
+    assert_eq!(split_response(response).1, b"site unavailable\n");
 }
 
 #[tokio::test]
@@ -81,7 +78,7 @@ async fn generation_swap_preserves_process_tokens_and_replaces_route_identity() 
     let old_encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(old_capability);
     let new_encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(new_capability);
 
-    assert_decoy(
+    assert_fallback(
         &request(
             &listener,
             &runtime,
@@ -97,7 +94,7 @@ async fn generation_swap_preserves_process_tokens_and_replaces_route_identity() 
         )
         .await,
     );
-    assert_decoy(
+    assert_fallback(
         &request(
             &listener,
             &runtime,

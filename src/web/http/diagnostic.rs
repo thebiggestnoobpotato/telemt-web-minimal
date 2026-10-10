@@ -5,7 +5,7 @@ use hyper::header;
 use hyper::{Method, Request, StatusCode};
 
 use super::body::{CollectBodyError, CollectedBody, RequestBody, collect_body};
-use super::decoy::serve_decoy;
+use super::fallback::serve_fallback;
 use super::response::{carrier_empty, service_unavailable};
 use super::{HttpResponse, request_trace};
 use crate::config::WebRuntimeVhost;
@@ -23,12 +23,12 @@ pub(super) async fn handle(
     client_ip: IpAddr,
 ) -> HttpResponse {
     if request.method() != Method::POST || !json_content_type(&request) {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let Some((trace_session_id, profile, body_timeout)) =
         runtime.bootstrap_trace_identity(token_hash, &vhost.host)
     else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     if let Some(trace) = request_trace(&request) {
         trace.set_route(TraceRoute::Diagnostic);
@@ -50,11 +50,11 @@ pub(super) async fn handle(
         Ok(result) => result,
         Err(CollectBodyError::Limit) => return service_unavailable(),
         Err(CollectBodyError::Invalid(request)) => {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
     };
     let Some(event) = parse_event(&body) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     match runtime.claim_bridge_diagnostic(token_hash, &vhost.host, event) {
         Ok(first) => {
@@ -70,7 +70,7 @@ pub(super) async fn handle(
             }
             carrier_empty(StatusCode::NO_CONTENT)
         }
-        Err(_) => serve_decoy(request, vhost, true, &runtime).await,
+        Err(_) => serve_fallback(request, vhost, true, &runtime).await,
     }
 }
 

@@ -18,12 +18,12 @@ pub(crate) struct WebRuntimeVhost {
     pub(crate) host: String,
     /// Exact slash-delimited endpoint base, including the trailing slash.
     pub(crate) base: String,
-    /// Restart-frozen decoy capability-scan policy.
-    pub(crate) decoy_fasttrack_mode: WebDecoyFastTrackMode,
+    /// Restart-frozen fallback capability-scan policy.
+    pub(crate) fallback_fasttrack_mode: WebFallbackFastTrackMode,
     /// Immutable ordinary-site fallback snapshot.
-    pub(crate) decoy: WebRuntimeDecoy,
+    pub(crate) fallback: WebRuntimeFallback,
     /// Upstream connect and response-head deadline.
-    pub(crate) decoy_header_secs: u64,
+    pub(crate) fallback_header_secs: u64,
     /// Exact capability profiles accepted by this host.
     pub(crate) profiles: Vec<Arc<WebRuntimeProfile>>,
     /// Contiguous capability table aligned one-to-one with `profiles`.
@@ -65,50 +65,29 @@ pub(crate) struct WebRuntimeProfile {
     pub(crate) max_streams_per_session: usize,
 }
 
-/// Decoy upstream endpoint frozen into the runtime snapshot.
+/// Fallback upstream endpoint frozen into the runtime snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum DecoyEndpoint {
+pub(crate) enum FallbackEndpoint {
     /// TCP origin address captured from the configured http origin.
     Tcp(SocketAddr),
     /// Unix domain socket path from the configured `unix:` origin.
     Unix(PathBuf),
 }
 
-impl fmt::Display for DecoyEndpoint {
+impl fmt::Display for FallbackEndpoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DecoyEndpoint::Tcp(addr) => write!(f, "{addr}"),
-            DecoyEndpoint::Unix(path) => write!(f, "unix:{}", path.display()),
+            FallbackEndpoint::Tcp(addr) => write!(f, "{addr}"),
+            FallbackEndpoint::Unix(path) => write!(f, "unix:{}", path.display()),
         }
     }
 }
 
 /// Runtime-ready ordinary-site fallback.
 #[derive(Debug)]
-pub(crate) enum WebRuntimeDecoy {
+pub(crate) enum WebRuntimeFallback {
     HttpUpstream {
-        endpoint: DecoyEndpoint,
+        endpoint: FallbackEndpoint,
         authority: String,
     },
-    StaticDirectory(Arc<WebStaticSite>),
-}
-
-/// Immutable bounded static-site snapshot.
-#[derive(Debug)]
-pub(crate) struct WebStaticSite {
-    /// Canonical URL-path to immutable response asset mapping.
-    pub(crate) assets: BTreeMap<String, WebStaticAsset>,
-    /// Configured root index file name.
-    pub(crate) index: String,
-}
-
-/// One immutable static response body and metadata.
-#[derive(Debug)]
-pub(crate) struct WebStaticAsset {
-    /// Immutable response body retained by the runtime snapshot.
-    pub(crate) body: Bytes,
-    /// Extension-derived static content type.
-    pub(crate) content_type: &'static str,
-    /// Strong SHA-256 entity tag.
-    pub(crate) etag: String,
 }

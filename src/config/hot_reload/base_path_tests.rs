@@ -27,7 +27,7 @@ enabled = true
 host = "proxy.example.com"
 {base_path}public_addr = "203.0.113.10:443"
 
-[web.vhosts.decoy]
+[web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
 

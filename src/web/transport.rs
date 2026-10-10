@@ -1,9 +1,9 @@
-//! Transport streams shared by process-owned listener ingress and decoy
+//! Transport streams shared by process-owned listener ingress and fallback
 //! upstream egress.
 //!
 //! The WEB HTTP front is transport-agnostic: one enum covers the TCP streams
 //! accepted from external terminators and the unix socket streams accepted
-//! from local fronting processes or connected to unix decoy upstreams.
+//! from local fronting processes or connected to unix fallback upstreams.
 
 use std::io;
 use std::pin::Pin;
@@ -13,10 +13,10 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpStream, UnixStream};
 
-use crate::config::DecoyEndpoint;
-use crate::web::telemetry::WebDecoyUpstreamOutcome;
+use crate::config::FallbackEndpoint;
+use crate::web::telemetry::WebFallbackUpstreamOutcome;
 
-/// Stream accepted from a process-owned listener or connected to a decoy
+/// Stream accepted from a process-owned listener or connected to a fallback
 /// upstream.
 pub(crate) enum WebListenerStream {
     /// TCP stream behind an external TLS terminator.
@@ -76,36 +76,36 @@ impl AsyncWrite for WebListenerStream {
     }
 }
 
-/// Connects to one frozen decoy endpoint within the header deadline.
+/// Connects to one frozen fallback endpoint within the header deadline.
 ///
 /// A missing or unlistened unix socket maps to the same connect-refused
 /// outcome class as a refused TCP connection.
-pub(crate) async fn connect_decoy(
-    endpoint: &DecoyEndpoint,
+pub(crate) async fn connect_fallback(
+    endpoint: &FallbackEndpoint,
     timeout: Duration,
-) -> Result<WebListenerStream, WebDecoyUpstreamOutcome> {
+) -> Result<WebListenerStream, WebFallbackUpstreamOutcome> {
     match endpoint {
-        DecoyEndpoint::Tcp(addr) => match tokio::time::timeout(timeout, TcpStream::connect(*addr))
+        FallbackEndpoint::Tcp(addr) => match tokio::time::timeout(timeout, TcpStream::connect(*addr))
             .await
         {
             Ok(Ok(stream)) => Ok(WebListenerStream::Tcp(stream)),
             Ok(Err(error)) if error.kind() == io::ErrorKind::ConnectionRefused => {
-                Err(WebDecoyUpstreamOutcome::ConnectRefused)
+                Err(WebFallbackUpstreamOutcome::ConnectRefused)
             }
-            Ok(Err(_)) => Err(WebDecoyUpstreamOutcome::ConnectError),
-            Err(_) => Err(WebDecoyUpstreamOutcome::ConnectTimeout),
+            Ok(Err(_)) => Err(WebFallbackUpstreamOutcome::ConnectError),
+            Err(_) => Err(WebFallbackUpstreamOutcome::ConnectTimeout),
         },
-        DecoyEndpoint::Unix(path) => {
+        FallbackEndpoint::Unix(path) => {
             match tokio::time::timeout(timeout, UnixStream::connect(path)).await {
                 Ok(Ok(stream)) => Ok(WebListenerStream::Unix(stream)),
                 Ok(Err(error))
                     if error.kind() == io::ErrorKind::NotFound
                         || error.kind() == io::ErrorKind::ConnectionRefused =>
                 {
-                    Err(WebDecoyUpstreamOutcome::ConnectRefused)
+                    Err(WebFallbackUpstreamOutcome::ConnectRefused)
                 }
-                Ok(Err(_)) => Err(WebDecoyUpstreamOutcome::ConnectError),
-                Err(_) => Err(WebDecoyUpstreamOutcome::ConnectTimeout),
+                Ok(Err(_)) => Err(WebFallbackUpstreamOutcome::ConnectError),
+                Err(_) => Err(WebFallbackUpstreamOutcome::ConnectTimeout),
             }
         }
     }

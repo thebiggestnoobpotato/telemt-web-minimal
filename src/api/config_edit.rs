@@ -203,7 +203,7 @@ async fn prepare_patch_to_path(
     let mut merged = Toml::try_from(&old_cfg)
         .map_err(|e| ApiFailure::internal(format!("failed to serialize config: {}", e)))?;
     deep_merge(&mut merged, &patch_toml);
-    ProxyConfig::validate_decoy_source_keys(&merged)
+    ProxyConfig::validate_fallback_source_keys(&merged)
         .map_err(|error| ApiFailure::bad_request(format!("invalid patched config: {error}")))?;
 
     let requested_cfg: ProxyConfig = merged
@@ -378,5 +378,5 @@ mod tests;
 mod conveyor_tests;
 
 #[cfg(test)]
-#[path = "config_edit/decoy_dns_tests.rs"]
-mod decoy_dns_tests;
+#[path = "config_edit/fallback_dns_tests.rs"]
+mod fallback_dns_tests;

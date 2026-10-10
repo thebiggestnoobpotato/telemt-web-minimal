@@ -30,7 +30,7 @@ mod decode;
 mod effective;
 mod pipeline;
 // Candidate-owned DNS preparation is separate from pure runtime reconstruction.
-mod decoy_dns;
+mod fallback_dns;
 mod validate_api;
 mod validate_core;
 mod validate_runtime;
@@ -214,14 +214,14 @@ impl ProxyConfig {
         pipeline::load_source_graph(graph)
     }
 
-    /// Parses source without resolving decoys or creating runtime WEB snapshots.
+    /// Parses source without resolving fallbacks or creating runtime WEB snapshots.
     pub(crate) fn parse_source<P: AsRef<Path>>(path: P) -> Result<ParsedConfigSource> {
         Self::parse_source_with_overrides(path, &BTreeMap::new())
     }
 
-    /// Checks decoy mode-specific keys before a source or API patch loses unknown fields.
-    pub(crate) fn validate_decoy_source_keys(document: &toml::Value) -> Result<()> {
-        decoy_dns::validate_mode_keys(document)
+    /// Checks fallback mode-specific keys before a source or API patch loses unknown fields.
+    pub(crate) fn validate_fallback_source_keys(document: &toml::Value) -> Result<()> {
+        fallback_dns::validate_mode_keys(document)
     }
 
     /// Parses an atomic mutation candidate without performing DNS.
@@ -247,7 +247,7 @@ impl ProxyConfig {
         Ok(())
     }
 
-    /// Rebuilds validated WEB capabilities and immutable decoy snapshots.
+    /// Rebuilds validated WEB capabilities and immutable fallback snapshots.
     pub(crate) fn rebuild_runtime_web(&mut self) -> Result<()> {
         runtime_web::rebuild(self)
     }
@@ -257,9 +257,9 @@ impl ProxyConfig {
         validate_web::validate(self)
     }
 
-    /// Revalidates decoy separation after restart-only listener fields are resolved.
-    pub(crate) fn validate_web_decoy_listener_separation(&self) -> Result<()> {
-        validate_web::validate_decoy_listener_separation(self)
+    /// Revalidates fallback separation after restart-only listener fields are resolved.
+    pub(crate) fn validate_web_fallback_listener_separation(&self) -> Result<()> {
+        validate_web::validate_fallback_listener_separation(self)
     }
 
     /// Returns authentication data owned by this configuration generation.

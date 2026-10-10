@@ -1,6 +1,6 @@
 use super::*;
 
-/// Normalizes source policy and authentication data before external decoy preparation.
+/// Normalizes source policy and authentication data before external fallback preparation.
 pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
     validate_network_cfg(&mut config.general)?;
 

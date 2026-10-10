@@ -5,7 +5,7 @@ use hyper::header::{self, HeaderName, HeaderValue};
 use hyper::{Request, StatusCode};
 
 use super::body::{CollectBodyError, CollectedBody, RequestBody, collect_body};
-use super::decoy::serve_decoy;
+use super::fallback::serve_fallback;
 use super::request::canonical_u64_header;
 use super::{
     HttpResponse, carrier_empty, carrier_headers, carrier_lane, full_response, insert_header,
@@ -25,23 +25,23 @@ pub(super) async fn handle_down(
     if !matches!(*request.method(), hyper::Method::POST | hyper::Method::PUT)
         || request.headers().contains_key(header::CONTENT_TYPE)
     {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     let Some(cursor) = canonical_u64_header(&request, "x-down-cursor") else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     let Ok(session) = runtime.get_session(token_hash, &vhost.host) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     if session.carrier().uses_websocket() {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     if let Some(trace) = request_trace(&request) {
         trace.set_route(TraceRoute::Downlink);
         trace.bind_identity(session.trace_identity());
     }
     let Some(lane_id) = carrier_lane(&request, session.carrier()) else {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     };
     let CollectedBody {
         request,
@@ -59,11 +59,11 @@ pub(super) async fn handle_down(
         Ok(result) => result,
         Err(CollectBodyError::Limit) => return service_unavailable(),
         Err(CollectBodyError::Invalid(request)) => {
-            return serve_decoy(request, vhost, true, &runtime).await;
+            return serve_fallback(request, vhost, true, &runtime).await;
         }
     };
     if !body.is_empty() {
-        return serve_decoy(request, vhost, true, &runtime).await;
+        return serve_fallback(request, vhost, true, &runtime).await;
     }
     // Empty polls must not retain even one byte from a conveyor head's body reserve.
     drop(_body_budget);
@@ -130,6 +130,6 @@ pub(super) async fn handle_down(
         Err(ManagerError::Concurrent | ManagerError::Backpressure | ManagerError::Limit) => {
             service_unavailable()
         }
-        Err(_) => serve_decoy(request, vhost, true, &runtime).await,
+        Err(_) => serve_fallback(request, vhost, true, &runtime).await,
     }
 }

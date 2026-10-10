@@ -10,7 +10,7 @@ fn fixed_counter_sets_and_acceptor_guard_are_exact() {
     assert_eq!(telemetry.live_acceptors(), 1);
     telemetry.record_rejection(WebRejectionReason::HttpConnectionCapacity);
     telemetry.record_overload(WebHttpConnectionOverloadOutcome::Dropped);
-    telemetry.record_decoy(WebDecoyUpstreamOutcome::ConnectRefused);
+    telemetry.record_fallback(WebFallbackUpstreamOutcome::ConnectRefused);
     telemetry.record_carrier_selection(WebCarrier::Https, WebCarrierSelectionDisposition::Cold);
     telemetry.record_carrier_failure(
         WebCarrier::Https,
@@ -18,7 +18,7 @@ fn fixed_counter_sets_and_acceptor_guard_are_exact() {
         CarrierFailure::Network,
     );
     telemetry.record_carrier_learning(WebCarrier::Https, WebCarrierLearningOutcome::Recorded);
-    telemetry.record_decoy_fasttrack(WebDecoyFastTrackDisposition::ShadowWouldFastTrack);
+    telemetry.record_fallback_fasttrack(WebFallbackFastTrackDisposition::ShadowWouldFastTrack);
     telemetry.record_session_closed(WebCarrier::Https, SessionCloseReason::ApiClose);
     telemetry.record_session_observation(
         WebCarrier::Https,
@@ -34,8 +34,8 @@ fn fixed_counter_sets_and_acceptor_guard_are_exact() {
         WebHttpConnectionOverloadOutcome::ALL.len()
     );
     assert_eq!(
-        telemetry.decoy_counters().len(),
-        WebDecoyUpstreamOutcome::ALL.len()
+        telemetry.fallback_counters().len(),
+        WebFallbackUpstreamOutcome::ALL.len()
     );
     assert_eq!(
         telemetry.carrier_selection_counters().len(),
@@ -50,11 +50,11 @@ fn fixed_counter_sets_and_acceptor_guard_are_exact() {
         WebCarrier::ALL.len() * WebCarrierLearningOutcome::ALL.len()
     );
     assert_eq!(
-        telemetry.decoy_fasttrack_counters().len(),
-        WebDecoyFastTrackDisposition::ALL.len()
+        telemetry.fallback_fasttrack_counters().len(),
+        WebFallbackFastTrackDisposition::ALL.len()
     );
     assert_eq!(
-        telemetry.decoy_fasttrack_total(WebDecoyFastTrackDisposition::ShadowWouldFastTrack),
+        telemetry.fallback_fasttrack_total(WebFallbackFastTrackDisposition::ShadowWouldFastTrack),
         1
     );
     assert_eq!(
@@ -74,7 +74,7 @@ fn fixed_counter_sets_and_acceptor_guard_are_exact() {
         1
     );
     assert_eq!(
-        telemetry.last_decoy().map(|value| value.0),
+        telemetry.last_fallback().map(|value| value.0),
         Some("connect_refused")
     );
     assert_eq!(telemetry.aggregates().sessions_closed, 1);

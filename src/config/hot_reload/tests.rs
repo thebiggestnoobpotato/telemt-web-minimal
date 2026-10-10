@@ -59,13 +59,13 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
 
                 [web]
                 enabled = true
-                decoy_fasttrack_mode = "{mode}"
+                fallback_fasttrack_mode = "{mode}"
 
                 [[web.vhosts]]
                 host = "proxy.example.com"
                 public_addr = "203.0.113.10:443"
 
-                [web.vhosts.decoy]
+                [web.vhosts.fallback]
                 mode = "http_upstream"
                 upstream = "http://127.0.0.1:18081"
 
@@ -138,16 +138,16 @@ fn web_debug_policy_is_hot_while_debug_capacity_is_process_owned() {
 }
 
 #[test]
-fn decoy_fasttrack_mode_is_deferred_until_restart() {
+fn fallback_fasttrack_mode_is_deferred_until_restart() {
     let old = sample_config();
     let mut new = old.clone();
-    new.web.decoy_fasttrack_mode = crate::config::WebDecoyFastTrackMode::Enforce;
+    new.web.fallback_fasttrack_mode = crate::config::WebFallbackFastTrackMode::Enforce;
 
     let applied = overlay_hot_fields(&old, &new);
 
     assert_eq!(
-        applied.web.decoy_fasttrack_mode,
-        old.web.decoy_fasttrack_mode
+        applied.web.fallback_fasttrack_mode,
+        old.web.fallback_fasttrack_mode
     );
     assert_eq!(
         HotFields::from_config(&old),
@@ -358,13 +358,13 @@ fn reload_rebuilds_vhosts_with_the_effective_fasttrack_mode() {
     let applied = config_tx.borrow().clone();
     assert_eq!(applied.logging.log_level, LogLevel::Silent);
     assert_eq!(
-        applied.web.decoy_fasttrack_mode,
-        crate::config::WebDecoyFastTrackMode::Off
+        applied.web.fallback_fasttrack_mode,
+        crate::config::WebFallbackFastTrackMode::Off
     );
     let runtime = applied.web.runtime.as_ref().unwrap();
     assert_eq!(
-        runtime.vhosts["proxy.example.com"].decoy_fasttrack_mode,
-        crate::config::WebDecoyFastTrackMode::Off
+        runtime.vhosts["proxy.example.com"].fallback_fasttrack_mode,
+        crate::config::WebFallbackFastTrackMode::Off
     );
 
     let _ = std::fs::remove_file(path);
