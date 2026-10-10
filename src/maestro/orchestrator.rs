@@ -78,17 +78,17 @@ pub(super) async fn run_telemt_core(
     let _ = ip_tracker
         .apply_policy_from_source(
             1,
-            config.access.user_max_unique_ips_global_each,
+            config.access.global_user_max_unique_ips,
             &config.access.user_max_unique_ips,
             config.access.user_max_unique_ips_mode,
             config.access.user_max_unique_ips_window_secs,
         )
         .await;
-    if config.access.user_max_unique_ips_global_each > 0
+    if config.access.global_user_max_unique_ips > 0
         || !config.access.user_max_unique_ips.is_empty()
     {
         info!(
-            global_each_limit = config.access.user_max_unique_ips_global_each,
+            global_each_limit = config.access.global_user_max_unique_ips,
             explicit_user_limits = config.access.user_max_unique_ips.len(),
             "User unique IP limits configured"
         );

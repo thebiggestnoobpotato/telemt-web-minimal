@@ -324,8 +324,8 @@ async fn acquire_user_connection_reservation_for_incarnation(
         .get(user)
         .copied()
         .filter(|limit| *limit > 0)
-        .or((config.access.user_max_tcp_conns_global_each > 0)
-            .then_some(config.access.user_max_tcp_conns_global_each))
+        .or((config.access.global_user_max_tcp_conns > 0)
+            .then_some(config.access.global_user_max_tcp_conns))
         .map(|value| value as u64);
     let Some(connection_permit) = stats.connection_authority().try_acquire(user, limit) else {
         return Err(ProxyError::ConnectionLimitExceeded {

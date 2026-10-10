@@ -61,8 +61,8 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
     );
     assert_eq!(cfg.access.users, default_access_users());
     assert_eq!(
-        cfg.access.user_max_tcp_conns_global_each,
-        default_user_max_tcp_conns_global_each()
+        cfg.access.global_user_max_tcp_conns,
+        default_global_user_max_tcp_conns()
     );
     assert_eq!(
         cfg.access.user_max_unique_ips_mode,
@@ -494,8 +494,8 @@ fn impl_defaults_are_sourced_from_default_helpers() {
     let access = AccessConfig::default();
     assert_eq!(access.users, default_access_users());
     assert_eq!(
-        access.user_max_tcp_conns_global_each,
-        default_user_max_tcp_conns_global_each()
+        access.global_user_max_tcp_conns,
+        default_global_user_max_tcp_conns()
     );
 }
 
@@ -611,6 +611,33 @@ fn upstream_socks_keys_load_into_socks_variant() {
     assert_eq!(socks_address, "127.0.0.1:9050");
     assert_eq!(socks_username.as_deref(), Some("alice"));
     assert_eq!(socks_password.as_deref(), Some("secret"));
+}
+
+#[test]
+fn access_global_user_keys_load() {
+    let cfg = load_config_from_temp_toml(
+        "[access]\nglobal_user_max_tcp_conns = 200\nglobal_user_max_unique_ips = 8\n",
+    );
+    assert_eq!(cfg.access.global_user_max_tcp_conns, 200);
+    assert_eq!(cfg.access.global_user_max_unique_ips, 8);
+}
+
+#[test]
+fn legacy_access_global_each_keys_are_stripped() {
+    // strict: the removed global_each keys are rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [access]\nuser_max_tcp_conns_global_each = 200\nuser_max_unique_ips_global_each = 8\n",
+    );
+    assert!(error.contains("access.user_max_tcp_conns_global_each"), "{error}");
+    assert!(error.contains("access.user_max_unique_ips_global_each"), "{error}");
+
+    // non-strict: the removed keys are ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[access]\nuser_max_tcp_conns_global_each = 200\nuser_max_unique_ips_global_each = 8\n",
+    );
+    assert_eq!(cfg.access.global_user_max_tcp_conns, 0);
+    assert_eq!(cfg.access.global_user_max_unique_ips, 0);
 }
 
 #[test]

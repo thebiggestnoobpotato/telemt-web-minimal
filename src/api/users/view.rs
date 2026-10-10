@@ -33,8 +33,8 @@ pub(in crate::api) async fn users_from_config(
                 .get(&username)
                 .copied()
                 .filter(|limit| *limit > 0)
-                .or((cfg.access.user_max_tcp_conns_global_each > 0)
-                    .then_some(cfg.access.user_max_tcp_conns_global_each)),
+                .or((cfg.access.global_user_max_tcp_conns > 0)
+                    .then_some(cfg.access.global_user_max_tcp_conns)),
             expiration_rfc3339: cfg
                 .access
                 .user_expirations
@@ -59,8 +59,8 @@ pub(in crate::api) async fn users_from_config(
                 .get(&username)
                 .copied()
                 .filter(|limit| *limit > 0)
-                .or((cfg.access.user_max_unique_ips_global_each > 0)
-                    .then_some(cfg.access.user_max_unique_ips_global_each)),
+                .or((cfg.access.global_user_max_unique_ips > 0)
+                    .then_some(cfg.access.global_user_max_unique_ips)),
             current_connections: stats.get_process_user_curr_connects(&username),
             active_unique_ips: active_ip_list.len(),
             active_unique_ips_list: active_ip_list,

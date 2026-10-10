@@ -156,8 +156,8 @@ async fn create_user_to_completion(
                 .get(&body.username)
                 .copied()
                 .filter(|limit| *limit > 0)
-                .or((cfg.access.user_max_tcp_conns_global_each > 0)
-                    .then_some(cfg.access.user_max_tcp_conns_global_each)),
+                .or((cfg.access.global_user_max_tcp_conns > 0)
+                    .then_some(cfg.access.global_user_max_tcp_conns)),
             expiration_rfc3339: None,
             data_quota_bytes: None,
             rate_limit_up_bps: body.rate_limit_up_bps.filter(|limit| *limit > 0),

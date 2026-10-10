@@ -165,7 +165,7 @@ async fn test_render_empty_stats() {
 }
 
 #[tokio::test]
-async fn test_render_uses_global_each_unique_ip_limit() {
+async fn test_render_uses_global_unique_ip_limit() {
     let stats = Stats::new();
     let shared_state = ProxySharedState::new();
     stats.increment_user_connects("alice");
@@ -176,7 +176,7 @@ async fn test_render_uses_global_each_unique_ip_limit() {
         .await
         .unwrap();
     let mut config = ProxyConfig::default();
-    config.access.user_max_unique_ips_global_each = 2;
+    config.access.global_user_max_unique_ips = 2;
 
     let output = render_metrics(
         &stats,

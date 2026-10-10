@@ -126,10 +126,10 @@ pub(super) fn log_changes(
             new_hot.user_max_tcp_conns.len()
         );
     }
-    if old_hot.user_max_tcp_conns_global_each != new_hot.user_max_tcp_conns_global_each {
+    if old_hot.global_user_max_tcp_conns != new_hot.global_user_max_tcp_conns {
         info!(
-            "config reload: user_max_tcp_conns policy global_each={}",
-            new_hot.user_max_tcp_conns_global_each
+            "config reload: global_user_max_tcp_conns={}",
+            new_hot.global_user_max_tcp_conns
         );
     }
     if old_hot.user_expirations != new_hot.user_expirations {
@@ -162,13 +162,13 @@ pub(super) fn log_changes(
             new_hot.user_max_unique_ips.len()
         );
     }
-    if old_hot.user_max_unique_ips_global_each != new_hot.user_max_unique_ips_global_each
+    if old_hot.global_user_max_unique_ips != new_hot.global_user_max_unique_ips
         || old_hot.user_max_unique_ips_mode != new_hot.user_max_unique_ips_mode
         || old_hot.user_max_unique_ips_window_secs != new_hot.user_max_unique_ips_window_secs
     {
         info!(
-            "config reload: user_max_unique_ips policy global_each={} mode={:?} window={}s",
-            new_hot.user_max_unique_ips_global_each,
+            "config reload: global_user_max_unique_ips={} mode={:?} window={}s",
+            new_hot.global_user_max_unique_ips,
             new_hot.user_max_unique_ips_mode,
             new_hot.user_max_unique_ips_window_secs
         );

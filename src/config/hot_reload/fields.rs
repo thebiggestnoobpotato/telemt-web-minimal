@@ -11,13 +11,13 @@ pub struct HotFields {
     pub users: std::collections::HashMap<String, String>,
     pub user_enabled: std::collections::HashMap<String, bool>,
     pub user_max_tcp_conns: std::collections::HashMap<String, usize>,
-    pub user_max_tcp_conns_global_each: usize,
+    pub global_user_max_tcp_conns: usize,
     pub user_expirations: std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>,
     pub user_data_quota: std::collections::HashMap<String, u64>,
     pub user_rate_limits: std::collections::HashMap<String, crate::config::RateLimitBps>,
     pub cidr_rate_limits: std::collections::HashMap<CidrRateLimitKey, crate::config::RateLimitBps>,
     pub user_max_unique_ips: std::collections::HashMap<String, usize>,
-    pub user_max_unique_ips_global_each: usize,
+    pub global_user_max_unique_ips: usize,
     pub user_max_unique_ips_mode: crate::config::UserMaxUniqueIpsMode,
     pub user_max_unique_ips_window_secs: u64,
     pub web_debug: WebDebugConfig,
@@ -34,13 +34,13 @@ impl HotFields {
             users: cfg.access.users.clone(),
             user_enabled: cfg.access.user_enabled.clone(),
             user_max_tcp_conns: cfg.access.user_max_tcp_conns.clone(),
-            user_max_tcp_conns_global_each: cfg.access.user_max_tcp_conns_global_each,
+            global_user_max_tcp_conns: cfg.access.global_user_max_tcp_conns,
             user_expirations: cfg.access.user_expirations.clone(),
             user_data_quota: cfg.access.user_data_quota.clone(),
             user_rate_limits: cfg.access.user_rate_limits.clone(),
             cidr_rate_limits: cfg.access.cidr_rate_limits.clone(),
             user_max_unique_ips: cfg.access.user_max_unique_ips.clone(),
-            user_max_unique_ips_global_each: cfg.access.user_max_unique_ips_global_each,
+            global_user_max_unique_ips: cfg.access.global_user_max_unique_ips,
             user_max_unique_ips_mode: cfg.access.user_max_unique_ips_mode,
             user_max_unique_ips_window_secs: cfg.access.user_max_unique_ips_window_secs,
             web_debug: cfg.web.debug.clone(),
@@ -60,13 +60,13 @@ pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyC
     cfg.access.users = new.access.users.clone();
     cfg.access.user_enabled = new.access.user_enabled.clone();
     cfg.access.user_max_tcp_conns = new.access.user_max_tcp_conns.clone();
-    cfg.access.user_max_tcp_conns_global_each = new.access.user_max_tcp_conns_global_each;
+    cfg.access.global_user_max_tcp_conns = new.access.global_user_max_tcp_conns;
     cfg.access.user_expirations = new.access.user_expirations.clone();
     cfg.access.user_data_quota = new.access.user_data_quota.clone();
     cfg.access.user_rate_limits = new.access.user_rate_limits.clone();
     cfg.access.cidr_rate_limits = new.access.cidr_rate_limits.clone();
     cfg.access.user_max_unique_ips = new.access.user_max_unique_ips.clone();
-    cfg.access.user_max_unique_ips_global_each = new.access.user_max_unique_ips_global_each;
+    cfg.access.global_user_max_unique_ips = new.access.global_user_max_unique_ips;
     cfg.access.user_max_unique_ips_mode = new.access.user_max_unique_ips_mode;
     cfg.access.user_max_unique_ips_window_secs = new.access.user_max_unique_ips_window_secs;
     let process_limits = cfg.web.limits.clone();

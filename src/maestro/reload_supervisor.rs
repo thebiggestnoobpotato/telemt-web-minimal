@@ -302,7 +302,7 @@ impl ReloadSupervisor {
             .ip_tracker
             .apply_policy_from_source(
                 new_runtime.id,
-                config.access.user_max_unique_ips_global_each,
+                config.access.global_user_max_unique_ips,
                 &config.access.user_max_unique_ips,
                 config.access.user_max_unique_ips_mode,
                 config.access.user_max_unique_ips_window_secs,

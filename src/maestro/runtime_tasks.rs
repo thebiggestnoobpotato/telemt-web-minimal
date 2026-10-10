@@ -173,8 +173,8 @@ pub(crate) async fn spawn_runtime_tasks(
             let cfg = config_rx_ip_limits.borrow_and_update().clone();
 
             if previous.user_max_unique_ips != cfg.access.user_max_unique_ips
-                || previous.user_max_unique_ips_global_each
-                    != cfg.access.user_max_unique_ips_global_each
+                || previous.global_user_max_unique_ips
+                    != cfg.access.global_user_max_unique_ips
                 || previous.user_max_unique_ips_mode != cfg.access.user_max_unique_ips_mode
                 || previous.user_max_unique_ips_window_secs
                     != cfg.access.user_max_unique_ips_window_secs
@@ -182,7 +182,7 @@ pub(crate) async fn spawn_runtime_tasks(
                 let _ = ip_tracker_policy
                     .apply_policy_from_source(
                         generation_id,
-                        cfg.access.user_max_unique_ips_global_each,
+                        cfg.access.global_user_max_unique_ips,
                         &cfg.access.user_max_unique_ips,
                         cfg.access.user_max_unique_ips_mode,
                         cfg.access.user_max_unique_ips_window_secs,

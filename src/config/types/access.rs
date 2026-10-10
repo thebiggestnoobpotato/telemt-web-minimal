@@ -17,8 +17,8 @@ pub struct AccessConfig {
     /// Global per-user TCP connection limit applied when a user has no
     /// positive individual override.
     /// `0` disables the inherited limit.
-    #[serde(default = "default_user_max_tcp_conns_global_each")]
-    pub user_max_tcp_conns_global_each: usize,
+    #[serde(default = "default_global_user_max_tcp_conns")]
+    pub global_user_max_tcp_conns: usize,
 
     #[serde(default)]
     pub user_expirations: HashMap<String, DateTime<Utc>>,
@@ -57,8 +57,8 @@ pub struct AccessConfig {
 
     /// Global per-user unique IP limit applied when a user has no individual override.
     /// `0` disables the inherited limit.
-    #[serde(default = "default_user_max_unique_ips_global_each")]
-    pub user_max_unique_ips_global_each: usize,
+    #[serde(default = "default_global_user_max_unique_ips")]
+    pub global_user_max_unique_ips: usize,
 
     #[serde(default)]
     pub user_max_unique_ips_mode: UserMaxUniqueIpsMode,
@@ -82,14 +82,14 @@ impl Default for AccessConfig {
             users: default_access_users(),
             user_enabled: HashMap::new(),
             user_max_tcp_conns: HashMap::new(),
-            user_max_tcp_conns_global_each: default_user_max_tcp_conns_global_each(),
+            global_user_max_tcp_conns: default_global_user_max_tcp_conns(),
             user_expirations: HashMap::new(),
             user_data_quota: HashMap::new(),
             user_rate_limits: HashMap::new(),
             cidr_rate_limits: HashMap::new(),
             user_source_deny: HashMap::new(),
             user_max_unique_ips: HashMap::new(),
-            user_max_unique_ips_global_each: default_user_max_unique_ips_global_each(),
+            global_user_max_unique_ips: default_global_user_max_unique_ips(),
             user_max_unique_ips_mode: UserMaxUniqueIpsMode::default(),
             user_max_unique_ips_window_secs: default_user_max_unique_ips_window_secs(),
             replay_check_len: default_replay_check_len(),

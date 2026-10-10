@@ -847,11 +847,11 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`users`](#users) | `Map<String, String>` | `{"default": "000…000"}` | `✔` |
 | [`user_enabled`](#user_enabled-1) | `Map<String, bool>` | `{}` | `✔` |
 | [`user_max_tcp_conns`](#user_max_tcp_conns) | `Map<String, usize>` | `{}` | `✔` |
-| [`user_max_tcp_conns_global_each`](#user_max_tcp_conns_global_each) | `usize` | `0` | `✔` |
+| [`global_user_max_tcp_conns`](#global_user_max_tcp_conns) | `usize` | `0` | `✔` |
 | [`user_expirations`](#user_expirations) | `Map<String, DateTime<Utc>>` | `{}` | `✔` |
 | [`user_data_quota`](#user_data_quota) | `Map<String, u64>` | `{}` | `✔` |
 | [`user_max_unique_ips`](#user_max_unique_ips) | `Map<String, usize>` | `{}` | `✔` |
-| [`user_max_unique_ips_global_each`](#user_max_unique_ips_global_each) | `usize` | `0` | `✔` |
+| [`global_user_max_unique_ips`](#global_user_max_unique_ips) | `usize` | `0` | `✔` |
 | [`user_max_unique_ips_mode`](#user_max_unique_ips_mode) | `"active_window"`, `"time_window"`, or `"combined"` | `"active_window"` | `✔` |
 | [`user_max_unique_ips_window_secs`](#user_max_unique_ips_window_secs) | `u64` | `30` | `✔` |
 | [`user_source_deny`](#user_source_deny) | `Map<String, IpNetwork[]>` | `{}` | `✘` |
@@ -890,14 +890,14 @@ Profile limits must be non-zero and no greater than their corresponding global l
     [access.user_max_tcp_conns]
     alice = 500
     ```
-## user_max_tcp_conns_global_each
+## global_user_max_tcp_conns
   - **Constraints / validation**: `usize`. `0` disables the inherited limit.
   - **Description**: Global per-user maximum concurrent TCP connections, applied when a user has **no positive** entry in `[access.user_max_tcp_conns]` (a missing key, or a value of `0`, both fall through to this setting). Per-user limits greater than `0` in `user_max_tcp_conns` take precedence.
   - **Example**:
 
     ```toml
     [access]
-    user_max_tcp_conns_global_each = 200
+    global_user_max_tcp_conns = 200
 
     [access.user_max_tcp_conns]
     # Alice uses 500 rather than the global cap.
@@ -932,14 +932,14 @@ Profile limits must be non-zero and no greater than their corresponding global l
     [access.user_max_unique_ips]
     alice = 16
     ```
-## user_max_unique_ips_global_each
+## global_user_max_unique_ips
   - **Constraints / validation**: `usize`. `0` disables the inherited limit.
   - **Description**: Global per-user unique IP limit applied when a user has no individual override in `[access.user_max_unique_ips]`.
   - **Example**:
 
     ```toml
     [access]
-    user_max_unique_ips_global_each = 8
+    global_user_max_unique_ips = 8
     ```
 ## user_max_unique_ips_mode
   - **Constraints / validation**: Must be one of `"active_window"`, `"time_window"`, `"combined"`.

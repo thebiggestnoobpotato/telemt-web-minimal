@@ -172,12 +172,12 @@ pub(super) fn build_limits_effective_data(cfg: &ProxyConfig) -> EffectiveLimitsD
             connect_failfast_hard_errors: cfg.general.upstream_connect_failfast_hard_errors,
         },
         user_ip_policy: EffectiveUserIpPolicyLimits {
-            global_each: cfg.access.user_max_unique_ips_global_each,
+            global_each: cfg.access.global_user_max_unique_ips,
             mode: user_max_unique_ips_mode_label(cfg.access.user_max_unique_ips_mode),
             window_secs: cfg.access.user_max_unique_ips_window_secs,
         },
         user_tcp_policy: EffectiveUserTcpPolicyLimits {
-            global_each: cfg.access.user_max_tcp_conns_global_each,
+            global_each: cfg.access.global_user_max_tcp_conns,
         },
     }
 }

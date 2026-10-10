@@ -9,7 +9,7 @@ async fn users_from_config_reports_effective_tcp_limit_with_global_fallback() {
         "alice".to_string(),
         "0123456789abcdef0123456789abcdef".to_string(),
     );
-    cfg.access.user_max_tcp_conns_global_each = 7;
+    cfg.access.global_user_max_tcp_conns = 7;
 
     let stats = Stats::new();
     let tracker = UserIpTracker::new();
@@ -40,7 +40,7 @@ async fn users_from_config_reports_effective_tcp_limit_with_global_fallback() {
     assert!(!alice.in_runtime);
     assert_eq!(alice.max_tcp_conns, Some(7));
 
-    cfg.access.user_max_tcp_conns_global_each = 0;
+    cfg.access.global_user_max_tcp_conns = 0;
     let users = users_from_config(&cfg, &stats, &tracker, None).await;
     let alice = users
         .iter()

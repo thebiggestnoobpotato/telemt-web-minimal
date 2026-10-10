@@ -233,8 +233,8 @@ pub(super) async fn render(
                 .get(&user)
                 .copied()
                 .filter(|limit| *limit > 0)
-                .or((config.access.user_max_unique_ips_global_each > 0)
-                    .then_some(config.access.user_max_unique_ips_global_each))
+                .or((config.access.global_user_max_unique_ips > 0)
+                    .then_some(config.access.global_user_max_unique_ips))
                 .unwrap_or(0);
             let utilization = if limit > 0 {
                 current as f64 / limit as f64
