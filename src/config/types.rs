@@ -15,7 +15,6 @@ mod access;
 mod api;
 mod general;
 mod general_impl;
-mod links;
 mod logging;
 mod metrics;
 mod network;
@@ -30,8 +29,6 @@ mod web_debug;
 pub use access::AccessConfig;
 pub use api::{ApiConfig, ApiGrayAction};
 pub use general::GeneralConfig;
-#[allow(unused_imports)]
-pub use links::ShowLink;
 pub use logging::{LogLevel, LoggingConfig, LoggingDestination};
 pub use metrics::MetricsConfig;
 pub use network::{UpstreamConfig, UpstreamType};

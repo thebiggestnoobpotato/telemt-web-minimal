@@ -11,8 +11,8 @@
 # RUST_LOG env var takes absolute priority over all of these
 [logging]
 log_level = "normal"
-show_users = "*"
-# show_users = ["alice", "bob"] # Only show links for alice and bob
+show_users_links = true
+# show_users_links = false # Don't emit WEB proxy links at startup
 
 # === Listener Binding ===
 # Single WEB listener; the unix socket variant is also supported via

@@ -51,7 +51,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`destination`](#destination) | `"stderr"` / `"syslog"` / `"file"` | `"stderr"` | `✘` |
 | [`path`](#path) | `String` | — | `✘` |
 | [`log_level`](#log_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` | `✔` |
-| [`show_users`](#show_users) | `"*"` or `String[]` | `"*"` | `✘` |
+| [`show_users_links`](#show_users_links) | `bool` | `true` | `✘` |
 | [`unknown_dc_log_enabled`](#unknown_dc_log_enabled) | `bool` | `false` | `✘` |
 
 ## destination
@@ -83,16 +83,16 @@ This document lists all configuration keys accepted by `config.toml`.
     [logging]
     log_level = "normal"
     ```
-## show_users
-  - **Constraints / validation**: `"*"` or `String[]`. An empty array means "show none".
-  - **Description**: Selects users whose `tg://` proxy links are shown at startup. Link lines are emitted through the `telemt::links` log target, so they follow the configured log destination (`stderr`, `syslog`, or `file`) and stay visible at `log_level = "silent"`.
+## show_users_links
+  - **Constraints / validation**: `bool`.
+  - **Description**: Whether `tg://` proxy links are shown at startup. `true` shows links for all users; `false` suppresses link emission entirely. Link lines are emitted through the `telemt::links` log target, so they follow the configured log destination (`stderr`, `syslog`, or `file`) and stay visible at `log_level = "silent"`.
   - **Example**:
 
     ```toml
     [logging]
-    show_users = "*"
+    show_users_links = true
     # or:
-    # show_users = ["alice", "bob"]
+    # show_users_links = false
     ```
 ## unknown_dc_log_enabled
   - **Constraints / validation**: `bool`.

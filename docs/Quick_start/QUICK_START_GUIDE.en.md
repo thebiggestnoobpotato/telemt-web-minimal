@@ -93,7 +93,7 @@ network_prefer = 4
 
 [logging]
 log_level = "normal"
-show_users = ["user"]
+show_users_links = true
 
 [listener]
 ip = "0.0.0.0"
