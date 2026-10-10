@@ -161,8 +161,6 @@ This document lists all configuration keys accepted by `config.toml`.
     [general]
     config_strict = true
     ```
-
-  - **Known limitation**: In this revision, `config_strict = true` rejects the otherwise supported `access.user_source_deny` key. Keep strict mode disabled when that key is present.
 ## network_ipv4
   - **Constraints / validation**: `bool`.
   - **Description**: Allow IPv4 Telegram DC targets.
@@ -854,7 +852,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`global_user_max_unique_ips`](#global_user_max_unique_ips) | `usize` | `0` | `✔` |
 | [`user_max_unique_ips_mode`](#user_max_unique_ips_mode) | `"active_window"`, `"time_window"`, or `"combined"` | `"active_window"` | `✔` |
 | [`user_max_unique_ips_window_secs`](#user_max_unique_ips_window_secs) | `u64` | `30` | `✔` |
-| [`user_source_deny`](#user_source_deny) | `Map<String, IpNetwork[]>` | `{}` | `✘` |
 | [`replay_check_len`](#replay_check_len) | `usize` | `65536` | `✘` |
 | [`replay_window_secs`](#replay_window_secs) | `u64` | `120` | `✘` |
 | [`ignore_time_skew`](#ignore_time_skew) | `bool` | `false` | `✘` |
@@ -959,20 +956,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
     [access]
     user_max_unique_ips_window_secs = 30
     ```
-## user_source_deny
-  - **Constraints / validation**: Table `username -> IpNetwork[]`. Each network must parse as CIDR (for example `203.0.113.0/24` or `2001:db8::/32`).
-  - **Description**: Per-user source IP/CIDR deny-list applied **after successful auth** in TLS and MTProto handshake paths. A matched source IP is rejected via the same fail-closed path as invalid auth.
-  - **Example**:
-
-    ```toml
-    [access.user_source_deny]
-    alice = ["203.0.113.0/24", "2001:db8:abcd::/48"]
-    bob = ["198.51.100.42/32"]
-    ```
-
-  - **How it works (quick check)**:
-    - connection from user `alice` and source `203.0.113.55` -> rejected (matches `203.0.113.0/24`)
-    - connection from user `alice` and source `198.51.100.10` -> allowed by this rule set (no match)
 ## replay_check_len
   - **Constraints / validation**: `usize`.
   - **Description**: Replay-protection storage length (number of entries tracked for duplicate detection).

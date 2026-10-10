@@ -158,7 +158,7 @@ Notes:
 | `POST /v1/users` | Creates a user and returns the effective user view plus secret. |
 | `GET /v1/users/{username}` | Returns one disk-first user view or `404` when absent. |
 | `PATCH /v1/users/{username}` | Updates selected per-user fields with JSON Merge Patch semantics. |
-| `DELETE /v1/users/{username}` | Deletes one user and related API-managed per-user access-map entries. It does not modify `access.user_source_deny`. |
+| `DELETE /v1/users/{username}` | Deletes one user and related API-managed per-user access-map entries. |
 | `POST /v1/users/{username}/rotate-secret` | Rotates one user's secret and returns the effective secret. |
 | `POST /v1/users/{username}/enable` | Enables one user, removing any disabled override from config. |
 | `POST /v1/users/{username}/disable` | Disables one user and closes active runtime sessions for that user. |
@@ -252,21 +252,6 @@ Notes:
 | `rate_limit_down_bps` | `u64` or `null` | no | Per-user download rate limit in bits per second; `null` removes the download direction limit. |
 | `max_unique_ips` | `usize` or `null` | no | Per-user unique source IP limit; `null` removes the per-user override. |
 | `enabled` | `bool` or `null` | no | `false` disables the user. `true` or `null` removes the disabled override, so the user is enabled. |
-
-### `access.user_source_deny` via API
-- In current API surface, per-user deny-list is **not** exposed as a dedicated field in `CreateUserRequest` / `PatchUserRequest`.
-- Configure it in `config.toml` under `[access.user_source_deny]` and apply via normal config reload path.
-- Runtime behavior after apply:
-  - auth succeeds for username/secret
-  - source IP is checked against `access.user_source_deny[username]`
-  - on match, handshake is rejected with the same fail-closed outcome as invalid auth
-
-Example config:
-```toml
-[access.user_source_deny]
-alice = ["203.0.113.0/24", "2001:db8:abcd::/48"]
-bob = ["198.51.100.42/32"]
-```
 
 ### `PatchConfigRequest`
 
@@ -1062,7 +1047,7 @@ Deployment, TLS-terminator examples, links, and WEB-specific verification are do
 | `POST /v1/users/{username}/enable` | Enables the user idempotently by removing the `access.user_enabled[username]` override and updating the runtime admission state immediately. |
 | `POST /v1/users/{username}/disable` | Disables the user idempotently by writing `access.user_enabled[username] = false`, updating runtime admission immediately, and cancelling active sessions for that username. |
 | `POST /v1/users/{username}/reset-quota` | Resets the runtime quota counter for the route username, persists quota state to `general.quota_state_path`, and does not modify user config. |
-| `DELETE /v1/users/{username}` | Deletes only the specified user, removes it from API-managed optional `access.user_*` maps, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates only related API-managed `access.*` TOML tables. It leaves `access.user_source_deny` untouched; manage that table manually in TOML. |
+| `DELETE /v1/users/{username}` | Deletes only the specified user, removes it from API-managed optional `access.user_*` maps, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates only related API-managed `access.*` TOML tables. |
 
 All accepted durable config, user, and quota mutations:
 - Respect `read_only` mode.

@@ -614,6 +614,24 @@ fn upstream_socks_keys_load_into_socks_variant() {
 }
 
 #[test]
+fn access_user_source_deny_key_is_stripped() {
+    // strict: the removed key is rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n\
+         [access.user_source_deny]\nuser = [\"203.0.113.0/24\"]\n",
+    );
+    assert!(error.contains("access.user_source_deny"), "{error}");
+
+    // non-strict: the removed key is ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[access.users]\nuser = \"00000000000000000000000000000000\"\n\
+         [access.user_source_deny]\nuser = [\"203.0.113.0/24\"]\n",
+    );
+    assert_eq!(cfg.access.global_user_max_tcp_conns, 0);
+}
+
+#[test]
 fn access_global_user_keys_load() {
     let cfg = load_config_from_temp_toml(
         "[access]\nglobal_user_max_tcp_conns = 200\nglobal_user_max_unique_ips = 8\n",

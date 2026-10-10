@@ -46,12 +46,6 @@ pub struct AccessConfig {
     #[serde(default)]
     pub cidr_rate_limits: HashMap<CidrRateLimitKey, RateLimitBps>,
 
-    /// Per-username client source IP/CIDR deny list. Checked after successful
-    /// authentication; matching IPs get the same rejection path as invalid auth
-    /// (handshake fails closed for that connection).
-    #[serde(default)]
-    pub user_source_deny: HashMap<String, Vec<IpNetwork>>,
-
     #[serde(default)]
     pub user_max_unique_ips: HashMap<String, usize>,
 
@@ -87,7 +81,6 @@ impl Default for AccessConfig {
             user_data_quota: HashMap::new(),
             user_rate_limits: HashMap::new(),
             cidr_rate_limits: HashMap::new(),
-            user_source_deny: HashMap::new(),
             user_max_unique_ips: HashMap::new(),
             global_user_max_unique_ips: default_global_user_max_unique_ips(),
             user_max_unique_ips_mode: UserMaxUniqueIpsMode::default(),
@@ -104,12 +97,6 @@ impl AccessConfig {
         self.user_enabled.get(username).copied().unwrap_or(true)
     }
 
-    /// Returns true if `ip` is contained in any CIDR listed for `username` under `user_source_deny`.
-    pub fn is_user_source_ip_denied(&self, username: &str, ip: IpAddr) -> bool {
-        self.user_source_deny
-            .get(username)
-            .is_some_and(|nets| nets.iter().any(|n| n.contains(ip)))
-    }
 }
 
 /// Key used by `access.cidr_rate_limits`.

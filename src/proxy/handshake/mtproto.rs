@@ -325,19 +325,6 @@ where
             return HandshakeResult::BadClient { reader, writer };
         };
 
-        if config
-            .access
-            .is_user_source_ip_denied(matched_user.as_str(), peer.ip())
-        {
-            auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-            warn!(
-                peer = %peer,
-                user = %matched_user,
-                "MTProto handshake rejected: client source IP on per-user deny list (access.user_source_deny)"
-            );
-            return HandshakeResult::BadClient { reader, writer };
-        }
-
         // Apply replay tracking only after successful authentication.
         //
         // This ordering prevents an attacker from producing invalid handshakes that
@@ -424,19 +411,6 @@ where
                 .handshake
                 .auth_expensive_checks_total
                 .fetch_add(validation_checks as u64, Ordering::Relaxed);
-
-            if config
-                .access
-                .is_user_source_ip_denied(user.as_str(), peer.ip())
-            {
-                auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-                warn!(
-                    peer = %peer,
-                    user = %user,
-                    "MTProto handshake rejected: client source IP on per-user deny list (access.user_source_deny)"
-                );
-                return HandshakeResult::BadClient { reader, writer };
-            }
 
             // Apply replay tracking only after successful authentication.
             //
