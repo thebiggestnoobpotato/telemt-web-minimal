@@ -108,34 +108,3 @@ fn registration_dropped_before_publication_cannot_leave_an_owner() {
 
     assert_eq!(authority.cancel_user_owners("alice"), 0);
 }
-
-#[test]
-fn quota_identity_follows_credential_rotation_and_recreation() {
-    let quota_store = Arc::new(QuotaStore::default());
-    let authority = UserAdmissionAuthority::new_with_quota_store(quota_store.clone());
-    let old_secret = "00112233445566778899aabbccddeeff";
-    let new_secret = "ffeeddccbbaa99887766554433221100";
-    authority.apply_config(&users(old_secret), &HashMap::new());
-    let old_incarnation = authority
-        .authenticated_incarnation("alice", credential_id_from_hex(old_secret).unwrap())
-        .unwrap();
-    let old_quota = quota_store.handle_exact("alice", old_incarnation).unwrap();
-    old_quota.charge(40);
-
-    let rotated = authority.stage_user("alice", new_secret, true).unwrap();
-    let rotated_quota = quota_store
-        .handle_exact("alice", rotated.incarnation)
-        .unwrap();
-    old_quota.charge(20);
-
-    assert_eq!(rotated_quota.used(), 40);
-    authority.delete_user("alice");
-    let recreated = authority.stage_user("alice", old_secret, true).unwrap();
-    assert_eq!(
-        quota_store
-            .handle_exact("alice", recreated.incarnation)
-            .unwrap()
-            .used(),
-        0
-    );
-}

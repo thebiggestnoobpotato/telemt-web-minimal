@@ -15,7 +15,6 @@ use crate::protocol::constants::*;
 use crate::proxy::handshake::{HandshakeSuccess, encrypt_tg_nonce_with_ciphers, generate_tg_nonce};
 use crate::proxy::shared_state::ProxySharedState;
 use crate::stats::Stats;
-use crate::stats::UserQuotaHandle;
 use crate::stream::{BufferPool, CryptoReader, CryptoWriter};
 use crate::transport::UpstreamManager;
 

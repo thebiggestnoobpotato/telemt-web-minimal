@@ -193,38 +193,6 @@ pub(crate) async fn spawn_runtime_tasks(
         }
     });
 
-    let limiter = shared_state.traffic_limiter.clone();
-    let mut config_rx_rate_limits = config_rx.clone();
-    task_scope.spawn(async move {
-        let mut prev_user_limits = config_rx_rate_limits
-            .borrow()
-            .access
-            .user_rate_limits
-            .clone();
-        let mut prev_cidr_limits = config_rx_rate_limits
-            .borrow()
-            .access
-            .cidr_rate_limits
-            .clone();
-        loop {
-            if config_rx_rate_limits.changed().await.is_err() {
-                break;
-            }
-            let cfg = config_rx_rate_limits.borrow_and_update().clone();
-            if prev_user_limits != cfg.access.user_rate_limits
-                || prev_cidr_limits != cfg.access.cidr_rate_limits
-            {
-                let _ = limiter.apply_policy_from_source(
-                    generation_id,
-                    cfg.access.user_rate_limits.clone(),
-                    cfg.access.cidr_rate_limits.clone(),
-                );
-                prev_user_limits = cfg.access.user_rate_limits.clone();
-                prev_cidr_limits = cfg.access.cidr_rate_limits.clone();
-            }
-        }
-    });
-
     let shared_user_enabled = shared_state.clone();
     let mut config_rx_user_enabled = config_rx.clone();
     task_scope.spawn(async move {

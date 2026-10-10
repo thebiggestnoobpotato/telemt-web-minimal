@@ -1,6 +1,5 @@
-
+ 
 use super::*;
-use crate::error::ProxyError;
 use crate::stats::Stats;
 use crate::stream::BufferPool;
 use std::sync::Arc;
@@ -33,7 +32,6 @@ async fn relay_hol_blocking_prevention_regression() {
         8192,
         user,
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 
@@ -71,78 +69,6 @@ async fn relay_hol_blocking_prevention_regression() {
     relay_task.abort();
 }
 
-// ------------------------------------------------------------------
-// Priority 3: Data Quota Mid-Session Cutoff (OWASP ASVS 5.1.6)
-// ------------------------------------------------------------------
-
-#[tokio::test]
-async fn relay_quota_mid_session_cutoff() {
-    let stats = Arc::new(Stats::new());
-    let user = "quota-mid-user";
-    let quota = 5000u64;
-    let c2s_buf_size = 1024usize;
-
-    let (client_peer, relay_client) = duplex(8192);
-    let (relay_server, server_peer) = duplex(8192);
-
-    let (client_reader, client_writer) = tokio::io::split(relay_client);
-    let (server_reader, server_writer) = tokio::io::split(relay_server);
-    let (mut _cp_reader, mut cp_writer) = tokio::io::split(client_peer);
-    let (mut sp_reader, _sp_writer) = tokio::io::split(server_peer);
-
-    let relay_task = tokio::spawn(relay_bidirectional(
-        client_reader,
-        client_writer,
-        server_reader,
-        server_writer,
-        c2s_buf_size,
-        1024,
-        user,
-        Arc::clone(&stats),
-        Some(quota),
-        Arc::new(BufferPool::new()),
-    ));
-
-    // Send 4000 bytes (Ok)
-    let buf1 = vec![0x42; 4000];
-    cp_writer.write_all(&buf1).await.unwrap();
-    let mut server_recv = vec![0u8; 4000];
-    sp_reader.read_exact(&mut server_recv).await.unwrap();
-
-    // Send another 2000 bytes (Total 6000 > 5000)
-    let buf2 = vec![0x42; 2000];
-    let _ = cp_writer.write_all(&buf2).await;
-
-    let relay_res = timeout(Duration::from_secs(1), relay_task).await.unwrap();
-
-    match relay_res {
-        Ok(Err(ProxyError::DataQuotaExceeded { .. })) => {
-            // Expected
-        }
-        other => panic!("Expected DataQuotaExceeded error, got: {:?}", other),
-    }
-
-    let mut overshoot_bytes = 0usize;
-    let mut buf = [0u8; 256];
-    loop {
-        match timeout(Duration::from_millis(20), sp_reader.read(&mut buf)).await {
-            Ok(Ok(0)) => break,
-            Ok(Ok(n)) => overshoot_bytes = overshoot_bytes.saturating_add(n),
-            Ok(Err(e)) => panic!("server read must not fail after relay cutoff: {e}"),
-            Err(_) => break,
-        }
-    }
-
-    assert!(
-        overshoot_bytes <= c2s_buf_size,
-        "post-write cutoff may leak at most one C->S chunk after boundary, got {overshoot_bytes}"
-    );
-    assert!(
-        stats.get_user_quota_used(user) <= quota.saturating_add(c2s_buf_size as u64),
-        "accounted quota must remain bounded by one in-flight chunk overshoot"
-    );
-}
-
 #[tokio::test]
 async fn relay_chaos_half_close_crossfire_terminates_without_hang() {
     let stats = Arc::new(Stats::new());
@@ -162,7 +88,6 @@ async fn relay_chaos_half_close_crossfire_terminates_without_hang() {
         1024,
         "half-close-crossfire",
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 
@@ -203,7 +128,6 @@ async fn relay_soak_bidirectional_temporal_jitter_5k_rounds() {
         4096,
         "soak-jitter-user",
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 

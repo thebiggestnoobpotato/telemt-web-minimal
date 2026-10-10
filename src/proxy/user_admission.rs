@@ -6,7 +6,6 @@ use parking_lot::Mutex;
 use tokio_util::sync::CancellationToken;
 
 use crate::crypto::sha256;
-use crate::stats::QuotaStore;
 
 const REGISTRATION_PENDING: u8 = 0;
 const REGISTRATION_ACTIVE: u8 = 1;
@@ -104,20 +103,13 @@ pub(crate) struct UserMutationResult {
 /// Process-owned user authentication and live-owner authority.
 pub(crate) struct UserAdmissionAuthority {
     state: Mutex<UserAdmissionState>,
-    quota_store: Arc<QuotaStore>,
 }
 
 impl UserAdmissionAuthority {
     /// Creates an uninitialized authority for isolated tests and startup wiring.
     pub(crate) fn new() -> Arc<Self> {
-        Self::new_with_quota_store(Arc::new(QuotaStore::default()))
-    }
-
-    /// Creates an authority coupled to the process-scoped quota identity store.
-    pub(crate) fn new_with_quota_store(quota_store: Arc<QuotaStore>) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(UserAdmissionState::default()),
-            quota_store,
         })
     }
 
@@ -242,19 +234,6 @@ impl UserAdmissionAuthority {
                         if let Some(record) = state.users.get_mut(&user) {
                             record.incarnation = incarnation;
                         }
-                        match (old_effective, new_effective) {
-                            (None, Some(_)) => {
-                                self.quota_store.activate_fresh(&user, incarnation);
-                            }
-                            (Some(_), Some(_)) => {
-                                self.quota_store
-                                    .advance_preserving_usage(&user, incarnation);
-                            }
-                            (Some(_), None) => {
-                                self.quota_store.retire_through(&user, incarnation);
-                            }
-                            (None, None) => {}
-                        }
                     }
                     if identity_changed
                         || old_effective.is_some_and(|entry| entry.enabled)
@@ -280,7 +259,6 @@ impl UserAdmissionAuthority {
                         incarnation,
                     },
                 );
-                self.quota_store.activate_fresh(&user, incarnation);
             }
 
             if changed {
@@ -333,13 +311,6 @@ impl UserAdmissionAuthority {
             });
             record.mutation_override = Some(UserOverride::Present(desired));
             record.incarnation = incarnation;
-            if identity_changed {
-                if previous.is_some() {
-                    self.quota_store.advance_preserving_usage(user, incarnation);
-                } else {
-                    self.quota_store.activate_fresh(user, incarnation);
-                }
-            }
             state.initialized = true;
             state.bump_epoch();
             let newly_disabled = previous.is_some_and(|entry| entry.enabled) && !enabled;
@@ -374,7 +345,6 @@ impl UserAdmissionAuthority {
             });
             record.mutation_override = Some(UserOverride::Deleted);
             record.incarnation = incarnation;
-            self.quota_store.retire_through(user, incarnation);
             state.initialized = true;
             state.bump_epoch();
             (

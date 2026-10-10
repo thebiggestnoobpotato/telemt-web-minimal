@@ -2,7 +2,6 @@ use super::*;
 use crate::config::ProxyConfig;
 use crate::maestro::generation::test_runtime_generation;
 use crate::maestro::reload::{ReloadRequest, ReloadSubmitError};
-use crate::stats::QuotaStore;
 use tokio::sync::Notify;
 use tracing_subscriber::{EnvFilter, Registry};
 
@@ -52,7 +51,6 @@ async fn fixture(request: ReloadRequest) -> ReloadFixture {
         control: control.clone(),
         commands,
         config_path: PathBuf::new(),
-        quota_store: Arc::new(QuotaStore::default()),
         runtime_log_filter: runtime_log_filter(),
         runtime_watch_tx,
         listener_manager,
@@ -260,7 +258,6 @@ async fn quiesce_joins_idle_supervisor_and_rejects_later_submissions() {
         control.clone(),
         commands,
         PathBuf::new(),
-        Arc::new(QuotaStore::default()),
         runtime_log_filter(),
         runtime_watch_tx,
         listener_manager,

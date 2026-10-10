@@ -110,7 +110,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
 | [`data_path`](#data_path) | `String` | — | `✘` |
-| [`quota_state_path`](#quota_state_path) | `Path` | `"telemt.limit.json"` | `✘` |
 | [`config_strict`](#config_strict) | `bool` | `false` | `✘` |
 | [`network_ipv4`](#network_ipv4) | `bool` | `true` | `✘` |
 | [`network_ipv6`](#network_ipv6) | `bool` | `false` | `✘` |
@@ -142,15 +141,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     data_path = "/var/lib/telemt"
-    ```
-## quota_state_path
-  - **Constraints / validation**: `Path`. Relative paths are resolved from the process working directory.
-  - **Description**: JSON state file used to persist runtime per-user quota consumption.
-  - **Example**:
-
-    ```toml
-    [general]
-    quota_state_path = "telemt.limit.json"
     ```
 ## config_strict
   - **Constraints / validation**: `bool`.
@@ -844,10 +834,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | --- | ---- | ------- | ---------- |
 | [`users`](#users) | `Map<String, String>` | `{"default": "000…000"}` | `✔` |
 | [`user_enabled`](#user_enabled-1) | `Map<String, bool>` | `{}` | `✔` |
-| [`user_max_tcp_conns`](#user_max_tcp_conns) | `Map<String, usize>` | `{}` | `✔` |
-| [`global_user_max_tcp_conns`](#global_user_max_tcp_conns) | `usize` | `0` | `✔` |
-| [`user_expirations`](#user_expirations) | `Map<String, DateTime<Utc>>` | `{}` | `✔` |
-| [`user_data_quota`](#user_data_quota) | `Map<String, u64>` | `{}` | `✔` |
 | [`user_max_unique_ips`](#user_max_unique_ips) | `Map<String, usize>` | `{}` | `✔` |
 | [`global_user_max_unique_ips`](#global_user_max_unique_ips) | `usize` | `0` | `✔` |
 | [`user_max_unique_ips_mode`](#user_max_unique_ips_mode) | `"active_window"`, `"time_window"`, or `"combined"` | `"active_window"` | `✔` |
@@ -855,8 +841,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`replay_check_len`](#replay_check_len) | `usize` | `65536` | `✘` |
 | [`replay_window_secs`](#replay_window_secs) | `u64` | `120` | `✘` |
 | [`ignore_time_skew`](#ignore_time_skew) | `bool` | `false` | `✘` |
-| [`user_rate_limits`](#user_rate_limits) | `Map<String, RateLimitBps>` | `{}` | `✔` |
-| [`cidr_rate_limits`](#cidr_rate_limits) | `Map<CidrRateLimitKey, RateLimitBps>` | `{}` | `✔` |
 
 ## users
   - **Constraints / validation**: Must not be empty (at least one user must exist). Each value must be **exactly 32 hex characters**.
@@ -877,48 +861,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```toml
     [access.user_enabled]
     alice = false
-    ```
-## user_max_tcp_conns
-  - **Constraints / validation**: `Map<String, usize>`.
-  - **Description**: Per-user maximum concurrent TCP connections.
-  - **Example**:
-
-    ```toml
-    [access.user_max_tcp_conns]
-    alice = 500
-    ```
-## global_user_max_tcp_conns
-  - **Constraints / validation**: `usize`. `0` disables the inherited limit.
-  - **Description**: Global per-user maximum concurrent TCP connections, applied when a user has **no positive** entry in `[access.user_max_tcp_conns]` (a missing key, or a value of `0`, both fall through to this setting). Per-user limits greater than `0` in `user_max_tcp_conns` take precedence.
-  - **Example**:
-
-    ```toml
-    [access]
-    global_user_max_tcp_conns = 200
-
-    [access.user_max_tcp_conns]
-    # Alice uses 500 rather than the global cap.
-    alice = 500
-    # Bob has no entry and therefore uses 200.
-    ```
-## user_expirations
-  - **Constraints / validation**: `Map<String, DateTime<Utc>>`. Each value must be a valid RFC3339 / ISO-8601 datetime.
-  - **Description**: Per-user account expiration timestamps (UTC).
-  - **Example**:
-
-    ```toml
-    [access.user_expirations]
-    alice = "2026-12-31T23:59:59Z"
-    ```
-## user_data_quota
-  - **Constraints / validation**: `Map<String, u64>`.
-  - **Description**: Per-user traffic quota in bytes.
-  - **Example**:
-
-    ```toml
-    [access.user_data_quota]
-    # Alice receives a 1 GiB quota.
-    alice = 1073741824
     ```
 ## user_max_unique_ips
   - **Constraints / validation**: `Map<String, usize>`.
@@ -982,28 +924,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```toml
     [access]
     ignore_time_skew = false
-    ```
-
-
-## user_rate_limits
-  - **Constraints / validation**: Table `username -> { up_bps, down_bps }`. Each direction must be within `0..=100000000000`; `0` means unlimited for that direction, and at least one direction must be non-zero.
-  - **Description**: Per-user bandwidth caps in bits/sec for upload (`up_bps`) and download (`down_bps`).
-  - **Example**:
-
-    ```toml
-    [access.user_rate_limits]
-    alice = { up_bps = 1048576, down_bps = 2097152 }
-    ```
-## cidr_rate_limits
-  - **Constraints / validation**: Table `CIDR or auto-template -> { up_bps, down_bps }`. Each direction must be within `0..=100000000000`; `0` means unlimited for that direction, and at least one direction must be non-zero. Explicit CIDR keys must parse as `IpNetwork`; auto-template keys must be `*4/N` (`N=0..32`), `*6/N` (`N=0..128`), or `*/N` (`N=0..32`). Duplicate normalized auto-templates are rejected.
-  - **Description**: Source-subnet bandwidth caps applied alongside per-user limits. Explicit CIDR rules use longest-prefix-wins and take priority over auto-templates. Auto-templates create buckets lazily per matched source subnet: `*4/N` for IPv4, `*6/N` for IPv6, and `*/N` as a dual-stack shorthand where IPv4 uses `/N` and IPv6 uses `/(N * 4)`.
-  - **Example**:
-
-    ```toml
-    [access.cidr_rate_limits]
-    "203.0.113.0/24" = { up_bps = 0, down_bps = 1048576 }
-    "*4/32" = { up_bps = 262144, down_bps = 1048576 }
-    "*6/64" = { up_bps = 262144, down_bps = 1048576 }
     ```
 # [[upstreams]]
 

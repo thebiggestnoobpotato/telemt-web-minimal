@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -11,12 +10,10 @@ use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::{decide_network_capabilities, log_probe_result, run_probe};
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, resolve_direct_buffer_hard_limit};
 use crate::proxy::shared_state::ProxySharedState;
-use crate::proxy::traffic_limiter::TrafficLimiter;
 use crate::proxy::user_admission::UserAdmissionAuthority;
-use crate::proxy::user_connection_authority::UserConnectionAuthority;
 use crate::startup::{COMPONENT_API_BOOTSTRAP, COMPONENT_NETWORK_PROBE};
 use crate::stats::telemetry::TelemetryPolicy;
-use crate::stats::{QuotaStore, Stats};
+use crate::stats::Stats;
 use crate::transport::UpstreamManager;
 use crate::web::control::WebRuntimeControl;
 use crate::web::trace::WebTraceStore;
@@ -44,22 +41,12 @@ pub(super) async fn run_telemt_core(
         logging_guard: _logging_guard,
     } = bootstrap::bootstrap(strict_runtime_paths).await?;
 
-    let quota_store = Arc::new(QuotaStore::default());
-    let connection_authority = Arc::new(UserConnectionAuthority::default());
-    let stats = Arc::new(Stats::with_process_authorities(
-        quota_store.clone(),
-        connection_authority,
-    ));
+    let stats = Arc::new(Stats::new());
     let process_control_plane = control_plane::ProcessControlPlane::new();
     let runtime_task_scope = generation::RuntimeTaskScope::new();
     let runtime_task_scope_guard =
         generation::RuntimeTaskScopePreparationGuard::new(runtime_task_scope.clone());
     stats.apply_telemetry_policy(TelemetryPolicy::from_config(&config.general));
-    let quota_state_path = config.general.quota_state_path.clone();
-    let quota_state =
-        crate::quota_state::QuotaStateOwner::new(quota_state_path, quota_store.clone());
-    let configured_quota_users = config.access.users.keys().cloned().collect::<BTreeSet<_>>();
-    quota_state.load(&configured_quota_users).await;
 
     let upstream_manager = Arc::new(
         UpstreamManager::new(
@@ -102,16 +89,9 @@ pub(super) async fn run_telemt_core(
         configured_override_bytes = config.general.direct_relay_buffer_budget_max_bytes,
         "Direct relay buffer budget initialized"
     );
-    let user_admission = UserAdmissionAuthority::new_with_quota_store(quota_store.clone());
-    let traffic_limiter = TrafficLimiter::new();
-    let _ = traffic_limiter.apply_policy_from_source(
-        1,
-        config.access.user_rate_limits.clone(),
-        config.access.cidr_rate_limits.clone(),
-    );
-    let shared_state = ProxySharedState::new_with_process_authorities(
+    let user_admission = UserAdmissionAuthority::new();
+    let shared_state = ProxySharedState::new_with_direct_buffer_budget_and_user_admission(
         direct_buffer_budget.clone(),
-        traffic_limiter,
         user_admission,
     );
     let _ = shared_state.activate_user_config_source(
@@ -174,7 +154,6 @@ pub(super) async fn run_telemt_core(
             let upstream_manager_api = upstream_manager.clone();
             let proxy_shared_api = shared_state.clone();
             let config_path_api = config_path.clone();
-            let quota_state_api = quota_state.clone();
             let startup_tracker_api = startup_tracker.clone();
             let reload_control_api = reload_control.clone();
             let active_runtime_rx_api = active_runtime_rx.clone();
@@ -191,7 +170,6 @@ pub(super) async fn run_telemt_core(
                     proxy_shared_api,
                     upstream_manager_api,
                     config_path_api,
-                    quota_state_api,
                     process_started_at_epoch_secs,
                     startup_tracker_api,
                     reload_control_api,
@@ -321,7 +299,6 @@ pub(super) async fn run_telemt_core(
         reload_control,
         reload_commands,
         config_path,
-        quota_store,
         runtime_log_filter,
         runtime_watch_tx,
         listener_manager,
@@ -336,7 +313,6 @@ pub(super) async fn run_telemt_core(
     shutdown::wait_for_shutdown(
         process_started_at,
         active_runtime,
-        quota_state,
         reload_supervisor,
         process_control_plane,
     )

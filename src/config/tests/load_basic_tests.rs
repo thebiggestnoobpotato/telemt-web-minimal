@@ -1,5 +1,4 @@
 use super::*;
-use crate::config::CidrRateLimitKey;
 
 fn load_config_from_temp_toml(toml: &str) -> ProxyConfig {
     let nonce = std::time::SystemTime::now()

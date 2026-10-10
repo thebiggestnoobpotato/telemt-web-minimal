@@ -1,5 +1,4 @@
 use super::*;
-use crate::config::RateLimitBps;
 
 #[tokio::test]
 async fn save_sections_preserves_other_tables_and_comments() {
@@ -376,24 +375,6 @@ async fn access_mutation_rejects_sections_with_different_source_owners() {
         tokio::fs::read_to_string(&included).await.unwrap(),
         included_body
     );
-}
-
-#[test]
-fn render_user_rate_limits_section() {
-    let mut cfg = ProxyConfig::default();
-    cfg.access.user_rate_limits.insert(
-        "alice".to_string(),
-        RateLimitBps {
-            up_bps: 1024,
-            down_bps: 2048,
-        },
-    );
-
-    let rendered =
-        render_access_section(&cfg, AccessSection::UserRateLimits).expect("section must render");
-
-    assert!(rendered.starts_with("[access.user_rate_limits]\n"));
-    assert!(rendered.contains("alice = { up_bps = 1024, down_bps = 2048 }"));
 }
 
 #[cfg(unix)]

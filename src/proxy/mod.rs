@@ -68,10 +68,7 @@ pub mod handshake;
 pub mod relay;
 pub mod session_eviction;
 pub mod shared_state;
-pub mod traffic_limiter;
 pub(crate) mod user_admission;
-// Process-wide per-user connection admission remains independent from telemetry.
-pub(crate) mod user_connection_authority;
 
 #[allow(unused_imports)]
 pub use handshake::*;

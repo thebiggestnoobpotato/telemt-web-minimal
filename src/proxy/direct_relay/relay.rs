@@ -17,7 +17,6 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    let quota_handle = stats.current_user_quota_handle(&success.user);
     handle_via_direct_with_shared(
         client_reader,
         client_writer,
@@ -30,7 +29,6 @@ where
         session_id,
         CancellationToken::new(),
         ProxySharedState::new(),
-        quota_handle,
     )
     .await
 }
@@ -48,7 +46,6 @@ pub(crate) async fn handle_via_direct_with_shared<R, W>(
     session_id: u64,
     session_cancel: CancellationToken,
     shared: Arc<ProxySharedState>,
-    quota_handle: UserQuotaHandle,
 ) -> Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
@@ -91,9 +88,6 @@ where
 
     stats.increment_user_connects(user);
     let _direct_connection_lease = stats.acquire_direct_connection_lease();
-    let traffic_lease = shared
-        .traffic_limiter
-        .acquire_lease(user, success.peer.ip());
 
     let buffer_pool_trim = Arc::clone(&buffer_pool);
     let relay_activity_timeout = Duration::from_secs(1800);
@@ -107,9 +101,6 @@ where
         config.general.max_connections,
         user,
         Arc::clone(&stats),
-        quota_handle,
-        config.access.user_data_quota.get(user).copied(),
-        traffic_lease,
         relay_activity_timeout,
         session_cancel.clone(),
         Arc::clone(&shared.direct_buffer_budget),

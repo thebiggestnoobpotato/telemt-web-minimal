@@ -118,7 +118,6 @@ Notes:
 | `POST` | `/v1/users/{username}/rotate-secret` | `RotateSecretRequest` or empty body | `200` or `202` | `CreateUserResponse` |
 | `POST` | `/v1/users/{username}/enable` | empty body | `200` or `202` | `UserInfo` |
 | `POST` | `/v1/users/{username}/disable` | empty body | `200` or `202` | `UserInfo` |
-| `POST` | `/v1/users/{username}/reset-quota` | empty body | `200` | `ResetUserQuotaResponse` |
 
 ## Endpoint Behavior
 
@@ -162,7 +161,6 @@ Notes:
 | `POST /v1/users/{username}/rotate-secret` | Rotates one user's secret and returns the effective secret. |
 | `POST /v1/users/{username}/enable` | Enables one user, removing any disabled override from config. |
 | `POST /v1/users/{username}/disable` | Disables one user and closes active runtime sessions for that user. |
-| `POST /v1/users/{username}/reset-quota` | Resets one user's runtime quota counter and persists quota state. |
 
 ## Common Error Codes
 
@@ -206,7 +204,6 @@ Notes:
 | `POST /v1/users/{username}/rotate-secret/` | Trailing slash is trimmed and the route matches `rotate-secret`. |
 | `POST /v1/users/{username}/enable/` | Trailing slash is trimmed and the route matches `enable`. |
 | `POST /v1/users/{username}/disable/` | Trailing slash is trimmed and the route matches `disable`. |
-| `POST /v1/users/{username}/reset-quota/` | Trailing slash is trimmed and the route matches `reset-quota`. |
 
 ## Body and JSON Semantics
 
@@ -233,11 +230,6 @@ Notes:
 | --- | --- | --- | --- |
 | `username` | `string` | yes | `[A-Za-z0-9_.-]`, length `1..64`. |
 | `secret` | `string` | no | Exactly 32 hex chars. If missing, generated automatically. |
-| `max_tcp_conns` | `usize` | no | Per-user concurrent TCP limit. |
-| `expiration_rfc3339` | `string` | no | RFC3339 expiration timestamp. |
-| `data_quota_bytes` | `u64` | no | Per-user traffic quota. |
-| `rate_limit_up_bps` | `u64` | no | Per-user upload rate limit in bits per second. |
-| `rate_limit_down_bps` | `u64` | no | Per-user download rate limit in bits per second. |
 | `max_unique_ips` | `usize` | no | Per-user unique source IP limit. |
 | `enabled` | `bool` | no | User enable flag. Missing means enabled. `false` persists a disabled override. |
 
@@ -245,11 +237,6 @@ Notes:
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `secret` | `string` | no | Exactly 32 hex chars. |
-| `max_tcp_conns` | `usize` or `null` | no | Per-user concurrent TCP limit; `null` removes the per-user override. |
-| `expiration_rfc3339` | `string` or `null` | no | RFC3339 expiration timestamp; `null` removes the expiration. |
-| `data_quota_bytes` | `u64` or `null` | no | Per-user traffic quota; `null` removes the per-user quota. |
-| `rate_limit_up_bps` | `u64` or `null` | no | Per-user upload rate limit in bits per second; `null` removes the upload direction limit. |
-| `rate_limit_down_bps` | `u64` or `null` | no | Per-user download rate limit in bits per second; `null` removes the download direction limit. |
 | `max_unique_ips` | `usize` or `null` | no | Per-user unique source IP limit; `null` removes the per-user override. |
 | `enabled` | `bool` or `null` | no | `false` disables the user. `true` or `null` removes the disabled override, so the user is enabled. |
 
@@ -788,13 +775,8 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `username` | `string` | Username. |
 | `enabled` | `bool` | Effective user enable flag. Missing config entry is reported as `true`. |
 | `in_runtime` | `bool` | Whether current runtime config already contains this user. |
-| `max_tcp_conns` | `usize?` | Optional max concurrent TCP limit. |
-| `expiration_rfc3339` | `string?` | Optional expiration timestamp. |
-| `data_quota_bytes` | `u64?` | Optional data quota. |
-| `rate_limit_up_bps` | `u64?` | Optional upload rate limit in bits per second. |
-| `rate_limit_down_bps` | `u64?` | Optional download rate limit in bits per second. |
 | `max_unique_ips` | `usize?` | Optional unique IP limit. |
-| `current_connections` | `u64` | Authoritative process-scoped live connections for this user across runtime generations; independent of optional per-user telemetry. |
+| `current_connections` | `u64` | Live connections for this user from per-user telemetry; reports `0` while user telemetry is disabled. |
 | `active_unique_ips` | `usize` | Current active unique source IPs. |
 | `active_unique_ips_list` | `ip[]` | Current active unique source IP list. |
 | `recent_unique_ips` | `usize` | Unique source IP count inside the configured recent window. |
@@ -834,13 +816,6 @@ Link generation:
 | --- | --- | --- |
 | `username` | `string` | Deleted username. |
 | `in_runtime` | `bool` | `true` when runtime config still contains the user and hot-reload has not applied deletion yet. |
-
-### `ResetUserQuotaResponse`
-| Field | Type | Description |
-| --- | --- | --- |
-| `username` | `string` | User whose runtime quota counter was reset. |
-| `used_bytes` | `u64` | Current used bytes after reset; always `0` on success. |
-| `last_reset_epoch_secs` | `u64` | Unix timestamp of the reset operation. |
 
 ## Config Endpoints
 
@@ -930,7 +905,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `restart_required` — legacy file-watcher classification retained for compatibility.
 - `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `listener` change (including endpoint moves), `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
+- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `listener` change (including endpoint moves), `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 
@@ -1001,7 +976,7 @@ The endpoint returns `202` with `ReloadAccepted`. A concurrent non-terminal relo
 
 Returns `ReloadStatus` with `state` equal to `accepted`, `preparing`, `activating`, `draining`, `succeeded`, `rolled_back`, or `failed`. Terminal statuses include `finished_at_epoch_secs`; failures include `error`. Successful activation may include `warnings` for old-generation cleanup failures and `deferred_process_fields` for process-owned settings.
 
-Runtime generation activation rebuilds statistics, upstream routing, replay and buffer state, IP tracking, admission state, and the WEB runtime (vhost and carrier profiles). Per-user quota accounting is process-scoped and remains continuous across generations. All `listener` fields, including the bound socket and its acceptor, are process-scoped: any listener change (including an endpoint move) is deferred to process restart and reported as a deferred field. API, metrics, PID ownership, and logging remain process-scoped. Maestro does not invoke systemd, containerd, or another process supervisor.
+Runtime generation activation rebuilds statistics, upstream routing, replay and buffer state, IP tracking, admission state, and the WEB runtime (vhost and carrier profiles). All `listener` fields, including the bound socket and its acceptor, are process-scoped: any listener change (including an endpoint move) is deferred to process restart and reported as a deferred field. API, metrics, PID ownership, and logging remain process-scoped. Maestro does not invoke systemd, containerd, or another process supervisor.
 
 The revision is verified again after preparation. With `failure_policy=rollback`, a changed revision or revision read failure rolls the candidate back; with `failure_policy=keep_new`, the condition is reported in `warnings` and activation continues.
 
@@ -1046,10 +1021,9 @@ Deployment, TLS-terminator examples, links, and WEB-specific verification are do
 | `POST /v1/users/{username}/rotate-secret` | Replaces the user's secret with a provided valid 32-hex value or a generated value, stages the new process-wide admission identity, cancels owners of the old identity, then returns the effective secret in `CreateUserResponse`. |
 | `POST /v1/users/{username}/enable` | Enables the user idempotently by removing the `access.user_enabled[username]` override and updating the runtime admission state immediately. |
 | `POST /v1/users/{username}/disable` | Disables the user idempotently by writing `access.user_enabled[username] = false`, updating runtime admission immediately, and cancelling active sessions for that username. |
-| `POST /v1/users/{username}/reset-quota` | Resets the runtime quota counter for the route username, persists quota state to `general.quota_state_path`, and does not modify user config. |
 | `DELETE /v1/users/{username}` | Deletes only the specified user, removes it from API-managed optional `access.user_*` maps, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates only related API-managed `access.*` TOML tables. |
 
-All accepted durable config, user, and quota mutations:
+All accepted durable config and user mutations:
 - Respect `read_only` mode.
 - Accept optional `If-Match` for optimistic concurrency.
 - Return new `revision` after successful write.
@@ -1058,7 +1032,7 @@ All accepted durable config, user, and quota mutations:
 - Publish mandatory process-wide admission state only after the durable write; a stale runtime generation cannot overwrite a newer user mutation.
 - Keep the mutation admission override authoritative until the matching active config-source value arrives; publications from older or non-active generations are rejected.
 
-For Unix config and user source writes, Telemt additionally takes an advisory `flock` on the root source's sibling `.lock` file, rechecks the complete source-graph revision and owner contents, and replaces the owning source through a same-directory atomic rename. Every source involved must be a non-symlink regular file with one directory entry, at most 8 MiB, and unchanged while read. The replacement preserves the existing UID, GID, and mode, syncs the temporary file before rename, and attempts to sync the parent directory afterward. Rename is the commit boundary; a later directory-sync failure is logged as a durability warning and does not roll back the already committed mutation. External writers coordinate only if they honor the same sidecar lock. Quota-state persistence does not use this config-source rename path.
+For Unix config and user source writes, Telemt additionally takes an advisory `flock` on the root source's sibling `.lock` file, rechecks the complete source-graph revision and owner contents, and replaces the owning source through a same-directory atomic rename. Every source involved must be a non-symlink regular file with one directory entry, at most 8 MiB, and unchanged while read. The replacement preserves the existing UID, GID, and mode, syncs the temporary file before rename, and attempts to sync the parent directory afterward. Rename is the commit boundary; a later directory-sync failure is logged as a durability warning and does not roll back the already committed mutation. External writers coordinate only if they honor the same sidecar lock.
 
 Docker deployment note:
 - Mutating endpoints require `config.toml` to live inside a writable mounted directory.
@@ -1091,8 +1065,7 @@ Additional runtime endpoint behavior:
 
 The current runtime exports these additional bounded-cardinality families. All use closed labels except the explicitly capped per-user family described below:
 
-- `telemt_rate_limiter_cas_retry_exhausted_total{scope,direction,operation}` uses the closed labels `scope=user|cidr`, `direction=up|down`, and `operation=reserve|refund`. Reserve exhaustion returns a zero grant without classifying it as configured throttling; refund exhaustion retains the charge. Neither outcome is a connection-drop counter.
-- `telemt_user_connections_current{user}` uses the same authoritative process-scoped admission count as API `current_connections`; it does not reset at a runtime generation boundary. Its Prometheus samples are emitted only when user telemetry is enabled and remain bounded to 4096 tracked telemetry users; `/v1/users` rows and their process-scoped counts are independent of that optional telemetry.
+- `telemt_user_connections_current{user}` reports the per-user telemetry current-connection counter. Its Prometheus samples are emitted only when user telemetry is enabled and remain bounded to 4096 tracked telemetry users. API `current_connections` reads the same counter, so both report `0` while user telemetry is disabled.
 
 ## Serialization Rules
 

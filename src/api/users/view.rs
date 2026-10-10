@@ -27,32 +27,6 @@ pub(in crate::api) async fn users_from_config(
             in_runtime: runtime_cfg
                 .map(|runtime| runtime.access.users.contains_key(&username))
                 .unwrap_or(false),
-            max_tcp_conns: cfg
-                .access
-                .user_max_tcp_conns
-                .get(&username)
-                .copied()
-                .filter(|limit| *limit > 0)
-                .or((cfg.access.global_user_max_tcp_conns > 0)
-                    .then_some(cfg.access.global_user_max_tcp_conns)),
-            expiration_rfc3339: cfg
-                .access
-                .user_expirations
-                .get(&username)
-                .map(chrono::DateTime::<chrono::Utc>::to_rfc3339),
-            data_quota_bytes: cfg.access.user_data_quota.get(&username).copied(),
-            rate_limit_up_bps: cfg
-                .access
-                .user_rate_limits
-                .get(&username)
-                .map(|limit| limit.up_bps)
-                .filter(|limit| *limit > 0),
-            rate_limit_down_bps: cfg
-                .access
-                .user_rate_limits
-                .get(&username)
-                .map(|limit| limit.down_bps)
-                .filter(|limit| *limit > 0),
             max_unique_ips: cfg
                 .access
                 .user_max_unique_ips
@@ -72,31 +46,4 @@ pub(in crate::api) async fn users_from_config(
         });
     }
     users
-}
-
-pub(in crate::api) fn build_user_quota_list(cfg: &ProxyConfig, stats: &Stats) -> UserQuotaListData {
-    let mut names = cfg.access.users.keys().cloned().collect::<Vec<_>>();
-    names.sort();
-
-    let snapshot = stats.user_quota_snapshot();
-    let mut users = Vec::with_capacity(names.len());
-    for username in names {
-        let Some(&data_quota_bytes) = cfg.access.user_data_quota.get(&username) else {
-            continue;
-        };
-        if data_quota_bytes == 0 {
-            continue;
-        }
-        let (used_bytes, last_reset_epoch_secs) = snapshot
-            .get(&username)
-            .map(|entry| (entry.used_bytes, entry.last_reset_epoch_secs))
-            .unwrap_or((0, 0));
-        users.push(UserQuotaEntry {
-            username,
-            data_quota_bytes,
-            used_bytes,
-            last_reset_epoch_secs,
-        });
-    }
-    UserQuotaListData { users }
 }

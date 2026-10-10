@@ -61,10 +61,6 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
     );
     assert_eq!(cfg.access.users, default_access_users());
     assert_eq!(
-        cfg.access.global_user_max_tcp_conns,
-        default_global_user_max_tcp_conns()
-    );
-    assert_eq!(
         cfg.access.user_max_unique_ips_mode,
         UserMaxUniqueIpsMode::default()
     );
@@ -304,124 +300,6 @@ fn listener_section_is_known_in_strict_config() {
 }
 
 #[test]
-fn cidr_rate_limits_accept_auto_templates_in_strict_config() {
-    let cfg = load_config_from_temp_toml(
-        r#"
-            [general]
-            config_strict = true
-
-            [access.users]
-            user = "00000000000000000000000000000000"
-
-            [access.cidr_rate_limits]
-            "*/24" = { up_bps = 1024, down_bps = 0 }
-            "*4/30" = { up_bps = 0, down_bps = 2048 }
-            "*6/64" = { up_bps = 4096, down_bps = 0 }
-        "#,
-    );
-
-    assert!(
-        cfg.access
-            .cidr_rate_limits
-            .contains_key(&CidrRateLimitKey::AutoDual(24))
-    );
-    assert!(
-        cfg.access
-            .cidr_rate_limits
-            .contains_key(&CidrRateLimitKey::AutoV4(30))
-    );
-    assert!(
-        cfg.access
-            .cidr_rate_limits
-            .contains_key(&CidrRateLimitKey::AutoV6(64))
-    );
-}
-
-#[test]
-fn cidr_rate_limits_reject_invalid_auto_template_prefix() {
-    let error = load_config_error_from_temp_toml(
-        r#"
-            [access.users]
-            user = "00000000000000000000000000000000"
-
-            [access.cidr_rate_limits]
-            "*4/33" = { up_bps = 1024, down_bps = 0 }
-        "#,
-    );
-
-    assert!(error.contains("prefix must be within 0..=32"));
-}
-
-#[test]
-fn cidr_rate_limits_reject_duplicate_normalized_auto_templates() {
-    let error = load_config_error_from_temp_toml(
-        r#"
-            [access.users]
-            user = "00000000000000000000000000000000"
-
-            [access.cidr_rate_limits]
-            "*/32" = { up_bps = 1024, down_bps = 0 }
-            "*6/128" = { up_bps = 2048, down_bps = 0 }
-        "#,
-    );
-
-    assert!(error.contains("duplicates normalized auto-template *6/128"));
-}
-
-#[test]
-fn rate_limits_accept_the_packed_counter_maximum() {
-    let cfg = load_config_from_temp_toml(
-        r#"
-            [access.users]
-            user = "00000000000000000000000000000000"
-
-            [access.user_rate_limits]
-            user = { up_bps = 100000000000, down_bps = 0 }
-
-            [access.cidr_rate_limits]
-            "203.0.113.0/24" = { up_bps = 0, down_bps = 100000000000 }
-        "#,
-    );
-
-    assert_eq!(cfg.access.user_rate_limits["user"].up_bps, 100_000_000_000);
-    assert_eq!(
-        cfg.access.cidr_rate_limits[&CidrRateLimitKey::Network("203.0.113.0/24".parse().unwrap())]
-            .down_bps,
-        100_000_000_000
-    );
-}
-
-#[test]
-fn user_rate_limits_reject_values_above_the_packed_counter_maximum() {
-    let error = load_config_error_from_temp_toml(
-        r#"
-            [access.users]
-            user = "00000000000000000000000000000000"
-
-            [access.user_rate_limits]
-            user = { up_bps = 100000000001, down_bps = 0 }
-        "#,
-    );
-
-    assert!(error.contains("access.user_rate_limits.user.up_bps must be within"));
-}
-
-#[test]
-fn cidr_rate_limits_reject_values_above_the_packed_counter_maximum() {
-    let error = load_config_error_from_temp_toml(
-        r#"
-            [access.users]
-            user = "00000000000000000000000000000000"
-
-            [access.cidr_rate_limits]
-            "203.0.113.0/24" = { up_bps = 0, down_bps = 100000000001 }
-        "#,
-    );
-
-    assert!(error.contains("access.cidr_rate_limits.203.0.113.0/24.down_bps must be within"));
-}
-
-#[test]
 fn file_logging_requires_path() {
     let error = load_config_error_from_temp_toml(
         r#"
@@ -493,10 +371,6 @@ fn impl_defaults_are_sourced_from_default_helpers() {
 
     let access = AccessConfig::default();
     assert_eq!(access.users, default_access_users());
-    assert_eq!(
-        access.global_user_max_tcp_conns,
-        default_global_user_max_tcp_conns()
-    );
 }
 
 #[test]
@@ -628,15 +502,45 @@ fn access_user_source_deny_key_is_stripped() {
         "[access.users]\nuser = \"00000000000000000000000000000000\"\n\
          [access.user_source_deny]\nuser = [\"203.0.113.0/24\"]\n",
     );
-    assert_eq!(cfg.access.global_user_max_tcp_conns, 0);
+    assert_eq!(cfg.access.global_user_max_unique_ips, 0);
+}
+
+#[test]
+fn access_user_limit_keys_are_stripped() {
+    // strict: the removed per-user TCP/expiration/quota/rate-limit keys are rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [access]\nglobal_user_max_tcp_conns = 200\n\
+         [access.user_max_tcp_conns]\nuser = 10\n\
+         [access.user_expirations]\nuser = \"2030-01-02T03:04:05Z\"\n\
+         [access.user_data_quota]\nuser = 1024\n\
+         [access.user_rate_limits]\nuser = { up_bps = 1024, down_bps = 0 }\n\
+         [access.cidr_rate_limits]\n\"203.0.113.0/24\" = { up_bps = 1024, down_bps = 0 }\n",
+    );
+    assert!(error.contains("access.global_user_max_tcp_conns"), "{error}");
+    assert!(error.contains("access.user_max_tcp_conns"), "{error}");
+    assert!(error.contains("access.user_expirations"), "{error}");
+    assert!(error.contains("access.user_data_quota"), "{error}");
+    assert!(error.contains("access.user_rate_limits"), "{error}");
+    assert!(error.contains("access.cidr_rate_limits"), "{error}");
+
+    // non-strict: the removed keys are ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[access]\nglobal_user_max_tcp_conns = 200\n\
+         [access.user_max_tcp_conns]\nuser = 10\n\
+         [access.user_expirations]\nuser = \"2030-01-02T03:04:05Z\"\n\
+         [access.user_data_quota]\nuser = 1024\n\
+         [access.user_rate_limits]\nuser = { up_bps = 1024, down_bps = 0 }\n\
+         [access.cidr_rate_limits]\n\"203.0.113.0/24\" = { up_bps = 1024, down_bps = 0 }\n",
+    );
+    assert_eq!(cfg.access.global_user_max_unique_ips, 0);
 }
 
 #[test]
 fn access_global_user_keys_load() {
     let cfg = load_config_from_temp_toml(
-        "[access]\nglobal_user_max_tcp_conns = 200\nglobal_user_max_unique_ips = 8\n",
+        "[access]\nglobal_user_max_unique_ips = 8\n",
     );
-    assert_eq!(cfg.access.global_user_max_tcp_conns, 200);
     assert_eq!(cfg.access.global_user_max_unique_ips, 8);
 }
 
@@ -645,16 +549,14 @@ fn legacy_access_global_each_keys_are_stripped() {
     // strict: the removed global_each keys are rejected.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n\
-         [access]\nuser_max_tcp_conns_global_each = 200\nuser_max_unique_ips_global_each = 8\n",
+         [access]\nuser_max_unique_ips_global_each = 8\n",
     );
-    assert!(error.contains("access.user_max_tcp_conns_global_each"), "{error}");
     assert!(error.contains("access.user_max_unique_ips_global_each"), "{error}");
 
     // non-strict: the removed keys are ignored and the config loads.
     let cfg = load_config_from_temp_toml(
-        "[access]\nuser_max_tcp_conns_global_each = 200\nuser_max_unique_ips_global_each = 8\n",
+        "[access]\nuser_max_unique_ips_global_each = 8\n",
     );
-    assert_eq!(cfg.access.global_user_max_tcp_conns, 0);
     assert_eq!(cfg.access.global_user_max_unique_ips, 0);
 }
 

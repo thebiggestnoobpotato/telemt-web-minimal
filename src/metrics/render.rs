@@ -2,9 +2,9 @@ use super::*;
 
 // Process, buffer, and TLS cache metrics.
 mod process;
-// Connection and quota metrics.
+// Connection metrics.
 mod connections;
-// Rate limiter and upstream metrics.
+// Upstream metrics.
 mod traffic;
 // Bounded per-user and IP-tracker metrics.
 mod users;
@@ -23,16 +23,8 @@ pub(super) async fn render_metrics(
 
     process::render(&mut out, stats, shared_state, telemetry);
     connections::render(&mut out, stats, shared_state, core_enabled);
-    traffic::render(&mut out, stats, shared_state, config, core_enabled);
-    users::render(
-        &mut out,
-        stats,
-        config,
-        ip_tracker,
-        core_enabled,
-        user_enabled,
-    )
-    .await;
+    traffic::render(&mut out, stats, core_enabled);
+    users::render(&mut out, stats, config, ip_tracker, user_enabled).await;
     super::web::render(&mut out, web_publication, config);
     out
 }

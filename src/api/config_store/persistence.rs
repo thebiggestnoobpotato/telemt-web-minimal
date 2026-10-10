@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::config::{ProxyConfig, RateLimitBps};
+use crate::config::ProxyConfig;
 
 #[cfg(test)]
 use super::atomic::write_atomic;
@@ -180,42 +179,6 @@ pub(super) fn render_access_section(
                 .collect();
             serialize_table_body(&rows)?
         }
-        AccessSection::UserMaxTcpConns => {
-            let rows: BTreeMap<String, usize> = cfg
-                .access
-                .user_max_tcp_conns
-                .iter()
-                .map(|(key, value)| (key.clone(), *value))
-                .collect();
-            serialize_table_body(&rows)?
-        }
-        AccessSection::UserExpirations => {
-            let rows: BTreeMap<String, DateTime<Utc>> = cfg
-                .access
-                .user_expirations
-                .iter()
-                .map(|(key, value)| (key.clone(), *value))
-                .collect();
-            serialize_table_body(&rows)?
-        }
-        AccessSection::UserDataQuota => {
-            let rows: BTreeMap<String, u64> = cfg
-                .access
-                .user_data_quota
-                .iter()
-                .map(|(key, value)| (key.clone(), *value))
-                .collect();
-            serialize_table_body(&rows)?
-        }
-        AccessSection::UserRateLimits => {
-            let rows: BTreeMap<String, RateLimitBps> = cfg
-                .access
-                .user_rate_limits
-                .iter()
-                .map(|(key, value)| (key.clone(), *value))
-                .collect();
-            serialize_rate_limit_body(&rows)?
-        }
         AccessSection::UserMaxUniqueIps => {
             let rows: BTreeMap<String, usize> = cfg
                 .access
@@ -241,10 +204,6 @@ fn access_section_is_empty(cfg: &ProxyConfig, section: AccessSection) -> bool {
     match section {
         AccessSection::Users => cfg.access.users.is_empty(),
         AccessSection::UserEnabled => cfg.access.user_enabled.is_empty(),
-        AccessSection::UserMaxTcpConns => cfg.access.user_max_tcp_conns.is_empty(),
-        AccessSection::UserExpirations => cfg.access.user_expirations.is_empty(),
-        AccessSection::UserDataQuota => cfg.access.user_data_quota.is_empty(),
-        AccessSection::UserRateLimits => cfg.access.user_rate_limits.is_empty(),
         AccessSection::UserMaxUniqueIps => cfg.access.user_max_unique_ips.is_empty(),
     }
 }
@@ -252,28 +211,6 @@ fn access_section_is_empty(cfg: &ProxyConfig, section: AccessSection) -> bool {
 fn serialize_table_body<T: Serialize>(value: &T) -> Result<String, ApiFailure> {
     toml::to_string(value)
         .map_err(|e| ApiFailure::internal(format!("failed to serialize access section: {}", e)))
-}
-
-fn serialize_rate_limit_body(rows: &BTreeMap<String, RateLimitBps>) -> Result<String, ApiFailure> {
-    let mut out = String::new();
-    for (key, value) in rows {
-        let key = serialize_toml_key(key)?;
-        out.push_str(&format!(
-            "{key} = {{ up_bps = {}, down_bps = {} }}\n",
-            value.up_bps, value.down_bps
-        ));
-    }
-    Ok(out)
-}
-
-fn serialize_toml_key(key: &str) -> Result<String, ApiFailure> {
-    let mut row = BTreeMap::new();
-    row.insert(key.to_string(), 0_u8);
-    let rendered = serialize_table_body(&row)?;
-    rendered
-        .split_once(" = ")
-        .map(|(key, _)| key.to_string())
-        .ok_or_else(|| ApiFailure::internal("failed to serialize TOML key"))
 }
 
 /// Replaces all blocks owned by one semantic TOML table with one rendering.

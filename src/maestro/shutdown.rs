@@ -7,7 +7,6 @@
 //!
 //! SIGHUP is handled separately in config/hot_reload.rs for config reload.
 
-use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -22,7 +21,6 @@ use super::control_plane::ProcessControlPlane;
 use super::generation::RuntimeGeneration;
 use super::helpers::{format_uptime, unit_label};
 use super::reload_supervisor::ReloadSupervisorHandle;
-use crate::quota_state::QuotaStateOwner;
 use crate::stats::Stats;
 
 /// Signal that triggered shutdown.
@@ -50,7 +48,6 @@ impl std::fmt::Display for ShutdownSignal {
 pub(crate) async fn wait_for_shutdown(
     process_started_at: Instant,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
-    quota_state: Arc<QuotaStateOwner>,
     reload_supervisor: ReloadSupervisorHandle,
     process_control_plane: ProcessControlPlane,
 ) {
@@ -59,7 +56,6 @@ pub(crate) async fn wait_for_shutdown(
         signal,
         process_started_at,
         active_runtime,
-        quota_state,
         reload_supervisor,
         process_control_plane,
     )
@@ -91,7 +87,6 @@ async fn perform_shutdown(
     signal: ShutdownSignal,
     process_started_at: Instant,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
-    quota_state: Arc<QuotaStateOwner>,
     reload_supervisor: ReloadSupervisorHandle,
     process_control_plane: ProcessControlPlane,
 ) {
@@ -120,29 +115,6 @@ async fn perform_shutdown(
 
     if !process_control_plane.shutdown(Duration::from_secs(5)).await {
         warn!("Process control-plane task shutdown deadline expired");
-    }
-
-    let configured_quota_users = runtime
-        .config()
-        .access
-        .users
-        .keys()
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    match quota_state.save(&configured_quota_users).await {
-        Ok(()) => {
-            info!(
-                path = %quota_state.path().display(),
-                "Persisted per-user quota state"
-            );
-        }
-        Err(error) => {
-            warn!(
-                error = %error,
-                path = %quota_state.path().display(),
-                "Failed to persist per-user quota state"
-            );
-        }
     }
 
     let shutdown_secs = shutdown_started_at.elapsed().as_secs();

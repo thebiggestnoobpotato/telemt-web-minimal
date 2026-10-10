@@ -1,11 +1,11 @@
+use std::path::PathBuf;
+
 use super::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
     #[serde(default)]
     pub data_path: Option<PathBuf>,
-    /// JSON state file for runtime per-user quota consumption.
-    #[serde(default = "default_quota_state_path")]
-    pub quota_state_path: PathBuf,
     /// Reject unknown TOML config keys during load.
     /// Startup fails fast; hot-reload rejects the new snapshot and keeps the current config.
     #[serde(default)]
@@ -23,16 +23,9 @@ pub struct GeneralConfig {
     #[serde(default = "default_true")]
     pub fast_mode: bool,
     /// Copy buffer ceiling for client->DC direction in direct relay.
-    ///
-    /// This is also the upper bound for one amortized upload rate-limit burst:
-    /// upload debt is settled before the next relay read instead of blocking
-    /// inside the completed read path.
     #[serde(default = "default_direct_relay_copy_buf_c2s_bytes")]
     pub direct_relay_copy_buf_c2s_bytes: usize,
     /// Copy buffer ceiling for DC->client direction in direct relay.
-    ///
-    /// This bounds one direct download rate-limit grant because writes are
-    /// clipped to the currently available shaper budget.
     #[serde(default = "default_direct_relay_copy_buf_s2c_bytes")]
     pub direct_relay_copy_buf_s2c_bytes: usize,
     /// Process-wide hard ceiling for Direct relay copy buffers.

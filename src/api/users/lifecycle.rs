@@ -1,5 +1,4 @@
 use super::*;
-use tracing::warn;
 
 pub(in crate::api) async fn rotate_secret(
     user: &str,
@@ -120,18 +119,6 @@ async fn delete_user_to_completion(
     if cfg.access.user_enabled.remove(user).is_some() {
         touched_sections.push(AccessSection::UserEnabled);
     }
-    if cfg.access.user_max_tcp_conns.remove(user).is_some() {
-        touched_sections.push(AccessSection::UserMaxTcpConns);
-    }
-    if cfg.access.user_expirations.remove(user).is_some() {
-        touched_sections.push(AccessSection::UserExpirations);
-    }
-    if cfg.access.user_data_quota.remove(user).is_some() {
-        touched_sections.push(AccessSection::UserDataQuota);
-    }
-    if cfg.access.user_rate_limits.remove(user).is_some() {
-        touched_sections.push(AccessSection::UserRateLimits);
-    }
     if cfg.access.user_max_unique_ips.remove(user).is_some() {
         touched_sections.push(AccessSection::UserMaxUniqueIps);
     }
@@ -146,18 +133,6 @@ async fn delete_user_to_completion(
     )
     .await?;
     let deleted_incarnation = shared.proxy_shared.delete_user(user).incarnation;
-    let configured_users = cfg.access.users.keys().cloned().collect();
-    if let Err(error) = shared
-        .quota_state
-        .remove_user(&configured_users, user)
-        .await
-    {
-        warn!(
-            user,
-            error = %error,
-            "Deleted user quota checkpoint cleanup will be reconciled on restart"
-        );
-    }
     shared.ip_tracker.remove_user_limit(user).await;
     shared
         .ip_tracker

@@ -1,6 +1,6 @@
 use super::*;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 #[test]
@@ -10,33 +10,6 @@ fn test_stats_shared_counters() {
     stats.increment_connects_all();
     stats.increment_connects_all();
     assert_eq!(stats.get_connects_all(), 3);
-}
-
-#[test]
-fn runtime_stats_share_process_connection_admission_authority() {
-    let quota_store = Arc::new(QuotaStore::default());
-    let authority = Arc::new(UserConnectionAuthority::default());
-    let first = Stats::with_process_authorities(Arc::clone(&quota_store), Arc::clone(&authority));
-    let second = Stats::with_process_authorities(quota_store, authority);
-
-    let permit = first
-        .connection_authority()
-        .try_acquire("alice", Some(1))
-        .unwrap();
-    assert!(
-        second
-            .connection_authority()
-            .try_acquire("alice", Some(1))
-            .is_none()
-    );
-
-    drop(permit);
-    assert!(
-        second
-            .connection_authority()
-            .try_acquire("alice", Some(1))
-            .is_some()
-    );
 }
 
 #[test]
@@ -120,127 +93,9 @@ fn test_replay_checker_many_keys() {
 }
 
 #[test]
-fn test_quota_reserve_under_contention_hits_limit_exactly() {
-    let user_stats = Arc::new(UserStats::default());
-    let successes = Arc::new(AtomicU64::new(0));
-    let limit = 8_192u64;
-    let mut workers = Vec::new();
-
-    for _ in 0..8 {
-        let user_stats = user_stats.clone();
-        let successes = successes.clone();
-        workers.push(std::thread::spawn(move || {
-            loop {
-                match user_stats.quota_try_reserve(1, limit) {
-                    Ok(_) => {
-                        successes.fetch_add(1, Ordering::Relaxed);
-                    }
-                    Err(QuotaReserveError::Contended) => {
-                        std::hint::spin_loop();
-                    }
-                    Err(QuotaReserveError::LimitExceeded) => {
-                        break;
-                    }
-                }
-            }
-        }));
-    }
-
-    for worker in workers {
-        worker.join().expect("worker thread must finish");
-    }
-
-    assert_eq!(
-        successes.load(Ordering::Relaxed),
-        limit,
-        "successful reservations must stop exactly at limit"
-    );
-    assert_eq!(user_stats.quota_used(), limit);
-}
-
-#[test]
-fn test_quota_reserve_200x_1k_reaches_100k_without_overshoot() {
-    let user_stats = Arc::new(UserStats::default());
-    let successes = Arc::new(AtomicU64::new(0));
-    let failures = Arc::new(AtomicU64::new(0));
-    let attempts = 200usize;
-    let reserve_bytes = 1_024u64;
-    let limit = 100 * 1_024u64;
-    let mut workers = Vec::with_capacity(attempts);
-
-    for _ in 0..attempts {
-        let user_stats = user_stats.clone();
-        let successes = successes.clone();
-        let failures = failures.clone();
-        workers.push(std::thread::spawn(move || {
-            loop {
-                match user_stats.quota_try_reserve(reserve_bytes, limit) {
-                    Ok(_) => {
-                        successes.fetch_add(1, Ordering::Relaxed);
-                        return;
-                    }
-                    Err(QuotaReserveError::LimitExceeded) => {
-                        failures.fetch_add(1, Ordering::Relaxed);
-                        return;
-                    }
-                    Err(QuotaReserveError::Contended) => {
-                        std::hint::spin_loop();
-                    }
-                }
-            }
-        }));
-    }
-
-    for worker in workers {
-        worker.join().expect("reservation worker must finish");
-    }
-
-    assert_eq!(
-        successes.load(Ordering::Relaxed),
-        100,
-        "exactly 100 reservations of 1 KiB must fit into a 100 KiB quota"
-    );
-    assert_eq!(
-        failures.load(Ordering::Relaxed),
-        100,
-        "remaining workers must fail once quota is fully reserved"
-    );
-    assert_eq!(user_stats.quota_used(), limit);
-}
-
-#[test]
-fn test_quota_used_is_authoritative_and_independent_from_octets_telemetry() {
-    let stats = Stats::new();
-    let user = "quota-authoritative-user";
-    let user_stats = stats.get_or_create_user_stats_handle(user);
-
-    stats.add_user_octets_to_handle(&user_stats, 5);
-    assert_eq!(stats.get_user_total_octets(user), 5);
-    assert_eq!(stats.get_user_quota_used(user), 0);
-
-    stats.quota_charge_post_write(&user_stats, 7);
-    assert_eq!(stats.get_user_total_octets(user), 5);
-    assert_eq!(stats.get_user_quota_used(user), 7);
-}
-
-#[test]
-fn old_quota_reservation_refund_does_not_reduce_post_reset_usage() {
-    let stats = Stats::new();
-    let user = "quota-reset-generation-user";
-    let user_stats = stats.get_or_create_user_stats_handle(user);
-    let reservation = user_stats.quota_reserve(80, 100).unwrap();
-
-    stats.reset_user_quota(user);
-    stats.quota_charge_post_write(user_stats.as_ref(), 40);
-    drop(reservation);
-
-    assert_eq!(stats.get_user_quota_used(user), 40);
-}
-
-#[test]
 fn test_cached_handle_survives_map_cleanup_until_last_drop() {
     let stats = Stats::new();
-    let user = "quota-handle-lifetime-user";
+    let user = "user-stats-handle-lifetime-user";
     let user_stats = stats.get_or_create_user_stats_handle(user);
     let weak = Arc::downgrade(&user_stats);
 
@@ -254,8 +109,8 @@ fn test_cached_handle_survives_map_cleanup_until_last_drop() {
         "cached handle must keep user stats object alive after map removal"
     );
 
-    stats.quota_charge_post_write(user_stats.as_ref(), 3);
-    assert_eq!(user_stats.quota_used(), 3);
+    stats.add_user_octets_to_handle(user_stats.as_ref(), 3);
+    assert_eq!(user_stats.octets_to_client.load(Ordering::Relaxed), 3);
 
     drop(user_stats);
     assert!(

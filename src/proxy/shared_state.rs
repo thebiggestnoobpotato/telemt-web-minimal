@@ -9,7 +9,6 @@ use tokio::sync::Semaphore;
 
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, fallback_direct_buffer_hard_limit};
 use crate::proxy::handshake::{AuthProbeSaturationState, AuthProbeState};
-use crate::proxy::traffic_limiter::TrafficLimiter;
 use crate::proxy::user_admission::{
     UserAdmissionAuthority, UserAdmissionPublication, UserCredentialId, UserIncarnation,
     UserMutationResult, UserSessionRegistration,
@@ -46,7 +45,6 @@ pub(crate) struct HandshakeSharedState {
 
 pub(crate) struct ProxySharedState {
     pub(crate) handshake: HandshakeSharedState,
-    pub(crate) traffic_limiter: Arc<TrafficLimiter>,
     pub(crate) direct_buffer_budget: Arc<DirectBufferBudget>,
     user_admission: Arc<UserAdmissionAuthority>,
 }
@@ -71,19 +69,6 @@ impl ProxySharedState {
     /// Creates generation state around one process-owned user authority.
     pub(crate) fn new_with_direct_buffer_budget_and_user_admission(
         direct_buffer_budget: Arc<DirectBufferBudget>,
-        user_admission: Arc<UserAdmissionAuthority>,
-    ) -> Arc<Self> {
-        Self::new_with_process_authorities(
-            direct_buffer_budget,
-            TrafficLimiter::new(),
-            user_admission,
-        )
-    }
-
-    /// Creates generation-local caches around process-owned data-plane authorities.
-    pub(crate) fn new_with_process_authorities(
-        direct_buffer_budget: Arc<DirectBufferBudget>,
-        traffic_limiter: Arc<TrafficLimiter>,
         user_admission: Arc<UserAdmissionAuthority>,
     ) -> Arc<Self> {
         Arc::new(Self {
@@ -115,7 +100,6 @@ impl ProxySharedState {
                 auth_expensive_checks_total: AtomicU64::new(0),
                 auth_budget_exhausted_total: AtomicU64::new(0),
             },
-            traffic_limiter,
             direct_buffer_budget,
             user_admission,
         })

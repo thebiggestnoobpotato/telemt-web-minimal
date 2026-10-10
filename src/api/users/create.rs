@@ -19,11 +19,6 @@ async fn create_user_to_completion(
     expected_revision: Option<String>,
     shared: &ApiShared,
 ) -> Result<(CreateUserResponse, String), ApiFailure> {
-    let touches_user_max_tcp_conns = body.max_tcp_conns.is_some();
-    let touches_user_expirations = body.expiration_rfc3339.is_some();
-    let touches_user_data_quota = body.data_quota_bytes.is_some();
-    let touches_user_rate_limits =
-        body.rate_limit_up_bps.is_some() || body.rate_limit_down_bps.is_some();
     let touches_user_max_unique_ips = body.max_unique_ips.is_some();
     let touches_user_enabled = matches!(body.enabled, Some(false));
 
@@ -45,7 +40,6 @@ async fn create_user_to_completion(
         None => random_user_secret(),
     };
 
-    let expiration = parse_optional_expiration(body.expiration_rfc3339.as_deref())?;
     let credential_id = credential_id_from_hex(&secret)
         .ok_or_else(|| ApiFailure::internal("validated user secret could not be decoded"))?;
     let _guard = shared.mutation_lock.lock().await;
@@ -63,30 +57,6 @@ async fn create_user_to_completion(
     cfg.access
         .users
         .insert(body.username.clone(), secret.clone());
-    if let Some(limit) = body.max_tcp_conns {
-        cfg.access
-            .user_max_tcp_conns
-            .insert(body.username.clone(), limit);
-    }
-    if let Some(expiration) = expiration {
-        cfg.access
-            .user_expirations
-            .insert(body.username.clone(), expiration);
-    }
-    if let Some(quota) = body.data_quota_bytes {
-        cfg.access
-            .user_data_quota
-            .insert(body.username.clone(), quota);
-    }
-    if touches_user_rate_limits {
-        cfg.access.user_rate_limits.insert(
-            body.username.clone(),
-            RateLimitBps {
-                up_bps: body.rate_limit_up_bps.unwrap_or(0),
-                down_bps: body.rate_limit_down_bps.unwrap_or(0),
-            },
-        );
-    }
 
     let updated_limit = body.max_unique_ips;
     if let Some(limit) = updated_limit {
@@ -102,18 +72,6 @@ async fn create_user_to_completion(
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
 
     let mut touched_sections = vec![AccessSection::Users];
-    if touches_user_max_tcp_conns {
-        touched_sections.push(AccessSection::UserMaxTcpConns);
-    }
-    if touches_user_expirations {
-        touched_sections.push(AccessSection::UserExpirations);
-    }
-    if touches_user_data_quota {
-        touched_sections.push(AccessSection::UserDataQuota);
-    }
-    if touches_user_rate_limits {
-        touched_sections.push(AccessSection::UserRateLimits);
-    }
     if touches_user_max_unique_ips {
         touched_sections.push(AccessSection::UserMaxUniqueIps);
     }
@@ -150,18 +108,6 @@ async fn create_user_to_completion(
             username: body.username.clone(),
             enabled: cfg.access.is_user_enabled(&body.username),
             in_runtime: false,
-            max_tcp_conns: cfg
-                .access
-                .user_max_tcp_conns
-                .get(&body.username)
-                .copied()
-                .filter(|limit| *limit > 0)
-                .or((cfg.access.global_user_max_tcp_conns > 0)
-                    .then_some(cfg.access.global_user_max_tcp_conns)),
-            expiration_rfc3339: None,
-            data_quota_bytes: None,
-            rate_limit_up_bps: body.rate_limit_up_bps.filter(|limit| *limit > 0),
-            rate_limit_down_bps: body.rate_limit_down_bps.filter(|limit| *limit > 0),
             max_unique_ips: updated_limit,
             current_connections: 0,
             active_unique_ips: 0,

@@ -120,42 +120,6 @@ pub(super) fn log_changes(
                 .count()
         );
     }
-    if old_hot.user_max_tcp_conns != new_hot.user_max_tcp_conns {
-        info!(
-            "config reload: user_max_tcp_conns updated ({} entries)",
-            new_hot.user_max_tcp_conns.len()
-        );
-    }
-    if old_hot.global_user_max_tcp_conns != new_hot.global_user_max_tcp_conns {
-        info!(
-            "config reload: global_user_max_tcp_conns={}",
-            new_hot.global_user_max_tcp_conns
-        );
-    }
-    if old_hot.user_expirations != new_hot.user_expirations {
-        info!(
-            "config reload: user_expirations updated ({} entries)",
-            new_hot.user_expirations.len()
-        );
-    }
-    if old_hot.user_data_quota != new_hot.user_data_quota {
-        info!(
-            "config reload: user_data_quota updated ({} entries)",
-            new_hot.user_data_quota.len()
-        );
-    }
-    if old_hot.user_rate_limits != new_hot.user_rate_limits {
-        info!(
-            "config reload: user_rate_limits updated ({} entries)",
-            new_hot.user_rate_limits.len()
-        );
-    }
-    if old_hot.cidr_rate_limits != new_hot.cidr_rate_limits {
-        info!(
-            "config reload: cidr_rate_limits updated ({} entries)",
-            new_hot.cidr_rate_limits.len()
-        );
-    }
     if old_hot.user_max_unique_ips != new_hot.user_max_unique_ips {
         info!(
             "config reload: user_max_unique_ips updated ({} entries)",

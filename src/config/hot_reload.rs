@@ -8,7 +8,7 @@
 //! |-----------|--------------------------------|------------------------------------------------|
 //! | `logging` | `log_level`                    | Filter updated via `log_level_tx`              |
 //! | `general` | `telemetry`                    | Applied immediately                            |
-//! | `access`  | All user/quota fields          | Effective immediately                          |
+//! | `access`  | All user fields                | Effective immediately                          |
 //! | `web`     | Carrier, timing, and debug policy | Applied to newly issued sessions             |
 //! | `web`     | `carrier_method`               | Applied to newly rendered bridge pages        |
 //! Fields that require re-binding sockets (`listener`)
@@ -29,8 +29,7 @@ use tracing::{error, info, warn};
 use super::load::{LoadedConfig, ProxyConfig};
 #[allow(unused_imports)]
 use crate::config::{
-    CidrRateLimitKey, LogLevel, WEB_CARRIER_LEARNING_MIN_ENTRIES, WebDebugConfig,
-    web_debug_fits_limits,
+    LogLevel, WEB_CARRIER_LEARNING_MIN_ENTRIES, WebDebugConfig, web_debug_fits_limits,
 };
 #[cfg(test)]
 use crate::config::ListenerConfig;

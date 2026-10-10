@@ -52,12 +52,11 @@
 //! - `SharedCounters` (atomics) let the watchdog read stats without locking
 
 use crate::error::{ProxyError, Result};
-use crate::proxy::traffic_limiter::TrafficLease;
 use crate::stats::Stats;
 use crate::stream::BufferPool;
 use std::future::pending;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, copy_bidirectional_with_sizes};
 use tokio::time::Instant;
@@ -89,9 +88,7 @@ mod io;
 
 pub(crate) use self::adaptive_copy::relay_direct_adaptive;
 
-use self::io::{CombinedStream, SharedCounters, StatsIo, is_quota_io_error};
-#[cfg(test)]
-use self::io::{quota_adaptive_interval_bytes, should_immediate_quota_check};
+use self::io::{CombinedStream, SharedCounters, StatsIo};
 // ============= Relay =============
 
 /// Relay data bidirectionally between client and server.
@@ -109,8 +106,7 @@ use self::io::{quota_adaptive_interval_bytes, should_immediate_quota_check};
 /// - Per-user stats: bytes and ops counted per direction
 /// - Periodic rate logging: every 10 seconds when active
 /// - Clean shutdown: both write sides are shut down on exit
-/// - Error propagation: quota exits return `ProxyError::DataQuotaExceeded`,
-///   other I/O failures are returned as `ProxyError::Io`
+/// - Error propagation: I/O failures are returned as `ProxyError::Io`
 #[allow(dead_code)]
 pub async fn relay_bidirectional<CR, CW, SR, SW>(
     client_reader: CR,
@@ -121,7 +117,6 @@ pub async fn relay_bidirectional<CR, CW, SR, SW>(
     s2c_buf_size: usize,
     user: &str,
     stats: Arc<Stats>,
-    quota_limit: Option<u64>,
     _buffer_pool: Arc<BufferPool>,
 ) -> Result<()>
 where
@@ -139,13 +134,13 @@ where
         s2c_buf_size,
         user,
         stats,
-        quota_limit,
         _buffer_pool,
         ACTIVITY_TIMEOUT,
     )
     .await
 }
 
+#[allow(dead_code)]
 pub async fn relay_bidirectional_with_activity_timeout<CR, CW, SR, SW>(
     client_reader: CR,
     client_writer: CW,
@@ -155,7 +150,6 @@ pub async fn relay_bidirectional_with_activity_timeout<CR, CW, SR, SW>(
     s2c_buf_size: usize,
     user: &str,
     stats: Arc<Stats>,
-    quota_limit: Option<u64>,
     _buffer_pool: Arc<BufferPool>,
     activity_timeout: Duration,
 ) -> Result<()>
@@ -165,7 +159,7 @@ where
     SR: AsyncRead + Unpin + Send + 'static,
     SW: AsyncWrite + Unpin + Send + 'static,
 {
-    relay_bidirectional_with_activity_timeout_and_lease(
+    relay_bidirectional_with_activity_timeout_cancel_inner(
         client_reader,
         client_writer,
         server_reader,
@@ -174,46 +168,7 @@ where
         s2c_buf_size,
         user,
         stats,
-        quota_limit,
         _buffer_pool,
-        None,
-        activity_timeout,
-    )
-    .await
-}
-
-pub async fn relay_bidirectional_with_activity_timeout_and_lease<CR, CW, SR, SW>(
-    client_reader: CR,
-    client_writer: CW,
-    server_reader: SR,
-    server_writer: SW,
-    c2s_buf_size: usize,
-    s2c_buf_size: usize,
-    user: &str,
-    stats: Arc<Stats>,
-    quota_limit: Option<u64>,
-    _buffer_pool: Arc<BufferPool>,
-    traffic_lease: Option<Arc<TrafficLease>>,
-    activity_timeout: Duration,
-) -> Result<()>
-where
-    CR: AsyncRead + Unpin + Send + 'static,
-    CW: AsyncWrite + Unpin + Send + 'static,
-    SR: AsyncRead + Unpin + Send + 'static,
-    SW: AsyncWrite + Unpin + Send + 'static,
-{
-    relay_bidirectional_with_activity_timeout_lease_cancel_inner(
-        client_reader,
-        client_writer,
-        server_reader,
-        server_writer,
-        c2s_buf_size,
-        s2c_buf_size,
-        user,
-        stats,
-        quota_limit,
-        _buffer_pool,
-        traffic_lease,
         activity_timeout,
         None,
     )
@@ -221,7 +176,7 @@ where
 }
 
 #[allow(dead_code)]
-pub async fn relay_bidirectional_with_activity_timeout_lease_and_cancel<CR, CW, SR, SW>(
+pub async fn relay_bidirectional_with_activity_timeout_and_cancel<CR, CW, SR, SW>(
     client_reader: CR,
     client_writer: CW,
     server_reader: SR,
@@ -230,9 +185,7 @@ pub async fn relay_bidirectional_with_activity_timeout_lease_and_cancel<CR, CW, 
     s2c_buf_size: usize,
     user: &str,
     stats: Arc<Stats>,
-    quota_limit: Option<u64>,
     _buffer_pool: Arc<BufferPool>,
-    traffic_lease: Option<Arc<TrafficLease>>,
     activity_timeout: Duration,
     session_cancel: CancellationToken,
 ) -> Result<()>
@@ -242,7 +195,7 @@ where
     SR: AsyncRead + Unpin + Send + 'static,
     SW: AsyncWrite + Unpin + Send + 'static,
 {
-    relay_bidirectional_with_activity_timeout_lease_cancel_inner(
+    relay_bidirectional_with_activity_timeout_cancel_inner(
         client_reader,
         client_writer,
         server_reader,
@@ -251,16 +204,14 @@ where
         s2c_buf_size,
         user,
         stats,
-        quota_limit,
         _buffer_pool,
-        traffic_lease,
         activity_timeout,
         Some(session_cancel),
     )
     .await
 }
 
-async fn relay_bidirectional_with_activity_timeout_lease_cancel_inner<CR, CW, SR, SW>(
+async fn relay_bidirectional_with_activity_timeout_cancel_inner<CR, CW, SR, SW>(
     client_reader: CR,
     client_writer: CW,
     server_reader: SR,
@@ -269,9 +220,7 @@ async fn relay_bidirectional_with_activity_timeout_lease_cancel_inner<CR, CW, SR
     s2c_buf_size: usize,
     user: &str,
     stats: Arc<Stats>,
-    quota_limit: Option<u64>,
     _buffer_pool: Arc<BufferPool>,
-    traffic_lease: Option<Arc<TrafficLease>>,
     activity_timeout: Duration,
     session_cancel: Option<CancellationToken>,
 ) -> Result<()>
@@ -284,31 +233,24 @@ where
     let activity_timeout = activity_timeout.max(Duration::from_secs(1));
     let epoch = Instant::now();
     let counters = Arc::new(SharedCounters::new());
-    let quota_exceeded = Arc::new(AtomicBool::new(false));
     let user_owned = user.to_string();
 
     // ── Combine split halves into bidirectional streams ──────────────
     let client_combined = CombinedStream::new(client_reader, client_writer);
     let mut server = CombinedStream::new(server_reader, server_writer);
-    let quota_handle = stats.current_user_quota_handle(&user_owned);
 
     // Wrap client with stats/activity tracking
-    let mut client = StatsIo::new_with_traffic_lease(
+    let mut client = StatsIo::new(
         client_combined,
         Arc::clone(&counters),
         Arc::clone(&stats),
         user_owned.clone(),
-        quota_handle,
-        traffic_lease,
-        quota_limit,
-        Arc::clone(&quota_exceeded),
         epoch,
     );
 
     // ── Watchdog: activity timeout + periodic rate logging ──────────
     let wd_counters = Arc::clone(&counters);
     let wd_user = user_owned.clone();
-    let wd_quota_exceeded = Arc::clone(&quota_exceeded);
 
     let watchdog = async {
         let mut prev_c2s: u64 = 0;
@@ -319,11 +261,6 @@ where
 
             let now = Instant::now();
             let idle = wd_counters.idle_duration(now, epoch);
-
-            if wd_quota_exceeded.load(Ordering::Acquire) {
-                warn!(user = %wd_user, "User data quota reached, closing relay");
-                return;
-            }
 
             // ── Activity timeout ────────────────────────────────────
             if idle >= activity_timeout {
@@ -423,22 +360,6 @@ where
             );
             Ok(())
         }
-        RelayOutcome::Copy(Err(e)) if is_quota_io_error(&e) => {
-            let c2s = counters.c2s_bytes.load(Ordering::Relaxed);
-            let s2c = counters.s2c_bytes.load(Ordering::Relaxed);
-            warn!(
-                user = %user_owned,
-                c2s_bytes = c2s,
-                s2c_bytes = s2c,
-                c2s_msgs = c2s_ops,
-                s2c_msgs = s2c_ops,
-                duration_secs = duration.as_secs(),
-                "Data quota reached, closing relay"
-            );
-            Err(ProxyError::DataQuotaExceeded {
-                user: user_owned.clone(),
-            })
-        }
         RelayOutcome::Copy(Err(e)) => {
             // I/O error in one of the directions
             let c2s = counters.c2s_bytes.load(Ordering::Relaxed);
@@ -494,28 +415,8 @@ where
 mod adversarial_tests;
 
 #[cfg(test)]
-#[path = "tests/relay_quota_boundary_blackhat_tests.rs"]
-mod relay_quota_boundary_blackhat_tests;
-
-#[cfg(test)]
-#[path = "tests/relay_quota_model_adversarial_tests.rs"]
-mod relay_quota_model_adversarial_tests;
-
-#[cfg(test)]
-#[path = "tests/relay_quota_overflow_regression_tests.rs"]
-mod relay_quota_overflow_regression_tests;
-
-#[cfg(test)]
-#[path = "tests/relay_quota_extended_attack_surface_security_tests.rs"]
-mod relay_quota_extended_attack_surface_security_tests;
-
-#[cfg(test)]
 #[path = "tests/relay_watchdog_delta_security_tests.rs"]
 mod relay_watchdog_delta_security_tests;
-
-#[cfg(test)]
-#[path = "tests/relay_atomic_quota_invariant_tests.rs"]
-mod relay_atomic_quota_invariant_tests;
 
 #[cfg(test)]
 #[path = "tests/relay_baseline_invariant_tests.rs"]

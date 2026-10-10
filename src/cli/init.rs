@@ -286,7 +286,6 @@ user = "{username}"
 secret_mode = "plain"
 
 [access]
-global_user_max_tcp_conns = 0
 replay_check_len = 65536
 replay_window_secs = 120
 ignore_time_skew = false

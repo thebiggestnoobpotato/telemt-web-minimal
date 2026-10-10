@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::*;
 
 /// Application protocol accepted by one process-owned TCP listener.

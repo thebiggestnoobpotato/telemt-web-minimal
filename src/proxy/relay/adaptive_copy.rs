@@ -1,7 +1,7 @@
 use std::io;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -18,11 +18,10 @@ use crate::proxy::adaptive_buffers::{
 use crate::proxy::direct_buffer_budget::{
     DIRECT_BASE_C2S_BYTES, DIRECT_BASE_S2C_BYTES, DirectBufferBudget, DirectBufferLease,
 };
-use crate::proxy::traffic_limiter::TrafficLease;
-use crate::stats::{Stats, UserQuotaHandle};
+use crate::stats::Stats;
 
 use super::WATCHDOG_INTERVAL;
-use super::io::{SharedCounters, StatsIo, is_quota_io_error};
+use super::io::{SharedCounters, StatsIo};
 use super::watchdog_delta;
 
 mod write_pressure;
@@ -141,9 +140,6 @@ pub(crate) async fn relay_direct_adaptive<CR, CW, SR, SW>(
     max_connections: u32,
     user: &str,
     stats: Arc<Stats>,
-    quota_handle: UserQuotaHandle,
-    quota_limit: Option<u64>,
-    traffic_lease: Option<Arc<TrafficLease>>,
     activity_timeout: Duration,
     session_cancel: CancellationToken,
     budget: Arc<DirectBufferBudget>,
@@ -157,7 +153,6 @@ where
     let activity_timeout = activity_timeout.max(Duration::from_secs(1));
     let epoch = Instant::now();
     let counters = Arc::new(SharedCounters::new());
-    let quota_exceeded = Arc::new(AtomicBool::new(false));
     let user_owned = user.to_string();
 
     let (base_c2s, base_s2c) = initial_base_sizes(
@@ -196,26 +191,18 @@ where
 
     let mut controller = SessionAdaptiveController::new(AdaptiveTier::Base);
 
-    let c2s_client = StatsIo::new_with_traffic_lease(
+    let c2s_client = StatsIo::new(
         client_reader,
         Arc::clone(&counters),
         Arc::clone(&stats),
         user_owned.clone(),
-        quota_handle.clone(),
-        traffic_lease.clone(),
-        quota_limit,
-        Arc::clone(&quota_exceeded),
         epoch,
     );
-    let client_writer = StatsIo::new_with_traffic_lease(
+    let client_writer = StatsIo::new(
         client_writer,
         Arc::clone(&counters),
         Arc::clone(&stats),
         user_owned.clone(),
-        quota_handle,
-        traffic_lease,
-        quota_limit,
-        Arc::clone(&quota_exceeded),
         epoch,
     );
     let mut client_writer = WritePressureIo::new(client_writer, Arc::clone(&counters));
@@ -269,10 +256,6 @@ where
                 _ = interval.tick() => {
                     let now = Instant::now();
                     let idle = counters.idle_duration(now, epoch);
-                    if quota_exceeded.load(Ordering::Acquire) {
-                        warn!(user = %user_owned, "User data quota reached, closing relay");
-                        break AdaptiveRelayOutcome::ActivityTimeout;
-                    }
                     if idle >= activity_timeout {
                         warn!(
                             user = %user_owned,
@@ -340,18 +323,6 @@ where
                 "Relay finished"
             );
             Ok(())
-        }
-        AdaptiveRelayOutcome::Copy(Err(error)) if is_quota_io_error(&error) => {
-            warn!(
-                user = %user_owned,
-                c2s_bytes = counters.c2s_bytes.load(Ordering::Relaxed),
-                s2c_bytes = counters.s2c_bytes.load(Ordering::Relaxed),
-                c2s_msgs = c2s_ops,
-                s2c_msgs = s2c_ops,
-                duration_secs = duration.as_secs(),
-                "Data quota reached, closing relay"
-            );
-            Err(ProxyError::DataQuotaExceeded { user: user_owned })
         }
         AdaptiveRelayOutcome::Copy(Err(error)) => {
             debug!(

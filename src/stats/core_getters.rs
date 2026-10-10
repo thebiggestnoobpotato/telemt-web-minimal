@@ -62,32 +62,6 @@ impl Stats {
             .load(Ordering::Relaxed)
     }
 
-    pub fn get_ip_reservation_rollback_tcp_limit_total(&self) -> u64 {
-        self.ip_reservation_rollback_tcp_limit_total
-            .load(Ordering::Relaxed)
-    }
-    pub fn get_ip_reservation_rollback_quota_limit_total(&self) -> u64 {
-        self.ip_reservation_rollback_quota_limit_total
-            .load(Ordering::Relaxed)
-    }
-    pub fn get_quota_refund_bytes_total(&self) -> u64 {
-        self.quota_refund_bytes_total.load(Ordering::Relaxed)
-    }
-    pub fn get_quota_contention_total(&self) -> u64 {
-        self.quota_contention_total.load(Ordering::Relaxed)
-    }
-    pub fn get_quota_contention_timeout_total(&self) -> u64 {
-        self.quota_contention_timeout_total.load(Ordering::Relaxed)
-    }
-    pub fn get_quota_acquire_cancelled_total(&self) -> u64 {
-        self.quota_acquire_cancelled_total.load(Ordering::Relaxed)
-    }
-    pub fn get_quota_write_fail_bytes_total(&self) -> u64 {
-        self.quota_write_fail_bytes_total.load(Ordering::Relaxed)
-    }
-    pub fn get_quota_write_fail_events_total(&self) -> u64 {
-        self.quota_write_fail_events_total.load(Ordering::Relaxed)
-    }
     pub fn get_session_drop_fallback_total(&self) -> u64 {
         self.session_drop_fallback_total.load(Ordering::Relaxed)
     }

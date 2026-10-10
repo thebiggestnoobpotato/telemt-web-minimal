@@ -22,7 +22,7 @@
 - Upstream manager: direct and SOCKS5 upstreams with weights and health tracking
 - Graceful hot-reload for runtime fields; explicit deferral of process-owned fields
 - Control API (`/v1/*`) for users, config, reloads, and WEB runtime management
-- Prometheus metrics, quotas, and rate limits
+- Prometheus metrics with per-user telemetry (connections, messages, octets)
 - Graceful shutdown on Ctrl+C; extensive logging via `trace` and `debug` with `RUST_LOG`
 
 ## Quick start

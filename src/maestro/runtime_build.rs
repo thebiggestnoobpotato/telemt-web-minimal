@@ -13,12 +13,10 @@ use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::{decide_network_capabilities, run_probe};
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, run_direct_buffer_budget_controller};
 use crate::proxy::shared_state::ProxySharedState;
-use crate::proxy::traffic_limiter::TrafficLimiter;
 use crate::proxy::user_admission::UserAdmissionAuthority;
-use crate::proxy::user_connection_authority::UserConnectionAuthority;
 use crate::startup::StartupTracker;
 use crate::stats::telemetry::TelemetryPolicy;
-use crate::stats::{QuotaStore, ReplayChecker, Stats};
+use crate::stats::{ReplayChecker, Stats};
 use crate::stream::BufferPool;
 use crate::transport::UpstreamManager;
 
@@ -42,12 +40,9 @@ pub(crate) async fn prepare_runtime(
     generation_id: u64,
     config: ProxyConfig,
     config_path: &Path,
-    quota_store: Arc<QuotaStore>,
-    connection_authority: Arc<UserConnectionAuthority>,
     runtime_log_filter: RuntimeLogFilter,
     user_admission: Arc<UserAdmissionAuthority>,
     ip_tracker: Arc<UserIpTracker>,
-    traffic_limiter: Arc<TrafficLimiter>,
     direct_buffer_budget: Arc<DirectBufferBudget>,
     max_connections: Arc<Semaphore>,
 ) -> Result<PreparedRuntime, String> {
@@ -62,10 +57,7 @@ pub(crate) async fn prepare_runtime(
     let startup_tracker = Arc::new(StartupTracker::new(started_at_epoch_secs));
     let task_scope = RuntimeTaskScope::new();
     let task_scope_guard = RuntimeTaskScopePreparationGuard::new(task_scope.clone());
-    let stats = Arc::new(Stats::with_process_authorities(
-        quota_store,
-        connection_authority,
-    ));
+    let stats = Arc::new(Stats::new());
     stats.apply_telemetry_policy(TelemetryPolicy::from_config(&config.general));
 
     let upstream_manager = Arc::new(
@@ -81,9 +73,8 @@ pub(crate) async fn prepare_runtime(
             stats.clone(),
         ),
     );
-    let proxy_shared = ProxySharedState::new_with_process_authorities(
+    let proxy_shared = ProxySharedState::new_with_direct_buffer_budget_and_user_admission(
         direct_buffer_budget.clone(),
-        traffic_limiter,
         user_admission,
     );
 
@@ -214,10 +205,6 @@ pub(crate) fn resolve_reload_config(
         fields.push("general.direct_relay_buffer_budget_max_bytes".to_string());
         effective.general.direct_relay_buffer_budget_max_bytes =
             old.general.direct_relay_buffer_budget_max_bytes;
-    }
-    if old.general.quota_state_path != desired.general.quota_state_path {
-        fields.push("general.quota_state_path".to_string());
-        effective.general.quota_state_path = old.general.quota_state_path.clone();
     }
     if old.general.data_path != desired.general.data_path {
         fields.push("general.data_path".to_string());

@@ -1,6 +1,5 @@
 #![allow(clippy::too_many_arguments)]
 
-use std::collections::BTreeSet;
 use std::io::{Error as IoError, ErrorKind};
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -27,7 +26,6 @@ use crate::maestro::control_plane::ProcessControlPlane;
 use crate::maestro::generation::{RuntimeGeneration, RuntimeWatchState};
 use crate::maestro::reload::{ReloadAccepted, ReloadControl, ReloadRequest, ReloadSubmitError};
 use crate::proxy::shared_state::ProxySharedState;
-use crate::quota_state::QuotaStateOwner;
 use crate::startup::StartupTracker;
 use crate::stats::Stats;
 use crate::transport::UpstreamManager;
@@ -64,8 +62,7 @@ use handler::handle;
 use http_utils::{error_response, read_json, read_optional_json, success_response};
 use model::{
     ApiFailure, ClassCount, CreateUserRequest, DeleteUserResponse, HealthData, HealthReadyData,
-    PatchUserRequest, ResetUserQuotaResponse, RotateSecretRequest, SummaryData, UserActiveIps,
-    is_valid_username,
+    PatchUserRequest, RotateSecretRequest, SummaryData, UserActiveIps, is_valid_username,
 };
 use runtime_edge::{
     EdgeConnectionsCacheEntry, build_runtime_connections_summary_data,
@@ -80,8 +77,7 @@ use runtime_zero::{
     build_system_info_data,
 };
 use users::{
-    build_user_quota_list, create_user, delete_user, patch_user, rotate_secret, set_user_enabled,
-    users_from_config,
+    create_user, delete_user, patch_user, rotate_secret, set_user_enabled, users_from_config,
 };
 
 const API_MAX_CONTROL_CONNECTIONS: usize = 1024;
@@ -106,7 +102,6 @@ pub(super) struct ApiShared {
     pub(super) ip_tracker: Arc<UserIpTracker>,
     pub(super) upstream_manager: Arc<UpstreamManager>,
     pub(super) config_path: PathBuf,
-    pub(super) quota_state: Arc<QuotaStateOwner>,
     pub(super) mutation_lock: Arc<Mutex<()>>,
     pub(super) runtime_edge_connections_cache: Arc<Mutex<Option<EdgeConnectionsCacheEntry>>>,
     pub(super) runtime_edge_recompute_lock: Arc<Mutex<()>>,
@@ -134,7 +129,6 @@ impl ApiShared {
             ip_tracker: runtime.ip_tracker.clone(),
             upstream_manager: runtime.upstream_manager.clone(),
             config_path: self.config_path.clone(),
-            quota_state: self.quota_state.clone(),
             mutation_lock: self.mutation_lock.clone(),
             runtime_edge_connections_cache: self.runtime_edge_connections_cache.clone(),
             runtime_edge_recompute_lock: self.runtime_edge_recompute_lock.clone(),
@@ -257,13 +251,11 @@ fn allowed_methods_for_path(path: &str) -> Option<&'static str> {
         | "/v1/runtime/connections/summary"
         | "/v1/runtime/events/recent"
         | "/v1/stats/users/active-ips"
-        | "/v1/stats/users/quota"
         | "/v1/stats/users"
         | "/web-status" => Some(ALLOW_GET),
         "/v1/system/reload" => Some(ALLOW_POST),
         "/v1/users" => Some(ALLOW_GET_POST),
         "/v1/config" => Some(ALLOW_GET_PATCH),
-        _ if user_action_route_matches(path, "/reset-quota") => Some(ALLOW_POST),
         _ if user_action_route_matches(path, "/rotate-secret") => Some(ALLOW_POST),
         _ if user_action_route_matches(path, "/enable") => Some(ALLOW_POST),
         _ if user_action_route_matches(path, "/disable") => Some(ALLOW_POST),
@@ -287,7 +279,6 @@ pub(crate) async fn serve(
     proxy_shared: Arc<ProxySharedState>,
     upstream_manager: Arc<UpstreamManager>,
     config_path: PathBuf,
-    quota_state: Arc<QuotaStateOwner>,
     process_started_at_epoch_secs: u64,
     startup_tracker: Arc<StartupTracker>,
     reload_control: ReloadControl,
@@ -333,7 +324,6 @@ pub(crate) async fn serve(
         ip_tracker,
         upstream_manager,
         config_path,
-        quota_state,
         mutation_lock: Arc::new(Mutex::new(())),
         runtime_edge_connections_cache: Arc::new(Mutex::new(None)),
         runtime_edge_recompute_lock: Arc::new(Mutex::new(())),

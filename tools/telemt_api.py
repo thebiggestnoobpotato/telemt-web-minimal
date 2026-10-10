@@ -5,8 +5,8 @@ Full-coverage client for https://github.com/telemt/telemt
 Usage:
     client = TelemtAPI("http://127.0.0.1:9091", auth_header="your-secret")
     client.health()
-    client.create_user("alice", max_tcp_conns=10)
-    client.patch_user("alice", data_quota_bytes=1_000_000_000)
+    client.create_user("alice", max_unique_ips=10)
+    client.patch_user("alice", secret="00112233445566778899aabbccddeeff")
     client.delete_user("alice")
 """
 
@@ -274,9 +274,6 @@ class TelemtAPI:
             username: str,
             *,
             secret: str | None = None,
-            max_tcp_conns: int | None = None,
-            expiration_rfc3339: str | None = None,
-            data_quota_bytes: int | None = None,
             max_unique_ips: int | None = None,
             if_match: str | None = None,
     ) -> APIResponse:
@@ -288,12 +285,6 @@ class TelemtAPI:
             ``[A-Za-z0-9_.-]``, length 1–64.
         secret:
             Exactly 32 hex chars. Auto-generated if omitted.
-        max_tcp_conns:
-            Per-user concurrent TCP limit.
-        expiration_rfc3339:
-            RFC3339 expiration timestamp, e.g. ``"2025-12-31T23:59:59Z"``.
-        data_quota_bytes:
-            Per-user traffic quota in bytes.
         max_unique_ips:
             Per-user unique source IP limit.
         if_match:
@@ -301,9 +292,6 @@ class TelemtAPI:
         """
         body: Dict[str, Any] = {"username": username}
         _opt(body, "secret", secret)
-        _opt(body, "max_tcp_conns", max_tcp_conns)
-        _opt(body, "expiration_rfc3339", expiration_rfc3339)
-        _opt(body, "data_quota_bytes", data_quota_bytes)
         _opt(body, "max_unique_ips", max_unique_ips)
         return self._post("/v1/users", body=body, if_match=if_match)
 
@@ -312,9 +300,6 @@ class TelemtAPI:
             username: str,
             *,
             secret: str | None = None,
-            max_tcp_conns: int | None = None,
-            expiration_rfc3339: str | None = None,
-            data_quota_bytes: int | None = None,
             max_unique_ips: int | None = None,
             if_match: str | None = None,
     ) -> APIResponse:
@@ -326,12 +311,6 @@ class TelemtAPI:
             Existing username to update.
         secret:
             New secret (32 hex chars).
-        max_tcp_conns:
-            New TCP concurrency limit.
-        expiration_rfc3339:
-            New expiration timestamp.
-        data_quota_bytes:
-            New quota in bytes.
         max_unique_ips:
             New unique IP limit.
         if_match:
@@ -339,9 +318,6 @@ class TelemtAPI:
         """
         body: Dict[str, Any] = {}
         _opt(body, "secret", secret)
-        _opt(body, "max_tcp_conns", max_tcp_conns)
-        _opt(body, "expiration_rfc3339", expiration_rfc3339)
-        _opt(body, "data_quota_bytes", data_quota_bytes)
         _opt(body, "max_unique_ips", max_unique_ips)
         if not body:
             raise ValueError("patch_user: at least one field must be provided")
@@ -453,16 +429,13 @@ COMMANDS (users)
 
 USER OPTIONS (for create / patch)
   --secret S          32 hex chars
-  --max-conns N       Max concurrent TCP connections
-  --expires DATETIME  RFC3339 expiration (e.g. 2026-12-31T23:59:59Z)
-  --quota N           Data quota in bytes
   --max-ips N         Max unique source IPs
 
 EXAMPLES
   telemt_api.py health
   telemt_api.py -u http://10.0.0.1:9091 -a mysecret users
-  telemt_api.py create alice --max-conns 5 --quota 10000000000
-  telemt_api.py patch  alice --expires 2027-01-01T00:00:00Z
+  telemt_api.py create alice --max-ips 8
+  telemt_api.py patch  alice --secret 00112233445566778899aabbccddeeff
   telemt_api.py delete alice
   telemt_api.py events --limit 20
         """,
@@ -482,9 +455,6 @@ EXAMPLES
 
     # user create/patch fields
     p.add_argument("--secret", default=None)
-    p.add_argument("--max-conns", dest="max_conns", type=int, default=None)
-    p.add_argument("--expires", default=None)
-    p.add_argument("--quota", type=int, default=None)
     p.add_argument("--max-ips", dest="max_ips", type=int, default=None)
 
     # events
@@ -592,9 +562,6 @@ if __name__ == "__main__":
             resp = api.create_user(
                 args.arg,
                 secret=args.secret,
-                max_tcp_conns=args.max_conns,
-                expiration_rfc3339=args.expires,
-                data_quota_bytes=args.quota,
                 max_unique_ips=args.max_ips,
                 if_match=args.if_match,
             )
@@ -611,16 +578,12 @@ if __name__ == "__main__":
         elif cmd == "patch":
             if not args.arg:
                 parser.error("patch command requires <username>")
-            if not any([args.secret, args.max_conns,
-                        args.expires, args.quota, args.max_ips]):
+            if not any([args.secret, args.max_ips]):
                 parser.error(
-                    "patch requires at least one field (--secret, --max-conns, --expires, --quota, --max-ips)")
+                    "patch requires at least one field (--secret, --max-ips)")
             _print(api.patch_user(
                 args.arg,
                 secret=args.secret,
-                max_tcp_conns=args.max_conns,
-                expiration_rfc3339=args.expires,
-                data_quota_bytes=args.quota,
                 max_unique_ips=args.max_ips,
                 if_match=args.if_match,
             ))

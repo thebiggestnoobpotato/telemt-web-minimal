@@ -154,12 +154,6 @@ pub(super) async fn handle(
             .await;
             Ok(success_response(StatusCode::OK, users, revision))
         }
-        ("GET", "/v1/stats/users/quota") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let disk_cfg = load_config_from_disk(&shared.config_path).await?;
-            let data = build_user_quota_list(&disk_cfg, shared.stats.as_ref());
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
 
         _ => return Ok(None),
     }

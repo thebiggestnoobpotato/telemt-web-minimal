@@ -10,11 +10,6 @@ pub(in crate::api) struct UserInfo {
     pub(in crate::api) username: String,
     pub(in crate::api) enabled: bool,
     pub(in crate::api) in_runtime: bool,
-    pub(in crate::api) max_tcp_conns: Option<usize>,
-    pub(in crate::api) expiration_rfc3339: Option<String>,
-    pub(in crate::api) data_quota_bytes: Option<u64>,
-    pub(in crate::api) rate_limit_up_bps: Option<u64>,
-    pub(in crate::api) rate_limit_down_bps: Option<u64>,
     pub(in crate::api) max_unique_ips: Option<usize>,
     pub(in crate::api) current_connections: u64,
     pub(in crate::api) active_unique_ips: usize,
@@ -43,35 +38,10 @@ pub(in crate::api) struct DeleteUserResponse {
     pub(in crate::api) in_runtime: bool,
 }
 
-#[derive(Serialize)]
-pub(in crate::api) struct ResetUserQuotaResponse {
-    pub(in crate::api) username: String,
-    pub(in crate::api) used_bytes: u64,
-    pub(in crate::api) last_reset_epoch_secs: u64,
-}
-
-#[derive(Serialize)]
-pub(in crate::api) struct UserQuotaListData {
-    pub(in crate::api) users: Vec<UserQuotaEntry>,
-}
-
-#[derive(Serialize)]
-pub(in crate::api) struct UserQuotaEntry {
-    pub(in crate::api) username: String,
-    pub(in crate::api) data_quota_bytes: u64,
-    pub(in crate::api) used_bytes: u64,
-    pub(in crate::api) last_reset_epoch_secs: u64,
-}
-
 #[derive(Deserialize)]
 pub(in crate::api) struct CreateUserRequest {
     pub(in crate::api) username: String,
     pub(in crate::api) secret: Option<String>,
-    pub(in crate::api) max_tcp_conns: Option<usize>,
-    pub(in crate::api) expiration_rfc3339: Option<String>,
-    pub(in crate::api) data_quota_bytes: Option<u64>,
-    pub(in crate::api) rate_limit_up_bps: Option<u64>,
-    pub(in crate::api) rate_limit_down_bps: Option<u64>,
     pub(in crate::api) max_unique_ips: Option<usize>,
     pub(in crate::api) enabled: Option<bool>,
 }
@@ -79,16 +49,6 @@ pub(in crate::api) struct CreateUserRequest {
 #[derive(Deserialize)]
 pub(in crate::api) struct PatchUserRequest {
     pub(in crate::api) secret: Option<String>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) max_tcp_conns: Patch<usize>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) expiration_rfc3339: Patch<String>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) data_quota_bytes: Patch<u64>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) rate_limit_up_bps: Patch<u64>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) rate_limit_down_bps: Patch<u64>,
     #[serde(default, deserialize_with = "patch_field")]
     pub(in crate::api) max_unique_ips: Patch<usize>,
     #[serde(default, deserialize_with = "patch_field")]
@@ -98,31 +58,6 @@ pub(in crate::api) struct PatchUserRequest {
 #[derive(Default, Deserialize)]
 pub(in crate::api) struct RotateSecretRequest {
     pub(in crate::api) secret: Option<String>,
-}
-
-pub(in crate::api) fn parse_optional_expiration(
-    value: Option<&str>,
-) -> Result<Option<DateTime<Utc>>, ApiFailure> {
-    let Some(raw) = value else {
-        return Ok(None);
-    };
-    let parsed = DateTime::parse_from_rfc3339(raw)
-        .map_err(|_| ApiFailure::bad_request("expiration_rfc3339 must be valid RFC3339"))?;
-    Ok(Some(parsed.with_timezone(&Utc)))
-}
-
-pub(in crate::api) fn parse_patch_expiration(
-    value: &Patch<String>,
-) -> Result<Patch<DateTime<Utc>>, ApiFailure> {
-    match value {
-        Patch::Unchanged => Ok(Patch::Unchanged),
-        Patch::Remove => Ok(Patch::Remove),
-        Patch::Set(raw) => {
-            let parsed = DateTime::parse_from_rfc3339(raw)
-                .map_err(|_| ApiFailure::bad_request("expiration_rfc3339 must be valid RFC3339"))?;
-            Ok(Patch::Set(parsed.with_timezone(&Utc)))
-        }
-    }
 }
 
 pub(in crate::api) fn is_valid_user_secret(secret: &str) -> bool {

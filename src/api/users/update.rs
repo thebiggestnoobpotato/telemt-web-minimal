@@ -23,11 +23,6 @@ async fn patch_user_to_completion(
     shared: &ApiShared,
 ) -> Result<(UserInfo, String), ApiFailure> {
     let touches_users = body.secret.is_some();
-    let touches_user_max_tcp_conns = !matches!(&body.max_tcp_conns, Patch::Unchanged);
-    let touches_user_expirations = !matches!(&body.expiration_rfc3339, Patch::Unchanged);
-    let touches_user_data_quota = !matches!(&body.data_quota_bytes, Patch::Unchanged);
-    let touches_user_rate_limits = !matches!(&body.rate_limit_up_bps, Patch::Unchanged)
-        || !matches!(&body.rate_limit_down_bps, Patch::Unchanged);
     let touches_user_max_unique_ips = !matches!(&body.max_unique_ips, Patch::Unchanged);
     let touches_user_enabled = !matches!(&body.enabled, Patch::Unchanged);
 
@@ -38,7 +33,6 @@ async fn patch_user_to_completion(
             "secret must be exactly 32 hex characters",
         ));
     }
-    let expiration = parse_patch_expiration(&body.expiration_rfc3339)?;
     let _guard = shared.mutation_lock.lock().await;
     let (mut cfg, base_revision) =
         load_config_for_mutation(&shared.config_path, expected_revision.as_deref()).await?;
@@ -53,62 +47,6 @@ async fn patch_user_to_completion(
 
     if let Some(secret) = body.secret {
         cfg.access.users.insert(user.to_string(), secret);
-    }
-    match body.max_tcp_conns {
-        Patch::Unchanged => {}
-        Patch::Remove => {
-            cfg.access.user_max_tcp_conns.remove(user);
-        }
-        Patch::Set(limit) => {
-            cfg.access
-                .user_max_tcp_conns
-                .insert(user.to_string(), limit);
-        }
-    }
-    match expiration {
-        Patch::Unchanged => {}
-        Patch::Remove => {
-            cfg.access.user_expirations.remove(user);
-        }
-        Patch::Set(expiration) => {
-            cfg.access
-                .user_expirations
-                .insert(user.to_string(), expiration);
-        }
-    }
-    match body.data_quota_bytes {
-        Patch::Unchanged => {}
-        Patch::Remove => {
-            cfg.access.user_data_quota.remove(user);
-        }
-        Patch::Set(quota) => {
-            cfg.access.user_data_quota.insert(user.to_string(), quota);
-        }
-    }
-    if touches_user_rate_limits {
-        let mut rate_limit = cfg
-            .access
-            .user_rate_limits
-            .get(user)
-            .copied()
-            .unwrap_or_default();
-        match body.rate_limit_up_bps {
-            Patch::Unchanged => {}
-            Patch::Remove => rate_limit.up_bps = 0,
-            Patch::Set(limit) => rate_limit.up_bps = limit,
-        }
-        match body.rate_limit_down_bps {
-            Patch::Unchanged => {}
-            Patch::Remove => rate_limit.down_bps = 0,
-            Patch::Set(limit) => rate_limit.down_bps = limit,
-        }
-        if rate_limit.up_bps == 0 && rate_limit.down_bps == 0 {
-            cfg.access.user_rate_limits.remove(user);
-        } else {
-            cfg.access
-                .user_rate_limits
-                .insert(user.to_string(), rate_limit);
-        }
     }
     // Capture how the per-user IP limit changed, so the in-memory ip_tracker
     // can be synced (set or removed) after the config is persisted.
@@ -154,18 +92,6 @@ async fn patch_user_to_completion(
     let mut touched_sections = Vec::new();
     if touches_users {
         touched_sections.push(AccessSection::Users);
-    }
-    if touches_user_max_tcp_conns {
-        touched_sections.push(AccessSection::UserMaxTcpConns);
-    }
-    if touches_user_expirations {
-        touched_sections.push(AccessSection::UserExpirations);
-    }
-    if touches_user_data_quota {
-        touched_sections.push(AccessSection::UserDataQuota);
-    }
-    if touches_user_rate_limits {
-        touched_sections.push(AccessSection::UserRateLimits);
     }
     if touches_user_max_unique_ips {
         touched_sections.push(AccessSection::UserMaxUniqueIps);

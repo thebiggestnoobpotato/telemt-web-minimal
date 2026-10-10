@@ -6,7 +6,6 @@ pub(super) async fn render(
     stats: &Stats,
     config: &ProxyConfig,
     ip_tracker: &UserIpTracker,
-    core_enabled: bool,
     user_enabled: bool,
 ) {
     let _ = writeln!(
@@ -39,29 +38,6 @@ pub(super) async fn render(
         "# HELP telemt_user_msgs_to_client_total Per-user total messages sent"
     );
     let _ = writeln!(out, "# TYPE telemt_user_msgs_to_client_total counter");
-    let _ = writeln!(
-        out,
-        "# HELP telemt_ip_reservation_rollback_total IP reservation rollbacks caused by later limit checks"
-    );
-    let _ = writeln!(out, "# TYPE telemt_ip_reservation_rollback_total counter");
-    let _ = writeln!(
-        out,
-        "telemt_ip_reservation_rollback_total{{reason=\"tcp_limit\"}} {}",
-        if core_enabled {
-            stats.get_ip_reservation_rollback_tcp_limit_total()
-        } else {
-            0
-        }
-    );
-    let _ = writeln!(
-        out,
-        "telemt_ip_reservation_rollback_total{{reason=\"quota_limit\"}} {}",
-        if core_enabled {
-            stats.get_ip_reservation_rollback_quota_limit_total()
-        } else {
-            0
-        }
-    );
     let ip_memory = ip_tracker.memory_stats().await;
     let _ = writeln!(
         out,

@@ -25,10 +25,6 @@ pub(in crate::api) use persistence::{
 pub(super) enum AccessSection {
     Users,
     UserEnabled,
-    UserMaxTcpConns,
-    UserExpirations,
-    UserDataQuota,
-    UserRateLimits,
     UserMaxUniqueIps,
 }
 
@@ -37,10 +33,6 @@ impl AccessSection {
         match self {
             Self::Users => "access.users",
             Self::UserEnabled => "access.user_enabled",
-            Self::UserMaxTcpConns => "access.user_max_tcp_conns",
-            Self::UserExpirations => "access.user_expirations",
-            Self::UserDataQuota => "access.user_data_quota",
-            Self::UserRateLimits => "access.user_rate_limits",
             Self::UserMaxUniqueIps => "access.user_max_unique_ips",
         }
     }
@@ -271,7 +263,7 @@ fn normalize_source_path(path: &Path) -> PathBuf {
     normalized
 }
 
-/// Reads desired user and quota policy without acquiring runtime decoy state.
+/// Reads desired user policy without acquiring runtime decoy state.
 pub(super) async fn load_config_from_disk(config_path: &Path) -> Result<ProxyConfig, ApiFailure> {
     load_config_snapshot(config_path, false)
         .await

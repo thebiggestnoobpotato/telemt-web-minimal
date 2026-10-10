@@ -67,11 +67,10 @@ impl Stats {
             return handle;
         }
 
-        let quota = self.quota_store.user(user);
         let entry = self
             .user_stats
             .entry(user.to_string())
-            .or_insert_with(|| Arc::new(UserStats::with_quota(quota)));
+            .or_insert_with(|| Arc::new(UserStats::default()));
         if entry.last_seen_epoch_secs.load(Ordering::Relaxed) == 0 {
             self.touch_user_stats(entry.value().as_ref());
         }
@@ -148,16 +147,6 @@ impl Stats {
         }
         self.touch_user_stats(user_stats);
         user_stats.msgs_to_client.fetch_add(1, Ordering::Relaxed);
-    }
-
-    /// Charges already committed bytes in a post-I/O path.
-    ///
-    /// This helper is intentionally separate from `quota_try_reserve` to avoid
-    /// mixing reserve and post-charge on a single I/O event.
-    #[inline]
-    pub(crate) fn quota_charge_post_write(&self, user_stats: &UserStats, bytes: u64) -> u64 {
-        self.touch_user_stats(user_stats);
-        user_stats.quota.charge(bytes)
     }
 
     pub(super) fn maybe_cleanup_user_stats(&self) {

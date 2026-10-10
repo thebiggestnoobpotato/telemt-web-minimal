@@ -8,7 +8,6 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::stats::QuotaStore;
 use crate::web::trace::WebTraceStore;
 
 use super::generation::{RuntimeGeneration, RuntimeWatchState};
@@ -25,7 +24,6 @@ pub(crate) struct ReloadSupervisor {
     control: ReloadControl,
     commands: ReloadCommandReceiver,
     config_path: PathBuf,
-    quota_store: Arc<QuotaStore>,
     runtime_log_filter: RuntimeLogFilter,
     runtime_watch_tx: watch::Sender<Option<RuntimeWatchState>>,
     listener_manager: Arc<Mutex<ListenerManager>>,
@@ -91,7 +89,6 @@ impl ReloadSupervisor {
         control: ReloadControl,
         commands: ReloadCommandReceiver,
         config_path: PathBuf,
-        quota_store: Arc<QuotaStore>,
         runtime_log_filter: RuntimeLogFilter,
         runtime_watch_tx: watch::Sender<Option<RuntimeWatchState>>,
         listener_manager: ListenerManager,
@@ -103,7 +100,6 @@ impl ReloadSupervisor {
             control,
             commands,
             config_path,
-            quota_store,
             runtime_log_filter,
             runtime_watch_tx,
             listener_manager: listener_manager.clone(),
@@ -162,12 +158,9 @@ impl ReloadSupervisor {
             command.target_generation,
             resolved.effective,
             &self.config_path,
-            self.quota_store.clone(),
-            old_runtime.stats.connection_authority(),
             self.runtime_log_filter.clone(),
             old_runtime.proxy_shared.user_admission(),
             old_runtime.ip_tracker.clone(),
-            old_runtime.proxy_shared.traffic_limiter.clone(),
             old_runtime.proxy_shared.direct_buffer_budget.clone(),
             old_runtime.max_connections.clone(),
         )
@@ -308,14 +301,6 @@ impl ReloadSupervisor {
                 config.access.user_max_unique_ips_window_secs,
             )
             .await;
-        let _ = new_runtime
-            .proxy_shared
-            .traffic_limiter
-            .apply_policy_from_source(
-                new_runtime.id,
-                config.access.user_rate_limits.clone(),
-                config.access.cidr_rate_limits.clone(),
-            );
         new_runtime
             .proxy_shared
             .direct_buffer_budget

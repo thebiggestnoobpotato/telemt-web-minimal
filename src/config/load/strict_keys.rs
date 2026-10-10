@@ -17,7 +17,6 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
 
 const GENERAL_CONFIG_KEYS: &[&str] = &[
     "data_path",
-    "quota_state_path",
     "config_strict",
     "network_ipv4",
     "network_ipv6",
@@ -198,12 +197,6 @@ const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
 const ACCESS_CONFIG_KEYS: &[&str] = &[
     "users",
     "user_enabled",
-    "user_max_tcp_conns",
-    "global_user_max_tcp_conns",
-    "user_expirations",
-    "user_data_quota",
-    "user_rate_limits",
-    "cidr_rate_limits",
     "user_max_unique_ips",
     "global_user_max_unique_ips",
     "user_max_unique_ips_mode",
@@ -212,8 +205,6 @@ const ACCESS_CONFIG_KEYS: &[&str] = &[
     "replay_window_secs",
     "ignore_time_skew",
 ];
-
-const RATE_LIMIT_BPS_CONFIG_KEYS: &[&str] = &["up_bps", "down_bps"];
 
 const UPSTREAM_CONFIG_KEYS: &[&str] = &[
     "type",

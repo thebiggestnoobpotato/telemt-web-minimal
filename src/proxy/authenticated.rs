@@ -12,8 +12,7 @@ use crate::proxy::direct_relay::handle_via_direct_with_shared;
 use crate::proxy::handshake::HandshakeSuccess;
 use crate::proxy::shared_state::ProxySharedState;
 use crate::proxy::user_admission::UserIncarnation;
-use crate::proxy::user_connection_authority::UserConnectionPermit;
-use crate::stats::{Stats, UserConnectionObservation, UserQuotaHandle};
+use crate::stats::{Stats, UserConnectionObservation};
 use crate::stream::{BufferPool, CryptoReader, CryptoWriter};
 use crate::transport::UpstreamManager;
 
@@ -64,7 +63,6 @@ where
     let user_reservation = acquire_user_connection_reservation_for_incarnation(
         &user,
         user_incarnation,
-        &deps.config,
         Arc::clone(&deps.stats),
         peer_addr,
         Arc::clone(&deps.ip_tracker),
@@ -74,8 +72,6 @@ where
         warn!(user = %user, error = %error, "User admission check failed");
         error
     })?;
-    let quota_handle = user_reservation.quota_handle();
-
     let session_id = deps.rng.u64();
     let Some(user_session) = deps
         .shared
@@ -100,7 +96,6 @@ where
         &deps,
         session_id,
         session_cancel,
-        quota_handle,
     )
     .await;
     user_reservation.release().await;
@@ -114,7 +109,6 @@ async fn run_direct<R, W>(
     deps: &ClientRuntimeDeps,
     session_id: u64,
     session_cancel: tokio_util::sync::CancellationToken,
-    quota_handle: UserQuotaHandle,
 ) -> Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
@@ -132,17 +126,14 @@ where
         session_id,
         session_cancel,
         Arc::clone(&deps.shared),
-        quota_handle,
     )
     .await
 }
 
-#[must_use = "the reservation owns user and IP admission until release or drop"]
-/// Owns one authenticated user's connection and source-IP admission slots.
+#[must_use = "the reservation owns source-IP admission until release or drop"]
+/// Owns one authenticated user's source-IP admission slot.
 pub(crate) struct UserConnectionReservation {
     stats: Arc<Stats>,
-    quota_handle: UserQuotaHandle,
-    _connection_permit: UserConnectionPermit,
     _stats_observation: Option<UserConnectionObservation>,
     ip_permit: Option<UserIpPermit>,
     released: bool,
@@ -198,33 +189,6 @@ impl Drop for UserIpPermit {
 }
 
 impl UserConnectionReservation {
-    /// Creates an active reservation after both admission counters were acquired.
-    pub(crate) fn new(
-        stats: Arc<Stats>,
-        ip_tracker: Arc<UserIpTracker>,
-        user: String,
-        ip: IpAddr,
-        tracks_ip: bool,
-    ) -> Self {
-        let quota_handle = stats.current_user_quota_handle(&user);
-        let connection_permit = stats
-            .connection_authority()
-            .try_acquire(&user, None)
-            .expect("unlimited test connection permit must be available");
-        let stats_observation = stats.observe_user_current_connection(&user);
-        Self::new_for_incarnation(
-            stats,
-            ip_tracker,
-            user,
-            ip,
-            0,
-            quota_handle,
-            connection_permit,
-            stats_observation,
-            tracks_ip,
-        )
-    }
-
     /// Creates a reservation fenced to one authenticated user incarnation.
     pub(crate) fn new_for_incarnation(
         stats: Arc<Stats>,
@@ -232,28 +196,19 @@ impl UserConnectionReservation {
         user: String,
         ip: IpAddr,
         incarnation: UserIncarnation,
-        quota_handle: UserQuotaHandle,
-        connection_permit: UserConnectionPermit,
         stats_observation: Option<UserConnectionObservation>,
         tracks_ip: bool,
     ) -> Self {
         let ip_permit = tracks_ip.then(|| UserIpPermit::new(ip_tracker, user, incarnation, ip));
         Self {
             stats,
-            quota_handle,
-            _connection_permit: connection_permit,
             _stats_observation: stats_observation,
             ip_permit,
             released: false,
         }
     }
 
-    /// Returns quota ownership pinned to the authenticated user incarnation.
-    pub(crate) fn quota_handle(&self) -> UserQuotaHandle {
-        self.quota_handle.clone()
-    }
-
-    /// Releases both admission counters through the asynchronous cleanup path.
+    /// Releases the source-IP admission slot through the asynchronous cleanup path.
     pub(crate) async fn release(mut self) {
         if let Some(ip_permit) = self.ip_permit.take() {
             ip_permit.release().await;
@@ -276,62 +231,24 @@ impl Drop for UserConnectionReservation {
     }
 }
 
-/// Applies user quota, connection, and source-IP admission atomically.
+/// Applies user source-IP admission atomically.
 pub(crate) async fn acquire_user_connection_reservation(
     user: &str,
-    config: &ProxyConfig,
     stats: Arc<Stats>,
     peer_addr: SocketAddr,
     ip_tracker: Arc<UserIpTracker>,
 ) -> Result<UserConnectionReservation> {
-    acquire_user_connection_reservation_for_incarnation(
-        user, 0, config, stats, peer_addr, ip_tracker,
-    )
-    .await
+    acquire_user_connection_reservation_for_incarnation(user, 0, stats, peer_addr, ip_tracker)
+        .await
 }
 
 async fn acquire_user_connection_reservation_for_incarnation(
     user: &str,
     incarnation: UserIncarnation,
-    config: &ProxyConfig,
     stats: Arc<Stats>,
     peer_addr: SocketAddr,
     ip_tracker: Arc<UserIpTracker>,
 ) -> Result<UserConnectionReservation> {
-    if let Some(expiration) = config.access.user_expirations.get(user)
-        && chrono::Utc::now() > *expiration
-    {
-        return Err(ProxyError::UserExpired {
-            user: user.to_string(),
-        });
-    }
-    let Some(quota_handle) = stats.quota_handle_for_incarnation(user, incarnation) else {
-        return Err(ProxyError::UserDisabled {
-            user: user.to_string(),
-        });
-    };
-    if let Some(quota) = config.access.user_data_quota.get(user)
-        && quota_handle.used() >= *quota
-    {
-        return Err(ProxyError::DataQuotaExceeded {
-            user: user.to_string(),
-        });
-    }
-
-    let limit = config
-        .access
-        .user_max_tcp_conns
-        .get(user)
-        .copied()
-        .filter(|limit| *limit > 0)
-        .or((config.access.global_user_max_tcp_conns > 0)
-            .then_some(config.access.global_user_max_tcp_conns))
-        .map(|value| value as u64);
-    let Some(connection_permit) = stats.connection_authority().try_acquire(user, limit) else {
-        return Err(ProxyError::ConnectionLimitExceeded {
-            user: user.to_string(),
-        });
-    };
     let stats_observation = stats.observe_user_current_connection(user);
 
     if let Err(reason) = ip_tracker
@@ -355,8 +272,6 @@ async fn acquire_user_connection_reservation_for_incarnation(
         user.to_string(),
         peer_addr.ip(),
         incarnation,
-        quota_handle,
-        connection_permit,
         stats_observation,
         true,
     ))

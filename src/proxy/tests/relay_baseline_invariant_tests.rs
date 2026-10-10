@@ -53,7 +53,6 @@ async fn relay_baseline_activity_timeout_fires_after_inactivity() {
         1024,
         user,
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 
@@ -98,7 +97,6 @@ async fn relay_baseline_zero_bytes_returns_ok_and_counters_zero() {
         1024,
         user,
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 
@@ -134,7 +132,6 @@ async fn relay_baseline_bidirectional_bytes_counted_symmetrically() {
         4096,
         user,
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 
@@ -186,7 +183,6 @@ async fn relay_baseline_both_sides_close_simultaneously_no_panic() {
         1024,
         "relay-baseline-sim-close",
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 
@@ -217,7 +213,6 @@ async fn relay_baseline_broken_pipe_midtransfer_returns_error() {
         1024,
         user,
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 
@@ -263,7 +258,6 @@ async fn relay_baseline_many_small_writes_exact_counter() {
         1024,
         user,
         Arc::clone(&stats),
-        None,
         Arc::new(BufferPool::new()),
     ));
 

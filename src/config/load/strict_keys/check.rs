@@ -42,7 +42,6 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         WEB_PROFILE_CONFIG_KEYS,
         TIMEOUTS_CONFIG_KEYS,
         ACCESS_CONFIG_KEYS,
-        RATE_LIMIT_BPS_CONFIG_KEYS,
         UPSTREAM_CONFIG_KEYS,
         LOGGING_CONFIG_KEYS,
     ] {
@@ -276,23 +275,6 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
                 upstream,
                 UPSTREAM_CONFIG_KEYS,
             );
-        }
-    }
-
-    for access_map in ["user_rate_limits", "cidr_rate_limits"] {
-        if let Some(table) = table_at(parsed_toml, &["access"])
-            .and_then(|access| access.get(access_map))
-            .and_then(toml::Value::as_table)
-        {
-            for (entry_name, value) in table {
-                check_nested_table_value(
-                    &mut unknown,
-                    &known_for_suggestion,
-                    format!("access.{access_map}.{entry_name}"),
-                    value,
-                    RATE_LIMIT_BPS_CONFIG_KEYS,
-                );
-            }
         }
     }
 
