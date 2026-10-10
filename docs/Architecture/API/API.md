@@ -170,8 +170,7 @@ Notes:
 | --- | --- | --- |
 | `400` | `bad_request` | Invalid JSON, validation failures, malformed request body. |
 | `400` | `access_not_editable` | `PATCH /v1/config` body contains an `access` key (managed via users API). |
-| `400` | `section_not_editable` | `PATCH /v1/config` body contains an unknown top-level key (e.g. `network`). |
-| `400` | `field_not_editable` | `PATCH /v1/config` body contains a forbidden nested field under a partially editable section (e.g. `server.api`). |
+| `400` | `section_not_editable` | `PATCH /v1/config` body contains an unknown or non-editable top-level key (e.g. `server`, `api`, `network`). |
 | `401` | `unauthorized` | Missing/invalid `Authorization` when `auth_header` is configured. |
 | `403` | `forbidden` | Source IP is not allowed by whitelist. |
 | `403` | `read_only` | Mutating endpoint called while `read_only=true`. |
@@ -271,12 +270,11 @@ bob = ["198.51.100.42/32"]
 
 ### `PatchConfigRequest`
 
-A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `timeouts`, `upstreams`, `web`) or the partially editable `server` object (only `listeners` is allowed under `server`; see below). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
+A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `listener`, `timeouts`, `upstreams`, `web`). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
 
 **Rejected keys:**
 - `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
-- An unknown top-level key (e.g. `network`) → `400 section_not_editable`.
-- `server` with any key other than `listeners` (e.g. `port`, `api`) → `400 field_not_editable`.
+- An unknown or non-editable top-level key (e.g. `network`, `server`, `api`, `metrics`) → `400 section_not_editable`.
 - An object with no editable keys → `400 bad_request` (empty patch).
 
 Example — patch one `logging` field:
@@ -284,9 +282,9 @@ Example — patch one `logging` field:
 {"logging": {"log_level": "verbose"}}
 ```
 
-Example — replace `[[server.listeners]]`:
+Example — replace `[listener]`:
 ```json
-{"server": {"listeners": [{"ip": "0.0.0.0", "port": 443, "transport": "web", "web_trusted_proxy_cidrs": ["127.0.0.1/32"]}]}}
+{"listener": {"ip": "0.0.0.0", "port": 443, "transport": "web", "web_trusted_proxy_cidrs": ["127.0.0.1/32"]}}
 ```
 
 ### `RotateSecretRequest`
@@ -306,12 +304,12 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | --- | --- | --- |
 | `general` | `object` | Complete normalized `[general]` section, including defaults. Contains `dc_overrides` (including the synthesized DC 203 endpoint when it is not authored) and `default_dc`. |
 | `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
+| `listener` | `object?` | Complete normalized `[listener]` table when set; omitted when no listener is configured. |
 | `timeouts` | `object` | Complete normalized `[timeouts]` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
 | `web` | `object` | Complete normalized `[web]` section, including defaults. Each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
-| `server` | `object?` | Partial `[server]` view when editable nested fields are present. Currently only `listeners` may appear; `port`, unix sockets, and other bind-identity fields are never returned. |
 
-The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. Under `server`, only the nested field-level allowlist (`listeners`) is exposed, and an empty listener array is omitted. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
+The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
 
 ### WEB runtime identity and lifecycle
 
@@ -881,7 +879,7 @@ Returns the current editable config sections as TOML-shaped JSON, plus the curre
 }
 ```
 
-The real `data` object contains every fully defaulted editable section; the example omits most fields for readability. The response is built from the validated, include-expanded configuration and may therefore contain normalized defaults or synthesized listeners that are absent from the root file. Only `GET` and `PATCH` are accepted; any other method returns `405 Method Not Allowed` with `Allow: GET, PATCH`.
+The real `data` object contains every fully defaulted editable section; the example omits most fields for readability. The response is built from the validated, include-expanded configuration and may therefore contain normalized defaults or synthesized entries (such as the default direct upstream) that are absent from the root file; the `listener` table is omitted when no listener is configured. Only `GET` and `PATCH` are accepted; any other method returns `405 Method Not Allowed` with `Allow: GET, PATCH`.
 
 ---
 
@@ -899,15 +897,14 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | `Content-Type: application/json` | recommended | Not enforced, but body must be valid JSON. |
 | `If-Match: <revision>` | no | Optimistic concurrency. `<revision>` is the `revision` value from `GET /v1/config` or `config_hash` from `GET /v1/system/info`. It covers the complete recursive include graph. If supplied and it does not match the current source manifest, returns `409 revision_conflict`. Omitting it removes the caller precondition, but the internal graph/owner race fence can still return the same conflict. |
 
-**Editable sections:** `general`, `timeouts`, `upstreams`, `web`, plus partially editable `server` (only nested `listeners`).
+**Editable sections:** `general`, `logging`, `listener`, `timeouts`, `upstreams`, `web`.
 
 **Rejected keys and their error codes:**
 
 | Key | HTTP | `error.code` |
 | --- | --- | --- |
 | `access` | `400` | `access_not_editable` |
-| An unknown top-level key (e.g. `network`) | `400` | `section_not_editable` |
-| `server` with keys other than `listeners` | `400` | `field_not_editable` |
+| An unknown or non-editable top-level key (e.g. `server`, `api`, `network`) | `400` | `section_not_editable` |
 | Object with no editable key | `400` | `bad_request` |
 
 **Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. In particular, `web.vhosts` is an array: changing one vhost `base_path` requires sending the complete vhost array, including every retained vhost and each required `host`, `public_addr`, `decoy`, and profile field. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched TOML table bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a TOML table returns `409 config_patch_not_atomic` without writing any file.
@@ -950,7 +947,7 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `restart_required` — legacy file-watcher classification retained for compatibility.
 - `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `server.listeners` change (including endpoint moves), `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
+- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `listener` change (including endpoint moves), `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.quota_state_path`, `general.direct_relay_buffer_budget_max_bytes`, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings all require a process restart.
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 
@@ -980,8 +977,7 @@ A valid base-path-only change reports `restart_required=false`, `runtime_reload_
 | `202` | — | Patch applied and runtime reload accepted. |
 | `400` | `bad_request` | Invalid JSON, empty patch, or config validation/deserialization failure. |
 | `400` | `access_not_editable` | Patch contains an `access` key. |
-| `400` | `section_not_editable` | Patch contains an unknown top-level key (e.g. `network`). |
-| `400` | `field_not_editable` | Patch contains a forbidden nested `server.*` field (anything other than `listeners`). |
+| `400` | `section_not_editable` | Patch contains an unknown or non-editable top-level key (e.g. `server`, `api`, `network`). |
 | `401` | `unauthorized` | Missing or invalid `Authorization` header. |
 | `403` | `read_only` | API is in read-only mode. |
 | `405` | `method_not_allowed` | Method other than `GET` or `PATCH` used on `/v1/config`. |
@@ -1022,7 +1018,7 @@ The endpoint returns `202` with `ReloadAccepted`. A concurrent non-terminal relo
 
 Returns `ReloadStatus` with `state` equal to `accepted`, `preparing`, `activating`, `draining`, `succeeded`, `rolled_back`, or `failed`. Terminal statuses include `finished_at_epoch_secs`; failures include `error`. Successful activation may include `warnings` for old-generation cleanup failures and `deferred_process_fields` for process-owned settings.
 
-Runtime generation activation rebuilds statistics, upstream routing, replay and buffer state, IP tracking, admission state, and the WEB runtime (vhost and carrier profiles). Per-user quota accounting is process-scoped and remains continuous across generations. All `server.listeners` fields, including the bound sockets and their acceptors, are process-scoped: any listener change (including endpoint moves) is deferred to process restart and reported as a deferred field. API, metrics, PID ownership, and logging remain process-scoped. Maestro does not invoke systemd, containerd, or another process supervisor.
+Runtime generation activation rebuilds statistics, upstream routing, replay and buffer state, IP tracking, admission state, and the WEB runtime (vhost and carrier profiles). Per-user quota accounting is process-scoped and remains continuous across generations. All `listener` fields, including the bound socket and its acceptor, are process-scoped: any listener change (including an endpoint move) is deferred to process restart and reported as a deferred field. API, metrics, PID ownership, and logging remain process-scoped. Maestro does not invoke systemd, containerd, or another process supervisor.
 
 The revision is verified again after preparation. With `failure_policy=rollback`, a changed revision or revision read failure rolls the candidate back; with `failure_policy=keep_new`, the condition is reported in `warnings` and activation continues.
 
@@ -1033,9 +1029,9 @@ The API exposes WEB desired configuration through the common config resource, pr
 | Operation | Current contract |
 | --- | --- |
 | Read or patch `[web]`, vhosts, profiles, decoys, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge, arrays replace wholesale; changing one `web.vhosts[].base_path` therefore requires the complete vhost array. `web.limits` and `web.decoy_fasttrack_mode` remain process-deferred. |
-| Persist `server.listeners` | Supported through `PATCH /v1/config`; arrays replace wholesale. All listener fields are process-bound: any change (including endpoint moves) remains deferred until process restart. |
+| Persist `[listener]` | Supported through `PATCH /v1/config`; the table deep-merges field-by-field. All listener fields are process-bound: any change (including an endpoint move) remains deferred until process restart. |
 | Apply an externally edited WEB config | Update the owning TOML source, call `POST /v1/system/reload`, then poll `GET /v1/system/reload/{id}`. |
-| Inspect restart requirements | Read `deferred_process_fields` from reload status. Every `server.listeners` change, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings require process restart. |
+| Inspect restart requirements | Read `deferred_process_fields` from reload status. Every `listener` change, `web.limits`, `web.decoy_fasttrack_mode`, and carrier-learning settings require process restart. |
 | Inspect WEB lifecycle, capacity, sessions, operations, learning, and debug state | Use the authenticated `GET /v1/runtime/web/*` routes documented above. |
 | Pause, drain, or resume new WEB work | Use `POST /v1/runtime/web/lifecycle/pause`, `/drain`, or `/resume` with the current `runtime_instance`. |
 | Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`; close-all first requires effective issuance to be disabled. |

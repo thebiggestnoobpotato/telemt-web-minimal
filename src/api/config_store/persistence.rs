@@ -81,21 +81,6 @@ pub(in crate::api) fn render_top_level_section(
     Ok(out)
 }
 
-/// Renders normalized listener entries as nested array-of-table blocks.
-pub(in crate::api) fn render_server_listeners(cfg: &ProxyConfig) -> Result<String, ApiFailure> {
-    let mut out = String::new();
-    for listener in &cfg.server.listeners {
-        out.push_str("[[server.listeners]]\n");
-        out.push_str(&toml::to_string(listener).map_err(|error| {
-            ApiFailure::internal(format!("failed to serialize server.listeners: {error}"))
-        })?);
-        if !out.ends_with('\n') {
-            out.push('\n');
-        }
-    }
-    Ok(out)
-}
-
 /// Validates and atomically writes access tables to their single source owner.
 pub(in crate::api) async fn save_access_sections_to_disk(
     config_path: &Path,

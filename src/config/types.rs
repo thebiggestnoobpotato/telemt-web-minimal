@@ -42,8 +42,7 @@ pub use network::{UpstreamConfig, UpstreamType};
 pub use policies::UserMaxUniqueIpsMode;
 #[allow(unused_imports)]
 pub use server::{
-    ListenerConfig, ListenerEndpoint, ListenerTransport, ServerConfig, TimeoutsConfig,
-    WebClientIpSource,
+    ListenerConfig, ListenerEndpoint, ListenerTransport, TimeoutsConfig, WebClientIpSource,
 };
 #[allow(unused_imports)]
 pub use web::{

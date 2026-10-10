@@ -19,20 +19,6 @@ pub enum WebClientIpSource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServerConfig {
-    #[serde(default)]
-    pub listeners: Vec<ListenerConfig>,
-}
-
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self {
-            listeners: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeoutsConfig {
     /// Maximum idle wait in seconds for the first client byte before handshake parsing starts.
     /// `0` disables the separate idle phase and keeps legacy timeout behavior.

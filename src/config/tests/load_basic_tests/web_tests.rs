@@ -16,7 +16,7 @@ const WEB_CONFIG: &str = r#"
 [access.users]
 alice = "000102030405060708090a0b0c0d0e0f"
 
-[[server.listeners]]
+[listener]
 ip = "127.0.0.1"
 port = 18080
 transport = "web"

@@ -30,7 +30,6 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
     for group in [
         TOP_LEVEL_CONFIG_KEYS,
         GENERAL_CONFIG_KEYS,
-        SERVER_CONFIG_KEYS,
         METRICS_CONFIG_KEYS,
         API_CONFIG_KEYS,
         LISTENER_CONFIG_KEYS,
@@ -170,13 +169,6 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         parsed_toml,
         &mut unknown,
         &known_for_suggestion,
-        &["server"],
-        SERVER_CONFIG_KEYS,
-    );
-    check_known_table(
-        parsed_toml,
-        &mut unknown,
-        &known_for_suggestion,
         &["metrics"],
         METRICS_CONFIG_KEYS,
     );
@@ -230,20 +222,13 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         ACCESS_CONFIG_KEYS,
     );
 
-    if let Some(listeners) = table_at(parsed_toml, &["server"])
-        .and_then(|table| table.get("listeners"))
-        .and_then(toml::Value::as_array)
-    {
-        for (idx, listener) in listeners.iter().enumerate() {
-            check_nested_table_value(
-                &mut unknown,
-                &known_for_suggestion,
-                format!("server.listeners[{idx}]"),
-                listener,
-                LISTENER_CONFIG_KEYS,
-            );
-        }
-    }
+    check_known_table(
+        parsed_toml,
+        &mut unknown,
+        &known_for_suggestion,
+        &["listener"],
+        LISTENER_CONFIG_KEYS,
+    );
 
     if let Some(vhosts) = table_at(parsed_toml, &["web"])
         .and_then(|table| table.get("vhosts"))

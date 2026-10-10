@@ -230,11 +230,11 @@ async fn invalid_web_patch_does_not_modify_the_source() {
 
 #[tokio::test]
 async fn read_managed_config_returns_only_editable_sections() {
-    // Full server (port) and the top-level api/metrics tables must not leak.
+    // The top-level api/metrics tables must not leak.
     let (path, _d) = temp_config(concat!(
         "[general]\nfast_mode = true\n",
-        "[server]\nport = 443\n[api]\nauth_header = \"SECRET\"\n",
-        "[[server.listeners]]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
+        "[api]\nauth_header = \"SECRET\"\n",
+        "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          [web.vhosts.decoy]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
@@ -244,21 +244,18 @@ async fn read_managed_config_returns_only_editable_sections() {
     let (value, _rev) = read_managed_config(&path).await.unwrap();
     let table = value.as_table().unwrap();
     assert!(table.contains_key("general"));
-    let server = table["server"].as_table().unwrap();
-    assert!(server.contains_key("listeners"));
+    assert!(table.contains_key("listener"));
     assert!(!table.contains_key("api"));
-    assert!(!server.contains_key("port"));
     assert!(!table.contains_key("metrics"));
     assert!(!table.contains_key("access"));
 }
 
 #[tokio::test]
-async fn read_managed_config_returns_server_listeners_only() {
+async fn read_managed_config_returns_full_listener_table() {
     let (path, _d) = temp_config(concat!(
         "[general]\nfast_mode = true\n",
-        "[server]\nport = 443\n",
         "[api]\nauth_header = \"SECRET\"\n",
-        "[[server.listeners]]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
+        "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          [web.vhosts.decoy]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
@@ -266,56 +263,56 @@ async fn read_managed_config_returns_server_listeners_only() {
     ));
     let (value, _rev) = read_managed_config(&path).await.unwrap();
     let table = value.as_table().unwrap();
-    let server = table
-        .get("server")
-        .expect("server.listeners present")
+    let listener = table
+        .get("listener")
+        .expect("listener present")
         .as_table()
         .unwrap();
-    assert!(server.contains_key("listeners"));
+    assert!(listener.contains_key("ip"));
+    assert!(listener.contains_key("port"));
     assert!(!table.contains_key("api"));
-    assert!(!server.contains_key("port"));
-    let listeners = server["listeners"].as_array().unwrap();
-    assert_eq!(listeners.len(), 1);
-    assert_eq!(listeners[0]["port"].as_integer(), Some(443));
+    assert_eq!(listener["port"].as_integer(), Some(443));
 }
 
 #[tokio::test]
-async fn patch_rejects_forbidden_server_fields() {
+async fn patch_rejects_stripped_server_section() {
+    // `[server]` no longer exists; any patch under it is rejected wholesale.
     let (path, _d) = temp_config("[general]\nfast_mode = true\n");
-    let patch: Json = serde_json::json!({"server": {"port": 1}});
+    let patch: Json = serde_json::json!({"server": {"listeners": []}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
-    assert_eq!(err.code, "field_not_editable");
+    assert_eq!(err.code, "section_not_editable");
 }
 
 #[tokio::test]
-async fn patch_rejects_server_api_field() {
+async fn patch_rejects_api_section() {
+    // `api` is process-owned endpoint identity and stays outside the
+    // editable section allowlist.
     let (path, _d) = temp_config("[general]\nfast_mode = true\n");
-    let patch: Json = serde_json::json!({"server": {"api": {"enabled": false}}});
+    let patch: Json = serde_json::json!({"api": {"enabled": false}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
-    assert_eq!(err.code, "field_not_editable");
+    assert_eq!(err.code, "section_not_editable");
 }
 
 #[tokio::test]
-async fn patch_server_listeners_preserves_api() {
+async fn patch_listener_preserves_api() {
     let (path, _d) = temp_config(concat!(
         "[general]\nfast_mode = true\n",
-        "[server]\nport = 443\n",
         "[api]\nenabled = true\nauth_header = \"SECRET\"\n",
-        "[[server.listeners]]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
+        "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          [web.vhosts.decoy]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
         "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let patch: Json = serde_json::json!({
-        "server": {
-            "listeners": [
-                {"ip": "0.0.0.0", "port": 8443, "web_trusted_proxy_cidrs": ["10.0.0.0/8"]}
-            ]
+        "listener": {
+            "ip": "0.0.0.0",
+            "port": 8443,
+            "web_trusted_proxy_cidrs": ["10.0.0.0/8"]
         }
     });
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
-    assert!(resp.changed.iter().any(|c| c == "server"));
+    assert!(resp.changed.iter().any(|c| c == "listener"));
     let written = tokio::fs::read_to_string(&path).await.unwrap();
     let parsed: toml::Value = toml::from_str(&written).unwrap();
     assert_eq!(
@@ -323,11 +320,10 @@ async fn patch_server_listeners_preserves_api() {
         Some("SECRET"),
         "{written}"
     );
-    let listeners = parsed["server"]["listeners"].as_array().unwrap();
-    assert_eq!(listeners.len(), 1, "{written}");
-    assert_eq!(listeners[0]["port"].as_integer(), Some(8443), "{written}");
+    let listener = parsed["listener"].as_table().unwrap();
+    assert_eq!(listener["port"].as_integer(), Some(8443), "{written}");
     assert_eq!(
-        listeners[0]["web_trusted_proxy_cidrs"][0].as_str(),
+        listener["web_trusted_proxy_cidrs"][0].as_str(),
         Some("10.0.0.0/8"),
         "{written}"
     );
@@ -368,7 +364,7 @@ async fn patch_writes_the_included_section_owner_only() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
     let included = dir.path().join("general.toml");
-    let root_body = "include = \"general.toml\"\n[server]\nport = 443\n";
+    let root_body = "include = \"general.toml\"\n[other]\nvalue = 443\n";
     let included_body = "[general]\nfast_mode = true\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();

@@ -255,18 +255,12 @@ network_prefer = 4
 log_level = "normal"
 show_users = ["{username}"]
 
-[[server.listeners]]
+[listener]
 ip = "0.0.0.0"
 port = {port}
 transport = "web"
 # Trusted L7 reverse proxies allowed to supply the client IP header.
 # /0 networks are rejected; extend only with your own fronting proxies.
-web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
-
-[[server.listeners]]
-ip = "::"
-port = {port}
-transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [timeouts]

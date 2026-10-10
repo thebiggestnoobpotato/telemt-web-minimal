@@ -50,7 +50,7 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
                 [access.users]
                 alice = "000102030405060708090a0b0c0d0e0f"
 
-                [[server.listeners]]
+                [listener]
                 ip = "127.0.0.1"
                 port = 18080
                 transport = "web"
@@ -233,7 +233,7 @@ fn mixed_hot_and_non_hot_change_applies_only_hot_subset() {
 #[test]
 fn listener_web_policy_fields_are_process_owned() {
     let mut old = sample_config();
-    old.server.listeners.push(ListenerConfig {
+    old.listener = Some(ListenerConfig {
         ip: Some("0.0.0.0".parse().unwrap()),
         transport: crate::config::ListenerTransport::Web,
         port: Some(443),
@@ -243,14 +243,16 @@ fn listener_web_policy_fields_are_process_owned() {
         web_trusted_proxy_cidrs: Vec::new(),
     });
     let mut new = old.clone();
-    new.server.listeners[0].port = Some(8443);
-    new.server.listeners[0]
+    new.listener.as_mut().unwrap().port = Some(8443);
+    new.listener
+        .as_mut()
+        .unwrap()
         .web_trusted_proxy_cidrs
         .push("127.0.0.1/32".parse().unwrap());
 
     let applied = overlay_hot_fields(&old, &new);
-    let listener = &applied.server.listeners[0];
-    assert_eq!(applied.server.listeners[0].port, old.server.listeners[0].port);
+    let listener = applied.listener.as_ref().unwrap();
+    assert_eq!(listener.port, old.listener.as_ref().unwrap().port);
     assert!(listener.web_trusted_proxy_cidrs.is_empty());
     assert!(classify_config_changes(&old, &new).restart_required);
 }

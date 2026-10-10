@@ -101,9 +101,9 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub logging: LoggingConfig,
 
-    /// Server-side listener configuration.
-    #[serde(default)]
-    pub server: ServerConfig,
+    /// Single process-owned inbound listener endpoint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listener: Option<ListenerConfig>,
 
     /// Control-plane REST API endpoint configuration.
     #[serde(default)]

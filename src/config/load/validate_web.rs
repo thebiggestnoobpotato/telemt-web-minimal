@@ -35,32 +35,30 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
 /// Validates source policy without requiring DNS evidence for opted-in origins.
 pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
     let web_listener_count = config
-        .server
-        .listeners
+        .listener
         .iter()
         .filter(|listener| listener.transport == ListenerTransport::Web)
         .count();
     let eligible_web_listener_count = config
-        .server
-        .listeners
+        .listener
         .iter()
         .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| listener_is_network_eligible(listener, config))
         .count();
 
-    for (idx, listener) in config.server.listeners.iter().enumerate() {
-        validate_web_listener(idx, listener)?;
+    if let Some(listener) = &config.listener {
+        validate_web_listener(listener)?;
     }
 
     if config.web.enabled && eligible_web_listener_count == 0 {
         return Err(ProxyError::Config(
-            "web.enabled requires at least one network-eligible server.listeners entry with transport=web"
+            "web.enabled requires a network-eligible [listener] entry with transport=web"
                 .to_string(),
         ));
     }
     if web_listener_count > 0 && config.web.vhosts.is_empty() {
         return Err(ProxyError::Config(
-            "WEB listeners require at least one [[web.vhosts]] entry".to_string(),
+            "A WEB listener requires at least one [[web.vhosts]] entry".to_string(),
         ));
     }
 
@@ -92,8 +90,7 @@ fn validate_decoy_listener_separation_inner(
     require_resolved: bool,
 ) -> Result<()> {
     let web_endpoints = config
-        .server
-        .listeners
+        .listener
         .iter()
         .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| listener_is_network_eligible(listener, config))
@@ -150,7 +147,6 @@ fn listener_covers(listener: SocketAddr, target: SocketAddr) -> bool {
 }
 
 fn validate_web_listener(
-    idx: usize,
     listener: &ListenerConfig,
 ) -> Result<()> {
     if let Some(path) = &listener.socket_path {
@@ -159,35 +155,35 @@ fn validate_web_listener(
         // skipped. The synthetic loopback peer is still matched against the
         // configured CIDRs at request time.
         if !Path::new(path).is_absolute() {
-            return Err(ProxyError::Config(format!(
-                "server.listeners[{idx}].socket_path must be an absolute path"
-            )));
+            return Err(ProxyError::Config(
+                "listener.socket_path must be an absolute path".to_string(),
+            ));
         }
         if listener.ip.is_some() || listener.port.is_some() {
-            return Err(ProxyError::Config(format!(
-                "server.listeners[{idx}].socket_path cannot be combined with ip or port"
-            )));
+            return Err(ProxyError::Config(
+                "listener.socket_path cannot be combined with ip or port".to_string(),
+            ));
         }
         return Ok(());
     }
     if listener.ip.is_none() || listener.port.is_none() {
-        return Err(ProxyError::Config(format!(
-            "server.listeners[{idx}] requires both ip and port, or socket_path"
-        )));
+        return Err(ProxyError::Config(
+            "listener requires both ip and port, or socket_path".to_string(),
+        ));
     }
     if listener.web_trusted_proxy_cidrs.is_empty() {
-        return Err(ProxyError::Config(format!(
-            "server.listeners[{idx}].web_trusted_proxy_cidrs must be non-empty for transport=web"
-        )));
+        return Err(ProxyError::Config(
+            "listener.web_trusted_proxy_cidrs must be non-empty for transport=web".to_string(),
+        ));
     }
     if listener
         .web_trusted_proxy_cidrs
         .iter()
         .any(|network| network.prefix() == 0)
     {
-        return Err(ProxyError::Config(format!(
-            "server.listeners[{idx}].web_trusted_proxy_cidrs must not contain a /0 network"
-        )));
+        return Err(ProxyError::Config(
+            "listener.web_trusted_proxy_cidrs must not contain a /0 network".to_string(),
+        ));
     }
     Ok(())
 }

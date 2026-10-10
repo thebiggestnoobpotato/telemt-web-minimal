@@ -34,7 +34,7 @@ fn web_config_with_fasttrack(mode: &str) -> ProxyConfig {
 [access.users]
 alice = "000102030405060708090a0b0c0d0e0f"
 
-[[server.listeners]]
+[listener]
 ip = "127.0.0.1"
 port = 18080
 transport = "web"
@@ -70,7 +70,7 @@ fn process_socket_and_logging_changes_are_deferred() {
     new.logging.destination = crate::config::LoggingDestination::File;
 
     let fields = deferred_process_fields(&old, &new).unwrap();
-    assert!(fields.contains(&"server.listeners".to_string()));
+    assert!(fields.contains(&"listener".to_string()));
     assert!(fields.contains(&"logging".to_string()));
 }
 
@@ -121,14 +121,14 @@ fn mixed_reload_retains_process_state_and_applies_runtime_state() {
     assert!(resolved.runtime_changed);
     assert_eq!(
         resolved.deferred_process_fields,
-        vec!["server.listeners".to_string()]
+        vec!["listener".to_string()]
     );
 }
 
 #[test]
 fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
     let mut old = ProxyConfig::default();
-    old.server.listeners.push(crate::config::ListenerConfig {
+    old.listener = Some(crate::config::ListenerConfig {
         ip: Some("0.0.0.0".parse().unwrap()),
         transport: crate::config::ListenerTransport::Web,
         port: Some(443),
@@ -143,8 +143,9 @@ fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
     old.rebuild_runtime_web().unwrap();
     let mut desired = old.clone();
     desired
-        .server
-        .listeners[0]
+        .listener
+        .as_mut()
+        .unwrap()
         .web_trusted_proxy_cidrs
         .push("10.0.0.0/8".parse().unwrap());
 
@@ -152,10 +153,16 @@ fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
 
     assert_eq!(
         resolved.deferred_process_fields,
-        vec!["server.listeners".to_string()]
+        vec!["listener".to_string()]
     );
     assert_eq!(
-        resolved.effective.server.listeners[0].web_trusted_proxy_cidrs.len(),
+        resolved
+            .effective
+            .listener
+            .as_ref()
+            .unwrap()
+            .web_trusted_proxy_cidrs
+            .len(),
         1
     );
     assert!(!resolved.runtime_changed);
@@ -178,7 +185,7 @@ fn process_field_labels_are_stable_ordered_and_unique() {
     assert_eq!(
         resolved.deferred_process_fields,
         vec![
-            "server.listeners".to_string(),
+            "listener".to_string(),
             "api.listen".to_string(),
             "api.runtime_edge_events_capacity".to_string(),
             "logging".to_string(),
@@ -344,21 +351,21 @@ fn web_debug_prefix_dependent_on_new_capacity_is_deferred_with_limits() {
 #[test]
 fn endpoint_only_listener_move_is_deferred_to_process_restart() {
     let mut old = ProxyConfig::default();
-    old.server.listeners = vec![test_listener(443)];
+    old.listener = Some(test_listener(443));
     old.web.vhosts = vec![test_vhost()];
     // Active configurations are fully prepared; endpoint equality compares runtime snapshots.
     old.rebuild_runtime_user_auth().unwrap();
     old.rebuild_runtime_web().unwrap();
     let mut desired = old.clone();
-    desired.server.listeners[0].port = Some(8443);
+    desired.listener.as_mut().unwrap().port = Some(8443);
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 
     assert_eq!(
         resolved.deferred_process_fields,
-        vec!["server.listeners".to_string()]
+        vec!["listener".to_string()]
     );
-    assert_eq!(resolved.effective.server.listeners[0].port, Some(443));
+    assert_eq!(resolved.effective.listener.as_ref().unwrap().port, Some(443));
     assert!(!resolved.runtime_changed);
 }
 
@@ -366,10 +373,10 @@ fn endpoint_only_listener_move_is_deferred_to_process_restart() {
 #[test]
 fn deferred_listener_identity_cannot_create_an_effective_decoy_loop() {
     let mut old = ProxyConfig::default();
-    old.server.listeners = vec![test_listener(18080)];
-    old.server.listeners[0].transport = crate::config::ListenerTransport::Web;
+    old.listener = Some(test_listener(18080));
+    old.listener.as_mut().unwrap().transport = crate::config::ListenerTransport::Web;
     let mut desired = old.clone();
-    desired.server.listeners[0].port = Some(18081);
+    desired.listener.as_mut().unwrap().port = Some(18081);
     desired.general.listen_backlog = desired.general.listen_backlog.saturating_add(1);
     desired.web.vhosts = vec![
         serde_json::from_value(serde_json::json!({

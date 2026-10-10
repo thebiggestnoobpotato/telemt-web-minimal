@@ -6,7 +6,7 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "api",
     "general",
     "logging",
-    "server",
+    "listener",
     "metrics",
     "web",
     "timeouts",
@@ -41,8 +41,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "listen_backlog",
     "max_connections",
 ];
-
-const SERVER_CONFIG_KEYS: &[&str] = &["listeners"];
 
 const METRICS_CONFIG_KEYS: &[&str] = &["port", "listen", "whitelist"];
 

@@ -14,8 +14,9 @@ log_level = "normal"
 show_users = "*"
 # show_users = ["alice", "bob"] # Only show links for alice and bob
 
-# === Server Binding ===
-# (bind identity lives in the [[server.listeners]] entries below)
+# === Listener Binding ===
+# Single WEB listener; the unix socket variant is also supported via
+# socket_path (see docs/Config_params/CONFIG_PARAMS.en.md).
 
 # === Metrics Endpoint ===
 # [metrics]
@@ -31,7 +32,7 @@ minimal_runtime_enabled = false
 minimal_runtime_cache_ttl_ms = 1000
 
 # WEB listener behind a local L7 reverse proxy; /0 networks are rejected.
-[[server.listeners]]
+[listener]
 ip = "127.0.0.1"
 port = 443
 transport = "web"

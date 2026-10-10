@@ -1,6 +1,5 @@
 //! Config-editing API: read managed sections and apply sparse field patches.
 //! `access.*` is intentionally not editable here (owned by the users API).
-//! `[server]` is only partially editable — see [`EDITABLE_SERVER_FIELDS`].
 
 use serde_json::Value as Json;
 use toml::Value as Toml;
@@ -9,9 +8,8 @@ use super::ApiShared;
 #[cfg(test)]
 use super::config_store::write_atomic;
 use super::config_store::{
-    EDITABLE_SECTIONS, EDITABLE_SERVER_FIELDS, compute_snapshot_revision, is_editable_section,
-    load_candidate_snapshot, load_config_snapshot, render_server_listeners,
-    render_top_level_section, resolve_single_source_owner, upsert_toml_table,
+    EDITABLE_SECTIONS, compute_snapshot_revision, is_editable_section, load_candidate_snapshot,
+    load_config_snapshot, render_top_level_section, resolve_single_source_owner, upsert_toml_table,
     write_atomic_if_unchanged,
 };
 use super::model::ApiFailure;
@@ -167,7 +165,7 @@ async fn prepare_patch_to_path(
         ));
     }
 
-    // 2. convert + reject access / unknown sections / forbidden server fields
+    // 2. convert + reject access / unknown sections
     let patch_toml = json_to_toml(patch_json)
         .map_err(|e| ApiFailure::bad_request(format!("invalid patch: {}", e)))?;
     let patch_table = patch_toml
@@ -180,16 +178,13 @@ async fn prepare_patch_to_path(
             "access.* is managed via the users API, not editable here",
         ));
     }
-    for (key, value) in patch_table {
+    for (key, _value) in patch_table {
         if !is_editable_section(key.as_str()) {
             return Err(ApiFailure::new(
                 hyper::StatusCode::BAD_REQUEST,
                 "section_not_editable",
                 format!("section not editable: {}", key),
             ));
-        }
-        if key == "server" {
-            validate_server_patch(value)?;
         }
     }
     let touched: Vec<&str> = patch_table
@@ -219,16 +214,7 @@ async fn prepare_patch_to_path(
         .validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
 
-    let ownership_targets: Vec<&str> = touched
-        .iter()
-        .map(|section| {
-            if *section == "server" {
-                "server.listeners"
-            } else {
-                *section
-            }
-        })
-        .collect();
+    let ownership_targets: Vec<&str> = touched.iter().copied().collect();
     let owner_path = resolve_single_source_owner(&loaded, config_path, &ownership_targets)?;
     let mut owner_contents = loaded
         .source_contents
@@ -237,13 +223,8 @@ async fn prepare_patch_to_path(
         .ok_or_else(|| ApiFailure::internal("config source owner is missing from snapshot"))?;
     let expected_owner_contents = owner_contents.clone();
     for section in &touched {
-        if *section == "server" {
-            let rendered = render_server_listeners(&requested_cfg)?;
-            owner_contents = upsert_toml_table(&owner_contents, "server.listeners", &rendered);
-        } else {
-            let rendered = render_top_level_section(&requested_cfg, section)?;
-            owner_contents = upsert_toml_table(&owner_contents, section, &rendered);
-        }
+        let rendered = render_top_level_section(&requested_cfg, section)?;
+        owner_contents = upsert_toml_table(&owner_contents, section, &rendered);
     }
 
     let candidate = load_candidate_snapshot(
@@ -253,14 +234,14 @@ async fn prepare_patch_to_path(
         owner_contents.clone(),
     )
     .await?;
-    if touched.contains(&"server")
-        && serde_json::to_value(&candidate.config.server.listeners).ok()
-            != serde_json::to_value(&requested_cfg.server.listeners).ok()
+    if touched.contains(&"listener")
+        && serde_json::to_value(&candidate.config.listener).ok()
+            != serde_json::to_value(&requested_cfg.listener).ok()
     {
         return Err(ApiFailure::new(
             hyper::StatusCode::BAD_REQUEST,
             "ambiguous_listeners",
-            "server.listeners normalizes to a different effective listener set",
+            "listener normalizes to a different effective listener",
         ));
     }
 
@@ -317,80 +298,16 @@ pub(super) async fn read_managed_config(config_path: &Path) -> Result<(Toml, Str
         .cloned()
         .unwrap_or_else(toml::value::Table::new);
     // Whitelist: return ONLY the editable sections. A blacklist (just removing
-    // `access`) would leak `api` (auth_header) and `network` (per-node
-    // addresses). Mirror the PATCH contract, including the nested server
-    // field-level allowlist.
+    // `access`) would leak `api` (auth_header) and per-node network
+    // addresses. Mirror the PATCH section allowlist.
     let mut table = toml::value::Table::new();
     for section in EDITABLE_SECTIONS {
         if let Some(value) = parsed_table.get(*section) {
             table.insert((*section).to_string(), value.clone());
         }
     }
-    if let Some(server) = parsed_table.get("server") {
-        if let Some(filtered) = filter_server_for_read(server) {
-            table.insert("server".to_string(), filtered);
-        }
-    }
 
     Ok((Toml::Table(table), revision))
-}
-
-/// Keep only [`EDITABLE_SERVER_FIELDS`] from a `[server]` table for GET.
-fn filter_server_for_read(server: &Toml) -> Option<Toml> {
-    let Some(src) = server.as_table() else {
-        return None;
-    };
-    let mut out = toml::value::Table::new();
-    for field in EDITABLE_SERVER_FIELDS {
-        if let Some(value) = src.get(*field) {
-            // Skip empty listeners arrays so absent-vs-empty stays consistent
-            // with other optional sections.
-            if *field == "listeners" {
-                if let Some(arr) = value.as_array() {
-                    if arr.is_empty() {
-                        continue;
-                    }
-                }
-            }
-            out.insert((*field).to_string(), value.clone());
-        }
-    }
-    if out.is_empty() {
-        None
-    } else {
-        Some(Toml::Table(out))
-    }
-}
-
-/// Reject any `[server]` patch keys outside [`EDITABLE_SERVER_FIELDS`].
-fn validate_server_patch(server: &Toml) -> Result<(), ApiFailure> {
-    let Some(table) = server.as_table() else {
-        return Err(ApiFailure::new(
-            hyper::StatusCode::BAD_REQUEST,
-            "section_not_editable",
-            "server patch must be a JSON object",
-        ));
-    };
-    if table.is_empty() {
-        return Err(ApiFailure::bad_request(
-            "empty server patch: provide at least one editable field \
-             (currently: listeners)",
-        ));
-    }
-    for key in table.keys() {
-        if !EDITABLE_SERVER_FIELDS.contains(&key.as_str()) {
-            return Err(ApiFailure::new(
-                hyper::StatusCode::BAD_REQUEST,
-                "field_not_editable",
-                format!(
-                    "server.{} is not editable via the config API; allowed server fields: {}",
-                    key,
-                    EDITABLE_SERVER_FIELDS.join(", ")
-                ),
-            ));
-        }
-    }
-    Ok(())
 }
 
 /// Convert a serde_json value to a toml value. `null` is dropped from objects

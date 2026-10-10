@@ -16,9 +16,8 @@ This document lists all configuration keys accepted by `config.toml`.
  - [Top-level keys](#top-level-keys)
  - [logging](#logging)
  - [general](#general)
- - [server](#server)
  - [api](#api)
- - [server.listeners](#serverlisteners)
+ - [listener](#listener)
  - [metrics](#metrics)
  - [web](#web)
  - [web.debug](#webdebug)
@@ -356,13 +355,6 @@ This document lists all configuration keys accepted by `config.toml`.
     [general]
     max_connections = 10000
     ```
-# [server]
-
-
-| Key | Type | Default | Hot-Reload |
-| --- | ---- | ------- | ---------- |
-| [`listeners`](#serverlisteners) | `Table[]` | `[]` | `✘` |
-
 # [api]
 
 
@@ -501,20 +493,20 @@ This document lists all configuration keys accepted by `config.toml`.
     ```
 
 
-# [[server.listeners]]
+# [listener]
 
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
 | [`ip`](#ip) | `IpAddr` | — | `✘` |
-| [`port`](#port-serverlisteners) | `u16` | — | `✘` |
-| [`socket_path`](#socket_path-serverlisteners) | `String` | — | `✘` |
-| [`socket_perm`](#socket_perm-serverlisteners) | `String` | — | `✘` |
-| [`transport`](#transport-serverlisteners) | `"web"` | `"web"` | `✘` |
-| [`web_client_ip_source`](#web_client_ip_source-serverlisteners) | `"x_forwarded_for"` | `"x_forwarded_for"` | `✘` |
-| [`web_trusted_proxy_cidrs`](#web_trusted_proxy_cidrs-serverlisteners) | `IpNetwork[]` | `[]` | `✘` |
+| [`port`](#port-listener) | `u16` | — | `✘` |
+| [`socket_path`](#socket_path-listener) | `String` | — | `✘` |
+| [`socket_perm`](#socket_perm-listener) | `String` | — | `✘` |
+| [`transport`](#transport-listener) | `"web"` | `"web"` | `✘` |
+| [`web_client_ip_source`](#web_client_ip_source-listener) | `"x_forwarded_for"` | `"x_forwarded_for"` | `✘` |
+| [`web_trusted_proxy_cidrs`](#web_trusted_proxy_cidrs-listener) | `IpNetwork[]` | `[]` | `✘` |
 
-Each entry binds exactly one endpoint: either a TCP pair (`ip` + `port`) or one `socket_path`.
+The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) or one `socket_path`. Omit the table to run without a process-owned listener.
 
 ## ip
   - **Constraints / validation**: `IpAddr`. Required for TCP listeners together with `port`; omitted for unix socket listeners.
@@ -522,59 +514,59 @@ Each entry binds exactly one endpoint: either a TCP pair (`ip` + `port`) or one 
   - **Example**:
 
     ```toml
-    [[server.listeners]]
+    [listener]
     ip = "0.0.0.0"
     ```
-## port (server.listeners)
+## port (listener)
   - **Constraints / validation**: `u16`. Required for TCP listeners together with `ip`; omitted for unix socket listeners.
   - **Description**: Per-listener TCP port.
   - **Example**:
 
     ```toml
-    [[server.listeners]]
+    [listener]
     ip = "0.0.0.0"
     port = 443
     ```
-## socket_path (server.listeners)
+## socket_path (listener)
   - **Constraints / validation**: Absolute unix domain socket path. Cannot be combined with `ip` or `port`. The parent directory must exist and be traversable; an existing path that is not a socket is rejected, a stale socket file is removed, and a live listener is never deleted.
   - **Description**: Binds this listener to a local unix socket instead of a TCP endpoint. A local fronting process such as NGINX connects to the socket, and the socket file permissions are the trust boundary: no remote host can reach this listener, so the TCP-only peer checks are skipped. Each accepted connection is presented as a synthetic `127.0.0.1` peer. To let the fronting process's `X-Forwarded-For` header determine the client identity, keep `127.0.0.1/32` in this listener's `web_trusted_proxy_cidrs`; when the synthetic peer is untrusted, the connection is served as decoy traffic only.
   - **Example**:
 
     ```toml
-    [[server.listeners]]
+    [listener]
     socket_path = "/run/telemt/web.sock"
     socket_perm = "0660"
     transport = "web"
     ```
-## socket_perm (server.listeners)
+## socket_perm (listener)
   - **Constraints / validation**: Octal permission string such as `"0660"`. Applied via `chmod` after bind; an invalid value is reported with a warning and the umask-derived mode is kept.
   - **Description**: Permissions of the unix socket file. Only meaningful with `socket_path`.
   - **Example**:
 
     ```toml
-    [[server.listeners]]
+    [listener]
     socket_path = "/run/telemt/web.sock"
     socket_perm = "0660"
     transport = "web"
     ```
-## transport (server.listeners)
+## transport (listener)
   - **Constraints / validation**: `"web"`.
   - **Description**: Selects the protocol accepted by this listener. A WEB listener receives plain HTTP/1.1 from a trusted TLS terminator and is restart-required.
   - **Example**:
 
     ```toml
-    [[server.listeners]]
+    [listener]
     ip = "127.0.0.1"
     port = 18080
     transport = "web"
     web_trusted_proxy_cidrs = ["127.0.0.1/32"]
     ```
 
-## web_client_ip_source (server.listeners)
+## web_client_ip_source (listener)
   - **Constraints / validation**: Only `"x_forwarded_for"` is supported by the initial WEB implementation.
   - **Description**: Chooses the L7 source of the original client IP. From a direct TCP peer in `web_trusted_proxy_cidrs`, Telemt accepts one parseable `X-Forwarded-For` address. If the trusted peer omits the header, Telemt uses that peer's address; configure the terminator to set the header so per-client limits and source policy use the real client address.
 
-## web_trusted_proxy_cidrs (server.listeners)
+## web_trusted_proxy_cidrs (listener)
   - **Constraints / validation**: Non-empty CIDR array. A `/0` network is rejected.
   - **Description**: Trust boundary for the immediate NGINX or HAProxy peer. List only addresses that can connect directly to this listener; never expose the plain listener to an untrusted network.
 
@@ -793,12 +785,12 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 - The config watcher and generation reload apply `web.enabled`, carrier and negotiation policy, `web.debug`, `web.timeouts`, vhosts, profiles, and decoy snapshots without a process restart. One immutable expanded source snapshot is validated and activated; a candidate generation's watcher starts only after that generation becomes active. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines; newly issued bridge sessions use one pinned active generation.
 - Changing `base_path` atomically replaces both the new-request route and derived capability. Reissue links and drain affected live sessions first: established WebSockets and already routed exchanges continue; later old-base requests carrying a process-authentic bootstrap or session token receive a local no-store `404`, while the now-inactive old capability follows ordinary decoy handling.
-- WEB listener inventory and trust policy under `server.listeners`, and every `web.limits` value, are process-owned and restart-required.
+- WEB listener inventory and trust policy under `[listener]`, and every `web.limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `[web]` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports `web.limits` in `deferred_process_fields` until restart.
 - `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.
 - `web.enabled = false` stops new bootstrap/session issuance after activation but does not close live sessions. For close-all, wait until status reports `manager.issuance_enabled = false`, submit the asynchronous `all` selector, and poll its operation.
 - Existing access users can be created, changed, rotated, enabled, disabled, and deleted through `/v1/users`. Creating a user does not add a WEB profile. Disabling a user immediately updates admission and cancels that user's active sessions.
-- `PATCH /v1/config` can persist `server.listeners`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
+- `PATCH /v1/config` can persist `[listener]`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
 
 
 # [timeouts]

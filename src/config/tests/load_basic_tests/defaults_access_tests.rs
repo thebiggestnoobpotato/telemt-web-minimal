@@ -4,7 +4,6 @@ use super::*;
 fn serde_defaults_remain_unchanged_for_present_sections() {
     let toml = r#"
         [general]
-        [server]
         [access]
     "#;
     let cfg: ProxyConfig = toml::from_str(toml).unwrap();
@@ -192,13 +191,13 @@ fn network_section_is_stripped_into_general() {
 
 #[test]
 fn server_metrics_keys_are_moved_to_metrics() {
-    // strict: the old [server].metrics_* locations are rejected after the
-    // move to the [metrics] section.
+    // strict: the stripped [server] section is rejected after the move to the
+    // [metrics] section.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[server]\nmetrics_port = 9090\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert!(error.contains("metrics_port"), "{error}");
+    assert!(error.contains("server"), "{error}");
 
     // non-strict: the old keys are silently ignored and [metrics] keeps
     // its defaults.
@@ -220,24 +219,24 @@ fn server_metrics_keys_are_moved_to_metrics() {
 
 #[test]
 fn server_port_is_removed_and_listener_endpoints_are_explicit() {
-    // strict: the legacy [server].port location is rejected after the move
-    // to the per-listener [[server.listeners]] entries.
+    // strict: the stripped [server] section is rejected after the move to the
+    // per-listener [listener] entry.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[server]\nport = 443\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert!(error.contains("port"), "{error}");
+    assert!(error.contains("server"), "{error}");
 
-    // non-strict: the legacy key is ignored and the listeners stay empty.
+    // non-strict: the legacy section is ignored and no listener is set.
     let cfg = load_config_from_temp_toml(
         "[server]\nport = 443\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert!(cfg.server.listeners.is_empty());
+    assert!(cfg.listener.is_none());
 
     // a listener entry requires both ip and port, or socket_path.
     let error = load_config_error_from_temp_toml(
-        "[server]\n[[server.listeners]]\ntransport = \"web\"\n\
+        "[listener]\ntransport = \"web\"\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("port"), "{error}");
@@ -245,7 +244,7 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
     // a unix socket listener entry loads with the socket file as its trust
     // boundary; no proxy CIDRs are required.
     let cfg = load_config_from_temp_toml(
-        "[server]\n[[server.listeners]]\n\
+        "[listener]\n\
          socket_path = \"/run/telemt/listener.sock\"\ntransport = \"web\"\n\
          [[web.vhosts]]\nhost = \"proxy.example.com\"\n\
          public_addr = \"203.0.113.10:443\"\n\
@@ -253,15 +252,15 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
          upstream = \"http://127.0.0.1:18090\"\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert_eq!(cfg.server.listeners.len(), 1);
+    let listener = cfg.listener.as_ref().unwrap();
     assert_eq!(
-        cfg.server.listeners[0].socket_path.as_deref(),
+        listener.socket_path.as_deref(),
         Some("/run/telemt/listener.sock")
     );
 
     // socket_path cannot be combined with ip or port.
     let error = load_config_error_from_temp_toml(
-        "[server]\n[[server.listeners]]\n\
+        "[listener]\n\
          socket_path = \"/run/telemt/listener.sock\"\nip = \"127.0.0.1\"\nport = 443\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
@@ -269,10 +268,39 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
 
     // socket_path must be an absolute path.
     let error = load_config_error_from_temp_toml(
-        "[server]\n[[server.listeners]]\nsocket_path = \"run/telemt/listener.sock\"\n\
+        "[listener]\nsocket_path = \"run/telemt/listener.sock\"\n\
          [access.users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("absolute path"), "{error}");
+}
+
+#[test]
+fn listener_section_is_known_in_strict_config() {
+    // strict: [listener] is a known top-level table.
+    let cfg = load_config_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [listener]\nip = \"127.0.0.1\"\nport = 443\ntransport = \"web\"\n\
+         web_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n\
+         [[web.vhosts]]\nhost = \"proxy.example.com\"\n\
+         public_addr = \"203.0.113.10:443\"\n\
+         [web.vhosts.decoy]\nmode = \"http_upstream\"\n\
+         upstream = \"http://127.0.0.1:18090\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(cfg.listener.is_some());
+
+    // strict: unknown keys inside [listener] are rejected with the full path.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [listener]\nip = \"127.0.0.1\"\nport = 443\ntransport = \"web\"\n\
+         web_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\nbogus = 1\n\
+         [[web.vhosts]]\nhost = \"proxy.example.com\"\n\
+         public_addr = \"203.0.113.10:443\"\n\
+         [web.vhosts.decoy]\nmode = \"http_upstream\"\n\
+         upstream = \"http://127.0.0.1:18090\"\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("listener.bogus"), "{error}");
 }
 
 #[test]

@@ -11,7 +11,7 @@
 //! | `access`  | All user/quota fields          | Effective immediately                          |
 //! | `web`     | Carrier, timing, and debug policy | Applied to newly issued sessions             |
 //! | `web`     | `carrier_method`               | Applied to newly rendered bridge pages        |
-//! Fields that require re-binding sockets (`server.listeners`, `network.*`)
+//! Fields that require re-binding sockets (`listener`)
 //! are **not** applied; a warning is emitted.
 //! `web.decoy_fasttrack_mode` is also restart-only so one process never mixes
 //! capability timing policies or process-lifetime counter semantics.

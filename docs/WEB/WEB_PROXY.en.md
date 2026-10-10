@@ -76,7 +76,7 @@ show_users = ["web-user"]
 [access.users]
 web-user = "0123456789abcdef0123456789abcdef"
 
-[[server.listeners]]
+[listener]
 ip = "127.0.0.1"
 port = 18080
 transport = "web"
@@ -248,7 +248,7 @@ Use `GET /v1/runtime/web/status` to correlate only Telemt-owned state. `ingress.
 When NGINX and Telemt share a host, the private hop can be a unix socket instead of loopback TCP. Configure one Telemt listener for the socket:
 
 ```toml
-[[server.listeners]]
+[listener]
 socket_path = "/run/telemt/web.sock"
 socket_perm = "0660"
 transport = "web"
@@ -379,7 +379,7 @@ WEB configuration, runtime status, and bounded runtime controls share the authen
 | Operation | API support |
 | --- | --- |
 | Read or patch `[web]`, vhosts, profiles, decoys, timeouts, or limits | Yes, through `GET` or `PATCH /v1/config`. The derived `web.runtime` snapshot is never returned or writable. Nested tables merge field-by-field; arrays replace the previous array wholesale. Every `[web.limits]` change is accepted as desired configuration but reported as deferred until process restart. |
-| Persist `server.listeners` | Yes, through `PATCH /v1/config`, but a changed WEB listener remains deferred until process restart. |
+| Persist `[listener]` | Yes, through `PATCH /v1/config`, but a changed WEB listener remains deferred until process restart. |
 | Apply an externally edited WEB configuration | Yes, through `POST /v1/system/reload`, then inspect the operation status. |
 | Inspect bounded server-side WEB request and lifecycle details | Yes, through authenticated `GET /web-status`. |
 | Inspect lifecycle, capacity planes, learning/debug state, and live sessions | Yes, through `GET /v1/runtime/web/status` and `/v1/runtime/web/sessions`. |
@@ -463,7 +463,7 @@ curl -sS http://127.0.0.1:9091/v1/system/reload/RELOAD_ID \
   -H "Authorization: ${TELEMT_API_AUTH}"
 ```
 
-A terminal `succeeded` status confirms runtime activation. Changed carrier, candidate, deadline, or learning policy is used by newly issued bridge sessions; existing sessions and in-flight attempt chains are not migrated. If `deferred_process_fields` contains `server.listeners` or `web.limits`, the file is valid and persisted but those settings still require a Telemt restart.
+A terminal `succeeded` status confirms runtime activation. Changed carrier, candidate, deadline, or learning policy is used by newly issued bridge sessions; existing sessions and in-flight attempt chains are not migrated. If `deferred_process_fields` contains `listener` or `web.limits`, the file is valid and persisted but those settings still require a Telemt restart.
 
 Access-user operations use the existing endpoints, for example:
 

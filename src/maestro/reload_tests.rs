@@ -45,7 +45,7 @@ fn status_uses_documented_deferred_process_fields_key() {
         requested_at_epoch_secs: 10,
         started_at_epoch_secs: Some(11),
         finished_at_epoch_secs: Some(12),
-        deferred_fields: vec!["server.listeners".to_string()],
+        deferred_fields: vec!["listener".to_string()],
         warnings: Vec::new(),
         error: None,
     };
@@ -53,7 +53,7 @@ fn status_uses_documented_deferred_process_fields_key() {
 
     assert_eq!(
         value["deferred_process_fields"],
-        serde_json::json!(["server.listeners"])
+        serde_json::json!(["listener"])
     );
     assert!(value.get("deferred_fields").is_none());
 }

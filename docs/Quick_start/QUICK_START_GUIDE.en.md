@@ -95,18 +95,12 @@ network_prefer = 4
 log_level = "normal"
 show_users = ["user"]
 
-[[server.listeners]]
+[listener]
 ip = "0.0.0.0"
 port = 443
 transport = "web"
 # Trusted L7 reverse proxies allowed to supply the client IP header.
 # /0 networks are rejected; extend only with your own fronting proxies.
-web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
-
-[[server.listeners]]
-ip = "::"
-port = 443
-transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [timeouts]
@@ -138,9 +132,9 @@ user = "11111111111111111111111111111111"
 
 Notes:
 
-- Every listener is a WEB listener and needs a non-empty
+- The listener is a WEB listener and needs a non-empty
   `web_trusted_proxy_cidrs` list (no `/0` networks).
-- At least one `[[web.vhosts]]` entry is required whenever listeners exist.
+- At least one `[[web.vhosts]]` entry is required whenever a listener is configured.
 - Every vhost needs a `decoy` (what browsers and scanners see) and one or
   more `profiles` binding an `[access]` user to the vhost.
 - See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.

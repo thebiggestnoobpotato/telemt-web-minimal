@@ -388,7 +388,7 @@ mod tests {
         let blocker = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let blocked_addr = blocker.local_addr().unwrap();
         let mut desired = ProxyConfig::default();
-        desired.server.listeners = vec![listener_config(blocked_addr)];
+        desired.listener = Some(listener_config(blocked_addr));
 
         assert!(manager.prepare_transition(&desired).is_err());
         TcpStream::connect(old_addr).await.unwrap();

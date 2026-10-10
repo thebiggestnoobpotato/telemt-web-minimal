@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Semaphore, watch};
 
 use crate::config::{
-    ListenerEndpoint, ProxyConfig, ServerConfig, WEB_CARRIER_LEARNING_MIN_ENTRIES,
+    ListenerConfig, ListenerEndpoint, ProxyConfig, WEB_CARRIER_LEARNING_MIN_ENTRIES,
     web_debug_fits_limits,
 };
 use crate::crypto::SecureRandom;
@@ -170,16 +170,17 @@ pub(crate) fn resolve_reload_config(
 ) -> Result<ResolvedReloadConfig, String> {
     let mut effective = desired.clone();
     let mut fields = Vec::new();
-    let listener_identity_matches = listeners_have_same_bind_identity(&old.server, &desired.server);
+    let listener_identity_matches =
+        listeners_have_same_bind_identity(&old.listener, &desired.listener);
     let global_listener_policy_changed = old.general.listen_backlog != desired.general.listen_backlog;
     let listener_policy_changed =
-        listener_identity_matches && !listener_process_fields_equal(&old.server, &desired.server);
+        listener_identity_matches && !listener_process_fields_equal(&old.listener, &desired.listener);
     let unsupported_identity_change =
         !listener_identity_matches && !listener_rebind_supported(old, desired);
     if global_listener_policy_changed || listener_policy_changed || unsupported_identity_change {
-        fields.push("server.listeners".to_string());
+        fields.push("listener".to_string());
         effective.general.listen_backlog = old.general.listen_backlog;
-        effective.server.listeners = old.server.listeners.clone();
+        effective.listener = old.listener.clone();
     }
     if old.api.listen != desired.api.listen
         || old.api.enabled != desired.api.enabled
@@ -277,22 +278,21 @@ pub(crate) fn resolve_reload_config(
     })
 }
 
-fn listeners_have_same_bind_identity(old: &ServerConfig, desired: &ServerConfig) -> bool {
-    old.listeners.len() == desired.listeners.len()
-        && old
-            .listeners
-            .iter()
-            .zip(&desired.listeners)
-            .all(|(old_listener, desired_listener)| {
-                ListenerEndpoint::from_listener(old_listener)
-                    == ListenerEndpoint::from_listener(desired_listener)
-            })
+fn listeners_have_same_bind_identity(
+    old: &Option<ListenerConfig>,
+    desired: &Option<ListenerConfig>,
+) -> bool {
+    old.as_ref().and_then(ListenerEndpoint::from_listener)
+        == desired.as_ref().and_then(ListenerEndpoint::from_listener)
 }
 
 // Every remaining listener field is process-bound (the accept loop reads its
-// policy from the bind-time spec), so the whole listener list is compared.
-fn listener_process_fields_equal(old: &ServerConfig, desired: &ServerConfig) -> bool {
-    serde_json::to_value(&old.listeners).ok() == serde_json::to_value(&desired.listeners).ok()
+// policy from the bind-time spec), so the whole listener table is compared.
+fn listener_process_fields_equal(
+    old: &Option<ListenerConfig>,
+    desired: &Option<ListenerConfig>,
+) -> bool {
+    serde_json::to_value(old).ok() == serde_json::to_value(desired).ok()
 }
 
 /// Returns process-owned fields that cannot change in the current generation.

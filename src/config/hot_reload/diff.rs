@@ -36,13 +36,6 @@ pub(super) fn config_equal(lhs: &ProxyConfig, rhs: &ProxyConfig) -> bool {
     left == right
 }
 
-fn listeners_equal(
-    lhs: &[crate::config::ListenerConfig],
-    rhs: &[crate::config::ListenerConfig],
-) -> bool {
-    serde_json::to_value(lhs).ok() == serde_json::to_value(rhs).ok()
-}
-
 /// Warns when the requested snapshot contains fields that require restart.
 pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot_changed: bool) {
     let mut warned = false;
@@ -65,7 +58,7 @@ pub(super) fn warn_non_hot_changes(old: &ProxyConfig, new: &ProxyConfig, non_hot
         warned = true;
         warn!("config reload: api changed; restart required");
     }
-    if !listeners_equal(&old.server.listeners, &new.server.listeners)
+    if serde_json::to_value(&old.listener).ok() != serde_json::to_value(&new.listener).ok()
         || old.general.listen_backlog != new.general.listen_backlog
     {
         warned = true;

@@ -21,9 +21,9 @@ pub(crate) fn listener_bind_plan(
 ) -> Result<BTreeMap<ListenerEndpoint, ListenerBindSpec>, String> {
     let mut plan = BTreeMap::new();
 
-    for listener in &config.server.listeners {
+    for listener in config.listener.iter() {
         let endpoint = ListenerEndpoint::from_listener(listener).ok_or(
-            "listener endpoint is incomplete; each entry requires ip and port, or socket_path",
+            "listener endpoint is incomplete; it requires ip and port, or socket_path",
         )?;
         if let ListenerEndpoint::Tcp(addr) = &endpoint {
             if addr.is_ipv4() && !config.general.network_ipv4 {
@@ -48,9 +48,6 @@ pub(crate) fn listener_bind_plan(
             web_trusted_proxy_cidrs: Arc::from(listener.web_trusted_proxy_cidrs.clone()),
             socket_perm: listener.socket_perm.clone(),
         };
-        if plan.contains_key(&endpoint) {
-            return Err(format!("duplicate effective listener endpoint: {endpoint}"));
-        }
         plan.insert(endpoint, spec);
     }
 
@@ -124,25 +121,22 @@ mod tests {
     #[test]
     fn plan_depends_on_inbound_family_policy_only() {
         let mut config = ProxyConfig::default();
-        config.server.listeners = vec![listener("0.0.0.0", 443), listener("::", 443)];
+        config.listener = Some(listener("::", 443));
         config.general.network_ipv4 = true;
         config.general.network_ipv6 = None;
 
         let plan = listener_bind_plan(&config).unwrap();
 
-        assert_eq!(plan.len(), 2);
+        assert_eq!(plan.len(), 1);
         config.general.network_ipv6 = Some(false);
         let plan = listener_bind_plan(&config).unwrap();
-        assert_eq!(plan.len(), 1);
-        assert!(plan
-            .keys()
-            .all(|endpoint| matches!(endpoint, ListenerEndpoint::Tcp(addr) if addr.is_ipv4())));
+        assert!(plan.is_empty());
     }
 
     #[test]
     fn unix_listeners_are_eligible_regardless_of_family_policy() {
         let mut config = ProxyConfig::default();
-        config.server.listeners = vec![unix_listener("/tmp/telemt-plan-test.sock")];
+        config.listener = Some(unix_listener("/tmp/telemt-plan-test.sock"));
         config.general.network_ipv4 = false;
         config.general.network_ipv6 = Some(false);
 
@@ -155,32 +149,14 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_effective_endpoint_is_rejected() {
-        let mut config = ProxyConfig::default();
-        config.server.listeners = vec![listener("127.0.0.1", 443), listener("127.0.0.1", 443)];
-
-        assert!(listener_bind_plan(&config).is_err());
-    }
-
-    #[test]
-    fn duplicate_effective_unix_endpoint_is_rejected() {
-        let mut config = ProxyConfig::default();
-        config.server.listeners = vec![
-            unix_listener("/tmp/telemt-plan-dup.sock"),
-            unix_listener("/tmp/telemt-plan-dup.sock"),
-        ];
-
-        assert!(listener_bind_plan(&config).is_err());
-    }
-
-    #[test]
     fn retained_policy_change_is_not_rebindable() {
         let mut old = ProxyConfig::default();
-        old.server.listeners = vec![listener("127.0.0.1", 443)];
+        old.listener = Some(listener("127.0.0.1", 443));
         let mut desired = old.clone();
         desired
-            .server
-            .listeners[0]
+            .listener
+            .as_mut()
+            .unwrap()
             .web_trusted_proxy_cidrs
             .push("127.0.0.1/32".parse().unwrap());
 
@@ -190,9 +166,9 @@ mod tests {
     #[test]
     fn endpoint_move_is_not_rebindable() {
         let mut old = ProxyConfig::default();
-        old.server.listeners = vec![listener("127.0.0.1", 443)];
+        old.listener = Some(listener("127.0.0.1", 443));
         let mut desired = old.clone();
-        desired.server.listeners[0].port = Some(444);
+        desired.listener.as_mut().unwrap().port = Some(444);
 
         assert!(!listener_rebind_supported(&old, &desired));
     }

@@ -4,7 +4,6 @@ use super::*;
 fn api_gray_action_parses_and_defaults_to_drop() {
     let cfg_default: ProxyConfig = toml::from_str(
         r#"
-        [server]
         [general]
         [access]
         "#,
@@ -14,7 +13,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
 
     let cfg_api: ProxyConfig = toml::from_str(
         r#"
-        [server]
         [general]
         [access]
         [api]
@@ -26,7 +24,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
 
     let cfg_200: ProxyConfig = toml::from_str(
         r#"
-        [server]
         [general]
         [access]
         [api]
@@ -38,7 +35,6 @@ fn api_gray_action_parses_and_defaults_to_drop() {
 
     let cfg_drop: ProxyConfig = toml::from_str(
         r#"
-        [server]
         [general]
         [access]
         [api]

@@ -17,7 +17,7 @@ pub(in crate::api) use atomic::{write_atomic, write_atomic_if_unchanged};
 #[cfg(test)]
 use persistence::{find_toml_table_bounds, render_access_section, save_sections_to_disk};
 pub(in crate::api) use persistence::{
-    render_server_listeners, render_top_level_section, save_access_sections_to_disk,
+    render_top_level_section, save_access_sections_to_disk,
     save_access_sections_to_disk_if_revision, upsert_toml_table,
 };
 
@@ -310,33 +310,19 @@ pub(super) async fn save_config_to_disk(
 ///   - `access`    : owned by the users API.
 ///   - `metrics`   : process-owned endpoint identity (bind address, scraper
 ///                   whitelist).
-///
-/// `server` is partially editable: only the nested fields listed in
-/// [`EDITABLE_SERVER_FIELDS`] (currently `listeners`) may appear in GET/PATCH.
-/// Secrets and bind identity (`api`, …) stay blocked.
-///
-/// A future field-level allowlist can re-admit specific safe fields
-/// without opening the whole section.
+///   - `api`       : process-owned endpoint identity (bind address, auth).
 pub(super) const EDITABLE_SECTIONS: &[&str] = &[
     "general",
     "logging",
+    "listener",
     "timeouts",
     "upstreams",
     "web",
 ];
 
-/// Nested fields under `[server]` that may be read/patched via the config API.
-///
-/// Arrays (e.g. `listeners`) replace wholesale on PATCH, matching the existing
-/// merge semantics for non-table values.
-pub(super) const EDITABLE_SERVER_FIELDS: &[&str] = &["listeners"];
-
 /// Whether `key` is an allowed top-level PATCH/GET section name.
-///
-/// Fully editable sections from [`EDITABLE_SECTIONS`], plus `server` which is
-/// further restricted by [`EDITABLE_SERVER_FIELDS`].
 pub(super) fn is_editable_section(key: &str) -> bool {
-    EDITABLE_SECTIONS.contains(&key) || key == "server"
+    EDITABLE_SECTIONS.contains(&key)
 }
 
 #[cfg(test)]

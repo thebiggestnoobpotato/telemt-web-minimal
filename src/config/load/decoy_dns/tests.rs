@@ -5,7 +5,7 @@ use super::*;
 const SOURCE: &str = r#"
 [access.users]
 alice = "000102030405060708090a0b0c0d0e0f"
-[[server.listeners]]
+[listener]
 ip = "127.0.0.1"
 port = 18080
 transport = "web"
@@ -131,7 +131,7 @@ async fn decoy_dns_rejects_every_public_answer_including_non_selected() {
 async fn decoy_dns_rejects_non_selected_direct_and_wildcard_listener_loops() {
     for listener in ["127.0.0.1", "0.0.0.0"] {
         let mut parsed = source(&SOURCE.replace("Example.COM:18081", "example.com:18080"));
-        parsed.config.server.listeners[0].ip = Some(listener.parse().unwrap());
+        parsed.config.listener.as_mut().unwrap().ip = Some(listener.parse().unwrap());
         let error = prepare(&mut parsed.config, |_, _| {
             std::future::ready(Ok(vec![
                 "[fd00::2]:18080".parse().unwrap(),
@@ -256,7 +256,7 @@ async fn decoy_dns_reload_pins_old_generation_and_detects_dns_only_changes() {
 async fn decoy_dns_effective_listener_overlay_rechecks_every_answer() {
     let old = prepared(&["10.0.0.2:18081"]).await;
     let mut parsed = source(SOURCE);
-    parsed.config.server.listeners[0].port = Some(18082);
+    parsed.config.listener.as_mut().unwrap().port = Some(18082);
     parsed.config.web.vhosts[0].decoy = WebDecoyConfig::HttpUpstream {
         upstream: "http://example.com:18080".to_string(),
         resolve: WebDecoyResolve::Startup,
@@ -283,7 +283,7 @@ async fn decoy_dns_rejects_ipv6_direct_and_wildcard_listener_loops() {
     for listener in ["::1", "::"] {
         let mut parsed = source(&SOURCE.replace("Example.COM:18081", "example.com:18080"));
         parsed.config.general.network_ipv6 = Some(true);
-        parsed.config.server.listeners[0].ip = Some(listener.parse().unwrap());
+        parsed.config.listener.as_mut().unwrap().ip = Some(listener.parse().unwrap());
         let error = prepare(&mut parsed.config, |_, _| {
             std::future::ready(Ok(vec![
                 "10.0.0.2:18080".parse().unwrap(),
