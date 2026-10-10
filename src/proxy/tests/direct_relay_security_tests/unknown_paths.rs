@@ -143,20 +143,4 @@ fn light_fuzz_unknown_dc_log_mixed_duplicates_never_exceeds_cap() {
     );
 }
 
-#[test]
-fn scope_hint_accepts_ascii_alnum_and_dash_within_limit() {
-    assert_eq!(validated_scope_hint("scope_alpha-1"), Some("alpha-1"));
-    assert_eq!(validated_scope_hint("scope_AZ09"), Some("AZ09"));
-}
 
-#[test]
-fn scope_hint_rejects_invalid_or_oversized_values() {
-    assert_eq!(validated_scope_hint("plain_user"), None);
-    assert_eq!(validated_scope_hint("scope_"), None);
-    assert_eq!(validated_scope_hint("scope_a/b"), None);
-    assert_eq!(validated_scope_hint("scope_bad space"), None);
-    assert_eq!(validated_scope_hint("scope_bad.dot"), None);
-
-    let oversized = format!("scope_{}", "a".repeat(MAX_SCOPE_HINT_LEN + 1));
-    assert_eq!(validated_scope_hint(&oversized), None);
-}

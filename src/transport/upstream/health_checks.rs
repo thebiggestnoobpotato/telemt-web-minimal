@@ -27,20 +27,7 @@ impl UpstreamManager {
 
             let target_upstreams: Vec<usize> = {
                 let guard = self.upstreams.read().await;
-                let has_unscoped = guard
-                    .iter()
-                    .any(|upstream| Self::is_unscoped_upstream(&upstream.config));
-                guard
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, upstream)| {
-                        Self::should_check_in_default_dc_connectivity(
-                            has_unscoped,
-                            &upstream.config,
-                        )
-                    })
-                    .map(|(idx, _)| idx)
-                    .collect()
+                (0..guard.len()).collect()
             };
 
             for i in target_upstreams {

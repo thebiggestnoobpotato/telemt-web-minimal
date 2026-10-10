@@ -67,15 +67,8 @@ where
         "Connecting to Telegram DC"
     );
 
-    let scope_hint = validated_scope_hint(user);
-    if user.starts_with("scope_") && scope_hint.is_none() {
-        warn!(
-            user = %user,
-            "Ignoring invalid scope hint and falling back to default upstream selection"
-        );
-    }
     let tg_stream = tokio::select! {
-        result = upstream_manager.connect(dc_addr, Some(success.dc_idx), scope_hint) => result?,
+        result = upstream_manager.connect(dc_addr, Some(success.dc_idx)) => result?,
         _ = session_cancel.cancelled() => {
             return Err(ProxyError::UserDisabled {
                 user: user.to_string(),

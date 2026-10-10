@@ -18,19 +18,9 @@ impl UpstreamManager {
                 .map(|(i, u)| (i, u.config.clone(), u.bind_rr.clone()))
                 .collect()
         };
-        let has_unscoped = upstreams
-            .iter()
-            .any(|(_, cfg, _)| Self::is_unscoped_upstream(cfg));
-
         let mut all_results = Vec::new();
 
         for (upstream_idx, upstream_config, bind_rr) in &upstreams {
-            // DC connectivity checks should follow the default routing path.
-            // Scoped upstreams are included only when no unscoped upstream exists.
-            if !Self::should_check_in_default_dc_connectivity(has_unscoped, upstream_config) {
-                continue;
-            }
-
             let upstream_name = match &upstream_config.upstream_type {
                 UpstreamType::Direct {
                     interface,

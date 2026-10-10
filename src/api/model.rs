@@ -146,7 +146,6 @@ pub(super) struct UpstreamStatus {
     pub(super) route_kind: &'static str,
     pub(super) address: String,
     pub(super) weight: u16,
-    pub(super) scopes: String,
     pub(super) healthy: bool,
     pub(super) fails: u32,
     pub(super) last_check_age_secs: u64,

@@ -28,49 +28,6 @@ fn subtle_stress_single_unknown_dc_under_concurrency_logs_once() {
 }
 
 #[test]
-fn subtle_light_fuzz_scope_hint_matches_oracle() {
-    fn oracle(input: &str) -> bool {
-        let Some(rest) = input.strip_prefix("scope_") else {
-            return false;
-        };
-        !rest.is_empty()
-            && rest.len() <= MAX_SCOPE_HINT_LEN
-            && rest.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
-    }
-
-    let mut state: u64 = 0xC0FF_EE11_D15C_AFE5;
-    for _ in 0..4_096 {
-        state ^= state << 7;
-        state ^= state >> 9;
-        state ^= state << 8;
-
-        let len = (state as usize % 72) + 1;
-        let mut s = String::with_capacity(len + 6);
-        if (state & 1) == 0 {
-            s.push_str("scope_");
-        } else {
-            s.push_str("user_");
-        }
-
-        for idx in 0..len {
-            let v = ((state >> ((idx % 8) * 8)) & 0xff) as u8;
-            let ch = match v % 6 {
-                0 => (b'a' + (v % 26)) as char,
-                1 => (b'A' + (v % 26)) as char,
-                2 => (b'0' + (v % 10)) as char,
-                3 => '-',
-                4 => '_',
-                _ => '.',
-            };
-            s.push(ch);
-        }
-
-        let got = validated_scope_hint(&s).is_some();
-        assert_eq!(got, oracle(&s), "mismatch for input: {s}");
-    }
-}
-
-#[test]
 fn subtle_light_fuzz_dc_resolution_never_panics_and_preserves_port() {
     let mut state: u64 = 0x1234_5678_9ABC_DEF0;
 

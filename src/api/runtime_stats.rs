@@ -113,7 +113,6 @@ pub(super) fn build_upstreams_data(shared: &ApiShared, api_cfg: &ApiConfig) -> U
             route_kind: map_route_kind(upstream.route_kind),
             address: upstream.address,
             weight: upstream.weight,
-            scopes: upstream.scopes,
             healthy: upstream.healthy,
             fails: upstream.fails,
             last_check_age_secs: upstream.last_check_age_secs,

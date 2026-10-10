@@ -227,7 +227,6 @@ const UPSTREAM_CONFIG_KEYS: &[&str] = &[
     "password",
     "weight",
     "enabled",
-    "scopes",
 ];
 
 const LOGGING_CONFIG_KEYS: &[&str] = &[

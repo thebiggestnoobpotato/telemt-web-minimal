@@ -33,12 +33,6 @@ fn common_prefer_v6_with_only_ipv4_override_uses_override_instead_of_ignoring_it
 }
 
 #[test]
-fn common_scope_hint_rejects_unicode_lookalike_characters() {
-    assert_eq!(validated_scope_hint("scope_аlpha"), None);
-    assert_eq!(validated_scope_hint("scope_Αlpha"), None);
-}
-
-#[test]
 fn common_duplicate_dc_attempts_do_not_consume_unique_slots() {
     let set = Mutex::new(HashSet::new());
 

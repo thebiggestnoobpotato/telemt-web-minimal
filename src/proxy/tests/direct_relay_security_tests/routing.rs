@@ -119,13 +119,11 @@ async fn negative_direct_relay_dc_connection_refused_fails_fast() {
         vec![UpstreamConfig {
             enabled: true,
             weight: 1,
-            scopes: String::new(),
             upstream_type: UpstreamType::Direct {
                 interface: None,
                 bind_addresses: None,
                 bindtodevice: None,
             },
-            selected_scope: String::new(),
         }],
         1,
         100,

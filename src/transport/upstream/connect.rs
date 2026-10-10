@@ -278,15 +278,15 @@ impl UpstreamManager {
                 };
 
                 debug!(config = ?config, "Socks5 connection");
-                // replace socks user:pass with config.selected_scope, if set
-                let scope: Option<&str> =
-                    Some(config.selected_scope.as_str()).filter(|s| !s.is_empty());
-                let _username: Option<&str> = scope.or(username.as_deref());
-                let _password: Option<&str> = scope.or(password.as_deref());
 
                 let bound = match tokio::time::timeout(
                     connect_timeout,
-                    connect_socks5(&mut stream, target, _username, _password),
+                    connect_socks5(
+                        &mut stream,
+                        target,
+                        username.as_deref(),
+                        password.as_deref(),
+                    ),
                 )
                 .await
                 {

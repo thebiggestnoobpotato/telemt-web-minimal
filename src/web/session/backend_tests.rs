@@ -99,8 +99,6 @@ fn test_runtime_with_dc(
             },
             weight: 1,
             enabled: true,
-            scopes: String::new(),
-            selected_scope: String::new(),
         });
     }
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {

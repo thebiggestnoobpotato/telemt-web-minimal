@@ -543,3 +543,19 @@ fn upstream_family_keys_are_stripped_from_upstreams() {
     );
     assert_eq!(cfg.upstreams.len(), 1);
 }
+
+#[test]
+fn upstream_scopes_key_is_stripped() {
+    // strict: the removed scopes key is rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [[upstreams]]\ntype = \"direct\"\nscopes = \"me, fetch\"\n",
+    );
+    assert!(error.contains("upstreams[0].scopes"), "{error}");
+
+    // non-strict: the removed key is ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[[upstreams]]\ntype = \"direct\"\nscopes = \"me, fetch\"\n",
+    );
+    assert_eq!(cfg.upstreams.len(), 1);
+}

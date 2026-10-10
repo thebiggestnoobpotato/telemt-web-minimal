@@ -1,17 +1,6 @@
 use super::*;
 
 impl UpstreamManager {
-    pub(super) fn is_unscoped_upstream(upstream: &UpstreamConfig) -> bool {
-        upstream.scopes.is_empty()
-    }
-
-    pub(super) fn should_check_in_default_dc_connectivity(
-        has_unscoped: bool,
-        upstream: &UpstreamConfig,
-    ) -> bool {
-        !has_unscoped || Self::is_unscoped_upstream(upstream)
-    }
-
     pub fn new(
         configs: Vec<UpstreamConfig>,
         connect_retry_attempts: u32,
@@ -104,7 +93,6 @@ impl UpstreamManager {
                 route_kind,
                 address,
                 weight: upstream.config.weight,
-                scopes: upstream.config.scopes.clone(),
                 healthy: upstream.healthy,
                 fails: upstream.fails,
                 last_check_age_secs: now.saturating_duration_since(upstream.last_check).as_secs(),

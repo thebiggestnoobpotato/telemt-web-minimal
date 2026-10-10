@@ -14,8 +14,6 @@ pub(super) fn apply(config: &mut ProxyConfig) -> Result<()> {
             },
             weight: 1,
             enabled: true,
-            scopes: String::new(),
-            selected_scope: String::new(),
         });
     }
 

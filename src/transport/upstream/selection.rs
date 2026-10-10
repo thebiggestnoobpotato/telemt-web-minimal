@@ -2,58 +2,29 @@ use super::*;
 
 impl UpstreamManager {
     /// Select upstream using latency-weighted random selection.
-    pub(super) async fn select_upstream(
-        &self,
-        dc_idx: Option<i16>,
-        scope: Option<&str>,
-    ) -> Option<usize> {
+    pub(super) async fn select_upstream(&self, dc_idx: Option<i16>) -> Option<usize> {
         let upstreams = self.upstreams.read().await;
         if upstreams.is_empty() {
+            if Self::should_emit_warn(self.no_upstreams_warn_epoch_ms.as_ref(), 5_000) {
+                warn!("No upstreams available! Using first (direct?)");
+            }
             return None;
         }
-        // Scope filter:
-        //   If scope is set: only scoped and matched items
-        //   If scope is not set: only unscoped items
-        let filtered_upstreams: Vec<usize> = upstreams
-            .iter()
-            .enumerate()
-            .filter(|(_, u)| {
-                scope.map_or(u.config.scopes.is_empty(), |req_scope| {
-                    u.config
-                        .scopes
-                        .split(',')
-                        .map(str::trim)
-                        .any(|s| s == req_scope)
-                })
-            })
-            .map(|(i, _)| i)
-            .collect();
+
+        let all_upstreams: Vec<usize> = (0..upstreams.len()).collect();
 
         // Healthy filter
-        let healthy: Vec<usize> = filtered_upstreams
+        let healthy: Vec<usize> = all_upstreams
             .iter()
             .filter(|&&i| upstreams[i].healthy)
             .copied()
             .collect();
 
-        if filtered_upstreams.is_empty() {
-            if Self::should_emit_warn(self.no_upstreams_warn_epoch_ms.as_ref(), 5_000) {
-                warn!(
-                    scope = scope,
-                    "No upstreams available! Using first (direct?)"
-                );
-            }
-            return None;
-        }
-
         if healthy.is_empty() {
             if Self::should_emit_warn(self.no_healthy_warn_epoch_ms.as_ref(), 5_000) {
-                warn!(
-                    scope = scope,
-                    "No healthy upstreams available! Using random."
-                );
+                warn!("No healthy upstreams available! Using random.");
             }
-            return Some(filtered_upstreams[rand::rng().random_range(0..filtered_upstreams.len())]);
+            return Some(all_upstreams[rand::rng().random_range(0..all_upstreams.len())]);
         }
 
         if healthy.len() == 1 {
@@ -103,14 +74,13 @@ impl UpstreamManager {
         &self,
         target: SocketAddr,
         dc_idx: Option<i16>,
-        scope: Option<&str>,
     ) -> Result<UpstreamStream> {
         let idx = self
-            .select_upstream(dc_idx, scope)
+            .select_upstream(dc_idx)
             .await
             .ok_or_else(|| ProxyError::Config("No upstreams available".to_string()))?;
 
-        let (mut upstream, bind_rr, dc_preference) = {
+        let (upstream, bind_rr, dc_preference) = {
             let guard = self.upstreams.read().await;
             let state = &guard[idx];
             let dc_preference = dc_idx
@@ -123,10 +93,6 @@ impl UpstreamManager {
                 dc_preference,
             )
         };
-
-        if let Some(s) = scope {
-            upstream.selected_scope = s.to_string();
-        }
 
         let target = if dc_idx.is_some() {
             Self::resolve_runtime_dc_target(target, dc_idx, self.prefer_ipv6, dc_preference)?

@@ -30,22 +30,6 @@ pub(crate) use relay::handle_via_direct;
 use routing::*;
 const UNKNOWN_DC_LOG_DISTINCT_LIMIT: usize = 1024;
 static LOGGED_UNKNOWN_DCS: OnceLock<Mutex<HashSet<i16>>> = OnceLock::new();
-const MAX_SCOPE_HINT_LEN: usize = 64;
-
-fn validated_scope_hint(user: &str) -> Option<&str> {
-    let scope = user.strip_prefix("scope_")?;
-    if scope.is_empty() || scope.len() > MAX_SCOPE_HINT_LEN {
-        return None;
-    }
-    if scope
-        .bytes()
-        .all(|b| b.is_ascii_alphanumeric() || b == b'-')
-    {
-        Some(scope)
-    } else {
-        None
-    }
-}
 
 // In tests, this function shares global mutable state. Callers that also use
 // cache-reset helpers must hold `unknown_dc_test_lock()` to keep assertions

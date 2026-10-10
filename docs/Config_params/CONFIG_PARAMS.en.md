@@ -1030,7 +1030,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`type`](#type) | `"direct"` or `"socks"` | — | `✘` |
 | [`weight`](#weight) | `u16` | `1` | `✘` |
 | [`enabled`](#enabled) | `bool` | `true` | `✘` |
-| [`scopes`](#scopes) | `String` | `""` | `✘` |
 | [`interface`](#interface) | `String` | — | `✘` |
 | [`bind_addresses`](#bind_addresses) | `String[]` | — | `✘` |
 | [`bindtodevice`](#bindtodevice) | `String` | — | `✘` |
@@ -1072,17 +1071,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
     type = "socks"
     address = "127.0.0.1:9050"
     enabled = false
-    ```
-## scopes
-  - **Constraints / validation**: `String`. Comma-separated list; whitespace is trimmed during matching.
-  - **Description**: Scope tags used for request-level upstream filtering. If a request specifies a scope, only upstreams whose `scopes` contains that tag can be selected. If a request does not specify a scope, only upstreams with empty `scopes` are eligible.
-  - **Example**:
-
-    ```toml
-    [[upstreams]]
-    type = "socks"
-    address = "10.0.0.10:1080"
-    scopes = "me, fetch, dc2"
     ```
 ## interface
   - **Constraints / validation**: `String` (optional).

@@ -632,7 +632,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `route_kind` | `string` | `direct`, `socks5`. |
 | `address` | `string` | Upstream address (`direct` literal for direct route kind, `host:port` only for proxied upstreams). |
 | `weight` | `u16` | Selection weight. |
-| `scopes` | `string` | Configured scope selector. |
 | `healthy` | `bool` | Current health flag. |
 | `fails` | `u32` | Consecutive fail counter. |
 | `last_check_age_secs` | `u64` | Seconds since last health update. |
@@ -785,7 +784,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `route_kind` | `string` | Upstream route kind: `direct`, `socks5`. |
 | `address` | `string` | Upstream address (`direct` for the direct route kind, `host:port` for SOCKS upstreams). Authentication fields are intentionally omitted. |
 | `weight` | `u16` | Selection weight. |
-| `scopes` | `string` | Configured scope selector string. |
 | `healthy` | `bool` | Current health flag. |
 | `fails` | `u32` | Consecutive fail counter. |
 | `last_check_age_secs` | `u64` | Seconds since the last health-check update. |

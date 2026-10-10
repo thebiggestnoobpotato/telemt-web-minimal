@@ -40,8 +40,6 @@ async fn direct_relay_abort_midflight_releases_route_gauge() {
             },
             weight: 1,
             enabled: true,
-            scopes: String::new(),
-            selected_scope: String::new(),
         }],
         1,
         1,

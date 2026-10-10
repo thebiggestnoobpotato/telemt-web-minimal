@@ -4,20 +4,6 @@ use crate::protocol::constants::{TG_DATACENTER_PORT, TG_DATACENTERS_V4, TG_DATAC
 use std::net::SocketAddr;
 
 #[test]
-fn business_scope_hint_accepts_exact_boundary_length() {
-    let value = format!("scope_{}", "a".repeat(MAX_SCOPE_HINT_LEN));
-    assert_eq!(
-        validated_scope_hint(&value),
-        Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-    );
-}
-
-#[test]
-fn business_scope_hint_rejects_missing_prefix_even_when_charset_is_valid() {
-    assert_eq!(validated_scope_hint("alpha-01"), None);
-}
-
-#[test]
 fn business_known_dc_uses_ipv4_table_by_default() {
     let cfg = ProxyConfig::default();
     let resolved = get_dc_addr_static(2, &cfg).expect("known dc must resolve");

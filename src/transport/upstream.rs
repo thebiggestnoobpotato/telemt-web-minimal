@@ -238,7 +238,6 @@ pub struct UpstreamApiItemSnapshot {
     pub route_kind: UpstreamRouteKind,
     pub address: String,
     pub weight: u16,
-    pub scopes: String,
     pub healthy: bool,
     pub fails: u32,
     pub last_check_age_secs: u64,

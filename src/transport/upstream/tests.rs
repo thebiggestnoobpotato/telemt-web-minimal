@@ -94,31 +94,6 @@ fn hard_connect_error_classification_skips_timeouts() {
 }
 
 #[test]
-fn unscoped_selection_detects_default_route_upstream() {
-    let mut upstream = UpstreamConfig {
-        upstream_type: UpstreamType::Direct {
-            interface: None,
-            bind_addresses: None,
-            bindtodevice: None,
-        },
-        weight: 1,
-        enabled: true,
-        scopes: String::new(),
-        selected_scope: String::new(),
-    };
-
-    assert!(UpstreamManager::is_unscoped_upstream(&upstream));
-    upstream.scopes = "local".to_string();
-    assert!(!UpstreamManager::is_unscoped_upstream(&upstream));
-    assert!(!UpstreamManager::should_check_in_default_dc_connectivity(
-        true, &upstream
-    ));
-    assert!(UpstreamManager::should_check_in_default_dc_connectivity(
-        false, &upstream
-    ));
-}
-
-#[test]
 fn resolve_bind_address_prefers_explicit_bind_ip() {
     let target = "203.0.113.10:443".parse::<SocketAddr>().unwrap();
     let bind = UpstreamManager::resolve_bind_address(
