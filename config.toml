@@ -65,7 +65,7 @@ upstream = "http://127.0.0.1:80"
 user = "hello"
 secret_mode = "plain"
 
-[access.users]
+[users]
 # format: "username" = "32_hex_chars_secret"
 hello = "00000000000000000000000000000000"
 

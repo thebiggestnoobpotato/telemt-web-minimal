@@ -74,7 +74,7 @@ fn load_with_metadata_collects_include_files() {
     std::fs::write(
         &include_path,
         r#"
-            [access.users]
+            [users]
             user = "00000000000000000000000000000000"
         "#,
     )
@@ -105,7 +105,7 @@ fn load_with_metadata_collects_include_files() {
 #[test]
 fn dc_overrides_inject_dc203_default() {
     let toml = r#"
-        [access.users]
+        [users]
         user = "00000000000000000000000000000000"
     "#;
     let dir = std::env::temp_dir();

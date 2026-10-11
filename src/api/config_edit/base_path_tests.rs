@@ -2,7 +2,7 @@ use super::*;
 
 fn web_config() -> &'static str {
     r#"
-[access.users]
+[users]
 alice = "000102030405060708090a0b0c0d0e0f"
 
 [listener]

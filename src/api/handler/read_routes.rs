@@ -97,13 +97,13 @@ pub(super) async fn handle(
                 connections_bad_by_class,
                 handshake_failures_by_class,
                 handshake_timeouts_total: shared.stats.get_handshake_timeouts(),
-                configured_users: cfg.access.users.len(),
+                configured_users: cfg.users.len(),
             };
             Ok(success_response(StatusCode::OK, data, revision))
         }
         ("GET", "/v1/stats/zero/all") => {
             let revision = current_revision(&shared.config_path).await?;
-            let data = build_zero_all_data(&shared.stats, cfg.access.users.len());
+            let data = build_zero_all_data(&shared.stats, cfg.users.len());
             Ok(success_response(StatusCode::OK, data, revision))
         }
         ("GET", "/v1/stats/upstreams") => {
@@ -128,7 +128,7 @@ pub(super) async fn handle(
         }
         ("GET", "/v1/stats/users/active-ips") => {
             let revision = current_revision(&shared.config_path).await?;
-            let usernames: Vec<_> = cfg.access.users.keys().cloned().collect();
+            let usernames: Vec<_> = cfg.users.keys().cloned().collect();
             let active_ips_map = shared.ip_tracker.get_active_ips_for_users(&usernames).await;
             let mut data: Vec<UserActiveIps> = active_ips_map
                 .into_iter()

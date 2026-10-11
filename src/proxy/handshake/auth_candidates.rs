@@ -416,16 +416,16 @@ pub(super) fn decode_user_secrets_in(
     config: &ProxyConfig,
     preferred_user: Option<&str>,
 ) -> Vec<(String, Vec<u8>)> {
-    let mut secrets = Vec::with_capacity(config.access.users.len());
+    let mut secrets = Vec::with_capacity(config.users.len());
 
     if let Some(preferred) = preferred_user
-        && let Some(secret_hex) = config.access.users.get(preferred)
+        && let Some(secret_hex) = config.users.get(preferred)
         && let Some(bytes) = decode_user_secret(shared, preferred, secret_hex)
     {
         secrets.push((preferred.to_string(), bytes));
     }
 
-    for (name, secret_hex) in &config.access.users {
+    for (name, secret_hex) in &config.users {
         if preferred_user.is_some_and(|preferred| preferred == name.as_str()) {
             continue;
         }

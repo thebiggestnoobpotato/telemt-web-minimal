@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -118,9 +118,13 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub timeouts: TimeoutsConfig,
 
-    /// User authentication secrets and admission policy.
+    /// User admission policy: per-user enablement, unique-IP limits, replay checks.
     #[serde(default)]
     pub access: AccessConfig,
+
+    /// Top-level access user credentials: username to 32-hex-character secret.
+    #[serde(default = "default_access_users")]
+    pub users: HashMap<String, String>,
 
     /// Telegram upstream endpoint configuration.
     #[serde(default)]
@@ -242,7 +246,7 @@ impl ProxyConfig {
 
     /// Rebuilds immutable credential lookup data for this configuration.
     pub(crate) fn rebuild_runtime_user_auth(&mut self) -> Result<()> {
-        let snapshot = UserAuthSnapshot::from_users(&self.access.users)?;
+        let snapshot = UserAuthSnapshot::from_users(&self.users)?;
         self.runtime_user_auth = Some(Arc::new(snapshot));
         Ok(())
     }
@@ -272,8 +276,7 @@ impl ProxyConfig {
         self.runtime_user_auth()
             .and_then(|snapshot| snapshot.credential_id_by_name(user))
             .or_else(|| {
-                self.access
-                    .users
+                self.users
                     .get(user)
                     .and_then(|secret| hex::decode(secret).ok())
                     .and_then(|secret| <[u8; 16]>::try_from(secret).ok())
@@ -288,7 +291,7 @@ impl ProxyConfig {
 
     /// Validates cross-field configuration invariants after deserialization.
     pub fn validate(&self) -> Result<()> {
-        if self.access.users.is_empty() {
+        if self.users.is_empty() {
             return Err(ProxyError::Config("No users configured".to_string()));
         }
 

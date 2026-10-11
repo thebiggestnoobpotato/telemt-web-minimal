@@ -36,7 +36,7 @@ pub fn web_links_for_user(config: &ProxyConfig, user: &str) -> Vec<String> {
     let Some(runtime) = config.web.runtime.as_ref() else {
         return Vec::new();
     };
-    let Some(secret) = config.access.users.get(user) else {
+    let Some(secret) = config.users.get(user) else {
         return Vec::new();
     };
     let mut links = Vec::new();

@@ -14,9 +14,8 @@ use tokio::sync::Barrier;
 
 fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
-    cfg.access.users.clear();
-    cfg.access
-        .users
+    cfg.users.clear();
+    cfg.users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
     cfg
@@ -141,17 +140,16 @@ async fn mtproto_multi_user_decryption_isolation() {
     let mut config = ProxyConfig::default();
     config.access.ignore_time_skew = true;
 
-    config.access.users.insert(
+    config.users.insert(
         "user_a".to_string(),
         "11111111111111111111111111111111".to_string(),
     );
-    config.access.users.insert(
+    config.users.insert(
         "user_b".to_string(),
         "22222222222222222222222222222222".to_string(),
     );
     let good_secret_hex = "33333333333333333333333333333333";
     config
-        .access
         .users
         .insert("user_c".to_string(), good_secret_hex.to_string());
 
@@ -335,8 +333,8 @@ fn decode_user_secret_odd_length_hex_rejection() {
     clear_warned_secrets_for_testing_in_shared(shared.as_ref());
 
     let mut config = ProxyConfig::default();
-    config.access.users.clear();
-    config.access.users.insert(
+    config.users.clear();
+    config.users.insert(
         "odd_user".to_string(),
         "1234567890123456789012345678901".to_string(),
     );

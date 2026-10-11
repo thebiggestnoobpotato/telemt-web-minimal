@@ -59,9 +59,8 @@ fn make_valid_mtproto_handshake(
 
 fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
-    cfg.access.users.clear();
-    cfg.access
-        .users
+    cfg.users.clear();
+    cfg.users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
     cfg

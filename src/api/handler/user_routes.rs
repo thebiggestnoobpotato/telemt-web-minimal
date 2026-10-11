@@ -60,7 +60,7 @@ pub(super) async fn handle(
             }
         };
         let runtime_cfg = config_rx.borrow().clone();
-        data.in_runtime = runtime_cfg.access.users.contains_key(&data.username);
+        data.in_runtime = runtime_cfg.users.contains_key(&data.username);
         shared
             .runtime_events
             .record("api.user.enable.ok", format!("username={}", base_user));
@@ -102,7 +102,7 @@ pub(super) async fn handle(
             }
         };
         let runtime_cfg = config_rx.borrow().clone();
-        data.in_runtime = runtime_cfg.access.users.contains_key(&data.username);
+        data.in_runtime = runtime_cfg.users.contains_key(&data.username);
         shared
             .runtime_events
             .record("api.user.disable.ok", format!("username={}", base_user));
@@ -151,7 +151,7 @@ pub(super) async fn handle(
             }
         };
         let runtime_cfg = config_rx.borrow().clone();
-        data.user.in_runtime = runtime_cfg.access.users.contains_key(&data.user.username);
+        data.user.in_runtime = runtime_cfg.users.contains_key(&data.user.username);
         shared.runtime_events.record(
             "api.user.rotate_secret.ok",
             format!("username={}", base_user),
@@ -212,7 +212,7 @@ pub(super) async fn handle(
                 }
             };
             let runtime_cfg = config_rx.borrow().clone();
-            data.in_runtime = runtime_cfg.access.users.contains_key(&data.username);
+            data.in_runtime = runtime_cfg.users.contains_key(&data.username);
             shared
                 .runtime_events
                 .record("api.user.patch.ok", format!("username={}", data.username));
@@ -250,7 +250,7 @@ pub(super) async fn handle(
                 .runtime_events
                 .record("api.user.delete.ok", format!("username={}", deleted_user));
             let runtime_cfg = config_rx.borrow().clone();
-            let in_runtime = runtime_cfg.access.users.contains_key(&deleted_user);
+            let in_runtime = runtime_cfg.users.contains_key(&deleted_user);
             let response = DeleteUserResponse {
                 username: deleted_user,
                 in_runtime,

@@ -7,7 +7,7 @@ fn sample_config() -> ProxyConfig {
 fn write_reload_config(path: &Path, log_level: Option<&str>, listen_backlog: Option<u32>) {
     let mut config = String::from(
         r#"
-                [access.users]
+                [users]
                 user = "00000000000000000000000000000000"
             "#,
     );
@@ -30,7 +30,7 @@ fn write_reload_config(path: &Path, log_level: Option<&str>, listen_backlog: Opt
 fn write_web_reload_config(path: &Path, carriers: &str, carrier_learning: bool) {
     let config = format!(
         r#"
-                [access.users]
+                [users]
                 user = "00000000000000000000000000000000"
 
                 [web]
@@ -47,7 +47,7 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
                 [logging]
                 log_level = "{log_level}"
 
-                [access.users]
+                [users]
                 alice = "000102030405060708090a0b0c0d0e0f"
 
                 [listener]
@@ -417,7 +417,7 @@ fn reload_recovers_after_parse_error_on_next_attempt() {
     let (log_tx, _log_rx) = watch::channel(initial_cfg.logging.log_level.clone());
     let mut reload_state = ReloadState::new(Some(initial_hash));
 
-    std::fs::write(&path, "[access.users\nuser = \"broken\"\n").unwrap();
+    std::fs::write(&path, "[users\nuser = \"broken\"\n").unwrap();
     assert!(reload_config(&path, &config_tx, &log_tx, &mut reload_state).is_none());
     assert_eq!(
         config_tx.borrow().logging.log_level,

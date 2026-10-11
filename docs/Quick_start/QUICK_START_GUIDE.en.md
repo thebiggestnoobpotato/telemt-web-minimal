@@ -125,7 +125,7 @@ upstream = "http://127.0.0.1:80"
 user = "user"
 secret_mode = "plain"
 
-[access.users]
+[users]
 # format: "username" = "32_hex_chars_secret"
 user = "11111111111111111111111111111111"
 ```
@@ -136,7 +136,7 @@ Notes:
   `web_trusted_proxy_cidrs` list (no `/0` networks).
 - At least one `[[web.vhosts]]` entry is required whenever a listener is configured.
 - Every vhost needs a `fallback` (what browsers and scanners see) and one or
-  more `profiles` binding an `[access]` user to the vhost.
+  more `profiles` binding a `[users]` user to the vhost.
 - See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.
 
 # Telemt via Docker

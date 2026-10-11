@@ -7,7 +7,7 @@ async fn save_sections_preserves_other_tables_and_comments() {
     let path = dir.join("config.toml");
     std::fs::write(
         &path,
-        "# top comment\n[general]\nlisten_backlog = 4096\n\n[access.users]\nalice = \"000102030405060708090a0b0c0d0e0f\"\n",
+        "# top comment\n[general]\nlisten_backlog = 4096\n\n[users]\nalice = \"000102030405060708090a0b0c0d0e0f\"\n",
     )
     .unwrap();
 
@@ -22,7 +22,7 @@ async fn save_sections_preserves_other_tables_and_comments() {
     assert!(written.contains("listen_backlog = 4096"));
     // Untouched comments and tables remain byte content.
     assert!(written.contains("# top comment"));
-    assert!(written.contains("[access.users]"));
+    assert!(written.contains("[users]"));
     assert_eq!(rev, compute_revision(&written));
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -139,21 +139,21 @@ fn find_bounds_spans_dotted_subtables() {
 
 #[test]
 fn find_bounds_does_not_overrun_sibling_prefix() {
-    // access.users must not swallow access.user_enabled (dot guards the prefix).
-    let src = "[access.users]\nalice = \"x\"\n\n[access.user_enabled]\nalice = true\n";
-    let bounds = find_toml_table_bounds(src, "access.users").unwrap();
+    // users must not swallow access.user_enabled (dot guards the prefix).
+    let src = "[users]\nalice = \"x\"\n\n[access.user_enabled]\nalice = true\n";
+    let bounds = find_toml_table_bounds(src, "users").unwrap();
     let slice = &src[bounds.0..bounds.1];
-    assert!(slice.starts_with("[access.users]"));
+    assert!(slice.starts_with("[users]"));
     assert!(!slice.contains("[access.user_enabled]"));
 }
 
 #[test]
 fn nested_include_detection_does_not_reject_similar_access_keys() {
     assert!(has_include_inside_table(
-        "[access.users]\ninclude = \"users.toml\"\n"
+        "[users]\ninclude = \"users.toml\"\n"
     ));
     assert!(!has_include_inside_table(
-        "[access.users]\ninclude_user = \"00000000000000000000000000000000\"\n"
+        "[users]\ninclude_user = \"00000000000000000000000000000000\"\n"
     ));
 }
 
@@ -230,11 +230,11 @@ async fn access_mutation_writes_only_the_single_included_owner() {
     let root = dir.path().join("config.toml");
     let included = dir.path().join("users.toml");
     let root_body = "include = \"users.toml\"\n[general]\nfast_mode = true\n";
-    let included_body = "[access.users]\nalice = \"00000000000000000000000000000000\"\n";
+    let included_body = "[users]\nalice = \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let mut cfg = load_config_from_disk(&root).await.unwrap();
-    cfg.access.users.insert(
+    cfg.users.insert(
         "bob".to_string(),
         "11111111111111111111111111111111".to_string(),
     );
@@ -256,11 +256,11 @@ async fn access_mutation_rejects_source_graph_change_after_snapshot() {
     let included = dir.path().join("users.toml");
     let root_body = "include = \"users.toml\"\n[general]\nfast_mode = true\n";
     let external_root = "include = \"users.toml\"\n[general]\nfast_mode = false\n";
-    let included_body = "[access.users]\nalice = \"00000000000000000000000000000000\"\n";
+    let included_body = "[users]\nalice = \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let (mut cfg, revision) = load_config_for_mutation(&root, None).await.unwrap();
-    cfg.access.users.insert(
+    cfg.users.insert(
         "bob".to_string(),
         "11111111111111111111111111111111".to_string(),
     );
@@ -312,7 +312,7 @@ async fn config_sidecar_lock_serializes_competing_revision_writers() {
     let original = concat!(
         "[general]\n",
         "fast_mode = true\n",
-        "[access.users]\n",
+        "[users]\n",
         "alice = \"00000000000000000000000000000000\"\n"
     );
     tokio::fs::write(&path, original).await.unwrap();
@@ -354,7 +354,7 @@ async fn access_mutation_rejects_sections_with_different_source_owners() {
     let included = dir.path().join("enabled.toml");
     let root_body = concat!(
         "include = \"enabled.toml\"\n",
-        "[access.users]\nalice = \"00000000000000000000000000000000\"\n"
+        "[users]\nalice = \"00000000000000000000000000000000\"\n"
     );
     let included_body = "[access.user_enabled]\nalice = false\n";
     tokio::fs::write(&root, root_body).await.unwrap();

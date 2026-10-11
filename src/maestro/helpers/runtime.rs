@@ -23,7 +23,7 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
             tracing::info!(target: WEB_LINKS_LOG_TARGET, "WEB proxy links");
             heading_printed = true;
         }
-        let Some(secret) = config.access.users.get(&profile.user) else {
+        let Some(secret) = config.users.get(&profile.user) else {
             continue;
         };
         let Some(vhost) = config

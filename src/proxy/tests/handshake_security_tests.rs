@@ -12,9 +12,8 @@ use tokio::sync::Barrier;
 
 fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
-    cfg.access.users.clear();
-    cfg.access
-        .users
+    cfg.users.clear();
+    cfg.users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
     cfg
@@ -257,26 +256,24 @@ async fn invalid_mtproto_probe_does_not_pollute_replay_cache() {
 fn stress_decode_user_secrets_keeps_preferred_user_first_in_large_set() {
     let shared = ProxySharedState::new();
     let mut config = ProxyConfig::default();
-    config.access.users.clear();
+    config.users.clear();
 
     let preferred_user = "target-user.example".to_string();
     let secret_hex = "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f".to_string();
 
     for i in 0..4096usize {
         config
-            .access
             .users
             .insert(format!("fallback-{i:04}.example"), secret_hex.clone());
     }
     config
-        .access
         .users
         .insert(preferred_user.clone(), secret_hex.clone());
 
     let decoded = decode_user_secrets_in(shared.as_ref(), &config, Some(preferred_user.as_str()));
     assert_eq!(
         decoded.len(),
-        config.access.users.len(),
+        config.users.len(),
         "decoded secret set must preserve full user cardinality under stress"
     );
     assert_eq!(
@@ -297,13 +294,13 @@ fn stress_decode_user_secrets_keeps_preferred_user_first_in_large_set() {
 #[tokio::test]
 async fn mtproto_runtime_snapshot_prefers_preferred_user_hint() {
     let mut config = ProxyConfig::default();
-    config.access.users.clear();
+    config.users.clear();
     config.access.ignore_time_skew = true;
-    config.access.users.insert(
+    config.users.insert(
         "alpha".to_string(),
         "11111111111111111111111111111111".to_string(),
     );
-    config.access.users.insert(
+    config.users.insert(
         "beta".to_string(),
         "22222222222222222222222222222222".to_string(),
     );

@@ -288,7 +288,7 @@ impl ReloadSupervisor {
         let _ = new_runtime.proxy_shared.activate_user_config_source(
             new_runtime.id,
             Some(user_admission_epoch),
-            &config.access.users,
+            &config.users,
             &config.access.user_enabled,
         );
         let _ = new_runtime

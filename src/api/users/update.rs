@@ -37,7 +37,7 @@ async fn patch_user_to_completion(
     let (mut cfg, base_revision) =
         load_config_for_mutation(&shared.config_path, expected_revision.as_deref()).await?;
 
-    if !cfg.access.users.contains_key(user) {
+    if !cfg.users.contains_key(user) {
         return Err(ApiFailure::new(
             StatusCode::NOT_FOUND,
             "not_found",
@@ -46,7 +46,7 @@ async fn patch_user_to_completion(
     }
 
     if let Some(secret) = body.secret {
-        cfg.access.users.insert(user.to_string(), secret);
+        cfg.users.insert(user.to_string(), secret);
     }
     // Capture how the per-user IP limit changed, so the in-memory ip_tracker
     // can be synced (set or removed) after the config is persisted.
@@ -78,7 +78,6 @@ async fn patch_user_to_completion(
     let staged_credential =
         if touches_users || touches_user_enabled {
             let secret = cfg
-                .access
                 .users
                 .get(user)
                 .ok_or_else(|| ApiFailure::internal("updated user secret is missing"))?;
@@ -160,7 +159,7 @@ async fn set_user_enabled_to_completion(
     let (mut cfg, base_revision) =
         load_config_for_mutation(&shared.config_path, expected_revision.as_deref()).await?;
 
-    if !cfg.access.users.contains_key(user) {
+    if !cfg.users.contains_key(user) {
         return Err(ApiFailure::new(
             StatusCode::NOT_FOUND,
             "not_found",
@@ -177,7 +176,6 @@ async fn set_user_enabled_to_completion(
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
     let credential_id = cfg
-        .access
         .users
         .get(user)
         .and_then(|secret| credential_id_from_hex(secret))

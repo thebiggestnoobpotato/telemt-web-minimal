@@ -377,7 +377,6 @@ where
     } else {
         let decoded_users = match exact_user {
             Some(user) => config
-                .access
                 .users
                 .get(user)
                 .and_then(|secret| decode_user_secret(shared, user, secret))

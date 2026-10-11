@@ -11,7 +11,7 @@ fn api_minimal_runtime_cache_ttl_out_of_range_is_rejected() {
         [general]
         fast_mode = true
 
-        [access.users]
+        [users]
         user = "00000000000000000000000000000000"
     "#;
     let dir = std::env::temp_dir();
@@ -33,7 +33,7 @@ fn api_runtime_edge_cache_ttl_out_of_range_is_rejected() {
         [general]
         fast_mode = true
 
-        [access.users]
+        [users]
         user = "00000000000000000000000000000000"
     "#;
     let dir = std::env::temp_dir();
@@ -55,7 +55,7 @@ fn api_runtime_edge_top_n_out_of_range_is_rejected() {
         [general]
         fast_mode = true
 
-        [access.users]
+        [users]
         user = "00000000000000000000000000000000"
     "#;
     let dir = std::env::temp_dir();
@@ -77,7 +77,7 @@ fn api_runtime_edge_events_capacity_out_of_range_is_rejected() {
         [general]
         fast_mode = true
 
-        [access.users]
+        [users]
         user = "00000000000000000000000000000000"
     "#;
     let dir = std::env::temp_dir();

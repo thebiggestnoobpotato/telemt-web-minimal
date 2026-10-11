@@ -9,9 +9,8 @@ use tokio::sync::Barrier;
 
 fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
-    cfg.access.users.clear();
-    cfg.access
-        .users
+    cfg.users.clear();
+    cfg.users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
     cfg
@@ -120,14 +119,13 @@ async fn mtproto_invalid_length_secret_is_ignored_and_valid_user_still_auths() {
     let mut config = ProxyConfig::default();
     config.access.ignore_time_skew = true;
 
-    config.access.users.insert(
+    config.users.insert(
         "short_user".to_string(),
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
     );
 
     let valid_secret_hex = "77777777777777777777777777777777";
     config
-        .access
         .users
         .insert("good_user".to_string(), valid_secret_hex.to_string());
 

@@ -97,7 +97,7 @@ pub(super) async fn run_telemt_core(
     let _ = shared_state.activate_user_config_source(
         1,
         None,
-        &config.access.users,
+        &config.users,
         &config.access.user_enabled,
     );
     let max_connections_limit = if config.general.max_connections == 0 {

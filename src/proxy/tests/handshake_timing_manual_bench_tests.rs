@@ -68,14 +68,13 @@ async fn mtproto_user_scan_timing_manual_benchmark() {
     config.access.ignore_time_skew = true;
 
     for i in 0..DECOY_USERS {
-        config.access.users.insert(
+        config.users.insert(
             format!("decoy_{i}"),
             "00000000000000000000000000000000".to_string(),
         );
     }
 
     config
-        .access
         .users
         .insert(preferred_user.to_string(), target_secret_hex.to_string());
 

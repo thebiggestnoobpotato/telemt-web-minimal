@@ -59,7 +59,7 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
         cfg.api.runtime_edge_events_capacity,
         default_api_runtime_edge_events_capacity()
     );
-    assert_eq!(cfg.access.users, default_access_users());
+    assert_eq!(cfg.users, default_access_users());
     assert_eq!(
         cfg.access.user_max_unique_ips_mode,
         UserMaxUniqueIpsMode::default()
@@ -84,7 +84,7 @@ fn logging_config_is_loaded_from_strict_config() {
             show_users_links = true
             unknown_dc_log_enabled = true
 
-            [access.users]
+            [users]
             user = "00000000000000000000000000000000"
         "#,
     );
@@ -102,7 +102,7 @@ fn general_links_key_is_stripped_from_general() {
     // to [logging].show_users_links.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[general.links]\nshow = \"*\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("general.links"), "{error}");
 
@@ -110,7 +110,7 @@ fn general_links_key_is_stripped_from_general() {
     // [logging].show_users_links keeps its default.
     let cfg = load_config_from_temp_toml(
         "[general]\n[general.links]\nshow = \"*\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.logging.show_users_links);
 }
@@ -121,7 +121,7 @@ fn logging_show_users_key_is_stripped() {
     // move to the boolean [logging].show_users_links.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[logging]\nshow_users = \"*\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("logging.show_users"), "{error}");
 
@@ -129,7 +129,7 @@ fn logging_show_users_key_is_stripped() {
     // keeps its default.
     let cfg = load_config_from_temp_toml(
         "[general]\n[logging]\nshow_users = \"*\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.logging.show_users_links);
 }
@@ -140,7 +140,7 @@ fn general_telemetry_key_is_stripped_from_general() {
     // move to flat [general].telemetry_*_enabled keys.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[general.telemetry]\ncore_enabled = true\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("general.telemetry"), "{error}");
 
@@ -148,7 +148,7 @@ fn general_telemetry_key_is_stripped_from_general() {
     // keep their defaults.
     let cfg = load_config_from_temp_toml(
         "[general]\n[general.telemetry]\ncore_enabled = false\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.telemetry_core_enabled, default_true());
     assert_eq!(cfg.general.telemetry_user_enabled, default_true());
@@ -160,7 +160,7 @@ fn prefer_ipv6_key_is_stripped_from_general() {
     // preference now lives in network_prefer.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\nprefer_ipv6 = true\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("prefer_ipv6"), "{error}");
 
@@ -168,7 +168,7 @@ fn prefer_ipv6_key_is_stripped_from_general() {
     // affects the family preference.
     let cfg = load_config_from_temp_toml(
         "[general]\nprefer_ipv6 = true\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.network_prefer, default_prefer_4());
 }
@@ -206,7 +206,7 @@ fn network_section_is_stripped_into_general() {
     // in [general] as network_ipv4 / network_ipv6 / network_prefer.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[network]\nipv4 = false\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("network"), "{error}");
 
@@ -214,14 +214,14 @@ fn network_section_is_stripped_into_general() {
     // keeps its defaults.
     let cfg = load_config_from_temp_toml(
         "[network]\nipv4 = false\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.network_ipv4, default_true());
 
     // the new [general] location loads explicit values.
     let cfg = load_config_from_temp_toml(
         "[general]\nnetwork_ipv4 = false\nnetwork_ipv6 = true\nnetwork_prefer = 6\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.network_ipv4, false);
     assert_eq!(cfg.general.network_ipv6, Some(true));
@@ -234,7 +234,7 @@ fn server_metrics_keys_are_moved_to_metrics() {
     // [metrics] section.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[server]\nmetrics_port = 9090\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("server"), "{error}");
 
@@ -242,14 +242,14 @@ fn server_metrics_keys_are_moved_to_metrics() {
     // its defaults.
     let cfg = load_config_from_temp_toml(
         "[server]\nmetrics_port = 9090\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.metrics.port, None);
 
     // the new [metrics] section loads explicit values and defaults.
     let cfg = load_config_from_temp_toml(
         "[metrics]\nport = 9090\nlisten = \"127.0.0.1:9090\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.metrics.port, Some(9090));
     assert_eq!(cfg.metrics.listen.as_deref(), Some("127.0.0.1:9090"));
@@ -262,21 +262,21 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
     // per-listener [listener] entry.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n[server]\nport = 443\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("server"), "{error}");
 
     // non-strict: the legacy section is ignored and no listener is set.
     let cfg = load_config_from_temp_toml(
         "[server]\nport = 443\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.listener.is_none());
 
     // a listener entry requires both ip and port, or socket_path.
     let error = load_config_error_from_temp_toml(
         "[listener]\ntransport = \"web\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("port"), "{error}");
 
@@ -289,7 +289,7 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
          public_addr = \"203.0.113.10:443\"\n\
          [web.vhosts.fallback]\nmode = \"http_upstream\"\n\
          upstream = \"http://127.0.0.1:18090\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     let listener = cfg.listener.as_ref().unwrap();
     assert_eq!(
@@ -301,14 +301,14 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
     let error = load_config_error_from_temp_toml(
         "[listener]\n\
          socket_path = \"/run/telemt/listener.sock\"\nip = \"127.0.0.1\"\nport = 443\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("socket_path"), "{error}");
 
     // socket_path must be an absolute path.
     let error = load_config_error_from_temp_toml(
         "[listener]\nsocket_path = \"run/telemt/listener.sock\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("absolute path"), "{error}");
 }
@@ -324,7 +324,7 @@ fn listener_section_is_known_in_strict_config() {
          public_addr = \"203.0.113.10:443\"\n\
          [web.vhosts.fallback]\nmode = \"http_upstream\"\n\
          upstream = \"http://127.0.0.1:18090\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.listener.is_some());
 
@@ -337,7 +337,7 @@ fn listener_section_is_known_in_strict_config() {
          public_addr = \"203.0.113.10:443\"\n\
          [web.vhosts.fallback]\nmode = \"http_upstream\"\n\
          upstream = \"http://127.0.0.1:18090\"\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("listener.bogus"), "{error}");
 }
@@ -349,7 +349,7 @@ fn file_logging_requires_path() {
             [logging]
             destination = "file"
 
-            [access.users]
+            [users]
             user = "00000000000000000000000000000000"
         "#,
     );
@@ -412,8 +412,6 @@ fn impl_defaults_are_sourced_from_default_helpers() {
         default_api_runtime_edge_events_capacity()
     );
 
-    let access = AccessConfig::default();
-    assert_eq!(access.users, default_access_users());
 }
 
 #[test]
@@ -531,18 +529,49 @@ fn upstream_socks_keys_load_into_socks_variant() {
 }
 
 #[test]
+fn access_users_table_moves_to_top_level_users() {
+    // strict: the legacy [access.users] location is rejected after the
+    // move to the top-level [users] table.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("access.users"), "{error}");
+
+    // non-strict: the legacy table is ignored and the top-level [users]
+    // table loads instead.
+    let cfg = load_config_from_temp_toml(
+        "[access.users]\nuser = \"00000000000000000000000000000000\"\n\
+         [users]\nalice = \"11111111111111111111111111111111\"\n",
+    );
+    assert_eq!(cfg.users.len(), 1);
+    assert_eq!(
+        cfg.users.get("alice").map(String::as_str),
+        Some("11111111111111111111111111111111")
+    );
+
+    // strict: [users] is a known top-level table with the same secret
+    // validation as before the move.
+    let cfg = load_config_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert_eq!(cfg.users.len(), 1);
+}
+
+#[test]
 fn access_user_source_deny_key_is_stripped() {
     // strict: the removed key is rejected.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n\
+         [users]\nuser = \"00000000000000000000000000000000\"\n\
          [access.user_source_deny]\nuser = [\"203.0.113.0/24\"]\n",
     );
     assert!(error.contains("access.user_source_deny"), "{error}");
 
     // non-strict: the removed key is ignored and the config loads.
     let cfg = load_config_from_temp_toml(
-        "[access.users]\nuser = \"00000000000000000000000000000000\"\n\
+        "[users]\nuser = \"00000000000000000000000000000000\"\n\
          [access.user_source_deny]\nuser = [\"203.0.113.0/24\"]\n",
     );
     assert_eq!(cfg.access.global_user_max_unique_ips, 0);

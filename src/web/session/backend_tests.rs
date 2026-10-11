@@ -82,6 +82,10 @@ fn test_runtime_with_dc(
         max_streams_per_session: 4,
     });
     let mut config = ProxyConfig::default();
+    config.users.insert(
+        "default".to_string(),
+        "00000000000000000000000000000000".to_string(),
+    );
     config.web.enabled = true;
     config.web.carrier = carrier;
     config.web.limits.max_stream_handshakes = max_stream_handshakes;

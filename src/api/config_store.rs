@@ -31,7 +31,7 @@ pub(super) enum AccessSection {
 impl AccessSection {
     fn table_name(self) -> &'static str {
         match self {
-            Self::Users => "access.users",
+            Self::Users => "users",
             Self::UserEnabled => "access.user_enabled",
             Self::UserMaxUniqueIps => "access.user_max_unique_ips",
         }
@@ -299,7 +299,8 @@ pub(super) async fn save_config_to_disk(
 /// Intentionally excluded (defense-in-depth, enforces the spec's per-node
 /// identity invariant at the Telemt layer too):
 ///
-///   - `access`    : owned by the users API.
+///   - `users`     : owned by the users API.
+///   - `access`    : per-user policy maps owned by the users API.
 ///   - `metrics`   : process-owned endpoint identity (bind address, scraper
 ///                   whitelist).
 ///   - `api`       : process-owned endpoint identity (bind address, auth).

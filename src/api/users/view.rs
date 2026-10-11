@@ -6,7 +6,7 @@ pub(in crate::api) async fn users_from_config(
     ip_tracker: &UserIpTracker,
     runtime_cfg: Option<&ProxyConfig>,
 ) -> Vec<UserInfo> {
-    let mut names = cfg.access.users.keys().cloned().collect::<Vec<_>>();
+    let mut names = cfg.users.keys().cloned().collect::<Vec<_>>();
     names.sort();
     let active_ip_lists = ip_tracker.get_active_ips_for_users(&names).await;
     let recent_ip_lists = ip_tracker.get_recent_ips_for_users(&names).await;
@@ -25,7 +25,7 @@ pub(in crate::api) async fn users_from_config(
         users.push(UserInfo {
             enabled: cfg.access.is_user_enabled(&username),
             in_runtime: runtime_cfg
-                .map(|runtime| runtime.access.users.contains_key(&username))
+                .map(|runtime| runtime.users.contains_key(&username))
                 .unwrap_or(false),
             max_unique_ips: cfg
                 .access

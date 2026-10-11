@@ -35,7 +35,7 @@ async fn rotate_secret_to_completion(
     let (mut cfg, base_revision) =
         load_config_for_mutation(&shared.config_path, expected_revision.as_deref()).await?;
 
-    if !cfg.access.users.contains_key(user) {
+    if !cfg.users.contains_key(user) {
         return Err(ApiFailure::new(
             StatusCode::NOT_FOUND,
             "not_found",
@@ -43,7 +43,7 @@ async fn rotate_secret_to_completion(
         ));
     }
 
-    cfg.access.users.insert(user.to_string(), secret.clone());
+    cfg.users.insert(user.to_string(), secret.clone());
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
     let revision = save_access_sections_to_disk_if_revision(
@@ -99,14 +99,14 @@ async fn delete_user_to_completion(
     let (mut cfg, base_revision) =
         load_config_for_mutation(&shared.config_path, expected_revision.as_deref()).await?;
 
-    if !cfg.access.users.contains_key(user) {
+    if !cfg.users.contains_key(user) {
         return Err(ApiFailure::new(
             StatusCode::NOT_FOUND,
             "not_found",
             "User not found",
         ));
     }
-    if cfg.access.users.len() <= 1 {
+    if cfg.users.len() <= 1 {
         return Err(ApiFailure::new(
             StatusCode::CONFLICT,
             "last_user_forbidden",
@@ -115,7 +115,7 @@ async fn delete_user_to_completion(
     }
 
     let mut touched_sections = vec![AccessSection::Users];
-    cfg.access.users.remove(user);
+    cfg.users.remove(user);
     if cfg.access.user_enabled.remove(user).is_some() {
         touched_sections.push(AccessSection::UserEnabled);
     }

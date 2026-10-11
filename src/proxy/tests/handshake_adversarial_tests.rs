@@ -47,9 +47,8 @@ fn make_valid_mtproto_handshake(
 
 fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
-    cfg.access.users.clear();
-    cfg.access
-        .users
+    cfg.users.clear();
+    cfg.users
         .insert("user".to_string(), secret_hex.to_string());
     cfg.access.ignore_time_skew = true;
     cfg
@@ -238,11 +237,9 @@ async fn mtproto_handshake_preferred_user_mismatch_continues() {
     let base = make_valid_mtproto_handshake(secret2_hex, ProtoTag::Secure, 1);
     let mut config = ProxyConfig::default();
     config
-        .access
         .users
         .insert("user1".to_string(), secret1_hex.to_string());
     config
-        .access
         .users
         .insert("user2".to_string(), secret2_hex.to_string());
     config.access.ignore_time_skew = true;

@@ -34,7 +34,7 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
                     "web.vhosts[{vhost_idx}].profiles[{profile_idx}].user must contain 1..64 bytes"
                 ));
             }
-            if !config.access.users.contains_key(&profile.user) {
+            if !config.users.contains_key(&profile.user) {
                 return config_error(&format!(
                     "web.vhosts[{vhost_idx}].profiles[{profile_idx}].user references unknown access user `{}`",
                     profile.user

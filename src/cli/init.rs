@@ -290,7 +290,7 @@ replay_check_len = 65536
 replay_window_secs = 120
 ignore_time_skew = false
 
-[access.users]
+[users]
 {username} = "{secret}"
 
 [[upstreams]]

@@ -1,5 +1,5 @@
 //! Config-editing API: read managed sections and apply sparse field patches.
-//! `access.*` is intentionally not editable here (owned by the users API).
+//! `users` and `access.*` are intentionally not editable here (owned by the users API).
 
 use serde_json::Value as Json;
 use toml::Value as Toml;

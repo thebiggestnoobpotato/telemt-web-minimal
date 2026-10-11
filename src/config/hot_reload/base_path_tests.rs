@@ -10,7 +10,7 @@ fn write_base_path_config(path: &Path, base_path: &str) {
     };
     let config = format!(
         r#"
-[access.users]
+[users]
 alice = "000102030405060708090a0b0c0d0e0f"
 
 [listener]

@@ -5,11 +5,11 @@ use crate::stats::Stats;
 #[tokio::test]
 async fn users_from_config_reports_user_enabled_default_and_override() {
     let mut cfg = ProxyConfig::default();
-    cfg.access.users.insert(
+    cfg.users.insert(
         "alice".to_string(),
         "0123456789abcdef0123456789abcdef".to_string(),
     );
-    cfg.access.users.insert(
+    cfg.users.insert(
         "bob".to_string(),
         "fedcba9876543210fedcba9876543210".to_string(),
     );
@@ -42,17 +42,17 @@ async fn users_from_config_reports_user_enabled_default_and_override() {
 #[tokio::test]
 async fn users_from_config_marks_runtime_membership_when_snapshot_is_provided() {
     let mut disk_cfg = ProxyConfig::default();
-    disk_cfg.access.users.insert(
+    disk_cfg.users.insert(
         "alice".to_string(),
         "0123456789abcdef0123456789abcdef".to_string(),
     );
-    disk_cfg.access.users.insert(
+    disk_cfg.users.insert(
         "bob".to_string(),
         "fedcba9876543210fedcba9876543210".to_string(),
     );
 
     let mut runtime_cfg = ProxyConfig::default();
-    runtime_cfg.access.users.insert(
+    runtime_cfg.users.insert(
         "alice".to_string(),
         "0123456789abcdef0123456789abcdef".to_string(),
     );

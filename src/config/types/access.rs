@@ -1,10 +1,8 @@
 use super::*;
 
+/// Per-user admission policy. Credentials live in the top-level `users` table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AccessConfig {
-    #[serde(default = "default_access_users")]
-    pub users: HashMap<String, String>,
-
     #[serde(default)]
     pub user_enabled: HashMap<String, bool>,
 
@@ -35,7 +33,6 @@ pub struct AccessConfig {
 impl Default for AccessConfig {
     fn default() -> Self {
         Self {
-            users: default_access_users(),
             user_enabled: HashMap::new(),
             user_max_unique_ips: HashMap::new(),
             global_user_max_unique_ips: default_global_user_max_unique_ips(),

@@ -167,7 +167,7 @@ pub(super) async fn render(
             .collect();
 
         let mut unique_users = BTreeSet::new();
-        unique_users.extend(config.access.users.keys().cloned());
+        unique_users.extend(config.users.keys().cloned());
         unique_users.extend(config.access.user_max_unique_ips.keys().cloned());
         unique_users.extend(ip_counts.keys().cloned());
         let unique_users_vec: Vec<String> = unique_users.iter().cloned().collect();

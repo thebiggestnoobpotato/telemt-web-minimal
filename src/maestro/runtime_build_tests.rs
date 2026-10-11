@@ -31,7 +31,7 @@ fn web_config_with_fasttrack(mode: &str) -> ProxyConfig {
     let path = directory.path().join("config.toml");
     let config = format!(
         r#"
-[access.users]
+[users]
 alice = "000102030405060708090a0b0c0d0e0f"
 
 [listener]

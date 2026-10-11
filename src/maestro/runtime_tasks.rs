@@ -203,7 +203,7 @@ pub(crate) async fn spawn_runtime_tasks(
             let cfg = config_rx_user_enabled.borrow_and_update().clone();
             let Some(cancelled_users) = shared_user_enabled.apply_user_config_from_source(
                 generation_id,
-                &cfg.access.users,
+                &cfg.users,
                 &cfg.access.user_enabled,
             ) else {
                 continue;

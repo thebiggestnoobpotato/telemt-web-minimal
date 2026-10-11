@@ -28,6 +28,7 @@ This document lists all configuration keys accepted by `config.toml`.
  - [web.vhosts.profiles](#webvhostsprofiles)
  - [timeouts](#timeouts)
  - [access](#access)
+ - [users](#users)
  - [upstreams](#upstreams)
 
 # Top-level keys
@@ -757,7 +758,7 @@ The `mode` key is required and accepts one value:
 
 | Key | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `user` | `String` | yes | — | Existing 1–64-byte key from `[access.users]`; the bound keeps runtime status and filters bounded. |
+| `user` | `String` | yes | — | Existing 1–64-byte key from `[users]`; the bound keeps runtime status and filters bounded. |
 | `secret_mode` | `"plain"` or `"dd"` | yes | — | Exact Telegram Desktop secret representation. `ee` is not supported. |
 | `max_sessions` | `usize` | no | `web.limits.max_sessions_global` | Live sessions for this profile. |
 | `max_streams` | `usize` | no | `web.limits.max_streams_global` | Live logical streams for this profile. |
@@ -828,7 +829,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
-| [`users`](#users) | `Map<String, String>` | `{"default": "000…000"}` | `✔` |
 | [`user_enabled`](#user_enabled-1) | `Map<String, bool>` | `{}` | `✔` |
 | [`user_max_unique_ips`](#user_max_unique_ips) | `Map<String, usize>` | `{}` | `✔` |
 | [`global_user_max_unique_ips`](#global_user_max_unique_ips) | `usize` | `0` | `✔` |
@@ -838,16 +838,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`replay_window_secs`](#replay_window_secs) | `u64` | `120` | `✘` |
 | [`ignore_time_skew`](#ignore_time_skew) | `bool` | `false` | `✘` |
 
-## users
-  - **Constraints / validation**: Must not be empty (at least one user must exist). Each value must be **exactly 32 hex characters**.
-  - **Description**: User credentials map used for client authentication. Keys are user names; values are MTProxy secrets.
-  - **Example**:
-
-    ```toml
-    [access.users]
-    alice = "00112233445566778899aabbccddeeff"
-    bob   = "0123456789abcdef0123456789abcdef"
-    ```
 ## user_enabled
   - **Constraints / validation**: `Map<String, bool>`.
   - **Description**: Optional per-user enable overrides. Missing users are enabled by default. A value of `false` disables new sessions for that user; setting the value to `true` is accepted but equivalent to removing the override. API enable operations remove the override, while disable operations write `false`.
@@ -920,6 +910,21 @@ Profile limits must be non-zero and no greater than their corresponding global l
     ```toml
     [access]
     ignore_time_skew = false
+    ```
+# [users]
+
+| Key | Type | Default | Hot-Reload |
+| --- | ---- | ------- | ---------- |
+| `<username> = "secret"` | `Map<String, String>` | `{"default": "000…000"}` | `✔` |
+
+  - **Constraints / validation**: Must not be empty (at least one user must exist). Keys are user names; each value must be **exactly 32 hex characters**.
+  - **Description**: User credentials map used for client authentication and for `[access]` per-user policy maps and WEB vhost profiles, which reference users by name.
+  - **Example**:
+
+    ```toml
+    [users]
+    alice = "00112233445566778899aabbccddeeff"
+    bob   = "0123456789abcdef0123456789abcdef"
     ```
 # [[upstreams]]
 

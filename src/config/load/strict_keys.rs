@@ -11,6 +11,7 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "web",
     "timeouts",
     "access",
+    "users",
     "upstreams",
     "include",
 ];
@@ -195,7 +196,6 @@ const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
 ];
 
 const ACCESS_CONFIG_KEYS: &[&str] = &[
-    "users",
     "user_enabled",
     "user_max_unique_ips",
     "global_user_max_unique_ips",

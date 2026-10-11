@@ -36,7 +36,7 @@ pub enum WebSecretMode {
 /// One access user explicitly exposed through a WEB virtual host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebProfileConfig {
-    /// Existing `[access.users]` key authenticated by the inner MTProxy handshake.
+    /// Existing `[users]` key authenticated by the inner MTProxy handshake.
     pub user: String,
     /// Exact client-facing secret representation advertised in WEB links.
     pub secret_mode: WebSecretMode,

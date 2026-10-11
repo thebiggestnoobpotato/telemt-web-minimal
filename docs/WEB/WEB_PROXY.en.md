@@ -73,7 +73,7 @@ The example keeps the WEB listener on loopback and uses a private HTTP fallback 
 [logging]
 show_users_links = true
 
-[access.users]
+[users]
 web-user = "0123456789abcdef0123456789abcdef"
 
 [listener]
@@ -375,7 +375,7 @@ WEB configuration, runtime status, and bounded runtime controls share the authen
 | Close selected live WEB sessions | Yes, through the asynchronous `POST /v1/runtime/web/sessions/close` operation. |
 | Pause, deadline-drain, or resume new WEB work | Yes, through `/v1/runtime/web/lifecycle/{pause,drain,resume}`. |
 | Clear debug records or reset carrier learning | Yes, through the corresponding runtime POST endpoints. |
-| Manage `[access.users]` | Yes, through `/v1/users`. User creation does not create a WEB profile. |
+| Manage `[users]` | Yes, through `/v1/users`. User creation does not create a WEB profile. |
 | Revoke one user | Yes. `/v1/users/{username}/disable` updates admission immediately and cancels that user's active sessions. |
 
 Bind the API to loopback, keep its direct-peer whitelist narrow, configure an exact authorization header, and leave `read_only = false` only when mutation is required:

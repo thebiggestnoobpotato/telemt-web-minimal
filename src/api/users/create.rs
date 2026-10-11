@@ -46,7 +46,7 @@ async fn create_user_to_completion(
     let (mut cfg, base_revision) =
         load_config_for_mutation(&shared.config_path, expected_revision.as_deref()).await?;
 
-    if cfg.access.users.contains_key(&body.username) {
+    if cfg.users.contains_key(&body.username) {
         return Err(ApiFailure::new(
             StatusCode::CONFLICT,
             "user_exists",
@@ -54,8 +54,7 @@ async fn create_user_to_completion(
         ));
     }
 
-    cfg.access
-        .users
+    cfg.users
         .insert(body.username.clone(), secret.clone());
 
     let updated_limit = body.max_unique_ips;

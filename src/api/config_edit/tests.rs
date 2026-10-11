@@ -123,7 +123,7 @@ async fn patch_logging_show_users_links_reports_restart_required() {
 #[tokio::test]
 async fn read_managed_config_strips_access() {
     let (path, _d) = temp_config(
-        "[general]\nfast_mode = true\n[access.users]\nbob = \"00000000000000000000000000000000\"\n",
+        "[general]\nfast_mode = true\n[users]\nbob = \"00000000000000000000000000000000\"\n",
     );
     let (value, revision) = read_managed_config(&path).await.unwrap();
     let table = value.as_table().unwrap();
@@ -143,7 +143,7 @@ async fn read_managed_config_exposes_web_without_runtime_or_access_secrets() {
     let (path, _directory) = temp_config(concat!(
         "[web]\nenabled = false\ncarrier = \"https\"\n",
         "[web.debug]\nenabled = true\ndefault_window_secs = 180\n",
-        "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
+        "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
 
     let (value, _revision) = read_managed_config(&path).await.unwrap();
@@ -239,7 +239,7 @@ async fn read_managed_config_returns_only_editable_sections() {
          [web.vhosts.fallback]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
         "[metrics]\nport = 9090\n",
-        "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
+        "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let (value, _rev) = read_managed_config(&path).await.unwrap();
     let table = value.as_table().unwrap();
@@ -259,7 +259,7 @@ async fn read_managed_config_returns_full_listener_table() {
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          [web.vhosts.fallback]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
-        "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
+        "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let (value, _rev) = read_managed_config(&path).await.unwrap();
     let table = value.as_table().unwrap();
@@ -302,7 +302,7 @@ async fn patch_listener_preserves_api() {
         "[[web.vhosts]]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          [web.vhosts.fallback]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:80\"\n\
          [[web.vhosts.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
-        "[access.users]\nbob = \"00000000000000000000000000000000\"\n",
+        "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let patch: Json = serde_json::json!({
         "listener": {

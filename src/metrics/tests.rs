@@ -109,7 +109,11 @@ async fn test_render_empty_stats() {
         ..TelemetryPolicy::default()
     });
     let tracker = UserIpTracker::new();
-    let config = ProxyConfig::default();
+    let mut config = ProxyConfig::default();
+    config.users.insert(
+        "default".to_string(),
+        "00000000000000000000000000000000".to_string(),
+    );
     let output = render_metrics(
         &stats,
         &shared_state,

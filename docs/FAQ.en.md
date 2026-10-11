@@ -56,9 +56,9 @@ At the same time, multiple users can connect from a single IP address simultaneo
 ### How to create multiple different links
 1. Generate the required number of secrets using the command: `openssl rand -hex 16`.
 2. Open the configuration file: `nano /etc/telemt/config.toml`.
-3. Add new users to the `[access.users]` section:
+3. Add new users to the `[users]` section:
 ```toml
-[access.users]
+[users]
 user1 = "00000000000000000000000000000001"
 user2 = "00000000000000000000000000000002"
 user3 = "00000000000000000000000000000003"

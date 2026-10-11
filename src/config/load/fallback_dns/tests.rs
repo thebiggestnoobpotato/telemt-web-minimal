@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::*;
 
 const SOURCE: &str = r#"
-[access.users]
+[users]
 alice = "000102030405060708090a0b0c0d0e0f"
 [listener]
 ip = "127.0.0.1"

@@ -32,7 +32,7 @@ pub(super) async fn create_user_route(
         }
     };
     let runtime_cfg = config_rx.borrow().clone();
-    data.user.in_runtime = runtime_cfg.access.users.contains_key(&data.user.username);
+    data.user.in_runtime = runtime_cfg.users.contains_key(&data.user.username);
     shared.runtime_events.record(
         "api.user.create.ok",
         format!("username={}", data.user.username),
