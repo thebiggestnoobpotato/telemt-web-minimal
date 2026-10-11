@@ -34,9 +34,7 @@ pub use metrics::MetricsConfig;
 pub use network::{UpstreamConfig, UpstreamType};
 pub use policies::UserMaxUniqueIpsMode;
 #[allow(unused_imports)]
-pub use server::{
-    ListenerConfig, ListenerEndpoint, ListenerTransport, TimeoutsConfig, WebClientIpSource,
-};
+pub use server::{ListenerConfig, ListenerEndpoint, ListenerTransport, WebClientIpSource};
 #[allow(unused_imports)]
 pub use web::{
     WebCarrierNegotiationAggressiveness, WebConfig, WebFallbackConfig, WebFallbackFastTrackMode,

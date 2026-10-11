@@ -394,11 +394,11 @@ fn reload_publishes_web_negotiation_policy_outside_hot_field_reporting() {
 }
 
 #[test]
-fn classify_timeouts_change_requires_restart() {
-    // timeouts.* is NOT in overlay_hot_fields -> restart.
+fn classify_cold_field_change_requires_restart() {
+    // general.listen_backlog is NOT in overlay_hot_fields -> restart.
     let old = ProxyConfig::default();
     let mut new = ProxyConfig::default();
-    new.timeouts.client_handshake = old.timeouts.client_handshake + 1;
+    new.general.listen_backlog = old.general.listen_backlog + 1;
 
     let class = classify_config_changes(&old, &new);
     assert!(class.restart_required);

@@ -26,7 +26,6 @@ This document lists all configuration keys accepted by `config.toml`.
  - [web.vhosts](#webvhosts)
  - [web.vhosts.fallback](#webvhostsfallback)
  - [web.vhosts.profiles](#webvhostsprofiles)
- - [timeouts](#timeouts)
  - [access](#access)
  - [users](#users)
  - [upstreams](#upstreams)
@@ -778,52 +777,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 - `PATCH /v1/config` can persist `[listener]`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
 
 
-# [timeouts]
-
-
-| Key | Type | Default | Hot-Reload |
-| --- | ---- | ------- | ---------- |
-| [`client_first_byte_idle_secs`](#client_first_byte_idle_secs) | `u64` | `300` | `✘` |
-| [`client_handshake`](#client_handshake) | `u64` | `60` | `✘` |
-| [`client_keepalive`](#client_keepalive) | `u64` | `15` | `✘` |
-| [`client_ack`](#client_ack) | `u64` | `90` | `✘` |
-
-## client_handshake
-  - **Constraints / validation**: Must be `> 0`. Value is in seconds.
-  - **Description**: Client handshake timeout (seconds).
-  - **Example**:
-
-    ```toml
-    [timeouts]
-    client_handshake = 30
-    ```
-## client_first_byte_idle_secs
-  - **Constraints / validation**: `u64` (seconds). `0` disables first-byte idle enforcement.
-  - **Description**: Maximum idle time to wait for the first client payload byte after session setup.
-  - **Example**:
-
-    ```toml
-    [timeouts]
-    client_first_byte_idle_secs = 300
-    ```
-## client_keepalive
-  - **Constraints / validation**: `u64`. Value is in seconds.
-  - **Description**: Client keepalive timeout (seconds).
-  - **Example**:
-
-    ```toml
-    [timeouts]
-    client_keepalive = 15
-    ```
-## client_ack
-  - **Constraints / validation**: `u64`. Value is in seconds.
-  - **Description**: Client ACK timeout (seconds).
-  - **Example**:
-
-    ```toml
-    [timeouts]
-    client_ack = 90
-    ```
 # [access]
 
 

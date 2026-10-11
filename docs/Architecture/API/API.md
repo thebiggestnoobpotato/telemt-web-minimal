@@ -234,7 +234,7 @@ Notes:
 
 ### `PatchConfigRequest`
 
-A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `listener`, `timeouts`, `upstreams`, `web`). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
+A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `listener`, `upstreams`, `web`). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
 
 **Rejected keys:**
 - `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
@@ -269,7 +269,6 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `general` | `object` | Complete normalized `[general]` section, including defaults. Contains `dc_overrides` (including the synthesized DC 203 endpoint when it is not authored) and `dc_default`. |
 | `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
 | `listener` | `object?` | Complete normalized `[listener]` table when set; omitted when no listener is configured. |
-| `timeouts` | `object` | Complete normalized `[timeouts]` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
 | `web` | `object` | Complete normalized `[web]` section, including defaults. Each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 
@@ -498,19 +497,9 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 ### `EffectiveLimitsData`
 | Field | Type | Description |
 | --- | --- | --- |
-| `timeouts` | `EffectiveTimeoutLimits` | Effective timeout policy snapshot. |
 | `upstream` | `EffectiveUpstreamLimits` | Effective upstream connect/retry limits. |
 | `user_ip_policy` | `EffectiveUserIpPolicyLimits` | Effective unique-IP policy mode/window. |
 | `user_tcp_policy` | `EffectiveUserTcpPolicyLimits` | Effective per-user TCP connection policy. |
-
-#### `EffectiveTimeoutLimits`
-| Field | Type | Description |
-| --- | --- | --- |
-| `client_handshake_secs` | `u64` | Client handshake timeout. |
-| `client_first_byte_idle_secs` | `u64` | First-byte idle timeout before protocol classification. |
-| `upstream_connect_timeout_secs` | `u64` | Per-attempt TCP connect timeout (seconds) to Telegram DC servers. |
-| `client_keepalive_secs` | `u64` | Client keepalive interval. |
-| `client_ack_secs` | `u64` | ACK timeout. |
 
 #### `EffectiveUpstreamLimits`
 | Field | Type | Description |
@@ -846,7 +835,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | `Content-Type: application/json` | recommended | Not enforced, but body must be valid JSON. |
 | `If-Match: <revision>` | no | Optimistic concurrency. `<revision>` is the `revision` value from `GET /v1/config` or `config_hash` from `GET /v1/system/info`. It covers the complete recursive include graph. If supplied and it does not match the current source manifest, returns `409 revision_conflict`. Omitting it removes the caller precondition, but the internal graph/owner race fence can still return the same conflict. |
 
-**Editable sections:** `general`, `logging`, `listener`, `timeouts`, `upstreams`, `web`.
+**Editable sections:** `general`, `logging`, `listener`, `upstreams`, `web`.
 
 **Rejected keys and their error codes:**
 

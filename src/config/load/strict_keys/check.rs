@@ -40,7 +40,6 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         WEB_VHOST_CONFIG_KEYS,
         WEB_FALLBACK_CONFIG_KEYS,
         WEB_PROFILE_CONFIG_KEYS,
-        TIMEOUTS_CONFIG_KEYS,
         ACCESS_CONFIG_KEYS,
         UPSTREAM_CONFIG_KEYS,
         LOGGING_CONFIG_KEYS,
@@ -205,13 +204,6 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         &known_for_suggestion,
         &["web", "timeouts"],
         WEB_TIMEOUTS_CONFIG_KEYS,
-    );
-    check_known_table(
-        parsed_toml,
-        &mut unknown,
-        &known_for_suggestion,
-        &["timeouts"],
-        TIMEOUTS_CONFIG_KEYS,
     );
     check_known_table(
         parsed_toml,

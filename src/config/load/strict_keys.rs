@@ -9,7 +9,6 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "listener",
     "metrics",
     "web",
-    "timeouts",
     "access",
     "users",
     "upstreams",
@@ -186,13 +185,6 @@ const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "max_sessions",
     "max_streams",
     "max_streams_per_session",
-];
-
-const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
-    "client_first_byte_idle_secs",
-    "client_handshake",
-    "client_keepalive",
-    "client_ack",
 ];
 
 const ACCESS_CONFIG_KEYS: &[&str] = &[

@@ -306,7 +306,6 @@ pub(super) const EDITABLE_SECTIONS: &[&str] = &[
     "general",
     "logging",
     "listener",
-    "timeouts",
     "upstreams",
     "web",
 ];

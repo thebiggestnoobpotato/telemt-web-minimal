@@ -103,12 +103,6 @@ transport = "web"
 # /0 networks are rejected; extend only with your own fronting proxies.
 web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
-[timeouts]
-client_first_byte_idle_secs = 300
-client_handshake = 60
-client_keepalive = 60
-client_ack = 300
-
 [web]
 enabled = true
 

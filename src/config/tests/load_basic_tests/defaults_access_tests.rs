@@ -579,6 +579,23 @@ fn access_user_enabled_key_is_stripped() {
 }
 
 #[test]
+fn top_level_timeouts_table_is_stripped() {
+    // strict: the removed [timeouts] table is rejected.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [timeouts]\nclient_handshake = 30\n",
+    );
+    assert!(error.contains("timeouts"), "{error}");
+
+    // non-strict: the removed table is ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[users]\nuser = \"00000000000000000000000000000000\"\n\
+         [timeouts]\nclient_handshake = 30\nclient_ack = 90\n",
+    );
+    assert_eq!(cfg.users.len(), 1);
+}
+
+#[test]
 fn access_user_source_deny_key_is_stripped() {
     // strict: the removed key is rejected.
     let error = load_config_error_from_temp_toml(

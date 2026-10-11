@@ -35,12 +35,5 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         )));
     }
 
-
-    if config.timeouts.client_handshake == 0 {
-        return Err(ProxyError::Config(
-            "timeouts.client_handshake must be > 0".to_string(),
-        ));
-    }
-
     Ok(())
 }

@@ -114,10 +114,6 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub web: WebConfig,
 
-    /// Timeout values used by client, fallback, and upstream operations.
-    #[serde(default)]
-    pub timeouts: TimeoutsConfig,
-
     /// User admission policy: per-user enablement, unique-IP limits, replay checks.
     #[serde(default)]
     pub access: AccessConfig,
@@ -300,10 +296,6 @@ impl ProxyConfig {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "tests/load_idle_policy_tests.rs"]
-mod load_idle_policy_tests;
 
 #[cfg(test)]
 #[path = "tests/load_memory_envelope_tests.rs"]

@@ -33,24 +33,8 @@ pub(crate) fn default_replay_window_secs() -> u64 {
     120
 }
 
-pub(crate) fn default_handshake_timeout() -> u64 {
-    60
-}
-
-pub(crate) fn default_client_first_byte_idle_secs() -> u64 {
-    300
-}
-
 pub(crate) fn default_upstream_connect_timeout() -> u64 {
     10
-}
-
-pub(crate) fn default_keepalive() -> u64 {
-    15
-}
-
-pub(crate) fn default_ack_timeout() -> u64 {
-    90
 }
 
 pub(crate) fn default_weight() -> u16 {

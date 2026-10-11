@@ -38,15 +38,6 @@ pub(super) struct RuntimeGatesData {
 }
 
 #[derive(Serialize)]
-pub(super) struct EffectiveTimeoutLimits {
-    pub(super) client_first_byte_idle_secs: u64,
-    pub(super) client_handshake_secs: u64,
-    pub(super) upstream_connect_timeout_secs: u64,
-    pub(super) client_keepalive_secs: u64,
-    pub(super) client_ack_secs: u64,
-}
-
-#[derive(Serialize)]
 pub(super) struct EffectiveUpstreamLimits {
     pub(super) connect_retry_attempts: u32,
     pub(super) connect_retry_backoff_ms: u64,
@@ -64,7 +55,6 @@ pub(super) struct EffectiveUserIpPolicyLimits {
 
 #[derive(Serialize)]
 pub(super) struct EffectiveLimitsData {
-    pub(super) timeouts: EffectiveTimeoutLimits,
     pub(super) upstream: EffectiveUpstreamLimits,
     pub(super) user_ip_policy: EffectiveUserIpPolicyLimits,
 }
@@ -151,13 +141,6 @@ pub(super) async fn build_runtime_gates_data(
 
 pub(super) fn build_limits_effective_data(cfg: &ProxyConfig) -> EffectiveLimitsData {
     EffectiveLimitsData {
-        timeouts: EffectiveTimeoutLimits {
-            client_first_byte_idle_secs: cfg.timeouts.client_first_byte_idle_secs,
-            client_handshake_secs: cfg.timeouts.client_handshake,
-            upstream_connect_timeout_secs: cfg.general.upstream_connect_timeout,
-            client_keepalive_secs: cfg.timeouts.client_keepalive,
-            client_ack_secs: cfg.timeouts.client_ack,
-        },
         upstream: EffectiveUpstreamLimits {
             connect_retry_attempts: cfg.general.upstream_connect_retry_attempts,
             connect_retry_backoff_ms: cfg.general.upstream_connect_retry_backoff_ms,

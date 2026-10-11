@@ -20,35 +20,6 @@ pub enum WebClientIpSource {
     XForwardedFor,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TimeoutsConfig {
-    /// Maximum idle wait in seconds for the first client byte before handshake parsing starts.
-    /// `0` disables the separate idle phase and keeps legacy timeout behavior.
-    #[serde(default = "default_client_first_byte_idle_secs")]
-    pub client_first_byte_idle_secs: u64,
-
-    /// Maximum active handshake duration in seconds after the first client byte is received.
-    #[serde(default = "default_handshake_timeout")]
-    pub client_handshake: u64,
-
-    #[serde(default = "default_keepalive")]
-    pub client_keepalive: u64,
-
-    #[serde(default = "default_ack_timeout")]
-    pub client_ack: u64,
-}
-
-impl Default for TimeoutsConfig {
-    fn default() -> Self {
-        Self {
-            client_first_byte_idle_secs: default_client_first_byte_idle_secs(),
-            client_handshake: default_handshake_timeout(),
-            client_keepalive: default_keepalive(),
-            client_ack: default_ack_timeout(),
-        }
-    }
-}
-
 /// Bind identity of one process-owned listener endpoint.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListenerEndpoint {
