@@ -289,7 +289,6 @@ impl ReloadSupervisor {
             new_runtime.id,
             Some(user_admission_epoch),
             &config.users,
-            &config.access.user_enabled,
         );
         let _ = new_runtime
             .ip_tracker

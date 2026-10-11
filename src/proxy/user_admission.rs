@@ -24,7 +24,6 @@ pub(crate) type UserIncarnation = u64;
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct EffectiveUser {
     credential_id: UserCredentialId,
-    enabled: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -96,8 +95,6 @@ pub(crate) struct UserMutationResult {
     pub(crate) incarnation: UserIncarnation,
     /// Number of live owners cancelled by the mutation.
     pub(crate) cancelled: usize,
-    /// Whether the effective enabled state changed from enabled to disabled.
-    pub(crate) newly_disabled: bool,
 }
 
 /// Process-owned user authentication and live-owner authority.
@@ -119,12 +116,8 @@ impl UserAdmissionAuthority {
     }
 
     /// Reconciles the complete configured user set into the process authority.
-    pub(crate) fn apply_config(
-        &self,
-        users: &HashMap<String, String>,
-        user_enabled: &HashMap<String, bool>,
-    ) -> Vec<(String, usize)> {
-        self.activate_config_source(0, None, users, user_enabled)
+    pub(crate) fn apply_config(&self, users: &HashMap<String, String>) -> Vec<(String, usize)> {
+        self.activate_config_source(0, None, users)
             .unwrap_or_default()
     }
 
@@ -134,9 +127,8 @@ impl UserAdmissionAuthority {
         source_generation: u64,
         expected_epoch: Option<u64>,
         users: &HashMap<String, String>,
-        user_enabled: &HashMap<String, bool>,
     ) -> Option<Vec<(String, usize)>> {
-        self.apply_config_locked(source_generation, expected_epoch, true, users, user_enabled)
+        self.apply_config_locked(source_generation, expected_epoch, true, users)
     }
 
     /// Reconciles an update only while its runtime generation owns configuration.
@@ -144,9 +136,8 @@ impl UserAdmissionAuthority {
         &self,
         source_generation: u64,
         users: &HashMap<String, String>,
-        user_enabled: &HashMap<String, bool>,
     ) -> Option<Vec<(String, usize)>> {
-        self.apply_config_locked(source_generation, None, false, users, user_enabled)
+        self.apply_config_locked(source_generation, None, false, users)
     }
 
     /// Returns the number of rejected updates from non-owning generations.
@@ -160,20 +151,12 @@ impl UserAdmissionAuthority {
         expected_epoch: Option<u64>,
         activate_source: bool,
         users: &HashMap<String, String>,
-        user_enabled: &HashMap<String, bool>,
     ) -> Option<Vec<(String, usize)>> {
         let configured = users
             .iter()
             .filter_map(|(user, secret)| {
-                credential_id_from_hex(secret).map(|credential_id| {
-                    (
-                        user.clone(),
-                        EffectiveUser {
-                            credential_id,
-                            enabled: user_enabled.get(user).copied().unwrap_or(true),
-                        },
-                    )
-                })
+                credential_id_from_hex(secret)
+                    .map(|credential_id| (user.clone(), EffectiveUser { credential_id }))
             })
             .collect::<HashMap<_, _>>();
         let cancellations = {
@@ -234,11 +217,6 @@ impl UserAdmissionAuthority {
                         if let Some(record) = state.users.get_mut(&user) {
                             record.incarnation = incarnation;
                         }
-                    }
-                    if identity_changed
-                        || old_effective.is_some_and(|entry| entry.enabled)
-                            && new_effective.is_none_or(|entry| !entry.enabled)
-                    {
                         let tokens = state.owner_tokens(&user);
                         cancellations.push((user, tokens));
                     }
@@ -274,10 +252,9 @@ impl UserAdmissionAuthority {
         &self,
         user: &str,
         secret: &str,
-        enabled: bool,
     ) -> Option<UserMutationResult> {
         let credential_id = credential_id_from_hex(secret)?;
-        Some(self.stage_user_credential(user, credential_id, enabled))
+        Some(self.stage_user_credential(user, credential_id))
     }
 
     /// Applies one already validated credential mutation ahead of runtime reload.
@@ -285,13 +262,9 @@ impl UserAdmissionAuthority {
         &self,
         user: &str,
         credential_id: UserCredentialId,
-        enabled: bool,
     ) -> UserMutationResult {
-        let desired = EffectiveUser {
-            credential_id,
-            enabled,
-        };
-        let (incarnation, newly_disabled, tokens) = {
+        let desired = EffectiveUser { credential_id };
+        let (incarnation, tokens) = {
             let mut state = self.state.lock();
             let previous = state.users.get(user).and_then(UserRecord::effective);
             let identity_changed = previous.map(|entry| entry.credential_id) != Some(credential_id);
@@ -313,13 +286,12 @@ impl UserAdmissionAuthority {
             record.incarnation = incarnation;
             state.initialized = true;
             state.bump_epoch();
-            let newly_disabled = previous.is_some_and(|entry| entry.enabled) && !enabled;
-            let tokens = if identity_changed || !enabled {
+            let tokens = if identity_changed {
                 state.owner_tokens(user)
             } else {
                 Vec::new()
             };
-            (incarnation, newly_disabled, tokens)
+            (incarnation, tokens)
         };
         let cancelled = tokens.len();
         for token in tokens {
@@ -328,15 +300,13 @@ impl UserAdmissionAuthority {
         UserMutationResult {
             incarnation,
             cancelled,
-            newly_disabled,
         }
     }
 
     /// Installs a deletion tombstone and cancels every owner of the old incarnation.
     pub(crate) fn delete_user(&self, user: &str) -> UserMutationResult {
-        let (incarnation, newly_disabled, tokens) = {
+        let (incarnation, tokens) = {
             let mut state = self.state.lock();
-            let previous = state.users.get(user).and_then(UserRecord::effective);
             let incarnation = state.allocate_incarnation();
             let record = state.users.entry(user.to_string()).or_insert(UserRecord {
                 configured: None,
@@ -347,11 +317,7 @@ impl UserAdmissionAuthority {
             record.incarnation = incarnation;
             state.initialized = true;
             state.bump_epoch();
-            (
-                incarnation,
-                previous.is_some_and(|entry| entry.enabled),
-                state.owner_tokens(user),
-            )
+            (incarnation, state.owner_tokens(user))
         };
         let cancelled = tokens.len();
         for token in tokens {
@@ -360,21 +326,7 @@ impl UserAdmissionAuthority {
         UserMutationResult {
             incarnation,
             cancelled,
-            newly_disabled,
         }
-    }
-
-    /// Returns whether the effective process policy currently enables a user.
-    pub(crate) fn is_user_enabled(&self, user: &str) -> bool {
-        let state = self.state.lock();
-        if !state.initialized {
-            return true;
-        }
-        state
-            .users
-            .get(user)
-            .and_then(UserRecord::effective)
-            .is_some_and(|entry| entry.enabled)
     }
 
     /// Returns the authenticated incarnation for an exact current credential.
@@ -389,8 +341,7 @@ impl UserAdmissionAuthority {
         }
         let record = state.users.get(user)?;
         let effective = record.effective()?;
-        (effective.enabled && effective.credential_id == credential_id)
-            .then_some(record.incarnation)
+        (effective.credential_id == credential_id).then_some(record.incarnation)
     }
 
     /// Starts a short publication critical section for one authenticated owner.
@@ -403,7 +354,7 @@ impl UserAdmissionAuthority {
         let incarnation = if state.initialized {
             let record = state.users.get(user)?;
             let effective = record.effective()?;
-            if !effective.enabled || effective.credential_id != credential_id {
+            if effective.credential_id != credential_id {
                 return None;
             }
             record.incarnation

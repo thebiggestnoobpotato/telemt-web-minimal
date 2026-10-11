@@ -90,6 +90,5 @@ mod tests {
             Some("00112233445566778899aabbccddeeff")
         );
         assert!(matches!(req.max_unique_ips, Patch::Remove));
-        assert!(matches!(req.enabled, Patch::Unchanged));
     }
 }

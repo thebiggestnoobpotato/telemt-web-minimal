@@ -3,7 +3,7 @@ use crate::ip_tracker::UserIpTracker;
 use crate::stats::Stats;
 
 #[tokio::test]
-async fn users_from_config_reports_user_enabled_default_and_override() {
+async fn users_from_config_reports_all_configured_users() {
     let mut cfg = ProxyConfig::default();
     cfg.users.insert(
         "alice".to_string(),
@@ -13,7 +13,6 @@ async fn users_from_config_reports_user_enabled_default_and_override() {
         "bob".to_string(),
         "fedcba9876543210fedcba9876543210".to_string(),
     );
-    cfg.access.user_enabled.insert("bob".to_string(), false);
 
     let stats = Stats::new();
     let tracker = UserIpTracker::new();
@@ -27,16 +26,8 @@ async fn users_from_config_reports_user_enabled_default_and_override() {
         .find(|entry| entry.username == "bob")
         .expect("bob must be present");
 
-    assert!(alice.enabled);
-    assert!(!bob.enabled);
-
-    cfg.access.user_enabled.insert("bob".to_string(), true);
-    let users = users_from_config(&cfg, &stats, &tracker, None).await;
-    let bob = users
-        .iter()
-        .find(|entry| entry.username == "bob")
-        .expect("bob must be present");
-    assert!(bob.enabled);
+    assert!(!alice.in_runtime);
+    assert!(!bob.in_runtime);
 }
 
 #[tokio::test]

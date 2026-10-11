@@ -94,12 +94,8 @@ pub(super) async fn run_telemt_core(
         direct_buffer_budget.clone(),
         user_admission,
     );
-    let _ = shared_state.activate_user_config_source(
-        1,
-        None,
-        &config.users,
-        &config.access.user_enabled,
-    );
+    let _ = shared_state
+        .activate_user_config_source(1, None, &config.users);
     let max_connections_limit = if config.general.max_connections == 0 {
         Semaphore::MAX_PERMITS
     } else {

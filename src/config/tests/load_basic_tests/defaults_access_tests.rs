@@ -560,6 +560,25 @@ fn access_users_table_moves_to_top_level_users() {
 }
 
 #[test]
+fn access_user_enabled_key_is_stripped() {
+    // strict: the removed [access.user_enabled] key is rejected; every
+    // configured user is enabled by construction.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n\
+         [users]\nuser = \"00000000000000000000000000000000\"\n\
+         [access.user_enabled]\nuser = false\n",
+    );
+    assert!(error.contains("access.user_enabled"), "{error}");
+
+    // non-strict: the removed key is ignored and the config loads.
+    let cfg = load_config_from_temp_toml(
+        "[users]\nuser = \"00000000000000000000000000000000\"\n\
+         [access.user_enabled]\nuser = false\n",
+    );
+    assert_eq!(cfg.users.len(), 1);
+}
+
+#[test]
 fn access_user_source_deny_key_is_stripped() {
     // strict: the removed key is rejected.
     let error = load_config_error_from_temp_toml(

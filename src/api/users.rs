@@ -27,7 +27,7 @@ mod view;
 pub(super) use create::create_user;
 pub(super) use lifecycle::{delete_user, rotate_secret};
 use links::build_user_links;
-pub(super) use update::{patch_user, set_user_enabled};
+pub(super) use update::patch_user;
 pub(super) use view::users_from_config;
 
 #[cfg(test)]

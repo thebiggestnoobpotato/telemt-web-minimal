@@ -20,7 +20,6 @@ async fn create_user_to_completion(
     shared: &ApiShared,
 ) -> Result<(CreateUserResponse, String), ApiFailure> {
     let touches_user_max_unique_ips = body.max_unique_ips.is_some();
-    let touches_user_enabled = matches!(body.enabled, Some(false));
 
     if !is_valid_username(&body.username) {
         return Err(ApiFailure::bad_request(
@@ -63,19 +62,12 @@ async fn create_user_to_completion(
             .user_max_unique_ips
             .insert(body.username.clone(), limit);
     }
-    if matches!(body.enabled, Some(false)) {
-        cfg.access.user_enabled.insert(body.username.clone(), false);
-    }
-
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
 
     let mut touched_sections = vec![AccessSection::Users];
     if touches_user_max_unique_ips {
         touched_sections.push(AccessSection::UserMaxUniqueIps);
-    }
-    if touches_user_enabled {
-        touched_sections.push(AccessSection::UserEnabled);
     }
 
     let revision = save_access_sections_to_disk_if_revision(
@@ -85,11 +77,7 @@ async fn create_user_to_completion(
         Some(&base_revision),
     )
     .await?;
-    shared.proxy_shared.stage_user_credential(
-        &body.username,
-        credential_id,
-        cfg.access.is_user_enabled(&body.username),
-    );
+    shared.proxy_shared.stage_user_credential(&body.username, credential_id);
 
     if let Some(limit) = updated_limit {
         shared
@@ -105,7 +93,6 @@ async fn create_user_to_completion(
         .find(|entry| entry.username == body.username)
         .unwrap_or(UserInfo {
             username: body.username.clone(),
-            enabled: cfg.access.is_user_enabled(&body.username),
             in_runtime: false,
             max_unique_ips: updated_limit,
             current_connections: 0,

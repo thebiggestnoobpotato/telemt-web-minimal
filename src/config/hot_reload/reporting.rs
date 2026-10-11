@@ -110,16 +110,6 @@ pub(super) fn log_changes(
         }
     }
 
-    if old_hot.user_enabled != new_hot.user_enabled {
-        info!(
-            "config reload: user_enabled updated ({} disabled overrides)",
-            new_hot
-                .user_enabled
-                .values()
-                .filter(|enabled| !**enabled)
-                .count()
-        );
-    }
     if old_hot.user_max_unique_ips != new_hot.user_max_unique_ips {
         info!(
             "config reload: user_max_unique_ips updated ({} entries)",

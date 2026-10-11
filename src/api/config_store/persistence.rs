@@ -169,15 +169,6 @@ pub(super) fn render_access_section(
                 .collect();
             serialize_table_body(&rows)?
         }
-        AccessSection::UserEnabled => {
-            let rows: BTreeMap<String, bool> = cfg
-                .access
-                .user_enabled
-                .iter()
-                .map(|(key, value)| (key.clone(), *value))
-                .collect();
-            serialize_table_body(&rows)?
-        }
         AccessSection::UserMaxUniqueIps => {
             let rows: BTreeMap<String, usize> = cfg
                 .access
@@ -202,7 +193,6 @@ pub(super) fn render_access_section(
 fn access_section_is_empty(cfg: &ProxyConfig, section: AccessSection) -> bool {
     match section {
         AccessSection::Users => cfg.users.is_empty(),
-        AccessSection::UserEnabled => cfg.access.user_enabled.is_empty(),
         AccessSection::UserMaxUniqueIps => cfg.access.user_max_unique_ips.is_empty(),
     }
 }
@@ -251,7 +241,7 @@ pub(in crate::api) fn upsert_toml_table(
 /// Whether a (comment-stripped, trimmed) TOML header line belongs to
 /// `table_name`: the table itself (`[X]` / `[[X]]`) or any of its nested
 /// sub-tables (`[X.…]` / `[[X.…]]`). The trailing dot guards against sibling
-/// prefixes — `users` must not match `access.user_enabled`.
+/// prefixes — `users` must not match `access.user_max_unique_ips`.
 fn header_belongs_to(header: &str, table_name: &str) -> bool {
     let body = match header.strip_prefix("[[").and_then(|h| h.strip_suffix("]]")) {
         Some(body) => body,

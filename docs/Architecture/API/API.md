@@ -116,8 +116,6 @@ Notes:
 | `PATCH` | `/v1/users/{username}` | `PatchUserRequest` | `200` or `202` | `UserInfo` |
 | `DELETE` | `/v1/users/{username}` | none | `200` or `202` | `DeleteUserResponse` |
 | `POST` | `/v1/users/{username}/rotate-secret` | `RotateSecretRequest` or empty body | `200` or `202` | `CreateUserResponse` |
-| `POST` | `/v1/users/{username}/enable` | empty body | `200` or `202` | `UserInfo` |
-| `POST` | `/v1/users/{username}/disable` | empty body | `200` or `202` | `UserInfo` |
 
 ## Endpoint Behavior
 
@@ -159,8 +157,6 @@ Notes:
 | `PATCH /v1/users/{username}` | Updates selected per-user fields with JSON Merge Patch semantics. |
 | `DELETE /v1/users/{username}` | Deletes one user and related API-managed per-user access-map entries. |
 | `POST /v1/users/{username}/rotate-secret` | Rotates one user's secret and returns the effective secret. |
-| `POST /v1/users/{username}/enable` | Enables one user, removing any disabled override from config. |
-| `POST /v1/users/{username}/disable` | Disables one user and closes active runtime sessions for that user. |
 
 ## Common Error Codes
 
@@ -202,8 +198,6 @@ Notes:
 | `PUT /v1/users/{username}` | `405 method_not_allowed`. |
 | `POST /v1/users/{username}` | `404 not_found`. |
 | `POST /v1/users/{username}/rotate-secret/` | Trailing slash is trimmed and the route matches `rotate-secret`. |
-| `POST /v1/users/{username}/enable/` | Trailing slash is trimmed and the route matches `enable`. |
-| `POST /v1/users/{username}/disable/` | Trailing slash is trimmed and the route matches `disable`. |
 
 ## Body and JSON Semantics
 
@@ -231,14 +225,12 @@ Notes:
 | `username` | `string` | yes | `[A-Za-z0-9_.-]`, length `1..64`. |
 | `secret` | `string` | no | Exactly 32 hex chars. If missing, generated automatically. |
 | `max_unique_ips` | `usize` | no | Per-user unique source IP limit. |
-| `enabled` | `bool` | no | User enable flag. Missing means enabled. `false` persists a disabled override. |
 
 ### `PatchUserRequest`
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `secret` | `string` | no | Exactly 32 hex chars. |
 | `max_unique_ips` | `usize` or `null` | no | Per-user unique source IP limit; `null` removes the per-user override. |
-| `enabled` | `bool` or `null` | no | `false` disables the user. `true` or `null` removes the disabled override, so the user is enabled. |
 
 ### `PatchConfigRequest`
 
@@ -773,7 +765,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | Field | Type | Description |
 | --- | --- | --- |
 | `username` | `string` | Username. |
-| `enabled` | `bool` | Effective user enable flag. Missing config entry is reported as `true`. |
 | `in_runtime` | `bool` | Whether current runtime config already contains this user. |
 | `max_unique_ips` | `usize?` | Optional unique IP limit. |
 | `current_connections` | `u64` | Live connections for this user from per-user telemetry; reports `0` while user telemetry is disabled. |
@@ -995,7 +986,6 @@ The API exposes WEB desired configuration through the common config resource, pr
 | Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`; close-all first requires effective issuance to be disabled. |
 | Clear debug records or reset carrier learning | Use `POST /v1/runtime/web/debug/clear` or `/carrier-learning/reset` with the current `runtime_instance`. |
 | Manage access users | Use `/v1/users`. Creating a user does not add it to `web.vhosts.profiles`; add profile membership through the `web` config patch. |
-| Disable one user | `POST /v1/users/{username}/disable` updates admission immediately and cancels the user's active sessions. |
 | Rotate a profiled user's secret | Use `/v1/users/{username}/rotate-secret`; the durable credential identity is staged immediately and active owners for the old identity are cancelled. The config watcher rebuilds WEB capabilities from the new access snapshot. The API returns the raw secret, not a `tg://webproxy` link. |
 | Read WEB-specific runtime diagnostics | Use authenticated `GET /web-status`; filters cover client IP, process session ID, User-Agent, and non-secret key fingerprint, with optional grouping, expandable HTTP request-to-response details, and WebSocket handshake/message/frame rows. |
 
@@ -1016,11 +1006,9 @@ Deployment, TLS-terminator examples, links, and WEB-specific verification are do
 | Endpoint | Notes |
 | --- | --- |
 | `PATCH /v1/config` | Deep-merges and validates the patch, writes touched sections via atomic `tmp + rename`, and optionally submits the exact written revision for an in-process Maestro reload. |
-| `POST /v1/users` | Creates and validates a user, atomically updates only affected `access.*` TOML tables, then stages the credential and enabled state in process-wide admission after the durable write. |
-| `PATCH /v1/users/{username}` | Partial update of provided fields only. Missing fields remain unchanged; explicit `null` removes optional entries. Admission is staged only when `secret` or `enabled` changes; an identity change or disable cancels current owners, while a metadata-only patch does not. |
+| `POST /v1/users` | Creates and validates a user, atomically updates only affected `access.*` TOML tables, then stages the credential in process-wide admission after the durable write. |
+| `PATCH /v1/users/{username}` | Partial update of provided fields only. Missing fields remain unchanged; explicit `null` removes optional entries. Admission is staged only when `secret` changes; an identity change cancels current owners, while a metadata-only patch does not. |
 | `POST /v1/users/{username}/rotate-secret` | Replaces the user's secret with a provided valid 32-hex value or a generated value, stages the new process-wide admission identity, cancels owners of the old identity, then returns the effective secret in `CreateUserResponse`. |
-| `POST /v1/users/{username}/enable` | Enables the user idempotently by removing the `access.user_enabled[username]` override and updating the runtime admission state immediately. |
-| `POST /v1/users/{username}/disable` | Disables the user idempotently by writing `access.user_enabled[username] = false`, updating runtime admission immediately, and cancelling active sessions for that username. |
 | `DELETE /v1/users/{username}` | Deletes only the specified user, removes it from API-managed optional `access.user_*` maps, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates only related API-managed `access.*` TOML tables. |
 
 All accepted durable config and user mutations:

@@ -24,7 +24,6 @@ async fn patch_user_to_completion(
 ) -> Result<(UserInfo, String), ApiFailure> {
     let touches_users = body.secret.is_some();
     let touches_user_max_unique_ips = !matches!(&body.max_unique_ips, Patch::Unchanged);
-    let touches_user_enabled = !matches!(&body.enabled, Patch::Unchanged);
 
     if let Some(secret) = body.secret.as_ref()
         && !is_valid_user_secret(secret)
@@ -63,20 +62,9 @@ async fn patch_user_to_completion(
             Some(Some(limit))
         }
     };
-    match body.enabled {
-        Patch::Unchanged => {}
-        Patch::Remove | Patch::Set(true) => {
-            cfg.access.user_enabled.remove(user);
-        }
-        Patch::Set(false) => {
-            cfg.access.user_enabled.insert(user.to_string(), false);
-        }
-    }
-
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
-    let staged_credential =
-        if touches_users || touches_user_enabled {
+    let staged_credential = if touches_users {
             let secret = cfg
                 .users
                 .get(user)
@@ -95,9 +83,6 @@ async fn patch_user_to_completion(
     if touches_user_max_unique_ips {
         touched_sections.push(AccessSection::UserMaxUniqueIps);
     }
-    if touches_user_enabled {
-        touched_sections.push(AccessSection::UserEnabled);
-    }
 
     let revision = if touched_sections.is_empty() {
         current_revision(&shared.config_path).await?
@@ -111,85 +96,13 @@ async fn patch_user_to_completion(
         .await?
     };
     if let Some(credential_id) = staged_credential {
-        shared.proxy_shared.stage_user_credential(
-            user,
-            credential_id,
-            cfg.access.is_user_enabled(user),
-        );
+        shared.proxy_shared.stage_user_credential(user, credential_id);
     }
     match max_unique_ips_change {
         Some(Some(limit)) => shared.ip_tracker.set_user_limit(user, limit).await,
         Some(None) => shared.ip_tracker.remove_user_limit(user).await,
         None => {}
     }
-    drop(_guard);
-
-    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
-    let user_info = users
-        .into_iter()
-        .find(|entry| entry.username == user)
-        .ok_or_else(|| ApiFailure::internal("failed to build updated user view"))?;
-
-    Ok((user_info, revision))
-}
-
-pub(in crate::api) async fn set_user_enabled(
-    user: &str,
-    enabled: bool,
-    expected_revision: Option<String>,
-    shared: &ApiShared,
-) -> Result<(UserInfo, String), ApiFailure> {
-    let shared = shared.clone();
-    let user = user.to_string();
-    shared
-        .clone()
-        .run_mutation_completion(async move {
-            set_user_enabled_to_completion(&user, enabled, expected_revision, &shared).await
-        })
-        .await
-}
-
-async fn set_user_enabled_to_completion(
-    user: &str,
-    enabled: bool,
-    expected_revision: Option<String>,
-    shared: &ApiShared,
-) -> Result<(UserInfo, String), ApiFailure> {
-    let _guard = shared.mutation_lock.lock().await;
-    let (mut cfg, base_revision) =
-        load_config_for_mutation(&shared.config_path, expected_revision.as_deref()).await?;
-
-    if !cfg.users.contains_key(user) {
-        return Err(ApiFailure::new(
-            StatusCode::NOT_FOUND,
-            "not_found",
-            "User not found",
-        ));
-    }
-
-    if enabled {
-        cfg.access.user_enabled.remove(user);
-    } else {
-        cfg.access.user_enabled.insert(user.to_string(), false);
-    }
-
-    cfg.validate()
-        .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
-    let credential_id = cfg
-        .users
-        .get(user)
-        .and_then(|secret| credential_id_from_hex(secret))
-        .ok_or_else(|| ApiFailure::internal("validated user secret could not be decoded"))?;
-    let revision = save_access_sections_to_disk_if_revision(
-        &shared.config_path,
-        &cfg,
-        &[AccessSection::UserEnabled],
-        Some(&base_revision),
-    )
-    .await?;
-    shared
-        .proxy_shared
-        .stage_user_credential(user, credential_id, enabled);
     drop(_guard);
 
     let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;

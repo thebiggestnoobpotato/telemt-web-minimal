@@ -23,7 +23,6 @@ pub(in crate::api) async fn users_from_config(
             .unwrap_or_else(Vec::new);
         let links = build_user_links(cfg, &username);
         users.push(UserInfo {
-            enabled: cfg.access.is_user_enabled(&username),
             in_runtime: runtime_cfg
                 .map(|runtime| runtime.users.contains_key(&username))
                 .unwrap_or(false),

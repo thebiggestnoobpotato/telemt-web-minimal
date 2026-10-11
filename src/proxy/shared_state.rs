@@ -105,10 +105,6 @@ impl ProxySharedState {
         })
     }
 
-    pub(crate) fn is_user_enabled(&self, user: &str) -> bool {
-        self.user_admission.is_user_enabled(user)
-    }
-
     /// Returns the process authority shared by every runtime generation.
     pub(crate) fn user_admission(&self) -> Arc<UserAdmissionAuthority> {
         Arc::clone(&self.user_admission)
@@ -118,9 +114,8 @@ impl ProxySharedState {
     pub(crate) fn apply_user_config(
         &self,
         users: &HashMap<String, String>,
-        user_enabled: &HashMap<String, bool>,
     ) -> Vec<(String, usize)> {
-        self.user_admission.apply_config(users, user_enabled)
+        self.user_admission.apply_config(users)
     }
 
     /// Transfers user-policy ownership to one runtime generation.
@@ -129,13 +124,11 @@ impl ProxySharedState {
         source_generation: u64,
         expected_epoch: Option<u64>,
         users: &HashMap<String, String>,
-        user_enabled: &HashMap<String, bool>,
     ) -> Option<Vec<(String, usize)>> {
         self.user_admission.activate_config_source(
             source_generation,
             expected_epoch,
             users,
-            user_enabled,
         )
     }
 
@@ -144,10 +137,9 @@ impl ProxySharedState {
         &self,
         source_generation: u64,
         users: &HashMap<String, String>,
-        user_enabled: &HashMap<String, bool>,
     ) -> Option<Vec<(String, usize)>> {
         self.user_admission
-            .apply_config_from_source(source_generation, users, user_enabled)
+            .apply_config_from_source(source_generation, users)
     }
 
     /// Applies one persisted user mutation before asynchronous config reload.
@@ -155,9 +147,8 @@ impl ProxySharedState {
         &self,
         user: &str,
         secret: &str,
-        enabled: bool,
     ) -> Option<UserMutationResult> {
-        self.user_admission.stage_user(user, secret, enabled)
+        self.user_admission.stage_user(user, secret)
     }
 
     /// Applies one prevalidated persisted credential before asynchronous reload.
@@ -165,10 +156,9 @@ impl ProxySharedState {
         &self,
         user: &str,
         credential_id: UserCredentialId,
-        enabled: bool,
     ) -> UserMutationResult {
         self.user_admission
-            .stage_user_credential(user, credential_id, enabled)
+            .stage_user_credential(user, credential_id)
     }
 
     /// Installs a deletion tombstone and cancels every current owner.
@@ -236,37 +226,8 @@ mod tests {
                 "ffeeddccbbaa99887766554433221100".to_string(),
             ),
         ]);
-        shared.apply_user_config(&users, &HashMap::new());
+        shared.apply_user_config(&users);
         shared
-    }
-
-    #[test]
-    fn user_enabled_config_sync_tracks_disabled_overrides() {
-        let shared = configured_shared();
-        assert!(shared.is_user_enabled("alice"));
-
-        let users = HashMap::from([
-            ("alice".to_string(), ALICE_SECRET.to_string()),
-            (
-                "bob".to_string(),
-                "ffeeddccbbaa99887766554433221100".to_string(),
-            ),
-        ]);
-        let mut user_enabled = HashMap::new();
-        user_enabled.insert("alice".to_string(), false);
-        user_enabled.insert("bob".to_string(), true);
-
-        let mut newly_disabled = shared.apply_user_config(&users, &user_enabled);
-        newly_disabled.sort();
-        assert_eq!(newly_disabled, vec![("alice".to_string(), 0)]);
-        assert!(!shared.is_user_enabled("alice"));
-        assert!(shared.is_user_enabled("bob"));
-
-        assert!(shared.apply_user_config(&users, &user_enabled).is_empty());
-
-        user_enabled.clear();
-        assert!(shared.apply_user_config(&users, &user_enabled).is_empty());
-        assert!(shared.is_user_enabled("alice"));
     }
 
     #[test]
@@ -288,41 +249,36 @@ mod tests {
     }
 
     #[test]
-    fn disabled_user_cannot_register_after_the_cancellation_snapshot() {
+    fn deleted_user_cannot_register_after_the_tombstone() {
         let shared = configured_shared();
 
-        let result = shared.stage_user("alice", ALICE_SECRET, false).unwrap();
-        assert!(result.newly_disabled);
+        let result = shared.delete_user("alice");
         assert_eq!(result.cancelled, 0);
         assert_eq!(shared.cancel_user_sessions("alice"), 0);
 
         let late = shared.register_user_session("alice", 1);
         assert!(
             late.is_none(),
-            "a session registered after disable returned must be rejected"
+            "a session registered after the tombstone must be rejected"
         );
     }
 
     #[test]
-    fn disabling_user_cancels_existing_sessions_before_return() {
+    fn rotating_user_secret_cancels_existing_sessions_before_return() {
         let shared = configured_shared();
         let registration = shared.register_user_session("alice", 1).unwrap();
         let token = registration.token();
 
-        let result = shared.stage_user("alice", ALICE_SECRET, false).unwrap();
-        assert!(result.newly_disabled);
+        let result = shared
+            .stage_user("alice", "ffeeddccbbaa99887766554433221100")
+            .unwrap();
         assert_eq!(result.cancelled, 1);
         assert!(token.is_cancelled());
-        assert!(shared.register_user_session("alice", 2).is_none());
-
-        let result = shared.stage_user("alice", ALICE_SECRET, true).unwrap();
-        assert!(!result.newly_disabled);
-        assert_eq!(result.cancelled, 0);
-        assert!(shared.register_user_session("alice", 3).is_some());
+        assert!(shared.register_user_session("alice", 2).is_some());
     }
 
     #[test]
-    fn concurrent_disable_and_registration_never_leave_a_live_session() {
+    fn concurrent_delete_and_registration_never_leave_a_live_session() {
         const ITERATIONS: usize = 10_000;
 
         let shared = ProxySharedState::new();
@@ -342,8 +298,7 @@ mod tests {
         for session_id in 0..ITERATIONS as u64 {
             let user = format!("user-{session_id}");
             barrier.wait();
-            let secret = "00112233445566778899aabbccddeeff";
-            shared.stage_user(&user, secret, false).unwrap();
+            shared.delete_user(&user);
         }
 
         for registration in register.join().unwrap().into_iter().flatten() {

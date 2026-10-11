@@ -53,11 +53,7 @@ async fn rotate_secret_to_completion(
         Some(&base_revision),
     )
     .await?;
-    shared.proxy_shared.stage_user_credential(
-        user,
-        credential_id,
-        cfg.access.is_user_enabled(user),
-    );
+    shared.proxy_shared.stage_user_credential(user, credential_id);
     drop(_guard);
 
     let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
@@ -116,9 +112,6 @@ async fn delete_user_to_completion(
 
     let mut touched_sections = vec![AccessSection::Users];
     cfg.users.remove(user);
-    if cfg.access.user_enabled.remove(user).is_some() {
-        touched_sections.push(AccessSection::UserEnabled);
-    }
     if cfg.access.user_max_unique_ips.remove(user).is_some() {
         touched_sections.push(AccessSection::UserMaxUniqueIps);
     }

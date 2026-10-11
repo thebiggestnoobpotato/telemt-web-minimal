@@ -225,7 +225,6 @@ impl WebProcessRuntime {
             .runtime
             .as_ref()
             .and_then(|runtime| matching_profile(runtime, &issued_profile))
-            .filter(|profile| generation.proxy_shared.is_user_enabled(&profile.user))
             .ok_or(ManagerError::Authentication)?;
         let profile_key = profile_key(&profile);
         if carrier_request.is_automatic() && !profile.carrier_negotiation_enabled {

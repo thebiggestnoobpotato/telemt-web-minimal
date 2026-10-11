@@ -196,7 +196,6 @@ const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
 ];
 
 const ACCESS_CONFIG_KEYS: &[&str] = &[
-    "user_enabled",
     "user_max_unique_ips",
     "global_user_max_unique_ips",
     "user_max_unique_ips_mode",

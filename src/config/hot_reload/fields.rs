@@ -9,7 +9,6 @@ pub struct HotFields {
     pub dc_copy_buf_c2s_bytes: usize,
     pub dc_copy_buf_s2c_bytes: usize,
     pub users: std::collections::HashMap<String, String>,
-    pub user_enabled: std::collections::HashMap<String, bool>,
     pub user_max_unique_ips: std::collections::HashMap<String, usize>,
     pub global_user_max_unique_ips: usize,
     pub user_max_unique_ips_mode: crate::config::UserMaxUniqueIpsMode,
@@ -26,7 +25,6 @@ impl HotFields {
             dc_copy_buf_c2s_bytes: cfg.general.dc_copy_buf_c2s_bytes,
             dc_copy_buf_s2c_bytes: cfg.general.dc_copy_buf_s2c_bytes,
             users: cfg.users.clone(),
-            user_enabled: cfg.access.user_enabled.clone(),
             user_max_unique_ips: cfg.access.user_max_unique_ips.clone(),
             global_user_max_unique_ips: cfg.access.global_user_max_unique_ips,
             user_max_unique_ips_mode: cfg.access.user_max_unique_ips_mode,
@@ -46,7 +44,6 @@ pub(super) fn overlay_hot_fields(old: &ProxyConfig, new: &ProxyConfig) -> ProxyC
     cfg.general.dc_copy_buf_s2c_bytes = new.general.dc_copy_buf_s2c_bytes;
 
     cfg.users = new.users.clone();
-    cfg.access.user_enabled = new.access.user_enabled.clone();
     cfg.access.user_max_unique_ips = new.access.user_max_unique_ips.clone();
     cfg.access.global_user_max_unique_ips = new.access.global_user_max_unique_ips;
     cfg.access.user_max_unique_ips_mode = new.access.user_max_unique_ips_mode;

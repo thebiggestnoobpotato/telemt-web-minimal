@@ -139,12 +139,12 @@ fn find_bounds_spans_dotted_subtables() {
 
 #[test]
 fn find_bounds_does_not_overrun_sibling_prefix() {
-    // users must not swallow access.user_enabled (dot guards the prefix).
-    let src = "[users]\nalice = \"x\"\n\n[access.user_enabled]\nalice = true\n";
+    // users must not swallow access.user_max_unique_ips (dot guards the prefix).
+    let src = "[users]\nalice = \"x\"\n\n[access.user_max_unique_ips]\nalice = 16\n";
     let bounds = find_toml_table_bounds(src, "users").unwrap();
     let slice = &src[bounds.0..bounds.1];
     assert!(slice.starts_with("[users]"));
-    assert!(!slice.contains("[access.user_enabled]"));
+    assert!(!slice.contains("[access.user_max_unique_ips]"));
 }
 
 #[test]
@@ -351,12 +351,12 @@ async fn config_sidecar_lock_serializes_competing_revision_writers() {
 async fn access_mutation_rejects_sections_with_different_source_owners() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
-    let included = dir.path().join("enabled.toml");
+    let included = dir.path().join("ip_limits.toml");
     let root_body = concat!(
-        "include = \"enabled.toml\"\n",
+        "include = \"ip_limits.toml\"\n",
         "[users]\nalice = \"00000000000000000000000000000000\"\n"
     );
-    let included_body = "[access.user_enabled]\nalice = false\n";
+    let included_body = "[access.user_max_unique_ips]\nalice = 16\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let cfg = load_config_from_disk(&root).await.unwrap();
@@ -364,7 +364,7 @@ async fn access_mutation_rejects_sections_with_different_source_owners() {
     let error = save_access_sections_to_disk(
         &root,
         &cfg,
-        &[AccessSection::Users, AccessSection::UserEnabled],
+        &[AccessSection::Users, AccessSection::UserMaxUniqueIps],
     )
     .await
     .unwrap_err();

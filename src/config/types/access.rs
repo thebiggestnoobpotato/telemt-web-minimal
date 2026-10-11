@@ -4,9 +4,6 @@ use super::*;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AccessConfig {
     #[serde(default)]
-    pub user_enabled: HashMap<String, bool>,
-
-    #[serde(default)]
     pub user_max_unique_ips: HashMap<String, usize>,
 
     /// Global per-user unique IP limit applied when a user has no individual override.
@@ -33,7 +30,6 @@ pub struct AccessConfig {
 impl Default for AccessConfig {
     fn default() -> Self {
         Self {
-            user_enabled: HashMap::new(),
             user_max_unique_ips: HashMap::new(),
             global_user_max_unique_ips: default_global_user_max_unique_ips(),
             user_max_unique_ips_mode: UserMaxUniqueIpsMode::default(),
@@ -43,11 +39,4 @@ impl Default for AccessConfig {
             ignore_time_skew: false,
         }
     }
-}
-
-impl AccessConfig {
-    pub fn is_user_enabled(&self, username: &str) -> bool {
-        self.user_enabled.get(username).copied().unwrap_or(true)
-    }
-
 }

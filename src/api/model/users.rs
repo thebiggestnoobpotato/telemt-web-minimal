@@ -8,7 +8,6 @@ pub(in crate::api) struct UserLinks {
 #[derive(Serialize)]
 pub(in crate::api) struct UserInfo {
     pub(in crate::api) username: String,
-    pub(in crate::api) enabled: bool,
     pub(in crate::api) in_runtime: bool,
     pub(in crate::api) max_unique_ips: Option<usize>,
     pub(in crate::api) current_connections: u64,
@@ -43,7 +42,6 @@ pub(in crate::api) struct CreateUserRequest {
     pub(in crate::api) username: String,
     pub(in crate::api) secret: Option<String>,
     pub(in crate::api) max_unique_ips: Option<usize>,
-    pub(in crate::api) enabled: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -51,8 +49,6 @@ pub(in crate::api) struct PatchUserRequest {
     pub(in crate::api) secret: Option<String>,
     #[serde(default, deserialize_with = "patch_field")]
     pub(in crate::api) max_unique_ips: Patch<usize>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) enabled: Patch<bool>,
 }
 
 #[derive(Default, Deserialize)]

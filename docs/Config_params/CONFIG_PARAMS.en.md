@@ -829,7 +829,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 | Key | Type | Default | Hot-Reload |
 | --- | ---- | ------- | ---------- |
-| [`user_enabled`](#user_enabled-1) | `Map<String, bool>` | `{}` | `✔` |
 | [`user_max_unique_ips`](#user_max_unique_ips) | `Map<String, usize>` | `{}` | `✔` |
 | [`global_user_max_unique_ips`](#global_user_max_unique_ips) | `usize` | `0` | `✔` |
 | [`user_max_unique_ips_mode`](#user_max_unique_ips_mode) | `"active_window"`, `"time_window"`, or `"combined"` | `"active_window"` | `✔` |
@@ -838,16 +837,6 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | [`replay_window_secs`](#replay_window_secs) | `u64` | `120` | `✘` |
 | [`ignore_time_skew`](#ignore_time_skew) | `bool` | `false` | `✘` |
 
-## user_enabled
-  - **Constraints / validation**: `Map<String, bool>`.
-  - **Description**: Optional per-user enable overrides. Missing users are enabled by default. A value of `false` disables new sessions for that user; setting the value to `true` is accepted but equivalent to removing the override. API enable operations remove the override, while disable operations write `false`.
-  - **Runtime behavior**: Hot reload applies this map immediately. Users disabled through API or config reload are rejected after successful authentication and active runtime sessions for that username are cancelled.
-  - **Example**:
-
-    ```toml
-    [access.user_enabled]
-    alice = false
-    ```
 ## user_max_unique_ips
   - **Constraints / validation**: `Map<String, usize>`.
   - **Description**: Per-user unique source IP limits.

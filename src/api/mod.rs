@@ -76,9 +76,7 @@ use runtime_zero::{
     build_limits_effective_data, build_runtime_gates_data, build_security_posture_data,
     build_system_info_data,
 };
-use users::{
-    create_user, delete_user, patch_user, rotate_secret, set_user_enabled, users_from_config,
-};
+use users::{create_user, delete_user, patch_user, rotate_secret, users_from_config};
 
 const API_MAX_CONTROL_CONNECTIONS: usize = 1024;
 const API_HTTP_CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
