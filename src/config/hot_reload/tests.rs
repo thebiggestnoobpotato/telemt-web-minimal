@@ -405,6 +405,23 @@ fn classify_cold_field_change_requires_restart() {
 }
 
 #[test]
+fn classify_web_global_profiles_change_is_hot() {
+    // The whole web table is overlaid hot (limits and fallback_fasttrack_mode
+    // excluded), so web.profiles changes never require a restart.
+    let old = ProxyConfig::default();
+    let mut new = ProxyConfig::default();
+    new.web.profiles.push(crate::config::WebGlobalProfileConfig {
+        secret_mode: crate::config::WebSecretMode::Dd,
+        max_sessions: None,
+        max_streams: None,
+        max_streams_per_session: None,
+    });
+
+    let class = classify_config_changes(&old, &new);
+    assert!(!class.restart_required);
+}
+
+#[test]
 fn reload_recovers_after_parse_error_on_next_attempt() {
     let path = temp_config_path("telemt_hot_reload_parse_recovery");
 

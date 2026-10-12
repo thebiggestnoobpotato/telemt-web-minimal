@@ -22,6 +22,7 @@ This document lists all configuration keys accepted by `config.toml`.
  - [web](#web)
  - [web.debug](#webdebug)
  - [web.limits](#weblimits)
+ - [web.profiles](#webprofiles)
  - [web.timeouts](#webtimeouts)
  - [web.vhosts](#webvhosts)
  - [web.vhosts.fallback](#webvhostsfallback)
@@ -613,10 +614,11 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `http_connection_capacity_action` | `"drop"`, `"wait"`, or `"respond"` | `"drop"` | `✔` |
 | `debug` | table | disabled, bounded defaults | `✔` |
 | `limits` | table | bounded defaults | `✘` |
+| `profiles` | array of tables | `[]` | `✔` |
 | `timeouts` | table | bounded defaults | `✔` |
 | `vhosts` | array of tables | `[]` | `✔` |
 
-`enabled = true` requires at least one network-eligible WEB listener, at least one vhost, and at least one profile in every vhost. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
+`enabled = true` requires at least one network-eligible WEB listener, at least one vhost, and at least one profile in every vhost — explicit, or instantiated by a non-empty `[[web.profiles]]`. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
 
 When `carriers` is missing or `false`, auto-negotiation and learning are disabled and `carrier` is the only mode. A non-empty `carriers` array enables startup-only negotiation in its configured order; `carrier` is appended exactly once as the final fallback. Empty arrays, duplicates, and `true` are rejected. The client advances candidates only before carrier commit and must create a new session to change carrier after commit. A metadata-free native client, including Telegram iOS, always uses the configured fixed `carrier`, even when negotiation is enabled. Current iOS supports only `https`, so such deployments must configure `carrier = "https"`. CFNetwork and Darwin User-Agent classification does not infer carrier support. Explicit native iOS capabilities are intersected with `{https}`; other explicit client capabilities participate as reported.
 
@@ -690,7 +692,7 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `max_bootstraps_global` | `usize` | `512` | Live bootstrap credentials process-wide. |
 | `max_bootstraps_per_ip` | `usize` | `64` | Live bootstrap credentials per client IP. |
 | `max_vhosts` | `usize` | `8` | Configured WEB virtual hosts. |
-| `max_profiles` | `usize` | `32` | WEB profiles across all vhosts. |
+| `max_profiles` | `usize` | `32` | WEB profiles across all vhosts, counted after `[[web.profiles]]` expansion. |
 | `debug_records_capacity` | `usize` | `65536` | Maximum retained WEB debug record count. |
 | `debug_bytes_global` | `usize` | `67108864` | Retained plus in-flight WEB debug byte ceiling; minimum 4096. |
 | `memory_envelope_bytes` | `usize` | `1342177280` | Declared envelope for HTTP heads, bodies, shared queues/WebSocket I/O, capability indexes, lane state, carrier learning, and bounded debug/status buffers; maximum 4 GiB. |
@@ -700,6 +702,24 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `new_sessions_burst` | `u32` | `128` | Process-wide session creation burst. |
 | `new_streams_per_minute` | `u32` | `6000` | Sustained logical-stream creation rate. |
 | `new_streams_burst` | `u32` | `512` | Process-wide logical-stream creation burst. |
+
+# [[web.profiles]]
+
+Global access profiles: one entry instantiates a profile for **every user in `[users]`**, in **every vhost**, without repeating a profile per user.
+
+| Key | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `secret_mode` | `"plain"` or `"dd"` | yes | — | Exact Telegram Desktop secret representation applied to every user. `ee` is not supported. |
+| `max_sessions` | `usize` | no | `web.limits.max_sessions_global` | Live sessions ceiling for each instantiated profile. |
+| `max_streams` | `usize` | no | `web.limits.max_streams_global` | Live logical-stream ceiling for each instantiated profile. |
+| `max_streams_per_session` | `usize` | no | `web.limits.max_streams_per_session` | Live logical-stream ceiling per session for each instantiated profile. |
+
+A `user` key is not allowed here; per-user profiles belong in `[[web.vhosts.profiles]]`. Duplicate `secret_mode` entries are rejected. Profile limits must be non-zero and no greater than their corresponding global limits. An explicit `[[web.vhosts.profiles]]` entry wins for the same `(user, secret_mode)` in a vhost: the global entry is skipped for that pair only. Instantiated profiles count toward `web.limits.max_profiles` after expansion.
+
+```toml
+[[web.profiles]]
+secret_mode = "plain"
+```
 
 # [web.timeouts]
 
@@ -763,7 +783,7 @@ The `mode` key is required and accepts one value:
 | `max_streams` | `usize` | no | `web.limits.max_streams_global` | Live logical streams for this profile. |
 | `max_streams_per_session` | `usize` | no | `web.limits.max_streams_per_session` | Live logical streams in one profile session. |
 
-Profile limits must be non-zero and no greater than their corresponding global limits. Duplicate `(user, secret_mode)` profiles in one vhost are rejected.
+Profile limits must be non-zero and no greater than their corresponding global limits. Duplicate `(user, secret_mode)` profiles in one vhost are rejected. An explicit entry also wins over a global `[[web.profiles]]` entry for the same `(user, secret_mode)`: the global profile is skipped for that user in that vhost only.
 
 ## WEB lifecycle and API management
 

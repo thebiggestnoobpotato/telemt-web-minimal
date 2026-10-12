@@ -5,6 +5,8 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     if config.web.vhosts.len() > limits.max_vhosts {
         return config_error("web.vhosts exceeds web.limits.max_vhosts");
     }
+    validate_global_profiles(config, limits)?;
+    let global_covers_users = !config.web.profiles.is_empty() && !config.users.is_empty();
     let mut hosts = HashSet::with_capacity(config.web.vhosts.len());
     let mut profile_count = 0usize;
     for (vhost_idx, vhost) in config.web.vhosts.iter_mut().enumerate() {
@@ -21,9 +23,9 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
                 "web.vhosts[{vhost_idx}].public_addr must be a concrete socket address on port 443"
             ));
         }
-        if config.web.enabled && vhost.profiles.is_empty() {
+        if config.web.enabled && vhost.profiles.is_empty() && !global_covers_users {
             return config_error(&format!(
-                "web.vhosts[{vhost_idx}].profiles must be non-empty when web.enabled=true"
+                "web.vhosts[{vhost_idx}] has no profiles: add [[web.vhosts.profiles]] or [[web.profiles]] when web.enabled=true"
             ));
         }
         validate_fallback(vhost_idx, &vhost.fallback)?;
@@ -46,35 +48,86 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
                     profile.user, vhost.host
                 ));
             }
-            let max_streams = profile.max_streams.unwrap_or(limits.max_streams_global);
-            let max_streams_per_session = profile
-                .max_streams_per_session
-                .unwrap_or(limits.max_streams_per_session);
-            if profile.max_sessions == Some(0)
-                || profile
-                    .max_sessions
-                    .is_some_and(|value| value > limits.max_sessions_global)
-                || profile.max_streams == Some(0)
-                || profile
-                    .max_streams
-                    .is_some_and(|value| value > limits.max_streams_global)
-                || profile.max_streams_per_session == Some(0)
-                || profile
-                    .max_streams_per_session
-                    .is_some_and(|value| value > limits.max_streams_per_session)
-                || max_streams_per_session > max_streams
-            {
-                return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].profiles[{profile_idx}] limits must be non-zero and within global WEB limits"
-                ));
-            }
+            validate_profile_limits(
+                &profile.max_sessions,
+                &profile.max_streams,
+                &profile.max_streams_per_session,
+                limits,
+                &format!("web.vhosts[{vhost_idx}].profiles[{profile_idx}]"),
+            )?;
             profile_count = profile_count.checked_add(1).ok_or_else(|| {
                 ProxyError::Config("WEB profile count overflowed usize".to_string())
             })?;
         }
+        // Global profiles instantiate one profile per user not already covered
+        // by an explicit profile with the same secret mode in this vhost.
+        for global in &config.web.profiles {
+            let covered = vhost
+                .profiles
+                .iter()
+                .filter(|profile| profile.secret_mode == global.secret_mode)
+                .count();
+            let additions = config.users.len().saturating_sub(covered);
+            profile_count = profile_count
+                .checked_add(additions)
+                .ok_or_else(|| ProxyError::Config("WEB profile count overflowed usize".to_string()))?;
+        }
     }
     if profile_count > limits.max_profiles {
         return config_error("WEB profiles exceed web.limits.max_profiles");
+    }
+    Ok(())
+}
+
+/// Validates global `[[web.profiles]]` entries, which instantiate one profile
+/// per `[users]` user in every vhost.
+fn validate_global_profiles(config: &ProxyConfig, limits: &WebLimitsConfig) -> Result<()> {
+    let mut modes = HashSet::with_capacity(config.web.profiles.len());
+    for (profile_idx, profile) in config.web.profiles.iter().enumerate() {
+        validate_profile_limits(
+            &profile.max_sessions,
+            &profile.max_streams,
+            &profile.max_streams_per_session,
+            limits,
+            &format!("web.profiles[{profile_idx}]"),
+        )?;
+        let mode = match profile.secret_mode {
+            WebSecretMode::Plain => "plain",
+            WebSecretMode::Dd => "dd",
+        };
+        if !modes.insert(mode) {
+            return config_error(&format!(
+                "duplicate WEB global profile for secret mode `{mode}`"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Profile ceilings must be non-zero, within the global WEB ceilings, and
+/// nested: the per-session stream ceiling cannot exceed the stream ceiling.
+fn validate_profile_limits(
+    max_sessions: &Option<usize>,
+    max_streams: &Option<usize>,
+    max_streams_per_session: &Option<usize>,
+    limits: &WebLimitsConfig,
+    field: &str,
+) -> Result<()> {
+    let effective_streams = max_streams.unwrap_or(limits.max_streams_global);
+    let effective_streams_per_session =
+        max_streams_per_session.unwrap_or(limits.max_streams_per_session);
+    if max_sessions == &Some(0)
+        || max_sessions.is_some_and(|value| value > limits.max_sessions_global)
+        || max_streams == &Some(0)
+        || max_streams.is_some_and(|value| value > limits.max_streams_global)
+        || max_streams_per_session == &Some(0)
+        || max_streams_per_session
+            .is_some_and(|value| value > limits.max_streams_per_session)
+        || effective_streams_per_session > effective_streams
+    {
+        return config_error(&format!(
+            "{field} limits must be non-zero and within global WEB limits"
+        ));
     }
     Ok(())
 }

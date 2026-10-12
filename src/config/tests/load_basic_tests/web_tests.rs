@@ -12,6 +12,9 @@ mod conveyor_tests;
 #[path = "web_tests/fallback_dns_tests.rs"]
 mod fallback_dns_tests;
 
+#[path = "web_tests/global_profiles_tests.rs"]
+mod global_profiles_tests;
+
 const WEB_CONFIG: &str = r#"
 [users]
 alice = "000102030405060708090a0b0c0d0e0f"

@@ -63,7 +63,7 @@ user1 = "00000000000000000000000000000001"
 user2 = "00000000000000000000000000000002"
 user3 = "00000000000000000000000000000003"
 ```
-4. Add a profile for each new user to the vhost:
+4. If the configuration already has a global `[[web.profiles]]` entry, nothing else is needed — it applies to every user in `[users]`. Otherwise add a profile for each new user to the vhost:
 ```toml
 [[web.vhosts.profiles]]
 user = "user1"

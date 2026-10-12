@@ -106,6 +106,14 @@ max_streams = 512
 max_streams_per_session = 64
 ```
 
+Instead of repeating a profile per user, one global `[[web.profiles]]` entry (without a `user` key) under `[web]` instantiates a profile for **every user in `[users]`** in **every vhost** with a shared `secret_mode` and optional ceilings; an explicit per-user profile wins for the same `(user, secret_mode)` in a vhost, and the expanded total counts toward `web.limits.max_profiles`:
+
+```toml
+[[web.profiles]]
+secret_mode = "dd"
+max_sessions = 8
+```
+
 Accepted-socket overload handling is independently configurable. `drop` preserves the legacy close after `accept(2)`. `respond` writes an empty retryable `503` without parsing a request. `wait` waits outside the accept loop for ordinary connection capacity and then enters normal HTTP handling; timeout writes the same `503`. Both waiting and response writing use `web.timeouts.http_overload_timeout_ms` per phase. `web.limits.max_http_overload_connections` bounds sockets outside ordinary capacity and requires a process restart when changed; the action and timeout are hot-reloadable.
 
 `base_path` defaults to empty. A non-empty value is at most 128 ASCII bytes and consists of slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments without leading or trailing slash. Root vhosts preserve the v1 capability derivation. Path vhosts use the v2 context over the exact canonical host and base path, so changing case or any segment changes both the route and capability.

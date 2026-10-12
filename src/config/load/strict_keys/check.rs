@@ -40,6 +40,7 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         WEB_VHOST_CONFIG_KEYS,
         WEB_FALLBACK_CONFIG_KEYS,
         WEB_PROFILE_CONFIG_KEYS,
+        WEB_GLOBAL_PROFILE_CONFIG_KEYS,
         ACCESS_CONFIG_KEYS,
         UPSTREAM_CONFIG_KEYS,
         LOGGING_CONFIG_KEYS,
@@ -205,6 +206,20 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         &["web", "timeouts"],
         WEB_TIMEOUTS_CONFIG_KEYS,
     );
+    if let Some(profiles) = parsed_toml.get("web")
+        .and_then(|web| web.get("profiles"))
+        .and_then(toml::Value::as_array)
+    {
+        for (profile_idx, profile) in profiles.iter().enumerate() {
+            check_nested_table_value(
+                &mut unknown,
+                &known_for_suggestion,
+                format!("web.profiles[{profile_idx}]"),
+                profile,
+                WEB_GLOBAL_PROFILE_CONFIG_KEYS,
+            );
+        }
+    }
     check_known_table(
         parsed_toml,
         &mut unknown,

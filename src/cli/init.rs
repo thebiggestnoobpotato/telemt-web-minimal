@@ -266,6 +266,10 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 [web]
 enabled = true
 
+# Applies to every user in [users]; remove to bind users per vhost instead.
+[[web.profiles]]
+secret_mode = "plain"
+
 [[web.vhosts]]
 host = "{domain}"
 # Replace with this server's public IP and port.
@@ -274,10 +278,6 @@ public_addr = "203.0.113.1:443"
 [web.vhosts.fallback]
 mode = "http_upstream"
 upstream = "http://127.0.0.1:80"
-
-[[web.vhosts.profiles]]
-user = "{username}"
-secret_mode = "plain"
 
 [access]
 replay_check_len = 65536
