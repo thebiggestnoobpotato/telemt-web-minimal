@@ -17,17 +17,15 @@ enabled = true
 carrier = "https-lanes"
 secret_mode = "plain"
 
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
 
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
 "#;
 
 #[test]
-fn global_secret_mode_instantiates_every_user_in_every_vhost() {
+fn global_secret_mode_instantiates_every_user_in_the_vhost() {
     let config = load_config_from_temp_toml(GLOBAL_WEB_CONFIG);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
@@ -49,26 +47,13 @@ fn global_secret_mode_instantiates_every_user_in_every_vhost() {
         );
     }
     assert_eq!(runtime.profiles.len(), 2);
-
-    let two_vhosts = GLOBAL_WEB_CONFIG.replace(
-        "[[web.vhosts]]\nhost = \"proxy.example.com\"",
-        "[[web.vhosts]]\nhost = \"second.example.com\"\npublic_addr = \"203.0.113.11:443\"\n\n\
-         [web.vhosts.fallback]\nmode = \"http_upstream\"\nupstream = \"http://127.0.0.1:18082\"\n\n\
-         [[web.vhosts]]\nhost = \"proxy.example.com\"",
-    );
-    let config = load_config_from_temp_toml(&two_vhosts);
-    let runtime = config.web.runtime.expect("WEB runtime snapshot");
-    for host in ["second.example.com", "proxy.example.com"] {
-        let vhost = runtime.vhosts.get(host).expect("canonical WEB vhost");
-        assert_eq!(vhost.profiles.len(), 2, "{host}");
-    }
 }
 
 #[test]
 fn explicit_profile_wins_over_global_for_same_mode() {
     let toml = format!(
         "{GLOBAL_WEB_CONFIG}\n\
-         [[web.vhosts.profiles]]\nuser = \"alice\"\nsecret_mode = \"plain\"\nmax_sessions = 4\n"
+         [[web.vhost.profiles]]\nuser = \"alice\"\nsecret_mode = \"plain\"\nmax_sessions = 4\n"
     );
     let config = load_config_from_temp_toml(&toml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
@@ -96,7 +81,7 @@ fn explicit_profile_wins_over_global_for_same_mode() {
 fn explicit_profile_keeps_both_modes_alongside_global() {
     let toml = format!(
         "{GLOBAL_WEB_CONFIG}\n\
-         [[web.vhosts.profiles]]\nuser = \"alice\"\nsecret_mode = \"dd\"\n"
+         [[web.vhost.profiles]]\nuser = \"alice\"\nsecret_mode = \"dd\"\n"
     );
     let config = load_config_from_temp_toml(&toml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");

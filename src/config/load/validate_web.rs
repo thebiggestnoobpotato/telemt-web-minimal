@@ -56,9 +56,9 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
                 .to_string(),
         ));
     }
-    if web_listener_count > 0 && config.web.vhosts.is_empty() {
+    if web_listener_count > 0 && config.web.vhost.is_none() {
         return Err(ProxyError::Config(
-            "A WEB listener requires at least one [[web.vhosts]] entry".to_string(),
+            "A WEB listener requires a [web.vhost] table".to_string(),
         ));
     }
 
@@ -96,16 +96,15 @@ fn validate_fallback_listener_separation_inner(
         .filter(|listener| listener_is_network_eligible(listener, config))
         .filter_map(ListenerEndpoint::from_listener)
         .collect::<Vec<_>>();
-    for (vhost_idx, vhost) in config.web.vhosts.iter().enumerate() {
-        let WebFallbackConfig::HttpUpstream { upstream, resolve } = &vhost.fallback;
-        let origin = fallback_dns::parse_origin(vhost_idx, upstream, *resolve)?;
-        for endpoint in fallback_dns::addresses(config, vhost_idx, &origin, require_resolved)? {
+    if let Some(vhost) = &config.web.vhost {
+        let origin = fallback_dns::parse_origin(&vhost.upstream, vhost.resolve)?;
+        for endpoint in fallback_dns::addresses(config, &origin, require_resolved)? {
             if web_endpoints
                 .iter()
                 .any(|listener| fallback_endpoint_overlaps(listener, &endpoint))
             {
                 return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].fallback upstream overlaps WEB listener {endpoint}"
+                    "web.vhost.upstream overlaps WEB listener {endpoint}"
                 ));
             }
         }

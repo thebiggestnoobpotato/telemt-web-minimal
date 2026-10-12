@@ -23,15 +23,12 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 [web]
 enabled = true
 
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 {base_path}public_addr = "203.0.113.10:443"
 
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
-
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "alice"
 secret_mode = "plain"
 "#,
@@ -57,7 +54,15 @@ fn reload_rejects_invalid_base_then_publishes_route_identity_together() {
     reload_config(&path, &config_tx, &log_tx, &mut reload_state);
     let unchanged = config_tx.borrow().clone();
     assert!(Arc::ptr_eq(&unchanged, &initial));
-    assert_eq!(unchanged.web.vhosts[0].base_path, "");
+    assert_eq!(
+        unchanged
+            .web
+            .vhost
+            .as_ref()
+            .expect("web vhost")
+            .base_path,
+        ""
+    );
     assert_eq!(
         unchanged.web.runtime.as_ref().unwrap().capabilities[0],
         initial_capability
@@ -68,7 +73,15 @@ fn reload_rejects_invalid_base_then_publishes_route_identity_together() {
     let applied = config_tx.borrow().clone();
     let runtime = applied.web.runtime.as_ref().unwrap();
     let vhost = &runtime.vhosts["proxy.example.com"];
-    assert_eq!(applied.web.vhosts[0].base_path, "dobry-cola-super-app");
+    assert_eq!(
+        applied
+            .web
+            .vhost
+            .as_ref()
+            .expect("web vhost")
+            .base_path,
+        "dobry-cola-super-app"
+    );
     assert_eq!(vhost.base, "/dobry-cola-super-app/");
     assert_eq!(vhost.capabilities[0], vhost.profiles[0].capability);
     assert_eq!(runtime.capabilities.as_ref(), vhost.capabilities.as_ref());

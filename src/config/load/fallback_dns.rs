@@ -3,27 +3,6 @@ use std::time::Duration;
 
 use super::*;
 
-/// Rejects mode-specific keys even when unknown-key handling is permissive.
-pub(super) fn validate_mode_keys(document: &toml::Value) -> Result<()> {
-    if let Some(vhosts) = document
-        .get("web")
-        .and_then(|web| web.get("vhosts"))
-        .and_then(toml::Value::as_array)
-    {
-        for (idx, vhost) in vhosts.iter().enumerate() {
-            if let Some(fallback) = vhost.get("fallback")
-                && fallback.get("resolve").is_some()
-                && fallback.get("mode").and_then(toml::Value::as_str) != Some("http_upstream")
-            {
-                return Err(ProxyError::Config(format!(
-                    "web.vhosts[{idx}].fallback.resolve is only valid for mode=http_upstream"
-                )));
-            }
-        }
-    }
-    Ok(())
-}
-
 /// Parsed fallback origin: an http origin, or a unix socket path without DNS.
 pub(super) enum FallbackOrigin {
     /// http origin validated for the configured resolve mode.
@@ -33,42 +12,37 @@ pub(super) enum FallbackOrigin {
 }
 
 /// Parses one origin and preserves the existing literal-address containment policy.
-pub(super) fn parse_origin(
-    idx: usize,
-    upstream: &str,
-    resolve: WebFallbackResolve,
-) -> Result<FallbackOrigin> {
+pub(super) fn parse_origin(upstream: &str, resolve: WebFallbackResolve) -> Result<FallbackOrigin> {
     // The unix: prefix is intercepted before URL parsing; the remainder must
     // be an absolute socket path without URL control characters.
     if let Some(rest) = upstream.strip_prefix("unix:") {
         if resolve == WebFallbackResolve::Startup {
-            return Err(ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.resolve is only valid for http origins"
-            )));
+            return Err(ProxyError::Config(
+                "web.vhost.resolve is only valid for http origins".to_string(),
+            ));
         }
         if rest.is_empty() {
-            return Err(ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.upstream unix origin requires a socket path"
-            )));
+            return Err(ProxyError::Config(
+                "web.vhost.upstream unix origin requires a socket path".to_string(),
+            ));
         }
         if rest.contains('?') || rest.contains('#') || rest.contains(' ') || rest.contains('\\') {
-            return Err(ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.upstream unix origin must not contain a query, fragment, or whitespace"
-            )));
+            return Err(ProxyError::Config(
+                "web.vhost.upstream unix origin must not contain a query, fragment, or whitespace"
+                    .to_string(),
+            ));
         }
         let path: std::path::PathBuf =
             std::path::Path::new(rest).components().collect();
         if !path.is_absolute() {
-            return Err(ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.upstream unix origin must be an absolute socket path"
-            )));
+            return Err(ProxyError::Config(
+                "web.vhost.upstream unix origin must be an absolute socket path".to_string(),
+            ));
         }
         return Ok(FallbackOrigin::Unix { path });
     }
     let parsed = url::Url::parse(upstream).map_err(|error| {
-        ProxyError::Config(format!(
-            "web.vhosts[{idx}].fallback.upstream is invalid: {error}"
-        ))
+        ProxyError::Config(format!("web.vhost.upstream is invalid: {error}"))
     })?;
     if parsed.scheme() != "http"
         || parsed.host_str().is_none()
@@ -79,32 +53,34 @@ pub(super) fn parse_origin(
         || parsed.path() != "/"
         || parsed.port() == Some(0)
     {
-        return Err(ProxyError::Config(format!(
-            "web.vhosts[{idx}].fallback.upstream must be an http origin without credentials, path, query, or fragment"
-        )));
+        return Err(ProxyError::Config(
+            "web.vhost.upstream must be an http origin without credentials, path, query, or fragment"
+                .to_string(),
+        ));
     }
     match parsed.host() {
-        Some(url::Host::Ipv4(ip)) => validate_address(idx, IpAddr::V4(ip))?,
-        Some(url::Host::Ipv6(ip)) => validate_address(idx, IpAddr::V6(ip))?,
+        Some(url::Host::Ipv4(ip)) => validate_address(IpAddr::V4(ip))?,
+        Some(url::Host::Ipv6(ip)) => validate_address(IpAddr::V6(ip))?,
         Some(url::Host::Domain(_)) if resolve == WebFallbackResolve::Startup => {}
         _ => {
-            return Err(ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.upstream host must be a loopback or private IP literal unless resolve = \"startup\""
-            )));
+            return Err(ProxyError::Config(
+                "web.vhost.upstream host must be a loopback or private IP literal unless resolve = \"startup\""
+                    .to_string(),
+            ));
         }
     }
     Ok(FallbackOrigin::Http { url: parsed })
 }
 
-fn validate_address(idx: usize, ip: IpAddr) -> Result<()> {
+fn validate_address(ip: IpAddr) -> Result<()> {
     let private = match ip {
         IpAddr::V4(ip) => ip.is_loopback() || ip.is_private() || ip.is_link_local(),
         IpAddr::V6(ip) => ip.is_loopback() || ip.is_unique_local() || ip.is_unicast_link_local(),
     };
     if !private {
-        return Err(ProxyError::Config(format!(
-            "web.vhosts[{idx}].fallback.upstream must remain inside loopback or a private network"
-        )));
+        return Err(ProxyError::Config(
+            "web.vhost.upstream must remain inside loopback or a private network".to_string(),
+        ));
     }
     Ok(())
 }
@@ -112,19 +88,17 @@ fn validate_address(idx: usize, ip: IpAddr) -> Result<()> {
 /// Returns all captured answers so non-selected addresses cannot hide a listener loop.
 pub(super) fn addresses(
     config: &ProxyConfig,
-    idx: usize,
     origin: &FallbackOrigin,
     require_resolved: bool,
 ) -> Result<Vec<FallbackEndpoint>> {
     match origin {
         FallbackOrigin::Unix { path } => Ok(vec![FallbackEndpoint::Unix(path.clone())]),
-        FallbackOrigin::Http { url } => http_addresses(config, idx, url, require_resolved),
+        FallbackOrigin::Http { url } => http_addresses(config, url, require_resolved),
     }
 }
 
 fn http_addresses(
     config: &ProxyConfig,
-    idx: usize,
     url: &url::Url,
     require_resolved: bool,
 ) -> Result<Vec<FallbackEndpoint>> {
@@ -140,16 +114,16 @@ fn http_addresses(
                 Some(answers) if !answers.is_empty() => answers.clone(),
                 _ if !require_resolved => return Ok(Vec::new()),
                 _ => {
-                    return Err(ProxyError::Config(format!(
-                        "web.vhosts[{idx}].fallback.upstream requires async preparation for resolve = \"startup\""
-                    )));
+                    return Err(ProxyError::Config(
+                        "web.vhost.upstream requires async preparation for resolve = \"startup\"".to_string(),
+                    ));
                 }
             }
         }
         _ => return Err(ProxyError::Config("WEB fallback host is missing".to_string())),
     };
     for addr in &answers {
-        validate_address(idx, addr.ip())?;
+        validate_address(addr.ip())?;
         if addr.port() != port {
             return Err(ProxyError::Config(
                 "WEB fallback DNS snapshot port mismatch".to_string(),
@@ -169,48 +143,44 @@ where
     Fut: Future<Output = std::io::Result<Vec<SocketAddr>>>,
 {
     let mut snapshot = WebFallbackDnsSnapshot::default();
-    for (idx, vhost) in config.web.vhosts.iter().enumerate() {
-        let WebFallbackConfig::HttpUpstream { upstream, resolve } = &vhost.fallback;
-        let origin = parse_origin(idx, upstream, *resolve)?;
-        let FallbackOrigin::Http { url } = &origin else {
-            continue;
-        };
-        let Some(url::Host::Domain(host)) = url.host() else {
-            continue;
-        };
-        let port = url
-            .port_or_known_default()
-            .ok_or_else(|| ProxyError::Config("WEB fallback port cannot be resolved".to_string()))?;
-        let key = (host.to_string(), port);
-        if snapshot.origins.contains_key(&key) {
-            continue;
+    if let Some(vhost) = &config.web.vhost {
+        let origin = parse_origin(&vhost.upstream, vhost.resolve)?;
+        if let FallbackOrigin::Http { url } = &origin {
+            if let Some(url::Host::Domain(host)) = url.host() {
+                let port = url.port_or_known_default().ok_or_else(|| {
+                    ProxyError::Config("WEB fallback port cannot be resolved".to_string())
+                })?;
+                let key = (host.to_string(), port);
+                if !snapshot.origins.contains_key(&key) {
+                    // Dropping this wait does not forcibly cancel a running OS resolver call.
+                    let answers = tokio::time::timeout(
+                        Duration::from_secs(config.web.timeouts.fallback_resolve_secs),
+                        lookup(key.0.clone(), port),
+                    )
+                    .await
+                    .map_err(|_| {
+                        ProxyError::Config(format!(
+                            "web.vhost.upstream DNS resolution timed out after {} seconds",
+                            config.web.timeouts.fallback_resolve_secs
+                        ))
+                    })?
+                    .map_err(|error| {
+                        ProxyError::Config(format!(
+                            "web.vhost.upstream DNS resolution failed: {error}"
+                        ))
+                    })?;
+                    if answers.is_empty() {
+                        return Err(ProxyError::Config(
+                            "web.vhost.upstream DNS resolution returned no addresses".to_string(),
+                        ));
+                    }
+                    for addr in &answers {
+                        validate_address(addr.ip())?;
+                    }
+                    snapshot.origins.insert(key, answers);
+                }
+            }
         }
-        // Dropping this wait does not forcibly cancel a running OS resolver call.
-        let answers = tokio::time::timeout(
-            Duration::from_secs(config.web.timeouts.fallback_resolve_secs),
-            lookup(key.0.clone(), port),
-        )
-        .await
-        .map_err(|_| {
-            ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.upstream DNS resolution timed out after {} seconds",
-                config.web.timeouts.fallback_resolve_secs
-            ))
-        })?
-        .map_err(|error| {
-            ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.upstream DNS resolution failed: {error}"
-            ))
-        })?;
-        if answers.is_empty() {
-            return Err(ProxyError::Config(format!(
-                "web.vhosts[{idx}].fallback.upstream DNS resolution returned no addresses"
-            )));
-        }
-        for addr in &answers {
-            validate_address(idx, addr.ip())?;
-        }
-        snapshot.origins.insert(key, answers);
     }
     config.web.fallback_dns = Arc::new(snapshot);
     validate_web::validate_fallback_listener_separation(config)
@@ -219,14 +189,13 @@ where
 /// Builds the unchanged request-time tuple from immutable configuration evidence.
 pub(super) fn build_upstream(
     config: &ProxyConfig,
-    idx: usize,
     upstream: &str,
     resolve: WebFallbackResolve,
 ) -> Result<WebRuntimeFallback> {
-    let origin = parse_origin(idx, upstream, resolve)?;
+    let origin = parse_origin(upstream, resolve)?;
     match &origin {
         FallbackOrigin::Http { url } => {
-            let endpoint = addresses(config, idx, &origin, true)?
+            let endpoint = addresses(config, &origin, true)?
                 .into_iter()
                 .next()
                 .ok_or_else(|| ProxyError::Config("WEB fallback DNS snapshot is empty".to_string()))?;
@@ -237,7 +206,12 @@ pub(super) fn build_upstream(
         FallbackOrigin::Unix { path } => {
             // The unix upstream has no origin authority; the spoofed vhost
             // identity selects the fronting site.
-            let authority = config.web.vhosts[idx].host.clone();
+            let authority = config
+                .web
+                .vhost
+                .as_ref()
+                .map(|vhost| vhost.host.clone())
+                .ok_or_else(|| ProxyError::Config("WEB vhost snapshot is missing".to_string()))?;
             Ok(WebRuntimeFallback::HttpUpstream {
                 endpoint: FallbackEndpoint::Unix(path.clone()),
                 authority,

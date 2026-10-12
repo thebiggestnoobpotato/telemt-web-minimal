@@ -2,12 +2,13 @@ use super::*;
 
 #[test]
 fn fallback_dns_resolution_defaults_to_never() {
-    let fallback: WebFallbackConfig = serde_json::from_value(serde_json::json!({
-        "mode": "http_upstream",
+    let vhost: WebVhostConfig = serde_json::from_value(serde_json::json!({
+        "host": "proxy.example.com",
+        "public_addr": "203.0.113.10:443",
         "upstream": "http://127.0.0.1:18081"
     }))
     .unwrap();
-    let serialized = serde_json::to_value(fallback).unwrap();
+    let serialized = serde_json::to_value(vhost).unwrap();
     assert_eq!(serialized["resolve"], "never");
 }
 
@@ -18,25 +19,27 @@ fn fallback_dns_timeout_defaults_to_five_seconds() {
 }
 
 #[test]
-fn fallback_dns_resolution_is_opt_in_and_mode_specific() {
+fn fallback_dns_resolution_is_opt_in() {
     let hostname = WEB_CONFIG.replace("127.0.0.1:18081", "example.com:18081");
     assert!(load_config_error_from_temp_toml(&hostname).contains("IP literal"));
     let never = hostname.replace(
-        "mode = \"http_upstream\"",
-        "mode = \"http_upstream\"\nresolve = \"never\"",
+        "upstream = \"http://example.com:18081\"",
+        "upstream = \"http://example.com:18081\"\nresolve = \"never\"",
     );
     assert!(load_config_error_from_temp_toml(&never).contains("IP literal"));
     let unknown = WEB_CONFIG.replace(
-        "mode = \"http_upstream\"",
-        "mode = \"http_upstream\"\nresolve = \"always\"",
+        "upstream = \"http://127.0.0.1:18081\"",
+        "upstream = \"http://127.0.0.1:18081\"\nresolve = \"always\"",
     );
     assert!(load_config_error_from_temp_toml(&unknown).contains("unknown variant"));
-    let wrong_mode = WEB_CONFIG.replace(
-        "mode = \"http_upstream\"",
-        "mode = \"static_directory\"\nresolve = \"startup\"\ndirectory = \"/tmp\"",
+    // resolve only applies to http origins; unix sockets never need DNS.
+    let unix_with_resolve = WEB_CONFIG.replace(
+        "upstream = \"http://127.0.0.1:18081\"",
+        "upstream = \"unix:/tmp/site.sock\"\nresolve = \"startup\"",
     );
     assert!(
-        load_config_error_from_temp_toml(&wrong_mode).contains("only valid for mode=http_upstream")
+        load_config_error_from_temp_toml(&unix_with_resolve)
+            .contains("web.vhost.resolve is only valid for http origins")
     );
 }
 

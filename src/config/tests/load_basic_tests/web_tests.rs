@@ -1,8 +1,5 @@
 use super::*;
 
-#[path = "web_tests/base_path_tests.rs"]
-mod base_path_tests;
-
 // Method selection must not alter capability identity or accepted config literals.
 #[path = "web_tests/carrier_method_tests.rs"]
 mod carrier_method_tests;
@@ -30,15 +27,12 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 enabled = true
 carrier = "https-lanes"
 
-[[web.vhosts]]
+[web.vhost]
 host = "Proxy.Example.COM"
 public_addr = "203.0.113.10:443"
 
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
-
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "alice"
 secret_mode = "dd"
 max_sessions = 4
@@ -84,7 +78,10 @@ fn web_base_path_is_canonical_and_precomputed() {
             &format!("host = \"Proxy.Example.COM\"\nbase_path = \"{base_path}\""),
         );
         let config = load_config_from_temp_toml(&configured);
-        assert_eq!(config.web.vhosts[0].base_path, base_path);
+        assert_eq!(
+            config.web.vhost.as_ref().expect("web vhost").base_path,
+            base_path
+        );
         assert_eq!(
             config.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].base,
             format!("/{base_path}/")
@@ -99,7 +96,12 @@ fn web_base_path_is_canonical_and_precomputed() {
         )
     );
     assert_eq!(
-        load_config_from_temp_toml(&strict).web.vhosts[0].base_path,
+        load_config_from_temp_toml(&strict)
+            .web
+            .vhost
+            .as_ref()
+            .expect("web vhost")
+            .base_path,
         "relay"
     );
 }
@@ -129,7 +131,7 @@ fn web_base_path_rejects_noncanonical_forms() {
             &format!("host = \"Proxy.Example.COM\"\nbase_path = \"{base_path}\""),
         );
         assert!(
-            load_config_error_from_temp_toml(&invalid).contains("web.vhosts[0].base_path"),
+            load_config_error_from_temp_toml(&invalid).contains("web.vhost.base_path"),
             "base path {base_path:?} was accepted"
         );
     }
@@ -174,8 +176,8 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
             "carrier = \"https-lanes\"\nhttp_connection_capacity_action = \"wait\"",
         )
         .replace(
-            "[[web.vhosts]]",
-            "[web.limits]\nmax_http_overload_connections = 23\n\n[web.timeouts]\nhttp_overload_timeout_ms = 731\n\n[[web.vhosts]]",
+            "[web.vhost]",
+            "[web.limits]\nmax_http_overload_connections = 23\n\n[web.timeouts]\nhttp_overload_timeout_ms = 731\n\n[web.vhost]",
         );
     let config = load_config_from_temp_toml(&configured);
 
@@ -205,8 +207,8 @@ fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
 
     for timeout in [0, 60_001] {
         let invalid = WEB_CONFIG.replace(
-            "[[web.vhosts]]",
-            &format!("[web.timeouts]\nhttp_overload_timeout_ms = {timeout}\n\n[[web.vhosts]]"),
+            "[web.vhost]",
+            &format!("[web.timeouts]\nhttp_overload_timeout_ms = {timeout}\n\n[web.vhost]"),
         );
         assert!(
             load_config_error_from_temp_toml(&invalid)
@@ -215,8 +217,8 @@ fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
     }
 
     let no_overload_slots = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.limits]\nmax_http_overload_connections = 0\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.limits]\nmax_http_overload_connections = 0\n\n[web.vhost]",
     );
     assert!(
         load_config_error_from_temp_toml(&no_overload_slots)
@@ -228,13 +230,14 @@ fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
 fn web_fallback_rejects_direct_and_wildcard_listener_loops() {
     let direct = WEB_CONFIG.replace("http://127.0.0.1:18081", "http://127.0.0.1:18080");
     assert!(
-        load_config_error_from_temp_toml(&direct).contains("fallback upstream overlaps WEB listener")
+        load_config_error_from_temp_toml(&direct)
+            .contains("web.vhost.upstream overlaps WEB listener")
     );
 
     let wildcard = direct.replace("ip = \"127.0.0.1\"", "ip = \"0.0.0.0\"");
     assert!(
         load_config_error_from_temp_toml(&wildcard)
-            .contains("fallback upstream overlaps WEB listener")
+            .contains("web.vhost.upstream overlaps WEB listener")
     );
 }
 
@@ -245,7 +248,7 @@ fn web_profile_user_labels_are_bounded_for_runtime_status() {
 
     assert!(
         load_config_error_from_temp_toml(&invalid)
-            .contains("web.vhosts[0].profiles[0].user must contain 1..64 bytes")
+            .contains("web.vhost.profiles[0].user must contain 1..64 bytes")
     );
 }
 
@@ -303,8 +306,8 @@ fn web_carriers_reject_true_empty_and_duplicates() {
 #[test]
 fn web_carrier_and_bridge_deadlines_are_configurable() {
     let configured = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.timeouts]\ncarrier_negotiation_deadlines_secs = [1, 2, 4, 9]\ncarrier_learning_secs = 30\nbridge_request_secs = 7\nbridge_retry_secs = 41\nbridge_recovery_secs = 13\ncarrier_probe_coalesce_ms = 4\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.timeouts]\ncarrier_negotiation_deadlines_secs = [1, 2, 4, 9]\ncarrier_learning_secs = 30\nbridge_request_secs = 7\nbridge_retry_secs = 41\nbridge_recovery_secs = 13\ncarrier_probe_coalesce_ms = 4\n\n[web.vhost]",
     );
     let config = load_config_from_temp_toml(&configured);
     assert_eq!(
@@ -321,8 +324,8 @@ fn web_carrier_and_bridge_deadlines_are_configurable() {
 #[test]
 fn web_bridge_deadlines_are_known_in_strict_mode() {
     let configured = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.timeouts]\nbridge_request_secs = 7\nbridge_retry_secs = 41\nbridge_recovery_secs = 13\ncarrier_probe_coalesce_ms = 4\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.timeouts]\nbridge_request_secs = 7\nbridge_retry_secs = 41\nbridge_recovery_secs = 13\ncarrier_probe_coalesce_ms = 4\n\n[web.vhost]",
     );
     let configured = format!("[general]\nconfig_strict = true\n{configured}");
     let config = load_config_from_temp_toml(&configured);
@@ -345,8 +348,8 @@ fn web_bridge_deadlines_are_bounded_and_ordered() {
         ("carrier_probe_coalesce_ms", "11"),
     ] {
         let invalid = WEB_CONFIG.replace(
-            "[[web.vhosts]]",
-            &format!("[web.timeouts]\n{field} = {value}\n\n[[web.vhosts]]"),
+            "[web.vhost]",
+            &format!("[web.timeouts]\n{field} = {value}\n\n[web.vhost]"),
         );
         assert!(
             load_config_error_from_temp_toml(&invalid).contains(&format!("web.timeouts.{field}"))
@@ -354,8 +357,8 @@ fn web_bridge_deadlines_are_bounded_and_ordered() {
     }
 
     let reversed = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.timeouts]\nbridge_request_secs = 20\nbridge_retry_secs = 10\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.timeouts]\nbridge_request_secs = 20\nbridge_retry_secs = 10\n\n[web.vhost]",
     );
     assert!(
         load_config_error_from_temp_toml(&reversed)
@@ -366,8 +369,8 @@ fn web_bridge_deadlines_are_bounded_and_ordered() {
 #[test]
 fn web_carrier_learning_capacity_must_remain_nonzero() {
     let invalid = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.limits]\nmax_carrier_learning_entries = 0\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.limits]\nmax_carrier_learning_entries = 0\n\n[web.vhost]",
     );
     assert!(
         load_config_error_from_temp_toml(&invalid)
@@ -387,8 +390,8 @@ fn web_debug_table_uses_debug_name_and_bounded_defaults() {
     assert!(!ineffective.bridge_diagnostics_enabled());
 
     let configured = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.debug]\nenabled = true\nsideband = true\nbody_capture = \"prefix\"\nbody_prefix_bytes = 2048\ndefault_window_secs = 180\nmax_window_secs = 900\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.debug]\nenabled = true\nsideband = true\nbody_capture = \"prefix\"\nbody_prefix_bytes = 2048\ndefault_window_secs = 180\nmax_window_secs = 900\n\n[web.vhost]",
     );
     let config = load_config_from_temp_toml(&configured);
     assert!(config.web.debug.enabled);
@@ -405,8 +408,8 @@ fn web_debug_table_uses_debug_name_and_bounded_defaults() {
     let old_name = format!(
         "[general]\nconfig_strict = true\n{}",
         WEB_CONFIG.replace(
-            "[[web.vhosts]]",
-            "[web.trace]\nenabled = true\n\n[[web.vhosts]]",
+            "[web.vhost]",
+            "[web.trace]\nenabled = true\n\n[web.vhost]",
         )
     );
     let error = load_config_error_from_temp_toml(&old_name);
@@ -415,8 +418,8 @@ fn web_debug_table_uses_debug_name_and_bounded_defaults() {
     let old_parameter = format!(
         "[general]\nconfig_strict = true\n{}",
         WEB_CONFIG.replace(
-            "[[web.vhosts]]",
-            "[web.debug]\nbridge_diagnostics = true\n\n[[web.vhosts]]",
+            "[web.vhost]",
+            "[web.debug]\nbridge_diagnostics = true\n\n[web.vhost]",
         )
     );
     let error = load_config_error_from_temp_toml(&old_parameter);
@@ -426,15 +429,15 @@ fn web_debug_table_uses_debug_name_and_bounded_defaults() {
 #[test]
 fn web_debug_prefix_and_window_validation_fail_closed() {
     let oversized_prefix = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.debug]\nenabled = true\nbody_prefix_bytes = 2097153\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.debug]\nenabled = true\nbody_prefix_bytes = 2097153\n\n[web.vhost]",
     );
     let error = load_config_error_from_temp_toml(&oversized_prefix);
     assert!(error.contains("web.debug.body_prefix_bytes"));
 
     let reversed_window = WEB_CONFIG.replace(
-        "[[web.vhosts]]",
-        "[web.debug]\nenabled = true\ndefault_window_secs = 181\nmax_window_secs = 180\n\n[[web.vhosts]]",
+        "[web.vhost]",
+        "[web.debug]\nenabled = true\ndefault_window_secs = 181\nmax_window_secs = 180\n\n[web.vhost]",
     );
     let error = load_config_error_from_temp_toml(&reversed_window);
     assert!(error.contains("web.debug windows"));
@@ -501,34 +504,37 @@ fn web_ipv6_fallback_uses_a_valid_http_authority() {
 }
 
 #[test]
-fn fallback_static_directory_mode_is_stripped() {
-    // The static_directory mode value was removed with the static snapshot
-    // machinery; referencing it is a parse-level error for both strict and
-    // non-strict loads.
-    let invalid = WEB_CONFIG
-        .replace("mode = \"http_upstream\"", "mode = \"static_directory\"");
+fn vhost_mode_key_is_stripped() {
+    // The fallback mode tag was removed with the flattened [web.vhost]
+    // upstream: mode is now an unknown key for strict loads.
+    let with_mode = WEB_CONFIG.replace(
+        "upstream = \"http://127.0.0.1:18081\"",
+        "mode = \"static_directory\"\nupstream = \"http://127.0.0.1:18081\"",
+    );
     let strict_error =
-        load_config_error_from_temp_toml(&format!("[general]\nconfig_strict = true\n{invalid}"));
-    assert!(strict_error.contains("static_directory"), "{strict_error}");
+        load_config_error_from_temp_toml(&format!("[general]\nconfig_strict = true\n{with_mode}"));
+    assert!(strict_error.contains("web.vhost.mode"), "{strict_error}");
 
-    let error = load_config_error_from_temp_toml(&invalid);
-    assert!(error.contains("static_directory"), "{error}");
+    // non-strict: the stray key is ignored and the vhost loads untouched.
+    let config = load_config_from_temp_toml(&with_mode);
+    let runtime = config.web.runtime.expect("WEB runtime snapshot");
+    let vhost = runtime.vhosts.get("proxy.example.com").unwrap();
+    let WebRuntimeFallback::HttpUpstream { authority, .. } = &vhost.fallback;
+    assert_eq!(authority, "127.0.0.1:18081");
 }
 
 #[test]
-fn fallback_static_keys_are_stripped() {
+fn vhost_static_keys_are_stripped() {
     let stripped = WEB_CONFIG.replace(
-        "mode = \"http_upstream\"",
-        "mode = \"http_upstream\"\ndirectory = \"/var/lib/telemt/site\"\nindex = \"index.html\"",
+        "upstream = \"http://127.0.0.1:18081\"",
+        "directory = \"/var/lib/telemt/site\"\nindex = \"index.html\"\nupstream = \"http://127.0.0.1:18081\"",
     );
-    // strict: the removed static keys are rejected under
-    // [web.vhosts.fallback].
+    // strict: the removed static keys are unknown under [web.vhost].
     let error =
         load_config_error_from_temp_toml(&format!("[general]\nconfig_strict = true\n{stripped}"));
-    assert!(error.contains("web.vhosts[0].fallback.directory"), "{error}");
+    assert!(error.contains("web.vhost.directory"), "{error}");
 
-    // non-strict: the old keys are ignored and the http_upstream fallback
-    // loads untouched.
+    // non-strict: the old keys are ignored and the upstream loads untouched.
     let config = load_config_from_temp_toml(&stripped);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime.vhosts.get("proxy.example.com").unwrap();

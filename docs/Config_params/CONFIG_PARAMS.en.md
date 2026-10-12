@@ -23,9 +23,8 @@ This document lists all configuration keys accepted by `config.toml`.
  - [web.debug](#webdebug)
  - [web.limits](#weblimits)
  - [web.timeouts](#webtimeouts)
- - [web.vhosts](#webvhosts)
- - [web.vhosts.fallback](#webvhostsfallback)
- - [web.vhosts.profiles](#webvhostsprofiles)
+ - [web.vhost](#webvhost)
+ - [web.vhost.profiles](#webvhostprofiles)
  - [access](#access)
  - [users](#users)
  - [upstreams](#upstreams)
@@ -615,9 +614,9 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `debug` | table | disabled, bounded defaults | `✔` |
 | `limits` | table | bounded defaults | `✘` |
 | `timeouts` | table | bounded defaults | `✔` |
-| `vhosts` | array of tables | `[]` | `✔` |
+| `vhost` | table | unset | `✔` |
 
-`enabled = true` requires at least one network-eligible WEB listener, at least one vhost, and at least one profile in every vhost — explicit, or instantiated by a set `web.secret_mode`. A set `web.secret_mode` instantiates a profile for **every `[users]` user in every vhost** using the `[web.limits]` ceilings; per-user ceiling overrides belong in `[[web.vhosts.profiles]]`. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
+`enabled = true` requires at least one network-eligible WEB listener, a `[web.vhost]` table, and at least one profile in it — explicit, or instantiated by a set `web.secret_mode`. A set `web.secret_mode` instantiates a profile for **every `[users]` user in the vhost** using the `[web.limits]` ceilings; per-user ceiling overrides belong in `[[web.vhost.profiles]]`. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
 
 When `carriers` is missing or `false`, auto-negotiation and learning are disabled and `carrier` is the only mode. A non-empty `carriers` array enables startup-only negotiation in its configured order; `carrier` is appended exactly once as the final fallback. Empty arrays, duplicates, and `true` are rejected. The client advances candidates only before carrier commit and must create a new session to change carrier after commit. A metadata-free native client, including Telegram iOS, always uses the configured fixed `carrier`, even when negotiation is enabled. Current iOS supports only `https`, so such deployments must configure `carrier = "https"`. CFNetwork and Darwin User-Agent classification does not infer carrier support. Explicit native iOS capabilities are intersected with `{https}`; other explicit client capabilities participate as reported.
 
@@ -690,8 +689,8 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `control_bytes_global` | `usize` | `16777216` | Process-wide byte reserve available only to control frames. |
 | `max_bootstraps_global` | `usize` | `512` | Live bootstrap credentials process-wide. |
 | `max_bootstraps_per_ip` | `usize` | `64` | Live bootstrap credentials per client IP. |
-| `max_vhosts` | `usize` | `8` | Configured WEB virtual hosts. |
-| `max_profiles` | `usize` | `32` | WEB profiles across all vhosts, counted after global-profile expansion. |
+| `max_vhosts` | `usize` | `8` | Configured `[web.vhost]` tables; at most one exists. |
+| `max_profiles` | `usize` | `32` | WEB profiles in the vhost, counted after global-profile expansion. |
 | `debug_records_capacity` | `usize` | `65536` | Maximum retained WEB debug record count. |
 | `debug_bytes_global` | `usize` | `67108864` | Retained plus in-flight WEB debug byte ceiling; minimum 4096. |
 | `memory_envelope_bytes` | `usize` | `1342177280` | Declared envelope for HTTP heads, bodies, shared queues/WebSocket I/O, capability indexes, lane state, carrier learning, and bounded debug/status buffers; maximum 4 GiB. |
@@ -734,27 +733,20 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `fallback_header_secs` | `u64` | `30` | `✔` | Connect and response-head deadline for an HTTP fallback. |
 | `fallback_resolve_secs` | `u64` | `5` | `✔` | Maximum wait for each unique HTTP fallback hostname during config preparation under `fallback.resolve = "startup"`. |
 
-# [[web.vhosts]]
+# [web.vhost]
 
 | Key | Type | Required | Hot-Reload | Description |
 | --- | --- | --- | --- | --- |
-| `host` | `String` | yes | `✔` | Unique, canonical lowercase ACE FQDN without port, path, credentials, or trailing dot. |
+| `host` | `String` | yes | `✔` | Canonical lowercase ACE FQDN without port, path, credentials, or trailing dot. |
 | `base_path` | `String` | no | `✔` | Exact case-sensitive WEB prefix without leading or trailing slash; empty by default. At most 128 ASCII bytes in slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments. |
 | `public_addr` | `SocketAddr` | yes | `✔` | Concrete public IP on port `443`; used in the inner relay destination tuple. |
-| `fallback` | table | yes | `✔` | Ordinary-site fallback for unauthenticated or invalid traffic. |
+| `upstream` | `String` | yes | `✔` | Ordinary-site fallback origin for unauthenticated or invalid traffic: an `http://` origin without credentials, path, query, or fragment, or a `unix:/absolute/path.sock` socket path that must be absolute without URL control characters. With the default `resolve = "never"` an http host must be a loopback, link-local, or private IP literal. A unix fallback target must not equal any `socket_path` of a WEB listener. |
+| `resolve` | `"never"` or `"startup"` | no | `✔` | Default `never`. `startup` resolves an http hostname once during config preparation: every answer must remain inside loopback or a private network, the answers are pinned for the prepared generation, and a failed, timed out, or empty lookup fails the load while the old configuration is kept. Rejected for `unix:` origins, where no DNS is performed and the vhost `host` is used as the request authority. |
 | `profiles` | array of tables | when enabled | `✔` | Explicit users and client secret modes exposed by this hostname. |
 
 The hostname must be accepted by Telegram Desktop and is normalized during validation. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap remains valid across a configuration reload only while the same profile identity is still active.
 
-# [web.vhosts.fallback]
-
-The `mode` key is required and accepts one value:
-
-| Mode | Required keys | Validation |
-| --- | --- | --- |
-| `http_upstream` | `upstream`; optional `resolve = "never" \| "startup"` | An `http://` origin; no credentials, path, query, or fragment. With the default `resolve = "never"` the host must be a loopback, link-local, or private IP literal. With `resolve = "startup"` a hostname is accepted and resolved once during config preparation; every answer must remain inside loopback or a private network, the answers are pinned for the prepared generation, and a failed, timed out, or empty lookup fails the load while the old configuration is kept. Alternatively `upstream = "unix:/absolute/path.sock"` points the fallback at a local unix socket; the path must be absolute without URL control characters, `resolve` is rejected, no DNS is performed, and the vhost `host` is used as the request authority. A unix fallback target must not equal any `socket_path` of a WEB listener. |
-
-# [[web.vhosts.profiles]]
+# [[web.vhost.profiles]]
 
 | Key | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
@@ -764,11 +756,11 @@ The `mode` key is required and accepts one value:
 | `max_streams` | `usize` | no | `web.limits.max_streams_global` | Live logical streams for this profile. |
 | `max_streams_per_session` | `usize` | no | `web.limits.max_streams_per_session` | Live logical streams in one profile session. |
 
-Profile limits must be non-zero and no greater than their corresponding global limits. Duplicate `(user, secret_mode)` profiles in one vhost are rejected. An explicit entry also wins over the global profile instantiated by `web.secret_mode` for the same `(user, secret_mode)`: the global profile is skipped for that user in that vhost only.
+Profile limits must be non-zero and no greater than their corresponding global limits. Duplicate `(user, secret_mode)` profiles in the vhost are rejected. An explicit entry also wins over the global profile instantiated by `web.secret_mode` for the same `(user, secret_mode)`: the global profile is skipped for that user in that vhost only.
 
 ## WEB lifecycle and API management
 
-- The config watcher and generation reload apply `web.enabled`, carrier and negotiation policy, `web.debug`, `web.timeouts`, vhosts, profiles, and fallback snapshots without a process restart. One immutable expanded source snapshot is validated and activated; a candidate generation's watcher starts only after that generation becomes active. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines; newly issued bridge sessions use one pinned active generation.
+- The config watcher and generation reload apply `web.enabled`, carrier and negotiation policy, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots without a process restart. One immutable expanded source snapshot is validated and activated; a candidate generation's watcher starts only after that generation becomes active. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines; newly issued bridge sessions use one pinned active generation.
 - Changing `base_path` atomically replaces both the new-request route and derived capability. Reissue links and drain affected live sessions first: established WebSockets and already routed exchanges continue; later old-base requests carrying a process-authentic bootstrap or session token receive a local no-store `404`, while the now-inactive old capability follows ordinary fallback handling.
 - WEB listener inventory and trust policy under `[listener]`, and every `web.limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `[web]` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports `web.limits` in `deferred_process_fields` until restart.

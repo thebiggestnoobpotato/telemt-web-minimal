@@ -30,7 +30,7 @@ Options: `--port` (default `443`), `--user` (default `user`), `--secret`
 
 The command writes `/etc/telemt/config.toml` and a service file, starts the
 service, and prints the `tg://webproxy` links. Adjust `public_addr` in
-`[[web.vhosts]]` to this server's public IP and port, then reload:
+`[web.vhost]` to this server's public IP and port, then reload:
 
 ```bash
 systemctl reload-or-restart telemt   # or `./target/release/telemt config.toml` to run in the foreground
@@ -105,16 +105,14 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [web]
 enabled = true
-# Applies to every user in [users]; remove it to bind users per vhost instead.
+# Applies to every user in [users]; remove it to bind users in [web.vhost] instead.
 secret_mode = "plain"
 
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 # Replace with this server's public IP and port.
 public_addr = "203.0.113.1:443"
-
-[web.vhosts.fallback]
-mode = "http_upstream"
+# Ordinary-site origin browsers and scanners see.
 upstream = "http://127.0.0.1:80"
 
 [users]
@@ -126,10 +124,10 @@ Notes:
 
 - The listener is a WEB listener and needs a non-empty
   `web_trusted_proxy_cidrs` list (no `/0` networks).
-- At least one `[[web.vhosts]]` entry is required whenever a listener is configured.
-- Every vhost needs a `fallback` (what browsers and scanners see) and at least
-  one profile binding a `[users]` user to the vhost — either explicit
-  `[[web.vhosts.profiles]]` entries or a `web.secret_mode` that applies to
+- A `[web.vhost]` table is required whenever a listener is configured.
+- The vhost needs an `upstream` (what browsers and scanners see) and at
+  least one profile binding a `[users]` user to the vhost — either explicit
+  `[[web.vhost.profiles]]` entries or a `web.secret_mode` that applies to
   every user.
 - See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.
 
@@ -157,7 +155,7 @@ Mount the config directory instead.
 # Verify
 
 ```bash
-# Public web surface (fallback) must answer on the vhost
+# Public web surface (upstream) must answer on the vhost
 curl -sI https://proxy.example.com/ | head -3
 
 # Read-only WEB diagnostics (API must be enabled on a private bind)

@@ -219,11 +219,6 @@ impl ProxyConfig {
         Self::parse_source_with_overrides(path, &BTreeMap::new())
     }
 
-    /// Checks fallback mode-specific keys before a source or API patch loses unknown fields.
-    pub(crate) fn validate_fallback_source_keys(document: &toml::Value) -> Result<()> {
-        fallback_dns::validate_mode_keys(document)
-    }
-
     /// Parses an atomic mutation candidate without performing DNS.
     pub(crate) fn parse_source_with_overrides<P: AsRef<Path>>(
         path: P,

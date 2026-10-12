@@ -270,7 +270,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
 | `listener` | `object?` | Complete normalized `[listener]` table when set; omitted when no listener is configured. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation, instantiated for every `[users]` user in every vhost using the `[web.limits]` ceilings; each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation, instantiated for every `[users]` user in the vhost using the `[web.limits]` ceilings; `web.vhost` includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 
 The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
 
@@ -845,7 +845,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | An unknown or non-editable top-level key (e.g. `server`, `api`, `network`) | `400` | `section_not_editable` |
 | Object with no editable key | `400` | `bad_request` |
 
-**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. In particular, `web.vhosts` is an array: changing one vhost `base_path` requires sending the complete vhost array, including every retained vhost and each required `host`, `public_addr`, `fallback`, and profile field. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched TOML table bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a TOML table returns `409 config_patch_not_atomic` without writing any file.
+**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. In particular, `web.vhost` is a single table: changing its `base_path` requires sending the complete vhost table, including each required `host`, `public_addr`, `upstream`, and profile field. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched TOML table bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a TOML table returns `409 config_patch_not_atomic` without writing any file.
 
 **Validation:** the merged config is deserialized into the full `ProxyConfig` type and validated before writing. Failures return `400` with a descriptive message; the file is not modified.
 
@@ -889,18 +889,18 @@ Without a `reload` query parameter, the endpoint writes the patch and the file w
 - `changed` — list of top-level section names that differed.
 - `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
 
-Example — replace the complete vhost array while changing one `base_path`:
+Example — replace the complete vhost table while changing its `base_path`:
 
 ```json
 {
   "web": {
-    "vhosts": [{
+    "vhost": {
       "host": "proxy.example.com",
       "base_path": "telegram/web",
       "public_addr": "203.0.113.10:443",
-      "fallback": {"mode": "http_upstream", "upstream": "http://127.0.0.1:18081"},
+      "upstream": "http://127.0.0.1:18081",
       "profiles": [{"user": "web-user", "secret_mode": "dd"}]
-    }]
+    }
   }
 }
 ```
@@ -966,7 +966,7 @@ The API exposes WEB desired configuration through the common config resource, pr
 
 | Operation | Current contract |
 | --- | --- |
-| Read or patch `[web]`, vhosts, profiles, fallbacks, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge, arrays replace wholesale; changing one `web.vhosts[].base_path` therefore requires the complete vhost array. `web.limits` and `web.fallback_fasttrack_mode` remain process-deferred. |
+| Read or patch `[web]`, the vhost table, profiles, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge; changing `web.vhost.base_path` therefore requires the complete vhost table. `web.limits` and `web.fallback_fasttrack_mode` remain process-deferred. |
 | Persist `[listener]` | Supported through `PATCH /v1/config`; the table deep-merges field-by-field. All listener fields are process-bound: any change (including an endpoint move) remains deferred until process restart. |
 | Apply an externally edited WEB config | Update the owning TOML source, call `POST /v1/system/reload`, then poll `GET /v1/system/reload/{id}`. |
 | Inspect restart requirements | Read `deferred_process_fields` from reload status. Every `listener` change, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings require process restart. |
@@ -978,7 +978,7 @@ The API exposes WEB desired configuration through the common config resource, pr
 | Rotate a profiled user's secret | Use `/v1/users/{username}/rotate-secret`; the durable credential identity is staged immediately and active owners for the old identity are cancelled. The config watcher rebuilds WEB capabilities from the new access snapshot. The API returns the raw secret, not a `tg://webproxy` link. |
 | Read WEB-specific runtime diagnostics | Use authenticated `GET /web-status`; filters cover client IP, process session ID, User-Agent, and non-secret key fingerprint, with optional grouping, expandable HTTP request-to-response details, and WebSocket handshake/message/frame rows. |
 
-`web.enabled`, `web.carrier`, `web.debug`, `web.timeouts`, vhosts, profiles, and fallback snapshots are runtime-generation fields. A changed carrier applies only to newly issued bridge sessions; existing sessions and issued bootstrap chains retain their issuance-time policy. `web.enabled=false` stops new issuance but never closes live sessions implicitly. WEB listener inventory and trust policy, plus all `[web.limits]`, are process-owned. A successful reload can therefore activate the runtime-owned subset while reporting the process-owned subset as deferred.
+`web.enabled`, `web.carrier`, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots are runtime-generation fields. A changed carrier applies only to newly issued bridge sessions; existing sessions and issued bootstrap chains retain their issuance-time policy. `web.enabled=false` stops new issuance but never closes live sessions implicitly. WEB listener inventory and trust policy, plus all `[web.limits]`, are process-owned. A successful reload can therefore activate the runtime-owned subset while reporting the process-owned subset as deferred.
 
 `base_path` scopes only the WEB data listener. It never prefixes Control API `/v1/*`, `/web-status`, or `/metrics`. `GET /v1/config` shows the desired path but does not prove runtime activation because WEB status intentionally exposes no host, path, or capability. Confirm a terminal reload, the expected `runtime.generation_id`, and external probes of the new and old exact routes. Paths and base paths are never Prometheus labels.
 

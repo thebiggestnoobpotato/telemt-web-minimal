@@ -83,7 +83,7 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "debug",
     "limits",
     "timeouts",
-    "vhosts",
+    "vhost",
 ];
 
 const WEB_LIMITS_CONFIG_KEYS: &[&str] = &[
@@ -178,8 +178,14 @@ const WEB_TIMEOUTS_CONFIG_KEYS: &[&str] = &[
     "fallback_resolve_secs",
 ];
 
-const WEB_VHOST_CONFIG_KEYS: &[&str] = &["host", "base_path", "public_addr", "fallback", "profiles"];
-const WEB_FALLBACK_CONFIG_KEYS: &[&str] = &["mode", "upstream", "resolve"];
+const WEB_VHOST_CONFIG_KEYS: &[&str] = &[
+    "host",
+    "base_path",
+    "public_addr",
+    "upstream",
+    "resolve",
+    "profiles",
+];
 const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "user",
     "secret_mode",

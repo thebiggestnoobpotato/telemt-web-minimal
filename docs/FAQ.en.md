@@ -65,7 +65,7 @@ user3 = "00000000000000000000000000000003"
 ```
 4. If the configuration already sets `web.secret_mode` under `[web]`, nothing else is needed — it applies to every user in `[users]`. Otherwise add a profile for each new user to the vhost:
 ```toml
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "user1"
 secret_mode = "plain"
 ```
@@ -105,7 +105,7 @@ root    hard    nofile  1048576
 ## Additional parameters
 
 ### Domain in the link instead of IP
-To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `[[web.vhosts]]` entry.
+To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `[web.vhost]` table.
 
 ### Total server connection limit
 This parameter limits the total number of active connections to the server:

@@ -89,16 +89,13 @@ carrier = "https-lanes"
 fallback_fasttrack_mode = "off"
 http_connection_capacity_action = "drop"
 
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 base_path = "telegram/web"
 public_addr = "203.0.113.10:443"
-
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
 
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "web-user"
 secret_mode = "dd"
 max_sessions = 8
@@ -106,7 +103,7 @@ max_streams = 512
 max_streams_per_session = 64
 ```
 
-Instead of repeating a profile per user, setting `secret_mode` under `[web]` instantiates a profile for **every user in `[users]`** in **every vhost**, using the `[web.limits]` ceilings; per-user ceiling overrides belong in `[[web.vhosts.profiles]]`. An explicit per-user profile wins for the same `(user, secret_mode)` in a vhost, and the expanded total counts toward `web.limits.max_profiles`:
+Instead of repeating a profile per user, setting `secret_mode` under `[web]` instantiates a profile for **every user in `[users]`** in **the vhost**, using the `[web.limits]` ceilings; per-user ceiling overrides belong in `[[web.vhost.profiles]]`. An explicit per-user profile wins for the same `(user, secret_mode)` in the vhost, and the expanded total counts toward `web.limits.max_profiles`:
 
 ```toml
 [web]
@@ -116,7 +113,7 @@ secret_mode = "dd"
 
 Accepted-socket overload handling is independently configurable. `drop` preserves the legacy close after `accept(2)`. `respond` writes an empty retryable `503` without parsing a request. `wait` waits outside the accept loop for ordinary connection capacity and then enters normal HTTP handling; timeout writes the same `503`. Both waiting and response writing use `web.timeouts.http_overload_timeout_ms` per phase. `web.limits.max_http_overload_connections` bounds sockets outside ordinary capacity and requires a process restart when changed; the action and timeout are hot-reloadable.
 
-`base_path` defaults to empty. A non-empty value is at most 128 ASCII bytes and consists of slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments without leading or trailing slash. Root vhosts preserve the v1 capability derivation. Path vhosts use the v2 context over the exact canonical host and base path, so changing case or any segment changes both the route and capability.
+`base_path` defaults to empty. A non-empty value is at most 128 ASCII bytes and consists of slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments without leading or trailing slash. The root vhost (empty `base_path`) preserves the v1 capability derivation. A path vhost uses the v2 context over the exact canonical host and base path, so changing case or any segment changes both the route and capability.
 
 `fallback_fasttrack_mode` controls only capability work for `GET/HEAD` at the configured base root. `off` is the default and preserves the legacy full scan without fast-track counters. `shadow` records which structurally impossible requests could bypass the scan but still performs the complete legacy scan. `enforce` bypasses capability work only for `HEAD` or an absent/noncanonical `bridge` query. Every exact canonical bridge GET at the base root performs a complete scan across all profiles of the selected vhost, for both matches and misses. The setting requires a process restart; reload persists the desired value but reports `web.fallback_fasttrack_mode` as deferred. Fast-track does not protect against adversarial CPU load because a scanner can always submit canonical candidates, and enforce mode may expose a public request-shape timing class. Do not enable enforce without external timing measurements through the production TLS terminator.
 

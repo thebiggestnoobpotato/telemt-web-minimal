@@ -51,21 +51,7 @@ pub struct WebProfileConfig {
     pub max_streams_per_session: Option<usize>,
 }
 
-/// Public-site fallback used for requests that are not authenticated WEB traffic.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "mode", rename_all = "snake_case")]
-pub enum WebFallbackConfig {
-    /// Stream requests to one fixed private HTTP origin.
-    HttpUpstream {
-        /// Origin URL without a query or fragment.
-        upstream: String,
-        /// Opt-in configuration-time resolution; literal addresses never require DNS.
-        #[serde(default)]
-        resolve: WebFallbackResolve,
-    },
-}
-
-/// One externally visible WEB hostname and its explicit access profiles.
+/// The externally visible WEB hostname and its explicit access profiles.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebVhostConfig {
     /// Canonical lowercase ACE hostname used by Telegram Desktop.
@@ -75,8 +61,11 @@ pub struct WebVhostConfig {
     pub base_path: String,
     /// Stable public destination tuple used by inner relay routing and KDF metadata.
     pub public_addr: SocketAddr,
-    /// Ordinary-site fallback for this hostname.
-    pub fallback: WebFallbackConfig,
+    /// Ordinary-site fallback origin: an `http://` origin or a `unix:` socket path.
+    pub upstream: String,
+    /// Opt-in configuration-time resolution; literal addresses never require DNS.
+    #[serde(default)]
+    pub resolve: WebFallbackResolve,
     /// Access users and exact secret modes enabled for this hostname.
     #[serde(default)]
     pub profiles: Vec<WebProfileConfig>,
@@ -438,9 +427,9 @@ pub struct WebConfig {
     /// WEB lifecycle deadlines.
     #[serde(default)]
     pub timeouts: WebTimeoutsConfig,
-    /// Public hostnames served by WEB listeners.
+    /// The single public hostname served by WEB listeners.
     #[serde(default)]
-    pub vhosts: Vec<WebVhostConfig>,
+    pub vhost: Option<WebVhostConfig>,
     /// Validated immutable runtime snapshot built during configuration loading.
     #[serde(skip)]
     pub(crate) runtime: Option<Arc<WebRuntimeConfig>>,
@@ -486,7 +475,7 @@ impl Default for WebConfig {
             limits: WebLimitsConfig::default(),
             debug: WebDebugConfig::default(),
             timeouts: WebTimeoutsConfig::default(),
-            vhosts: Vec::new(),
+            vhost: None,
             runtime: None,
             fallback_dns: Arc::default(),
         }

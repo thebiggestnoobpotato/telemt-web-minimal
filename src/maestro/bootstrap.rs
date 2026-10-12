@@ -298,7 +298,7 @@ pub(super) async fn bootstrap(
     if config.web.enabled {
         info!(
             "WEB: enabled ({} vhost(s), carrier={:?})",
-            config.web.vhosts.len(),
+            usize::from(config.web.vhost.is_some()),
             config.web.carrier
         );
     }

@@ -10,14 +10,12 @@ transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 [web]
 enabled = true
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://localhost:18081"
 resolve = "startup"
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "alice"
 secret_mode = "dd"
 "#;
@@ -33,7 +31,7 @@ async fn fallback_dns_api_get_and_mutation_base_need_no_prepared_runtime() {
     .unwrap();
     let (managed, revision) = read_managed_config(&path).await.unwrap();
     assert_eq!(
-        managed["web"]["vhosts"][0]["fallback"]["resolve"].as_str(),
+        managed["web"]["vhost"]["resolve"].as_str(),
         Some("startup")
     );
     assert!(managed["web"].get("fallback_dns").is_none());
@@ -56,9 +54,9 @@ async fn fallback_dns_api_patch_without_reload_prepares_before_disk_write() {
         .unwrap()
         .config;
     let before = std::fs::read(&path).unwrap();
-    let mut vhosts = serde_json::to_value(&active.web.vhosts).unwrap();
-    vhosts[0]["fallback"]["upstream"] = Json::String("http://localhost:18080".to_string());
-    let error = apply_patch_to_path(&path, &serde_json::json!({"web": {"vhosts": vhosts}}), None)
+    let mut vhost = serde_json::to_value(&active.web.vhost).unwrap();
+    vhost["upstream"] = Json::String("http://localhost:18080".to_string());
+    let error = apply_patch_to_path(&path, &serde_json::json!({"web": {"vhost": vhost}}), None)
         .await
         .unwrap_err();
     assert!(error.message.contains("overlaps WEB listener"));
@@ -87,19 +85,24 @@ async fn fallback_dns_api_patch_without_reload_prepares_before_disk_write() {
 }
 
 #[tokio::test]
-async fn fallback_dns_api_rejects_resolve_on_static_mode_before_serde_drops_it() {
+async fn fallback_dns_api_patch_drops_removed_fallback_table() {
+    // The [web.vhosts.fallback] table is gone: a patch still carrying it is
+    // dropped by serde and the flattened upstream wins.
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
     std::fs::write(&path, SOURCE).unwrap();
     let base = ProxyConfig::parse_source(&path).unwrap();
-    let mut vhosts = serde_json::to_value(&base.config.web.vhosts).unwrap();
-    vhosts[0]["fallback"] = serde_json::json!({
-        "mode": "static_directory", "directory": directory.path(), "resolve": "startup"
+    let mut vhost = serde_json::to_value(&base.config.web.vhost).unwrap();
+    vhost["fallback"] = serde_json::json!({
+        "mode": "http_upstream",
+        "upstream": "http://localhost:18082"
     });
-    let before = std::fs::read(&path).unwrap();
-    let error = apply_patch_to_path(&path, &serde_json::json!({"web": {"vhosts": vhosts}}), None)
+    apply_patch_to_path(&path, &serde_json::json!({"web": {"vhost": vhost}}), None)
         .await
-        .unwrap_err();
-    assert!(error.message.contains("only valid for mode=http_upstream"));
-    assert_eq!(std::fs::read(&path).unwrap(), before);
+        .unwrap();
+    let reloaded = ProxyConfig::parse_source(&path).unwrap();
+    assert_eq!(
+        reloaded.config.web.vhost.as_ref().expect("web vhost").upstream,
+        "http://localhost:18081"
+    );
 }

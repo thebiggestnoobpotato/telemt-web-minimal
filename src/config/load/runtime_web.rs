@@ -20,11 +20,11 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     let mut runtime_capabilities = Vec::new();
 
     let carrier_candidates: Arc<[WebCarrier]> = config.web.carrier_candidates().into();
-    for (vhost_idx, vhost) in config.web.vhosts.iter().enumerate() {
-        let fallback = build_fallback(config, vhost_idx, vhost)?;
+    if let Some(vhost) = &config.web.vhost {
+        let fallback = build_fallback(config, vhost)?;
         // Explicit vhost profiles first, then the web.secret_mode profile
         // instantiated for every user not already covered by an explicit
-        // profile with the same mode in this vhost. Instantiated profiles use
+        // profile with the same mode in the vhost. Instantiated profiles use
         // the global WEB ceilings.
         let mut specs = Vec::with_capacity(vhost.profiles.len() + auth.entries().len());
         for profile in &vhost.profiles {
@@ -174,13 +174,8 @@ fn client_secret(secret: [u8; 16], mode: WebSecretMode) -> ([u8; 17], usize) {
     }
 }
 
-fn build_fallback(
-    config: &ProxyConfig,
-    vhost_idx: usize,
-    vhost: &WebVhostConfig,
-) -> Result<WebRuntimeFallback> {
-    let WebFallbackConfig::HttpUpstream { upstream, resolve } = &vhost.fallback;
-    fallback_dns::build_upstream(config, vhost_idx, upstream, *resolve)
+fn build_fallback(config: &ProxyConfig, vhost: &WebVhostConfig) -> Result<WebRuntimeFallback> {
+    fallback_dns::build_upstream(config, &vhost.upstream, vhost.resolve)
 }
 
 // Runtime WEB construction tests remain separate from the production loader.

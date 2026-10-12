@@ -61,15 +61,12 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
                 enabled = true
                 fallback_fasttrack_mode = "{mode}"
 
-                [[web.vhosts]]
+                [web.vhost]
                 host = "proxy.example.com"
                 public_addr = "203.0.113.10:443"
-
-                [web.vhosts.fallback]
-                mode = "http_upstream"
                 upstream = "http://127.0.0.1:18081"
 
-                [[web.vhosts.profiles]]
+                [[web.vhost.profiles]]
                 user = "alice"
                 secret_mode = "plain"
             "#,
