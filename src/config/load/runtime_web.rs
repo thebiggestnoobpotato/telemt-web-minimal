@@ -24,8 +24,8 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
         let fallback = build_fallback(config, vhost_idx, vhost)?;
         // Explicit vhost profiles first, then the web.secret_mode profile
         // instantiated for every user not already covered by an explicit
-        // profile with the same mode in this vhost.
-        let global_ceilings = config.web.profiles.first();
+        // profile with the same mode in this vhost. Instantiated profiles use
+        // the global WEB ceilings.
         let mut specs = Vec::with_capacity(vhost.profiles.len() + auth.entries().len());
         for profile in &vhost.profiles {
             specs.push((
@@ -50,15 +50,9 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                 specs.push((
                     entry.user.as_str(),
                     secret_mode,
-                    global_ceilings
-                        .map(|global| global.max_sessions)
-                        .flatten(),
-                    global_ceilings
-                        .map(|global| global.max_streams)
-                        .flatten(),
-                    global_ceilings
-                        .map(|global| global.max_streams_per_session)
-                        .flatten(),
+                    None,
+                    None,
+                    None,
                 ));
             }
         }

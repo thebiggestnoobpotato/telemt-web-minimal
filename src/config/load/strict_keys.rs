@@ -82,7 +82,6 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "http_connection_capacity_action",
     "debug",
     "limits",
-    "profiles",
     "timeouts",
     "vhosts",
 ];
@@ -184,12 +183,6 @@ const WEB_FALLBACK_CONFIG_KEYS: &[&str] = &["mode", "upstream", "resolve"];
 const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "user",
     "secret_mode",
-    "max_sessions",
-    "max_streams",
-    "max_streams_per_session",
-];
-
-const WEB_GLOBAL_PROFILE_CONFIG_KEYS: &[&str] = &[
     "max_sessions",
     "max_streams",
     "max_streams_per_session",

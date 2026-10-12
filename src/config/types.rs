@@ -38,8 +38,8 @@ pub use server::{ListenerConfig, ListenerEndpoint, ListenerTransport, WebClientI
 #[allow(unused_imports)]
 pub use web::{
     WebCarrierNegotiationAggressiveness, WebConfig, WebFallbackConfig, WebFallbackFastTrackMode,
-    WebFallbackResolve, WebGlobalProfileConfig, WebHttpConnectionCapacityAction, WebLimitsConfig,
-    WebProfileConfig, WebSecretMode, WebTimeoutsConfig, WebVhostConfig,
+    WebFallbackResolve, WebHttpConnectionCapacityAction, WebLimitsConfig, WebProfileConfig,
+    WebSecretMode, WebTimeoutsConfig, WebVhostConfig,
 };
 pub(crate) use web::{
     FallbackEndpoint, WebFallbackDnsSnapshot, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile,

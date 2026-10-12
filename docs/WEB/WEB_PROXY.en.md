@@ -106,15 +106,12 @@ max_streams = 512
 max_streams_per_session = 64
 ```
 
-Instead of repeating a profile per user, setting `secret_mode` under `[web]` instantiates a profile for **every user in `[users]`** in **every vhost**; an optional single `[[web.profiles]]` entry carries ceilings for those profiles only. An explicit per-user profile wins for the same `(user, secret_mode)` in a vhost, and the expanded total counts toward `web.limits.max_profiles`:
+Instead of repeating a profile per user, setting `secret_mode` under `[web]` instantiates a profile for **every user in `[users]`** in **every vhost**, using the `[web.limits]` ceilings; per-user ceiling overrides belong in `[[web.vhosts.profiles]]`. An explicit per-user profile wins for the same `(user, secret_mode)` in a vhost, and the expanded total counts toward `web.limits.max_profiles`:
 
 ```toml
 [web]
 enabled = true
 secret_mode = "dd"
-
-[[web.profiles]]
-max_sessions = 8
 ```
 
 Accepted-socket overload handling is independently configurable. `drop` preserves the legacy close after `accept(2)`. `respond` writes an empty retryable `503` without parsing a request. `wait` waits outside the accept loop for ordinary connection capacity and then enters normal HTTP handling; timeout writes the same `503`. Both waiting and response writing use `web.timeouts.http_overload_timeout_ms` per phase. `web.limits.max_http_overload_connections` bounds sockets outside ordinary capacity and requires a process restart when changed; the action and timeout are hot-reloadable.

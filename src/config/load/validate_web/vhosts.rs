@@ -5,7 +5,6 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     if config.web.vhosts.len() > limits.max_vhosts {
         return config_error("web.vhosts exceeds web.limits.max_vhosts");
     }
-    validate_global_profiles(config, limits)?;
     let global_covers_users =
         config.web.secret_mode.is_some() && !config.users.is_empty();
     let mut hosts = HashSet::with_capacity(config.web.vhosts.len());
@@ -76,32 +75,6 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     }
     if profile_count > limits.max_profiles {
         return config_error("WEB profiles exceed web.limits.max_profiles");
-    }
-    Ok(())
-}
-
-/// Validates the global profile surface: `web.secret_mode` instantiates one
-/// profile per `[users]` user in every vhost, and `[[web.profiles]]` carries
-/// at most one entry of optional ceilings for those profiles.
-fn validate_global_profiles(config: &ProxyConfig, limits: &WebLimitsConfig) -> Result<()> {
-    if config.web.secret_mode.is_none() && !config.web.profiles.is_empty() {
-        return config_error(
-            "web.profiles requires web.secret_mode to be set",
-        );
-    }
-    if config.web.profiles.len() > 1 {
-        return config_error(
-            "web.profiles supports a single entry: web.secret_mode now holds the global mode",
-        );
-    }
-    for (profile_idx, profile) in config.web.profiles.iter().enumerate() {
-        validate_profile_limits(
-            &profile.max_sessions,
-            &profile.max_streams,
-            &profile.max_streams_per_session,
-            limits,
-            &format!("web.profiles[{profile_idx}]"),
-        )?;
     }
     Ok(())
 }

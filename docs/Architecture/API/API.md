@@ -270,7 +270,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
 | `listener` | `object?` | Complete normalized `[listener]` table when set; omitted when no listener is configured. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation, instantiated for every `[users]` user in every vhost; `web.profiles` holds at most one ceilings-only entry for those profiles (no `user` or `secret_mode` key); each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation, instantiated for every `[users]` user in every vhost using the `[web.limits]` ceilings; each `web.vhosts[]` item includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 
 The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
 

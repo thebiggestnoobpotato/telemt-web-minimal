@@ -33,21 +33,6 @@ pub enum WebSecretMode {
     Dd,
 }
 
-/// Optional ceilings for the profiles that `secret_mode` instantiates for
-/// every `[users]` user in every vhost.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WebGlobalProfileConfig {
-    /// Optional per-user live session ceiling.
-    #[serde(default)]
-    pub max_sessions: Option<usize>,
-    /// Optional per-user live logical-stream ceiling.
-    #[serde(default)]
-    pub max_streams: Option<usize>,
-    /// Optional per-user stream ceiling for one session.
-    #[serde(default)]
-    pub max_streams_per_session: Option<usize>,
-}
-
 /// One access user explicitly exposed through a WEB virtual host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebProfileConfig {
@@ -453,9 +438,6 @@ pub struct WebConfig {
     /// WEB lifecycle deadlines.
     #[serde(default)]
     pub timeouts: WebTimeoutsConfig,
-    /// Global access profiles instantiated for every `[users]` user in every vhost.
-    #[serde(default)]
-    pub profiles: Vec<WebGlobalProfileConfig>,
     /// Public hostnames served by WEB listeners.
     #[serde(default)]
     pub vhosts: Vec<WebVhostConfig>,
@@ -502,7 +484,6 @@ impl Default for WebConfig {
             fallback_fasttrack_mode: WebFallbackFastTrackMode::default(),
             http_connection_capacity_action: WebHttpConnectionCapacityAction::default(),
             limits: WebLimitsConfig::default(),
-            profiles: Vec::new(),
             debug: WebDebugConfig::default(),
             timeouts: WebTimeoutsConfig::default(),
             vhosts: Vec::new(),

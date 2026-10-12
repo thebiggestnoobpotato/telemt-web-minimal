@@ -40,7 +40,7 @@ fn global_secret_mode_instantiates_every_user_in_every_vhost() {
     assert!(users.contains(&"bob"), "{users:?}");
     for profile in &vhost.profiles {
         assert_eq!(profile.secret_mode, WebSecretMode::Plain);
-        // Unset ceilings fall back to the global WEB ceilings.
+        // Instantiated profiles use the global WEB ceilings.
         assert_eq!(profile.max_sessions, config.web.limits.max_sessions_global);
         assert_eq!(profile.max_streams, config.web.limits.max_streams_global);
         assert_eq!(
@@ -122,50 +122,6 @@ fn explicit_profile_keeps_both_modes_alongside_global() {
 }
 
 #[test]
-fn global_profile_limits_apply_to_instantiated_profiles() {
-    let toml = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.profiles]]\nmax_sessions = 7\nmax_streams = 8\nmax_streams_per_session = 2\n"
-    );
-    let config = load_config_from_temp_toml(&toml);
-    let runtime = config.web.runtime.expect("WEB runtime snapshot");
-    let vhost = runtime
-        .vhosts
-        .get("proxy.example.com")
-        .expect("canonical WEB vhost");
-    for profile in &vhost.profiles {
-        assert_eq!(profile.max_sessions, 7);
-        assert_eq!(profile.max_streams, 8);
-        assert_eq!(profile.max_streams_per_session, 2);
-    }
-}
-
-#[test]
-fn global_profile_surface_requires_secret_mode_and_single_entry() {
-    // Ceilings without a global mode have nothing to apply to.
-    let no_mode = GLOBAL_WEB_CONFIG
-        .replace("secret_mode = \"plain\"\n", "")
-        + "\n[[web.profiles]]\nmax_sessions = 7\n";
-    let error = load_config_error_from_temp_toml(&no_mode);
-    assert!(
-        error.contains("web.profiles requires web.secret_mode"),
-        "{error}"
-    );
-
-    // At most one ceilings entry: the mode lives on [web].
-    let two_entries = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.profiles]]\nmax_sessions = 7\n\
-         [[web.profiles]]\nmax_streams = 8\n"
-    );
-    let error = load_config_error_from_temp_toml(&two_entries);
-    assert!(
-        error.contains("web.profiles supports a single entry"),
-        "{error}"
-    );
-}
-
-#[test]
 fn global_profile_expansion_counts_against_max_profiles() {
     // 2 users x 1 vhost = 2 expanded profiles.
     let error = load_config_error_from_temp_toml(&format!(
@@ -195,19 +151,20 @@ fn web_enabled_requires_explicit_or_global_profiles() {
 }
 
 #[test]
-fn global_profile_rejects_secret_mode_key() {
-    // secret_mode moved to [web]; inside [[web.profiles]] it is unknown.
-    let with_mode = format!(
+fn web_profiles_table_is_stripped() {
+    // The [[web.profiles]] table was removed: the mode lives on web.secret_mode
+    // and instantiated profiles use the web.limits ceilings.
+    let with_table = format!(
         "{GLOBAL_WEB_CONFIG}\n\
-         [[web.profiles]]\nsecret_mode = \"dd\"\nmax_sessions = 5\n"
+         [[web.profiles]]\nmax_sessions = 7\n"
     );
-    let strict = format!("{with_mode}\n[general]\nconfig_strict = true\n");
+    let strict = format!("{with_table}\n[general]\nconfig_strict = true\n");
     let error = load_config_error_from_temp_toml(&strict);
-    assert!(error.contains("secret_mode"), "{error}");
+    assert!(error.contains("profiles"), "{error}");
 
-    // Non-strict: the stray key is ignored; the entry ceilings still apply
-    // to the [web] mode.
-    let config = load_config_from_temp_toml(&with_mode);
+    // Non-strict: the removed table is ignored and web.secret_mode still
+    // instantiates every user with the global ceilings.
+    let config = load_config_from_temp_toml(&with_table);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
         .vhosts
@@ -215,42 +172,6 @@ fn global_profile_rejects_secret_mode_key() {
         .expect("canonical WEB vhost");
     assert_eq!(vhost.profiles.len(), 2);
     for profile in &vhost.profiles {
-        assert_eq!(profile.secret_mode, WebSecretMode::Plain);
-        assert_eq!(profile.max_sessions, 5);
+        assert_eq!(profile.max_sessions, config.web.limits.max_sessions_global);
     }
-}
-
-#[test]
-fn global_profile_limits_must_be_non_zero_and_within_globals() {
-    let zero = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.profiles]]\nmax_sessions = 0\n"
-    );
-    let error = load_config_error_from_temp_toml(&zero);
-    assert!(
-        error.contains("web.profiles[0] limits must be non-zero"),
-        "{error}"
-    );
-
-    let above = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.profiles]]\nmax_sessions = 3\n"
-    );
-    let error = load_config_error_from_temp_toml(&format!(
-        "{above}\n[web.limits]\nmax_sessions_global = 2\nmax_sessions_per_ip = 1"
-    ));
-    assert!(
-        error.contains("web.profiles[0] limits must be non-zero"),
-        "{error}"
-    );
-
-    let nested = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.profiles]]\nmax_streams = 4\nmax_streams_per_session = 8\n"
-    );
-    let error = load_config_error_from_temp_toml(&nested);
-    assert!(
-        error.contains("web.profiles[0] limits must be non-zero"),
-        "{error}"
-    );
 }

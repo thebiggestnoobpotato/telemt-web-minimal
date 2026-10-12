@@ -405,18 +405,12 @@ fn classify_cold_field_change_requires_restart() {
 }
 
 #[test]
-fn classify_web_global_profiles_change_is_hot() {
+fn classify_web_secret_mode_change_is_hot() {
     // The whole web table is overlaid hot (limits and fallback_fasttrack_mode
-    // excluded), so web.secret_mode / web.profiles changes never require a
-    // restart.
+    // excluded), so web.secret_mode changes never require a restart.
     let old = ProxyConfig::default();
     let mut new = ProxyConfig::default();
     new.web.secret_mode = Some(crate::config::WebSecretMode::Dd);
-    new.web.profiles.push(crate::config::WebGlobalProfileConfig {
-        max_sessions: Some(4),
-        max_streams: None,
-        max_streams_per_session: None,
-    });
 
     let class = classify_config_changes(&old, &new);
     assert!(!class.restart_required);
