@@ -33,11 +33,10 @@ pub enum WebSecretMode {
     Dd,
 }
 
-/// WEB access profile instantiated for every `[users]` user in every vhost.
+/// Optional ceilings for the profiles that `secret_mode` instantiates for
+/// every `[users]` user in every vhost.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebGlobalProfileConfig {
-    /// Exact client-facing secret representation advertised in WEB links.
-    pub secret_mode: WebSecretMode,
     /// Optional per-user live session ceiling.
     #[serde(default)]
     pub max_sessions: Option<usize>,
@@ -417,6 +416,10 @@ pub struct WebConfig {
     /// Enables issuance of new WEB bridge and session credentials.
     #[serde(default)]
     pub enabled: bool,
+    /// Global secret representation; instantiates a profile for every
+    /// `[users]` user in every vhost. Unset leaves instantiation disabled.
+    #[serde(default)]
+    pub secret_mode: Option<WebSecretMode>,
     /// Sole carrier when negotiation is disabled and final fallback when enabled.
     #[serde(default)]
     pub carrier: WebCarrier,
@@ -489,6 +492,7 @@ impl Default for WebConfig {
     fn default() -> Self {
         Self {
             enabled: false,
+            secret_mode: None,
             carrier: WebCarrier::default(),
             carrier_method: WebCarrierMethod::default(),
             conveyor: default_web_conveyor(),

@@ -105,9 +105,7 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [web]
 enabled = true
-
 # Applies to every user in [users]; remove it to bind users per vhost instead.
-[[web.profiles]]
 secret_mode = "plain"
 
 [[web.vhosts]]
@@ -131,8 +129,8 @@ Notes:
 - At least one `[[web.vhosts]]` entry is required whenever a listener is configured.
 - Every vhost needs a `fallback` (what browsers and scanners see) and at least
   one profile binding a `[users]` user to the vhost — either explicit
-  `[[web.vhosts.profiles]]` entries or a global `[[web.profiles]]` entry that
-  applies to every user.
+  `[[web.vhosts.profiles]]` entries or a `web.secret_mode` that applies to
+  every user.
 - See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.
 
 # Telemt via Docker

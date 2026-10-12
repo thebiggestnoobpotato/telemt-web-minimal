@@ -106,11 +106,14 @@ max_streams = 512
 max_streams_per_session = 64
 ```
 
-Instead of repeating a profile per user, one global `[[web.profiles]]` entry (without a `user` key) under `[web]` instantiates a profile for **every user in `[users]`** in **every vhost** with a shared `secret_mode` and optional ceilings; an explicit per-user profile wins for the same `(user, secret_mode)` in a vhost, and the expanded total counts toward `web.limits.max_profiles`:
+Instead of repeating a profile per user, setting `secret_mode` under `[web]` instantiates a profile for **every user in `[users]`** in **every vhost**; an optional single `[[web.profiles]]` entry carries ceilings for those profiles only. An explicit per-user profile wins for the same `(user, secret_mode)` in a vhost, and the expanded total counts toward `web.limits.max_profiles`:
 
 ```toml
-[[web.profiles]]
+[web]
+enabled = true
 secret_mode = "dd"
+
+[[web.profiles]]
 max_sessions = 8
 ```
 

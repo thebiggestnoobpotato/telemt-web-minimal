@@ -71,6 +71,7 @@ const LISTENER_CONFIG_KEYS: &[&str] = &[
 
 const WEB_CONFIG_KEYS: &[&str] = &[
     "enabled",
+    "secret_mode",
     "carrier",
     "carrier_method",
     "conveyor",
@@ -189,7 +190,6 @@ const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
 ];
 
 const WEB_GLOBAL_PROFILE_CONFIG_KEYS: &[&str] = &[
-    "secret_mode",
     "max_sessions",
     "max_streams",
     "max_streams_per_session",

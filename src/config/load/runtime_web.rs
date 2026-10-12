@@ -22,18 +22,11 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     let carrier_candidates: Arc<[WebCarrier]> = config.web.carrier_candidates().into();
     for (vhost_idx, vhost) in config.web.vhosts.iter().enumerate() {
         let fallback = build_fallback(config, vhost_idx, vhost)?;
-        // Explicit vhost profiles first, then global profiles instantiated for
-        // every user not already covered by an explicit profile with the same
-        // secret mode in this vhost.
-        let mut specs = Vec::with_capacity(
-            vhost.profiles
-                .len()
-                + config
-                    .web
-                    .profiles
-                    .len()
-                    .saturating_mul(auth.entries().len()),
-        );
+        // Explicit vhost profiles first, then the web.secret_mode profile
+        // instantiated for every user not already covered by an explicit
+        // profile with the same mode in this vhost.
+        let global_ceilings = config.web.profiles.first();
+        let mut specs = Vec::with_capacity(vhost.profiles.len() + auth.entries().len());
         for profile in &vhost.profiles {
             specs.push((
                 profile.user.as_str(),
@@ -43,23 +36,29 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                 profile.max_streams_per_session,
             ));
         }
-        for global in &config.web.profiles {
+        if let Some(secret_mode) = config.web.secret_mode {
             for entry in auth.entries() {
                 if vhost
                     .profiles
                     .iter()
                     .any(|profile| {
-                        profile.user == entry.user && profile.secret_mode == global.secret_mode
+                        profile.user == entry.user && profile.secret_mode == secret_mode
                     })
                 {
                     continue;
                 }
                 specs.push((
                     entry.user.as_str(),
-                    global.secret_mode,
-                    global.max_sessions,
-                    global.max_streams,
-                    global.max_streams_per_session,
+                    secret_mode,
+                    global_ceilings
+                        .map(|global| global.max_sessions)
+                        .flatten(),
+                    global_ceilings
+                        .map(|global| global.max_streams)
+                        .flatten(),
+                    global_ceilings
+                        .map(|global| global.max_streams_per_session)
+                        .flatten(),
                 ));
             }
         }

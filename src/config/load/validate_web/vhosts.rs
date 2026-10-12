@@ -6,7 +6,8 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
         return config_error("web.vhosts exceeds web.limits.max_vhosts");
     }
     validate_global_profiles(config, limits)?;
-    let global_covers_users = !config.web.profiles.is_empty() && !config.users.is_empty();
+    let global_covers_users =
+        config.web.secret_mode.is_some() && !config.users.is_empty();
     let mut hosts = HashSet::with_capacity(config.web.vhosts.len());
     let mut profile_count = 0usize;
     for (vhost_idx, vhost) in config.web.vhosts.iter_mut().enumerate() {
@@ -59,13 +60,13 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
                 ProxyError::Config("WEB profile count overflowed usize".to_string())
             })?;
         }
-        // Global profiles instantiate one profile per user not already covered
-        // by an explicit profile with the same secret mode in this vhost.
-        for global in &config.web.profiles {
+        // A set web.secret_mode instantiates one profile per user not already
+        // covered by an explicit profile with the same mode in this vhost.
+        if let Some(global_mode) = config.web.secret_mode {
             let covered = vhost
                 .profiles
                 .iter()
-                .filter(|profile| profile.secret_mode == global.secret_mode)
+                .filter(|profile| profile.secret_mode == global_mode)
                 .count();
             let additions = config.users.len().saturating_sub(covered);
             profile_count = profile_count
@@ -79,10 +80,20 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     Ok(())
 }
 
-/// Validates global `[[web.profiles]]` entries, which instantiate one profile
-/// per `[users]` user in every vhost.
+/// Validates the global profile surface: `web.secret_mode` instantiates one
+/// profile per `[users]` user in every vhost, and `[[web.profiles]]` carries
+/// at most one entry of optional ceilings for those profiles.
 fn validate_global_profiles(config: &ProxyConfig, limits: &WebLimitsConfig) -> Result<()> {
-    let mut modes = HashSet::with_capacity(config.web.profiles.len());
+    if config.web.secret_mode.is_none() && !config.web.profiles.is_empty() {
+        return config_error(
+            "web.profiles requires web.secret_mode to be set",
+        );
+    }
+    if config.web.profiles.len() > 1 {
+        return config_error(
+            "web.profiles supports a single entry: web.secret_mode now holds the global mode",
+        );
+    }
     for (profile_idx, profile) in config.web.profiles.iter().enumerate() {
         validate_profile_limits(
             &profile.max_sessions,
@@ -91,15 +102,6 @@ fn validate_global_profiles(config: &ProxyConfig, limits: &WebLimitsConfig) -> R
             limits,
             &format!("web.profiles[{profile_idx}]"),
         )?;
-        let mode = match profile.secret_mode {
-            WebSecretMode::Plain => "plain",
-            WebSecretMode::Dd => "dd",
-        };
-        if !modes.insert(mode) {
-            return config_error(&format!(
-                "duplicate WEB global profile for secret mode `{mode}`"
-            ));
-        }
     }
     Ok(())
 }
