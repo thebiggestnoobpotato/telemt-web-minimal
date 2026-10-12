@@ -19,6 +19,9 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
             "web.vhost has no profiles: add [[web.vhost.profiles]] or set web.secret_mode when web.enabled=true",
         );
     }
+    if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {
+        return config_error("web.vhost.profiles require web.secret_mode");
+    }
     validate_fallback(&vhost.upstream, vhost.resolve)?;
     let mut profile_count = 0usize;
     let mut profiles = HashSet::with_capacity(vhost.profiles.len());
@@ -34,7 +37,7 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
                 profile.user
             ));
         }
-        if !profiles.insert((profile.user.as_str(), profile.secret_mode)) {
+        if !profiles.insert(profile.user.as_str()) {
             return config_error(&format!(
                 "duplicate WEB profile for user `{}` in vhost `{}`",
                 profile.user, vhost.host
@@ -52,14 +55,9 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
         })?;
     }
     // A set web.secret_mode instantiates one profile per user not already
-    // covered by an explicit profile with the same mode in the vhost.
-    if let Some(global_mode) = config.web.secret_mode {
-        let covered = vhost
-            .profiles
-            .iter()
-            .filter(|profile| profile.secret_mode == global_mode)
-            .count();
-        let additions = config.users.len().saturating_sub(covered);
+    // covered by an explicit profile in the vhost.
+    if config.web.secret_mode.is_some() {
+        let additions = config.users.len().saturating_sub(vhost.profiles.len());
         profile_count = profile_count
             .checked_add(additions)
             .ok_or_else(|| ProxyError::Config("WEB profile count overflowed usize".to_string()))?;

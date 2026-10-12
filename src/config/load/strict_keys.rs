@@ -186,7 +186,6 @@ const WEB_VHOST_CONFIG_KEYS: &[&str] = &[
 ];
 const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "user",
-    "secret_mode",
     "max_sessions",
     "max_streams",
     "max_streams_per_session",

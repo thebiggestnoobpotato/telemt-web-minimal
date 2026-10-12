@@ -59,6 +59,7 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
                 [web]
                 enabled = true
                 fallback_fasttrack_mode = "{mode}"
+                secret_mode = "plain"
 
                 [web.vhost]
                 host = "proxy.example.com"
@@ -67,7 +68,6 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
 
                 [[web.vhost.profiles]]
                 user = "alice"
-                secret_mode = "plain"
             "#,
     );
     std::fs::write(path, config).unwrap();

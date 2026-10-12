@@ -84,6 +84,7 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
 [web]
 enabled = true
+secret_mode = "dd"
 carrier = "https-lanes"
 fallback_fasttrack_mode = "off"
 http_connection_capacity_action = "drop"
@@ -96,13 +97,12 @@ upstream = "http://127.0.0.1:18081"
 
 [[web.vhost.profiles]]
 user = "web-user"
-secret_mode = "dd"
 max_sessions = 8
 max_streams = 512
 max_streams_per_session = 64
 ```
 
-Instead of repeating a profile per user, setting `secret_mode` under `[web]` instantiates a profile for **every user in `[users]`** in **the vhost**, using the `[web.limits]` ceilings; per-user ceiling overrides belong in `[[web.vhost.profiles]]`. An explicit per-user profile wins for the same `(user, secret_mode)` in the vhost, and the expanded total counts toward `web.limits.max_profiles`:
+`secret_mode` under `[web]` is the single secret representation for every profile and instantiates a profile for **every user in `[users]`** in **the vhost**, using the `[web.limits]` ceilings; explicit `[[web.vhost.profiles]]` entries add per-user ceiling overrides for the same users and require `web.secret_mode`. An explicit entry wins for its user, and the expanded total counts toward `web.limits.max_profiles`:
 
 ```toml
 [web]

@@ -21,6 +21,7 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
 [web]
 enabled = true
+secret_mode = "plain"
 
 [web.vhost]
 host = "proxy.example.com"
@@ -29,7 +30,6 @@ host = "proxy.example.com"
 upstream = "http://127.0.0.1:18081"
 [[web.vhost.profiles]]
 user = "alice"
-secret_mode = "plain"
 "#,
     );
     std::fs::write(path, config).unwrap();

@@ -264,7 +264,8 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [web]
 enabled = true
-# Applies to every user in [users]; remove to bind users in [web.vhost] instead.
+# The single secret representation for every profile; required for
+# [[web.vhost.profiles]].
 secret_mode = "plain"
 
 [web.vhost]

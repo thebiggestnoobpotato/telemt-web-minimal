@@ -25,6 +25,7 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 [web]
 enabled = true
 carrier = "https-lanes"
+secret_mode = "dd"
 
 [web.vhost]
 host = "Proxy.Example.COM"
@@ -33,7 +34,6 @@ public_addr = "203.0.113.10:443"
 upstream = "http://127.0.0.1:18081"
 [[web.vhost.profiles]]
 user = "alice"
-secret_mode = "dd"
 max_sessions = 4
 max_streams = 64
 max_streams_per_session = 16

@@ -235,9 +235,10 @@ async fn read_managed_config_returns_only_editable_sections() {
         "[general]\nfast_mode = true\n",
         "[api]\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
+        "[web]\nsecret_mode = \"plain\"\n",
         "[web.vhost]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          upstream = \"http://127.0.0.1:80\"\n\
-         [[web.vhost.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
+         [[web.vhost.profiles]]\nuser = \"bob\"\n",
         "[metrics]\nport = 9090\n",
         "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
@@ -256,9 +257,10 @@ async fn read_managed_config_returns_full_listener_table() {
         "[general]\nfast_mode = true\n",
         "[api]\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
+        "[web]\nsecret_mode = \"plain\"\n",
         "[web.vhost]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          upstream = \"http://127.0.0.1:80\"\n\
-         [[web.vhost.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
+         [[web.vhost.profiles]]\nuser = \"bob\"\n",
         "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let (value, _rev) = read_managed_config(&path).await.unwrap();
@@ -299,9 +301,10 @@ async fn patch_listener_preserves_api() {
         "[general]\nfast_mode = true\n",
         "[api]\nenabled = true\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
+        "[web]\nsecret_mode = \"plain\"\n",
         "[web.vhost]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          upstream = \"http://127.0.0.1:80\"\n\
-         [[web.vhost.profiles]]\nuser = \"bob\"\nsecret_mode = \"plain\"\n",
+         [[web.vhost.profiles]]\nuser = \"bob\"\n",
         "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let patch: Json = serde_json::json!({

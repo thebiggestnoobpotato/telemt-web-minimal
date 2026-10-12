@@ -38,8 +38,6 @@ pub enum WebSecretMode {
 pub struct WebProfileConfig {
     /// Existing `[users]` key authenticated by the inner MTProxy handshake.
     pub user: String,
-    /// Exact client-facing secret representation advertised in WEB links.
-    pub secret_mode: WebSecretMode,
     /// Optional per-profile live session ceiling.
     #[serde(default)]
     pub max_sessions: Option<usize>,

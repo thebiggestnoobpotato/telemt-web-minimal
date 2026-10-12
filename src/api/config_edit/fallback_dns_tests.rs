@@ -9,6 +9,7 @@ port = 18080
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 [web]
 enabled = true
+secret_mode = "dd"
 [web.vhost]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
@@ -16,7 +17,6 @@ upstream = "http://localhost:18081"
 resolve = "startup"
 [[web.vhost.profiles]]
 user = "alice"
-secret_mode = "dd"
 "#;
 
 #[tokio::test]

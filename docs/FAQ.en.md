@@ -63,11 +63,10 @@ user1 = "00000000000000000000000000000001"
 user2 = "00000000000000000000000000000002"
 user3 = "00000000000000000000000000000003"
 ```
-4. If the configuration already sets `web.secret_mode` under `[web]`, nothing else is needed — it applies to every user in `[users]`. Otherwise add a profile for each new user to the vhost:
+4. `web.secret_mode` under `[web]` applies to every user in `[users]` — a set mode covers new users automatically. To give one user per-user ceilings, add a profile for that user to the vhost:
 ```toml
 [[web.vhost.profiles]]
 user = "user1"
-secret_mode = "plain"
 ```
 5. Save the configuration (Ctrl+S -> Ctrl+X). There is no need to restart the telemt service.
 6. Get the ready-to-use `tg://webproxy` links using the command:

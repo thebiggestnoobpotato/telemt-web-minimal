@@ -49,10 +49,10 @@ fn global_secret_mode_instantiates_every_user_in_the_vhost() {
 }
 
 #[test]
-fn explicit_profile_wins_over_global_for_same_mode() {
+fn explicit_profile_wins_over_global_for_same_user() {
     let toml = format!(
         "{GLOBAL_WEB_CONFIG}\n\
-         [[web.vhost.profiles]]\nuser = \"alice\"\nsecret_mode = \"plain\"\nmax_sessions = 4\n"
+         [[web.vhost.profiles]]\nuser = \"alice\"\nmax_sessions = 4\n"
     );
     let config = load_config_from_temp_toml(&toml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
@@ -74,35 +74,6 @@ fn explicit_profile_wins_over_global_for_same_mode() {
             );
         }
     }
-}
-
-#[test]
-fn explicit_profile_keeps_both_modes_alongside_global() {
-    let toml = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.vhost.profiles]]\nuser = \"alice\"\nsecret_mode = \"dd\"\n"
-    );
-    let config = load_config_from_temp_toml(&toml);
-    let runtime = config.web.runtime.expect("WEB runtime snapshot");
-    let vhost = runtime
-        .vhosts
-        .get("proxy.example.com")
-        .expect("canonical WEB vhost");
-    assert_eq!(vhost.profiles.len(), 3);
-    let alice: Vec<_> = vhost
-        .profiles
-        .iter()
-        .filter(|p| p.user == "alice")
-        .map(|p| p.secret_mode)
-        .collect();
-    assert_eq!(alice, vec![WebSecretMode::Dd, WebSecretMode::Plain]);
-    let bob: Vec<_> = vhost
-        .profiles
-        .iter()
-        .filter(|p| p.user == "bob")
-        .map(|p| p.secret_mode)
-        .collect();
-    assert_eq!(bob, vec![WebSecretMode::Plain]);
 }
 
 #[test]

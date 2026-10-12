@@ -13,6 +13,7 @@ web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
 [web]
 enabled = true
+secret_mode = "plain"
 
 [web.vhost]
 host = "proxy.example.com"
@@ -21,7 +22,6 @@ public_addr = "203.0.113.10:443"
 upstream = "http://127.0.0.1:18081"
 [[web.vhost.profiles]]
 user = "alice"
-secret_mode = "plain"
 "#
 }
 
@@ -34,8 +34,7 @@ fn vhost_patch(base_path: &str) -> Json {
                 "public_addr": "203.0.113.10:443",
                 "upstream": "http://127.0.0.1:18081",
                 "profiles": [{
-                    "user": "alice",
-                    "secret_mode": "plain"
+                    "user": "alice"
                 }]
             }
         }

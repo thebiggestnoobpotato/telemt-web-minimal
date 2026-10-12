@@ -270,7 +270,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
 | `listener` | `object?` | Complete normalized `[listener]` table when set; omitted when no listener is configured. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation, instantiated for every `[users]` user in the vhost using the `[web.limits]` ceilings; `web.vhost` includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation for every profile, instantiated for every `[users]` user in the vhost using the `[web.limits]` ceilings; `web.vhost` includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 
 The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
 
@@ -899,7 +899,7 @@ Example — replace the complete vhost table while changing its `base_path`:
       "base_path": "telegram/web",
       "public_addr": "203.0.113.10:443",
       "upstream": "http://127.0.0.1:18081",
-      "profiles": [{"user": "web-user", "secret_mode": "dd"}]
+      "profiles": [{"user": "web-user"}]
     }
   }
 }

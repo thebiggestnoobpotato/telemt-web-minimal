@@ -24,26 +24,29 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
         let fallback = build_fallback(config, vhost)?;
         // Explicit vhost profiles first, then the web.secret_mode profile
         // instantiated for every user not already covered by an explicit
-        // profile with the same mode in the vhost. Instantiated profiles use
-        // the global WEB ceilings.
+        // profile in the vhost. Instantiated profiles use the global WEB
+        // ceilings.
         let mut specs = Vec::with_capacity(vhost.profiles.len() + auth.entries().len());
-        for profile in &vhost.profiles {
-            specs.push((
-                profile.user.as_str(),
-                profile.secret_mode,
-                profile.max_sessions,
-                profile.max_streams,
-                profile.max_streams_per_session,
+        if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {
+            return Err(ProxyError::Config(
+                "web.vhost.profiles require web.secret_mode".to_string(),
             ));
         }
         if let Some(secret_mode) = config.web.secret_mode {
+            for profile in &vhost.profiles {
+                specs.push((
+                    profile.user.as_str(),
+                    secret_mode,
+                    profile.max_sessions,
+                    profile.max_streams,
+                    profile.max_streams_per_session,
+                ));
+            }
             for entry in auth.entries() {
                 if vhost
                     .profiles
                     .iter()
-                    .any(|profile| {
-                        profile.user == entry.user && profile.secret_mode == secret_mode
-                    })
+                    .any(|profile| profile.user == entry.user)
                 {
                     continue;
                 }
