@@ -260,7 +260,6 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         ("control_bytes_global", limits.control_bytes_global),
         ("max_bootstraps_global", limits.max_bootstraps_global),
         ("max_bootstraps_per_ip", limits.max_bootstraps_per_ip),
-        ("max_vhosts", limits.max_vhosts),
         ("max_profiles", limits.max_profiles),
         ("debug_records_capacity", limits.debug_records_capacity),
         ("debug_bytes_global", limits.debug_bytes_global),

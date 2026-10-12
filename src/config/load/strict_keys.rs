@@ -119,7 +119,6 @@ const WEB_LIMITS_CONFIG_KEYS: &[&str] = &[
     "control_bytes_global",
     "max_bootstraps_global",
     "max_bootstraps_per_ip",
-    "max_vhosts",
     "max_profiles",
     "max_static_files",
     "max_static_file_bytes",

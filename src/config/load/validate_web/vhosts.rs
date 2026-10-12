@@ -2,9 +2,6 @@ use super::*;
 
 pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     let limits = &config.web.limits;
-    if config.web.vhost.is_some() && limits.max_vhosts < 1 {
-        return config_error("web.vhost exceeds web.limits.max_vhosts");
-    }
     let global_covers_users =
         config.web.secret_mode.is_some() && !config.users.is_empty();
     let Some(vhost) = config.web.vhost.as_mut() else {

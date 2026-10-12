@@ -68,7 +68,6 @@ usize_default!(default_web_control_bytes_per_session, 256 * 1024);
 usize_default!(default_web_control_bytes_global, 16 * 1024 * 1024);
 usize_default!(default_web_max_bootstraps_global, 512);
 usize_default!(default_web_max_bootstraps_per_ip, 64);
-usize_default!(default_web_max_vhosts, 8);
 usize_default!(default_web_max_profiles, 32);
 usize_default!(default_web_debug_records_capacity, 65_536);
 usize_default!(default_web_debug_bytes_global, 64 * 1024 * 1024);

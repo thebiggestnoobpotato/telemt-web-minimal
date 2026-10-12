@@ -673,7 +673,6 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `control_bytes_global` | `usize` | `16777216` | Process-wide byte reserve available only to control frames. |
 | `max_bootstraps_global` | `usize` | `512` | Live bootstrap credentials process-wide. |
 | `max_bootstraps_per_ip` | `usize` | `64` | Live bootstrap credentials per client IP. |
-| `max_vhosts` | `usize` | `8` | Configured `[web.vhost]` tables; at most one exists. |
 | `max_profiles` | `usize` | `32` | WEB profiles in the vhost, counted after global-profile expansion. |
 | `debug_records_capacity` | `usize` | `65536` | Maximum retained WEB debug record count. |
 | `debug_bytes_global` | `usize` | `67108864` | Retained plus in-flight WEB debug byte ceiling; minimum 4096. |

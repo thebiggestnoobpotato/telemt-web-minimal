@@ -173,10 +173,7 @@ pub struct WebLimitsConfig {
     /// Live bootstrap credential ceiling for one forwarded client address.
     #[serde(default = "default_web_max_bootstraps_per_ip")]
     pub max_bootstraps_per_ip: usize,
-    /// Maximum configured WEB virtual-host count.
-    #[serde(default = "default_web_max_vhosts")]
-    pub max_vhosts: usize,
-    /// Maximum configured WEB access-profile count across all virtual hosts.
+    /// Maximum configured WEB access-profile count in the vhost.
     #[serde(default = "default_web_max_profiles")]
     pub max_profiles: usize,
     /// Maximum retained WEB debug record count.
@@ -244,7 +241,6 @@ impl Default for WebLimitsConfig {
             control_bytes_global: default_web_control_bytes_global(),
             max_bootstraps_global: default_web_max_bootstraps_global(),
             max_bootstraps_per_ip: default_web_max_bootstraps_per_ip(),
-            max_vhosts: default_web_max_vhosts(),
             max_profiles: default_web_max_profiles(),
             debug_records_capacity: default_web_debug_records_capacity(),
             debug_bytes_global: default_web_debug_bytes_global(),
