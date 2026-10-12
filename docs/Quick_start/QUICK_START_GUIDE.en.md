@@ -98,7 +98,6 @@ show_users_links = true
 [listener]
 ip = "0.0.0.0"
 port = 443
-transport = "web"
 # Trusted L7 reverse proxies allowed to supply the client IP header.
 # /0 networks are rejected; extend only with your own fronting proxies.
 web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]

@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::error;
 
-use crate::config::{ListenerEndpoint, ListenerTransport};
+use crate::config::ListenerEndpoint;
 use crate::web::manager::{HttpConnectionAdmissionError, WebProcessRuntime};
 use crate::web::telemetry::{WebAcceptorGuard, WebHttpConnectionOverloadOutcome};
 use crate::web::transport::WebListenerStream;
@@ -73,108 +73,100 @@ async fn run_accept_loop(
         };
         match accepted {
             Ok((stream, peer_addr)) => {
-                if spec.transport == ListenerTransport::Web {
-                    let Some(web_runtime) = web_runtime.as_ref() else {
-                        error!(endpoint = %spec.endpoint, "WEB listener has no process runtime");
-                        return;
-                    };
-                    web_runtime.telemetry().record_accept();
-                    if cancellation.is_cancelled() {
-                        drop(stream);
-                        continue;
-                    }
-                    if web_runtime.is_shutdown() {
+                let Some(web_runtime) = web_runtime.as_ref() else {
+                    error!(endpoint = %spec.endpoint, "WEB listener has no process runtime");
+                    return;
+                };
+                web_runtime.telemetry().record_accept();
+                if cancellation.is_cancelled() {
+                    drop(stream);
+                    continue;
+                }
+                if web_runtime.is_shutdown() {
+                    web_runtime.telemetry().record_rejection(
+                        crate::web::telemetry::WebRejectionReason::RuntimeClosed,
+                    );
+                    drop(stream);
+                    continue;
+                }
+                let connection_permit = match web_runtime.try_http_connection() {
+                    Ok(permit) => permit,
+                    Err(HttpConnectionAdmissionError::Closed) => {
                         web_runtime.telemetry().record_rejection(
                             crate::web::telemetry::WebRejectionReason::RuntimeClosed,
                         );
                         drop(stream);
                         continue;
                     }
-                    let connection_permit = match web_runtime.try_http_connection() {
-                        Ok(permit) => permit,
-                        Err(HttpConnectionAdmissionError::Closed) => {
+                    Err(HttpConnectionAdmissionError::AtCapacity) => {
+                        let config = web_runtime.active_generation().config();
+                        let action = config.web.http_connection_capacity_action;
+                        let phase_timeout =
+                            Duration::from_millis(config.web.timeouts.http_overload_timeout_ms);
+                        drop(config);
+                        if action == crate::config::WebHttpConnectionCapacityAction::Drop {
                             web_runtime.telemetry().record_rejection(
-                                crate::web::telemetry::WebRejectionReason::RuntimeClosed,
+                                crate::web::telemetry::WebRejectionReason::HttpConnectionCapacity,
                             );
+                            web_runtime
+                                .telemetry()
+                                .record_overload(WebHttpConnectionOverloadOutcome::Dropped);
                             drop(stream);
                             continue;
                         }
-                        Err(HttpConnectionAdmissionError::AtCapacity) => {
-                            let config = web_runtime.active_generation().config();
-                            let action = config.web.http_connection_capacity_action;
-                            let phase_timeout =
-                                Duration::from_millis(config.web.timeouts.http_overload_timeout_ms);
-                            drop(config);
-                            if action == crate::config::WebHttpConnectionCapacityAction::Drop {
-                                web_runtime.telemetry().record_rejection(
-                                    crate::web::telemetry::WebRejectionReason::HttpConnectionCapacity,
-                                );
+                        let overload_permit = match web_runtime.try_http_overload_connection() {
+                            Ok(permit) => permit,
+                            Err(HttpConnectionAdmissionError::Closed) => {
                                 web_runtime
                                     .telemetry()
-                                    .record_overload(WebHttpConnectionOverloadOutcome::Dropped);
+                                    .record_rejection(
+                                        crate::web::telemetry::WebRejectionReason::RuntimeClosed,
+                                    );
+                                web_runtime
+                                    .telemetry()
+                                    .record_overload(
+                                        WebHttpConnectionOverloadOutcome::ShutdownDrop,
+                                    );
                                 drop(stream);
                                 continue;
                             }
-                            let overload_permit = match web_runtime.try_http_overload_connection() {
-                                Ok(permit) => permit,
-                                Err(HttpConnectionAdmissionError::Closed) => {
-                                    web_runtime
-                                        .telemetry()
-                                        .record_rejection(
-                                            crate::web::telemetry::WebRejectionReason::RuntimeClosed,
-                                        );
-                                    web_runtime
-                                        .telemetry()
-                                        .record_overload(
-                                            WebHttpConnectionOverloadOutcome::ShutdownDrop,
-                                        );
-                                    drop(stream);
-                                    continue;
-                                }
-                                Err(HttpConnectionAdmissionError::AtCapacity) => {
-                                    web_runtime
-                                        .telemetry()
-                                        .record_rejection(
-                                            crate::web::telemetry::WebRejectionReason::HttpConnectionCapacity,
-                                        );
-                                    web_runtime.telemetry().record_overload(
-                                        WebHttpConnectionOverloadOutcome::OverflowCapacityDrop,
+                            Err(HttpConnectionAdmissionError::AtCapacity) => {
+                                web_runtime
+                                    .telemetry()
+                                    .record_rejection(
+                                        crate::web::telemetry::WebRejectionReason::HttpConnectionCapacity,
                                     );
-                                    drop(stream);
-                                    continue;
-                                }
-                            };
-                            connections.spawn(web_overload::serve(
-                                stream,
-                                peer_addr,
-                                spec.web_client_ip_source,
-                                Arc::clone(&spec.web_trusted_proxy_cidrs),
-                                Arc::clone(web_runtime),
-                                cancellation.clone(),
-                                overload_permit,
-                                action,
-                                phase_timeout,
-                            ));
-                            continue;
-                        }
-                    };
-                    connections.spawn(crate::web::http::serve_connection(
-                        stream,
-                        peer_addr,
-                        spec.web_client_ip_source,
-                        Arc::clone(&spec.web_trusted_proxy_cidrs),
-                        Arc::clone(web_runtime),
-                        cancellation.clone(),
-                        connection_permit,
-                    ));
-                    continue;
-                }
-                // Raw TCP MTProxy transports are not served in this WEB-only build.
-                error!(
-                    endpoint = %spec.endpoint,
-                    "Listener transport is not supported in this build; dropping connection"
-                );
-                drop(stream);
+                                web_runtime.telemetry().record_overload(
+                                    WebHttpConnectionOverloadOutcome::OverflowCapacityDrop,
+                                );
+                                drop(stream);
+                                continue;
+                            }
+                        };
+                        connections.spawn(web_overload::serve(
+                            stream,
+                            peer_addr,
+                            spec.web_client_ip_source,
+                            Arc::clone(&spec.web_trusted_proxy_cidrs),
+                            Arc::clone(web_runtime),
+                            cancellation.clone(),
+                            overload_permit,
+                            action,
+                            phase_timeout,
+                        ));
+                        continue;
+                    }
+                };
+                connections.spawn(crate::web::http::serve_connection(
+                    stream,
+                    peer_addr,
+                    spec.web_client_ip_source,
+                    Arc::clone(&spec.web_trusted_proxy_cidrs),
+                    Arc::clone(web_runtime),
+                    cancellation.clone(),
+                    connection_permit,
+                ));
+                continue;
             }
             Err(error_value) => {
                 if let Some(web_runtime) = &web_runtime {
@@ -201,11 +193,6 @@ impl ListenerSlot {
         active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
         web_runtime: Option<Arc<WebProcessRuntime>>,
     ) -> Self {
-        let web_runtime = if bound.spec.transport == ListenerTransport::Web {
-            web_runtime
-        } else {
-            None
-        };
         let cancellation = CancellationToken::new();
         let connections = TaskTracker::new();
         let web_acceptor_guard = web_runtime

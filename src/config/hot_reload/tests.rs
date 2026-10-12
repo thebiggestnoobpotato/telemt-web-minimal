@@ -53,7 +53,6 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
                 [listener]
                 ip = "127.0.0.1"
                 port = 18080
-                transport = "web"
                 web_client_ip_source = "x_forwarded_for"
                 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
@@ -232,7 +231,6 @@ fn listener_web_policy_fields_are_process_owned() {
     let mut old = sample_config();
     old.listener = Some(ListenerConfig {
         ip: Some("0.0.0.0".parse().unwrap()),
-        transport: crate::config::ListenerTransport::Web,
         port: Some(443),
         socket_path: None,
         socket_perm: None,

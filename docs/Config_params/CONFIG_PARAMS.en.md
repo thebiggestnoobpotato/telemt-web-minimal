@@ -489,7 +489,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`port`](#port-listener) | `u16` | — | `✘` |
 | [`socket_path`](#socket_path-listener) | `String` | — | `✘` |
 | [`socket_perm`](#socket_perm-listener) | `String` | — | `✘` |
-| [`transport`](#transport-listener) | `"web"` | `"web"` | `✘` |
 | [`web_client_ip_source`](#web_client_ip_source-listener) | `"x_forwarded_for"` | `"x_forwarded_for"` | `✘` |
 | [`web_trusted_proxy_cidrs`](#web_trusted_proxy_cidrs-listener) | `IpNetwork[]` | `[]` | `✘` |
 
@@ -523,7 +522,6 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
     [listener]
     socket_path = "/run/telemt/web.sock"
     socket_perm = "0660"
-    transport = "web"
     ```
 ## socket_perm (listener)
   - **Constraints / validation**: Octal permission string such as `"0660"`. Applied via `chmod` after bind; an invalid value is reported with a warning and the umask-derived mode is kept.
@@ -534,21 +532,7 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
     [listener]
     socket_path = "/run/telemt/web.sock"
     socket_perm = "0660"
-    transport = "web"
     ```
-## transport (listener)
-  - **Constraints / validation**: `"web"`.
-  - **Description**: Selects the protocol accepted by this listener. A WEB listener receives plain HTTP/1.1 from a trusted TLS terminator and is restart-required.
-  - **Example**:
-
-    ```toml
-    [listener]
-    ip = "127.0.0.1"
-    port = 18080
-    transport = "web"
-    web_trusted_proxy_cidrs = ["127.0.0.1/32"]
-    ```
-
 ## web_client_ip_source (listener)
   - **Constraints / validation**: Only `"x_forwarded_for"` is supported by the initial WEB implementation.
   - **Description**: Chooses the L7 source of the original client IP. From a direct TCP peer in `web_trusted_proxy_cidrs`, Telemt accepts one parseable `X-Forwarded-For` address. If the trusted peer omits the header, Telemt uses that peer's address; configure the terminator to set the header so per-client limits and source policy use the real client address.
@@ -599,7 +583,7 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
 
 # [web]
 
-WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an external NGINX or HAProxy. Telemt receives plain HTTP/1.1 on a private `transport = "web"` listener. See the [complete WEB deployment guide](../WEB/WEB_PROXY.en.md) before enabling this mode.
+WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an external NGINX or HAProxy. Telemt receives plain HTTP/1.1 on a private listener. See the [complete WEB deployment guide](../WEB/WEB_PROXY.en.md) before enabling this mode.
 
 | Key | Type | Default | Hot-Reload |
 | --- | --- | --- | --- |

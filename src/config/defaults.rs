@@ -1,6 +1,6 @@
 use ipnetwork::IpNetwork;
 
-// Extended transport and upstream default values.
+// Extended upstream default values.
 mod extended;
 
 pub(crate) use extended::*;

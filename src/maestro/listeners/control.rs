@@ -5,7 +5,6 @@ use std::time::Duration;
 use arc_swap::ArcSwap;
 
 use crate::config::ListenerEndpoint;
-use crate::config::ListenerTransport;
 use crate::config::ProxyConfig;
 use crate::maestro::generation::RuntimeGeneration;
 
@@ -50,7 +49,6 @@ impl ListenerManager {
         let web_listeners: Arc<[ListenerEndpoint]> = bound
             .listeners
             .iter()
-            .filter(|listener| listener.spec.transport == ListenerTransport::Web)
             .map(|listener| listener.spec.endpoint.clone())
             .collect();
         let has_web = !web_listeners.is_empty();
@@ -115,12 +113,10 @@ impl ListenerManager {
         let web_inventory_changed = self
             .slots
             .iter()
-            .filter(|(_, slot)| slot.spec.transport == ListenerTransport::Web)
             .map(|(addr, slot)| (addr.clone(), slot.spec.clone()))
             .collect::<BTreeMap<_, _>>()
             != target_specs
                 .iter()
-                .filter(|(_, spec)| spec.transport == ListenerTransport::Web)
                 .map(|(addr, spec)| (addr.clone(), spec.clone()))
                 .collect::<BTreeMap<_, _>>();
         if web_inventory_changed {
@@ -339,7 +335,6 @@ mod tests {
     fn listener_config(addr: SocketAddr) -> ListenerConfig {
         ListenerConfig {
             ip: Some(addr.ip()),
-            transport: crate::config::ListenerTransport::Web,
             port: Some(addr.port()),
             socket_path: None,
             socket_perm: None,
@@ -353,7 +348,6 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let spec = ListenerBindSpec {
             endpoint: crate::config::ListenerEndpoint::Tcp(addr),
-            transport: crate::config::ListenerTransport::Web,
             options: ListenOptions {
                 reuse_port: false,
                 ..Default::default()

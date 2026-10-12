@@ -34,15 +34,10 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
 
 /// Validates source policy without requiring DNS evidence for opted-in origins.
 pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
-    let web_listener_count = config
-        .listener
-        .iter()
-        .filter(|listener| listener.transport == ListenerTransport::Web)
-        .count();
+    let web_listener_count = usize::from(config.listener.is_some());
     let eligible_web_listener_count = config
         .listener
         .iter()
-        .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| listener_is_network_eligible(listener, config))
         .count();
 
@@ -52,8 +47,7 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
 
     if config.web.enabled && eligible_web_listener_count == 0 {
         return Err(ProxyError::Config(
-            "web.enabled requires a network-eligible [listener] entry with transport=web"
-                .to_string(),
+            "web.enabled requires a network-eligible [listener] entry".to_string(),
         ));
     }
     if web_listener_count > 0 && config.web.vhost.is_none() {
@@ -92,7 +86,6 @@ fn validate_fallback_listener_separation_inner(
     let web_endpoints = config
         .listener
         .iter()
-        .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| listener_is_network_eligible(listener, config))
         .filter_map(ListenerEndpoint::from_listener)
         .collect::<Vec<_>>();
@@ -170,7 +163,7 @@ fn validate_web_listener(
     }
     if listener.web_trusted_proxy_cidrs.is_empty() {
         return Err(ProxyError::Config(
-            "listener.web_trusted_proxy_cidrs must be non-empty for transport=web".to_string(),
+            "listener.web_trusted_proxy_cidrs must be non-empty".to_string(),
         ));
     }
     if listener

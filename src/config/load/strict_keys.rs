@@ -61,7 +61,6 @@ const API_CONFIG_KEYS: &[&str] = &[
 
 const LISTENER_CONFIG_KEYS: &[&str] = &[
     "ip",
-    "transport",
     "port",
     "socket_path",
     "socket_perm",

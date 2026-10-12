@@ -3,7 +3,6 @@ use super::*;
 fn test_listener(port: u16) -> crate::config::ListenerConfig {
     crate::config::ListenerConfig {
         ip: Some("127.0.0.1".parse().unwrap()),
-        transport: crate::config::ListenerTransport::Web,
         port: Some(port),
         socket_path: None,
         socket_perm: None,
@@ -34,7 +33,6 @@ alice = "000102030405060708090a0b0c0d0e0f"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
@@ -124,7 +122,6 @@ fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
     let mut old = ProxyConfig::default();
     old.listener = Some(crate::config::ListenerConfig {
         ip: Some("0.0.0.0".parse().unwrap()),
-        transport: crate::config::ListenerTransport::Web,
         port: Some(443),
         socket_path: None,
         socket_perm: None,
@@ -382,7 +379,6 @@ fn endpoint_only_listener_move_is_deferred_to_process_restart() {
 fn deferred_listener_identity_cannot_create_an_effective_fallback_loop() {
     let mut old = ProxyConfig::default();
     old.listener = Some(test_listener(18080));
-    old.listener.as_mut().unwrap().transport = crate::config::ListenerTransport::Web;
     let mut desired = old.clone();
     desired.listener.as_mut().unwrap().port = Some(18081);
     desired.general.listen_backlog = desired.general.listen_backlog.saturating_add(1);

@@ -16,7 +16,6 @@ alice = "000102030405060708090a0b0c0d0e0f"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 

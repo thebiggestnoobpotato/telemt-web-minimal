@@ -250,7 +250,6 @@ fn verify_bound_unix_socket(path: &Path, expected: (u64, u64)) -> std::io::Resul
 fn log_listener_profile(spec: &ListenerBindSpec) {
     info!(
         endpoint = %spec.endpoint,
-        transport = ?spec.transport,
         "Listening on listener endpoint"
     );
 }

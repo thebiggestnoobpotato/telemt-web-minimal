@@ -1,14 +1,13 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::config::{ListenerEndpoint, ListenerTransport, ProxyConfig, WebClientIpSource};
+use crate::config::{ListenerEndpoint, ProxyConfig, WebClientIpSource};
 use crate::transport::ListenOptions;
 
 /// Immutable socket and connection policy for one listener endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct ListenerBindSpec {
     pub(super) endpoint: ListenerEndpoint,
-    pub(super) transport: ListenerTransport,
     pub(super) options: ListenOptions,
     pub(super) web_client_ip_source: WebClientIpSource,
     pub(super) web_trusted_proxy_cidrs: Arc<[ipnetwork::IpNetwork]>,
@@ -35,7 +34,6 @@ pub(crate) fn listener_bind_plan(
         }
         let spec = ListenerBindSpec {
             endpoint: endpoint.clone(),
-            transport: listener.transport,
             options: ListenOptions {
                 // WEB listeners rely on the external TLS terminator for session
                 // affinity, so multi-instance SO_REUSEPORT is never applied here.
@@ -62,31 +60,7 @@ pub(crate) fn listener_rebind_supported(old: &ProxyConfig, desired: &ProxyConfig
     let Ok(desired_plan) = listener_bind_plan(desired) else {
         return false;
     };
-    let old_web = old_plan
-        .iter()
-        .filter(|(_, spec)| spec.transport == ListenerTransport::Web)
-        .collect::<BTreeMap<_, _>>();
-    let desired_web = desired_plan
-        .iter()
-        .filter(|(_, spec)| spec.transport == ListenerTransport::Web)
-        .collect::<BTreeMap<_, _>>();
-    if old_web != desired_web {
-        return false;
-    }
-    let Ok(old_plan) = listener_bind_plan(old) else {
-        return false;
-    };
-    let Ok(desired_plan) = listener_bind_plan(desired) else {
-        return false;
-    };
-    let retained: BTreeSet<_> = old_plan
-        .keys()
-        .filter(|endpoint| desired_plan.contains_key(endpoint))
-        .cloned()
-        .collect();
-    retained
-        .iter()
-        .all(|endpoint| old_plan.get(endpoint) == desired_plan.get(endpoint))
+    old_plan == desired_plan
 }
 
 #[cfg(test)]
@@ -97,7 +71,6 @@ mod tests {
     fn listener(ip: &str, port: u16) -> ListenerConfig {
         ListenerConfig {
             ip: Some(ip.parse().unwrap()),
-            transport: crate::config::ListenerTransport::Web,
             port: Some(port),
             socket_path: None,
             socket_perm: None,
@@ -109,7 +82,6 @@ mod tests {
     fn unix_listener(path: &str) -> ListenerConfig {
         ListenerConfig {
             ip: None,
-            transport: crate::config::ListenerTransport::Web,
             port: None,
             socket_path: Some(path.to_string()),
             socket_perm: None,

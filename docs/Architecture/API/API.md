@@ -248,7 +248,7 @@ Example — patch one `logging` field:
 
 Example — replace `[listener]`:
 ```json
-{"listener": {"ip": "0.0.0.0", "port": 443, "transport": "web", "web_trusted_proxy_cidrs": ["127.0.0.1/32"]}}
+{"listener": {"ip": "0.0.0.0", "port": 443, "web_trusted_proxy_cidrs": ["127.0.0.1/32"]}}
 ```
 
 ### `RotateSecretRequest`

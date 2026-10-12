@@ -8,7 +8,6 @@ alice = "000102030405060708090a0b0c0d0e0f"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 [web]
 enabled = true
@@ -393,8 +392,8 @@ fn fallback_unix_upstream_overlapping_unix_listener_is_rejected() {
             UNIX_FALLBACK_SOURCE,
         )
         .replace(
-            "ip = \"127.0.0.1\"\nport = 18080\ntransport = \"web\"\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]",
-            "socket_path = \"/run/telemt-fallback.sock\"\ntransport = \"web\"",
+            "ip = \"127.0.0.1\"\nport = 18080\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]",
+            "socket_path = \"/run/telemt-fallback.sock\"",
         );
     let error = pipeline::parse_source_graph(ConfigSourceGraph {
         rendered: text.to_string(),

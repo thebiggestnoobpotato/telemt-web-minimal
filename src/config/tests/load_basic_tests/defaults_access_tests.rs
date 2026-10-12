@@ -275,7 +275,7 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
 
     // a listener entry requires both ip and port, or socket_path.
     let error = load_config_error_from_temp_toml(
-        "[listener]\ntransport = \"web\"\n\
+        "[listener]\n\
          [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("port"), "{error}");
@@ -284,7 +284,7 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
     // boundary; no proxy CIDRs are required.
     let cfg = load_config_from_temp_toml(
         "[listener]\n\
-         socket_path = \"/run/telemt/listener.sock\"\ntransport = \"web\"\n\
+         socket_path = \"/run/telemt/listener.sock\"\n\
          [web.vhost]\nhost = \"proxy.example.com\"\n\
          public_addr = \"203.0.113.10:443\"\n\
          upstream = \"http://127.0.0.1:18090\"\n\
@@ -317,7 +317,7 @@ fn listener_section_is_known_in_strict_config() {
     // strict: [listener] is a known top-level table.
     let cfg = load_config_from_temp_toml(
         "[general]\nconfig_strict = true\n\
-         [listener]\nip = \"127.0.0.1\"\nport = 443\ntransport = \"web\"\n\
+         [listener]\nip = \"127.0.0.1\"\nport = 443\n\
          web_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n\
          [web.vhost]\nhost = \"proxy.example.com\"\n\
          public_addr = \"203.0.113.10:443\"\n\
@@ -329,7 +329,7 @@ fn listener_section_is_known_in_strict_config() {
     // strict: unknown keys inside [listener] are rejected with the full path.
     let error = load_config_error_from_temp_toml(
         "[general]\nconfig_strict = true\n\
-         [listener]\nip = \"127.0.0.1\"\nport = 443\ntransport = \"web\"\n\
+         [listener]\nip = \"127.0.0.1\"\nport = 443\n\
          web_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\nbogus = 1\n\
          [web.vhost]\nhost = \"proxy.example.com\"\n\
          public_addr = \"203.0.113.10:443\"\n\

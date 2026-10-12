@@ -8,7 +8,6 @@ bob = "1112131415161718191a1b1c1d1e1f20"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 

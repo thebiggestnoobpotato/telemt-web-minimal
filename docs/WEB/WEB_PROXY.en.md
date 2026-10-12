@@ -79,7 +79,6 @@ web-user = "0123456789abcdef0123456789abcdef"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
@@ -245,7 +244,6 @@ When NGINX and Telemt share a host, the private hop can be a unix socket instead
 [listener]
 socket_path = "/run/telemt/web.sock"
 socket_perm = "0660"
-transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 ```
 

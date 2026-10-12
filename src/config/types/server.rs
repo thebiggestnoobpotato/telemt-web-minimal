@@ -2,15 +2,6 @@ use std::path::PathBuf;
 
 use super::*;
 
-/// Application protocol accepted by one process-owned TCP listener.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum ListenerTransport {
-    /// Plain HTTP WEB gateway behind a trusted TLS terminator.
-    #[default]
-    Web,
-}
-
 /// Trusted L7 source used to recover a WEB client's identity address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -56,9 +47,6 @@ pub struct ListenerConfig {
     /// TCP bind IP. Required for TCP listeners, omitted for unix socket listeners.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<IpAddr>,
-    /// Application protocol accepted by this listener.
-    #[serde(default)]
-    pub transport: ListenerTransport,
     /// TCP port. Required for TCP listeners, omitted for unix socket listeners.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
