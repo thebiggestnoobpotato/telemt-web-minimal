@@ -168,7 +168,6 @@ Notes:
 | `405` | `method_not_allowed` | Unsupported method for `/v1/users/{username}` route shape. |
 | `409` | `revision_conflict` | `If-Match` mismatch, or the source graph/owner changed during a fenced write. |
 | `409` | `web_runtime_mismatch` | A runtime instance, session reference, or operation reference belongs to another WEB process instance. |
-| `409` | `web_issuance_enabled` | A WEB close-all operation was requested while effective issuance remained enabled. |
 | `409` | `web_operation_in_progress` | Another bounded WEB close operation is active. |
 | `409` | `web_lifecycle_in_progress` | Another WEB drain operation is active. |
 | `409` | `user_exists` | User already exists on create. |
@@ -284,7 +283,6 @@ The WEB control plane is process-fenced. `runtime_instance` is a random 128-bit 
 | `available` | `bool` | Backward-compatible readable-runtime flag; it is not public TLS or private acceptor readiness. |
 | `reason` | `string?` | Stable unavailability reason when `available=false`. |
 | `listeners` | `string[]` | Effective bound WEB listener addresses. |
-| `effective_config_enabled` | `bool` | `web.enabled` in the API request's active runtime generation. |
 | `ingress` | `WebIngressStatus` | Process-owned listener/acceptor liveness and TCP accept counters. |
 | `capacity` | `WebCapacityStatus` | Effective accepted-socket policy, fixed global resources, and typed rejection counters. |
 | `fallback_upstream` | `WebFallbackUpstreamStatus` | Passive outcomes for Telemt's internal plain-HTTP fallback origin hop. |
@@ -306,7 +304,7 @@ The WEB control plane is process-fenced. `runtime_instance` is a random 128-bit 
 
 `WebLifecycleCountersStatus` always contains `bridge_recovery_secs`, the complete carrier x close-reason matrix, the complete carrier x lifecycle-observation matrix, and all recovery milestones. Close reasons are `client_delete`, `bridge_recovery`, `peer_idle`, `negotiation_timeout`, `carrier_superseded`, `protocol`, `backpressure`, `websocket_ended`, `api_close`, `operator_force`, and `runtime_shutdown`. Observations are `http_activity_after_gap`, `websocket_activity_after_gap`, and `request_after_close`. Recovery events are `bootstrap_issued`, `session_created`, `committed`, `expired_unused`, and `closed_before_commit`. All counters are process-owned, monotonic, fixed-cardinality, and remain present at zero while the runtime is unavailable.
 
-`WebRuntimeStatus` includes `runtime_instance`, `generation_id`, immutable effective `limits`, manager/stream/budget/WebSocket/learning/debug planes, permit usage, task/counter totals, and `partial`. Plane locks are read with `try_lock`; a contended plane is omitted and named in `partial`. Status collection performs no cleanup, waits, or data-plane mutation, so fields are plane-local observations rather than one globally atomic snapshot. `runtime.manager.issuance_enabled` is the authority to check before close-all.
+`WebRuntimeStatus` includes `runtime_instance`, `generation_id`, immutable effective `limits`, manager/stream/budget/WebSocket/learning/debug planes, permit usage, task/counter totals, and `partial`. Plane locks are read with `try_lock`; a contended plane is omitted and named in `partial`. Status collection performs no cleanup, waits, or data-plane mutation, so fields are plane-local observations rather than one globally atomic snapshot.
 
 `OperatorLifecycleStatus` is a lock-free process snapshot with `state`, monotonic `epoch`, `age_ms`, `admission_open`, `effective_new_work_admission`, and the active or latest `drain`. States are `running`, `paused`, `draining`, `force_closing`, and `drained`. Drain status contains its opaque id, phase/outcome, frozen timeout, wall-clock correlation timestamps, latest session/stream/WebSocket remainder, and `force_close_signalled`. The response envelope `revision` remains a config source-graph revision and is not a lifecycle version.
 
@@ -353,7 +351,7 @@ Pause and drain block bootstrap issuance, initial/replacement session creation, 
 
 Drain remains graceful until either all live sessions, logical-stream ownership, and session-owned WebSockets reach zero or its deadline fires. The deadline is the latest time to commit close signals, not a claim that cooperative task teardown is already complete. At the deadline every remaining live session receives an idempotent close signal outside manager locks, status becomes `force_closing`, and only confirmed zero publishes `drained` with outcome `forced`. Natural zero publishes outcome `graceful`. Both outcomes keep operator admission closed until explicit resume.
 
-This lifecycle is ephemeral: its authority is process-owned, it is not written to configuration, and it starts as `running` at process start. Resume never overrides `web.enabled=false`, disabled-user policy, or terminal process shutdown. The global health/readiness and native TCP/Unix admission contracts are unchanged.
+This lifecycle is ephemeral: its authority is process-owned, it is not written to configuration, and it starts as `running` at process start. Resume never overrides disabled-user policy or terminal process shutdown. The global health/readiness and native TCP/Unix admission contracts are unchanged.
 
 `POST /v1/runtime/web/sessions/close` accepts:
 
@@ -371,7 +369,6 @@ The selector is exactly one of:
 
 - `refs`: `1..=200` unique current-instance session references.
 - `filter`: at least one session filter using the same fields and bounds as enumeration.
-- `all`: every session at or below the operation's submission high-water mark; rejected with `409 web_issuance_enabled` until effective issuance is disabled.
 
 Only one close operation runs at a time. Work is chunked into at most 128 registry candidates between cancellation points, never awaits while holding a manager/session lock, and never targets sessions created above its high-water mark. `202` returns `ControlOperationStatus`; poll its `operation_id` through `GET /v1/runtime/web/operations/{operation_id}`. The process retains 32 statuses. Fields include `state` (`queued`, `running`, `completed`, `cancelled`, or `failed`), the high-water reference, requested/scanned/matched/signalled/conflicted counters, timestamps, and an optional sanitized failure token.
 
@@ -383,7 +380,7 @@ Only one close operation runs at a time. Work is chunked into at most 128 regist
 
 Debug clear swaps the retained ring under a new epoch and reports `records_cleared`, still-leased snapshot bytes, and `epoch`; old in-flight commits cannot restore removed data. Learning reset swaps bounded evidence under a new epoch and reports `entries_cleared` and `epoch`; live sessions and already frozen negotiation chains are unaffected.
 
-Deterministic close-all: submit `POST /v1/runtime/web/lifecycle/drain` with a bounded `timeout_secs`; at the deadline it force-closes every remaining live session and reports `force_closing` until zero is confirmed. The `all` close selector is rejected with `409 web_issuance_enabled` while effective issuance remains enabled — the state of every running WEB process — and `web.enabled=false` stops new bridge/bootstrap/session issuance only from the next process start.
+Deterministic close-all: submit `POST /v1/runtime/web/lifecycle/drain` with a bounded `timeout_secs`; at the deadline it force-closes every remaining live session and reports `force_closing` until zero is confirmed.
 
 ### `PatchConfigResponse`
 
@@ -900,13 +897,13 @@ The API exposes WEB desired configuration through the common config resource, pr
 | Apply an externally edited WEB config | Update the owning TOML source, then restart the service. |
 | Inspect WEB lifecycle, capacity, sessions, operations, learning, and debug state | Use the authenticated `GET /v1/runtime/web/*` routes documented above. |
 | Pause, drain, or resume new WEB work | Use `POST /v1/runtime/web/lifecycle/pause`, `/drain`, or `/resume` with the current `runtime_instance`. |
-| Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`; the `all` selector is rejected while effective issuance remains enabled. For a full stop, use a bounded `POST /v1/runtime/web/lifecycle/drain`. |
+| Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`. For a full stop, use a bounded `POST /v1/runtime/web/lifecycle/drain`. |
 | Clear debug records or reset carrier learning | Use `POST /v1/runtime/web/debug/clear` or `/carrier-learning/reset` with the current `runtime_instance`. |
 | Manage access users | Use `/v1/users`. Creating a user does not add per-vhost profile membership; new users are covered automatically by `web.secret_mode`, otherwise add membership through the `web` config patch. |
 | Rotate a profiled user's secret | Use `/v1/users/{username}/rotate-secret`; the durable credential identity is staged immediately and active owners for the old identity are cancelled. The API returns the raw secret, not a `tg://webproxy` link. |
 | Read WEB-specific runtime diagnostics | Use authenticated `GET /web-status`; filters cover client IP, process session ID, User-Agent, and non-secret key fingerprint, with optional grouping, expandable HTTP request-to-response details, and WebSocket handshake/message/frame rows. |
 
-`web.enabled`, `web.carrier`, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots are read at process start and stay in effect for the lifetime of the process; a carrier change applies to bridge sessions issued after the next restart, and live sessions retain their issuance-time policy. `web.enabled=false` stops new issuance from the next process start and never closes live sessions implicitly. WEB listener inventory and trust policy, plus all `[web.limits]`, are process-owned.
+`web.carrier`, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots are read at process start and stay in effect for the lifetime of the process; a carrier change applies to bridge sessions issued after the next restart, and live sessions retain their issuance-time policy. WEB listener inventory and trust policy, plus all `[web.limits]`, are process-owned.
 
 `base_path` scopes only the WEB data listener. It never prefixes Control API `/v1/*`, `/web-status`, or `/metrics`. `GET /v1/config` shows the desired path but does not prove runtime activation because WEB status intentionally exposes no host, path, or capability. Confirm the process restart and probe the new exact route externally. Paths and base paths are never Prometheus labels.
 

@@ -67,7 +67,6 @@ const LISTENER_CONFIG_KEYS: &[&str] = &[
 ];
 
 const WEB_CONFIG_KEYS: &[&str] = &[
-    "enabled",
     "secret_mode",
     "carrier",
     "carrier_method",

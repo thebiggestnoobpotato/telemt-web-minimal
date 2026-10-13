@@ -69,8 +69,6 @@ pub(crate) enum WebRejectionReason {
     WebSocketBytesCapacity,
     /// Bounded WebSocket replacement capacity was exhausted.
     WebSocketEvictionCapacity,
-    /// Effective WEB configuration disabled new work.
-    ConfigDisabled,
     /// Effective user policy disabled new work.
     UserDisabled,
     /// Operator admission was paused.
@@ -95,7 +93,7 @@ pub(crate) enum WebRejectionReason {
 
 impl WebRejectionReason {
     /// Complete fixed rejection set in stable metric order.
-    pub(crate) const ALL: [Self; 31] = [
+    pub(crate) const ALL: [Self; 30] = [
         Self::HttpConnectionCapacity,
         Self::HttpHandlerCapacity,
         Self::LanePollCapacity,
@@ -116,7 +114,6 @@ impl WebRejectionReason {
         Self::WebSocketConnectionCapacity,
         Self::WebSocketBytesCapacity,
         Self::WebSocketEvictionCapacity,
-        Self::ConfigDisabled,
         Self::UserDisabled,
         Self::OperatorPaused,
         Self::OperatorDraining,
@@ -152,7 +149,6 @@ impl WebRejectionReason {
             Self::WebSocketConnectionCapacity => "websocket_connection_capacity",
             Self::WebSocketBytesCapacity => "websocket_bytes_capacity",
             Self::WebSocketEvictionCapacity => "websocket_eviction_capacity",
-            Self::ConfigDisabled => "config_disabled",
             Self::UserDisabled => "user_disabled",
             Self::OperatorPaused => "operator_paused",
             Self::OperatorDraining => "operator_draining",

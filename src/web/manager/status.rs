@@ -26,8 +26,6 @@ struct PermitStatus {
 /// Short-lock manager registry counts.
 #[derive(Clone, Serialize)]
 struct ManagerStatus {
-    issuance_enabled: bool,
-    issuance_generation: u64,
     shutdown: bool,
     bootstraps: usize,
     sessions: usize,
@@ -227,8 +225,6 @@ impl WebProcessRuntime {
         let generation_id = self.active_generation().id;
         let mut partial = Vec::new();
         let manager = self.state.try_lock().map(|state| ManagerStatus {
-            issuance_enabled: state.issuance_enabled,
-            issuance_generation: state.issuance_generation,
             shutdown: state.closed,
             bootstraps: state.bootstraps.len(),
             sessions: state.sessions.len(),

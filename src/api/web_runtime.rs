@@ -276,7 +276,6 @@ struct WebStatusData {
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<&'static str>,
     listeners: Vec<String>,
-    effective_config_enabled: bool,
     ingress: WebIngressStatus,
     capacity: WebCapacityStatus,
     fallback_upstream: WebFallbackUpstreamStatus,
@@ -330,7 +329,6 @@ impl WebStatusData {
                 .iter()
                 .map(ToString::to_string)
                 .collect(),
-            effective_config_enabled: config.web.enabled,
             ingress,
             capacity,
             fallback_upstream,
@@ -458,11 +456,6 @@ fn control_failure(error: ControlError) -> ApiFailure {
         ControlError::InvalidSelector | ControlError::InvalidOperation => {
             ApiFailure::bad_request("Invalid WEB control request")
         }
-        ControlError::IssuanceEnabled => ApiFailure::new(
-            StatusCode::CONFLICT,
-            "web_issuance_enabled",
-            "Close-all requires effective WEB issuance to be disabled",
-        ),
         ControlError::OperationInProgress => ApiFailure::new(
             StatusCode::CONFLICT,
             "web_operation_in_progress",

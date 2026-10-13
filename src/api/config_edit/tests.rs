@@ -2,7 +2,7 @@ use super::*;
 
 #[tokio::test]
 async fn carrier_method_api_defaults_and_patches_are_persisted() {
-    let (path, _directory) = temp_config("[web]\nenabled = false\n");
+    let (path, _directory) = temp_config("[web]\n");
     let (value, _) = read_managed_config(&path).await.unwrap();
     assert_eq!(value["web"]["carrier_method"].as_str(), Some("post"));
     for token in ["put", "post"] {
@@ -131,7 +131,7 @@ async fn read_managed_config_strips_access() {
 #[tokio::test]
 async fn read_managed_config_exposes_web_without_runtime_or_access_secrets() {
     let (path, _directory) = temp_config(concat!(
-        "[web]\nenabled = false\ncarrier = \"https\"\n",
+        "[web]\ncarrier = \"https\"\n",
         "[web.debug]\nenabled = true\ndefault_window_secs = 180\n",
         "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
@@ -147,7 +147,7 @@ async fn read_managed_config_exposes_web_without_runtime_or_access_secrets() {
 
 #[tokio::test]
 async fn patch_web_debug_and_limits_are_persisted() {
-    let (path, _directory) = temp_config("[web]\nenabled = false\n");
+    let (path, _directory) = temp_config("[web]\n");
     let debug_patch: Json = serde_json::json!({
         "web": {"debug": {
             "enabled": true,
@@ -172,7 +172,7 @@ async fn patch_web_debug_and_limits_are_persisted() {
 
 #[tokio::test]
 async fn patch_web_fallback_fasttrack_is_persisted() {
-    let (path, _directory) = temp_config("[web]\nenabled = false\n");
+    let (path, _directory) = temp_config("[web]\n");
     let patch: Json = serde_json::json!({
         "web": {"fallback_fasttrack_mode": "shadow"}
     });
@@ -184,7 +184,7 @@ async fn patch_web_fallback_fasttrack_is_persisted() {
 
 #[tokio::test]
 async fn invalid_web_patch_does_not_modify_the_source() {
-    let (path, _directory) = temp_config("[web]\nenabled = false\n");
+    let (path, _directory) = temp_config("[web]\n");
     let original = tokio::fs::read_to_string(&path).await.unwrap();
     let patch: Json = serde_json::json!({
         "web": {"debug": {"default_window_secs": 181, "max_window_secs": 180}}
@@ -389,12 +389,12 @@ async fn patch_rejects_multiple_source_owners_without_writing() {
         "include = \"web.toml\"\n",
         "[general]\nnetwork_ipv6 = true\n"
     );
-    let included_body = "[web]\nenabled = false\n";
+    let included_body = "[web]\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let patch: Json = serde_json::json!({
         "general": {"network_ipv6": true},
-        "web": {"enabled": true}
+        "web": {"carrier_method": "post"}
     });
 
     let error = apply_patch_to_path(&root, &patch, None).await.unwrap_err();

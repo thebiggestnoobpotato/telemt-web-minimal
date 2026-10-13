@@ -23,7 +23,6 @@ web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
 [web]
-enabled = true
 carrier = "https-lanes"
 secret_mode = "dd"
 

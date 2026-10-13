@@ -86,7 +86,6 @@ fn test_runtime_with_dc(
         "default".to_string(),
         "00000000000000000000000000000000".to_string(),
     );
-    config.web.enabled = true;
     config.web.carrier = carrier;
     config.web.limits.max_stream_handshakes = max_stream_handshakes;
     config.web.timeouts.stream_handshake_secs = 1;

@@ -20,8 +20,6 @@ pub(crate) enum CloseOperationSelector {
     Refs(Vec<u64>),
     /// Point-in-time sessions matching a bounded filter.
     Filter(SessionFilter),
-    /// Every logical session at or below the submission high-water mark.
-    All,
 }
 
 /// Stable close-operation state.
@@ -75,8 +73,6 @@ pub(crate) enum ControlError {
     StaleInstance,
     /// The selector is empty or exceeds its bound.
     InvalidSelector,
-    /// Close-all was requested before issuance stopped.
-    IssuanceEnabled,
     /// The single operation slot is occupied.
     OperationInProgress,
     /// The operation reference is not canonical.
@@ -133,19 +129,12 @@ impl WebProcessRuntime {
         {
             return Err(ControlError::InvalidSelector);
         }
-        let generation = self.active_generation();
-        let web_enabled = generation.config().web.enabled;
-        let (high_water, issuance_enabled) = {
-            let mut state = self.state.lock();
-            state.apply_issuance_policy(generation.id, web_enabled);
-            (
-                state.session_index.last_key_value().map(|(id, _)| *id),
-                state.issuance_enabled,
-            )
-        };
-        if matches!(selector, CloseOperationSelector::All) && issuance_enabled {
-            return Err(ControlError::IssuanceEnabled);
-        }
+        let high_water = self
+            .state
+            .lock()
+            .session_index
+            .last_key_value()
+            .map(|(id, _)| *id);
         if self.shutdown.is_cancelled() {
             return Err(ControlError::Closed);
         }
@@ -156,7 +145,7 @@ impl WebProcessRuntime {
         let now = crate::web::trace::store_epoch_millis();
         let requested = match &selector {
             CloseOperationSelector::Refs(refs) => refs.len(),
-            CloseOperationSelector::Filter(_) | CloseOperationSelector::All => 0,
+            CloseOperationSelector::Filter(_) => 0,
         };
         let status = ControlOperationStatus {
             operation_id,
@@ -227,11 +216,11 @@ impl WebProcessRuntime {
             CloseOperationSelector::Refs(refs) => {
                 Some(refs.iter().copied().collect::<BTreeSet<_>>())
             }
-            CloseOperationSelector::Filter(_) | CloseOperationSelector::All => None,
+            CloseOperationSelector::Filter(_) => None,
         };
         let filter = match &selector {
             CloseOperationSelector::Filter(filter) => Some(filter),
-            CloseOperationSelector::Refs(_) | CloseOperationSelector::All => None,
+            CloseOperationSelector::Refs(_) => None,
         };
         let mut cursor = None;
         loop {

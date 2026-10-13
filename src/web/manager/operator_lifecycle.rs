@@ -97,8 +97,8 @@ impl OperatorLifecycle {
             .then(|| Arc::clone(&self.work_changed))
     }
 
-    /// Returns the lock-free lifecycle snapshot with effective config admission.
-    pub(super) fn status(&self, config_enabled: bool) -> OperatorLifecycleStatus {
+    /// Returns the lock-free lifecycle snapshot.
+    pub(super) fn status(&self) -> OperatorLifecycleStatus {
         let snapshot = self.published.load();
         let admission_open =
             !snapshot.terminal && snapshot.state == OperatorLifecycleState::Running;
@@ -107,7 +107,7 @@ impl OperatorLifecycle {
             epoch: snapshot.epoch,
             age_ms: millis(Instant::now().saturating_duration_since(snapshot.since)),
             admission_open,
-            effective_new_work_admission: admission_open && config_enabled,
+            effective_new_work_admission: admission_open,
             drain: snapshot.drain.clone(),
         }
     }
@@ -233,8 +233,7 @@ impl OperatorLifecycle {
 impl WebProcessRuntime {
     /// Returns the current lock-free operator lifecycle snapshot.
     pub(crate) fn operator_lifecycle_status(&self) -> OperatorLifecycleStatus {
-        let config_enabled = self.active_generation().config().web.enabled;
-        self.operator_lifecycle.status(config_enabled)
+        self.operator_lifecycle.status()
     }
 
     /// Pauses new WEB work after every pre-cutover admission section completes.
@@ -329,8 +328,7 @@ impl WebProcessRuntime {
                     .await;
             });
             self.operator_lifecycle.publish_locked(&inner);
-            let config_enabled = self.active_generation().config().web.enabled;
-            self.operator_lifecycle.status(config_enabled)
+            self.operator_lifecycle.status()
         };
         Ok(accepted)
     }

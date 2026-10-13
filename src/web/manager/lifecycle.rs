@@ -30,7 +30,7 @@ pub(crate) struct WebShutdownDrain {
 }
 
 impl WebProcessRuntime {
-    /// Applies issuance and learning policy before publishing one new generation.
+    /// Applies learning policy before publishing one new generation.
     pub(crate) fn activate_generation(
         &self,
         generation: Arc<RuntimeGeneration>,
@@ -38,9 +38,8 @@ impl WebProcessRuntime {
         let config = generation.config();
         let (replaced, detached) = {
             // Manager state precedes learning in the request-path lock order.
-            let mut state = self.state.lock();
+            let _state = self.state.lock();
             let mut learning = self.learning.lock();
-            state.apply_issuance_policy(generation.id, config.web.enabled);
             let outcome = learning.apply_policy(
                 Instant::now(),
                 generation.id,
@@ -205,7 +204,6 @@ impl WebProcessRuntime {
         drop(detached);
         let (sessions, expired_chains) = {
             let mut state = self.state.lock();
-            state.apply_issuance_policy(generation.id, config.enabled);
             let expired = state
                 .bootstraps
                 .iter()

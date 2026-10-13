@@ -58,14 +58,13 @@ async fn save_web_section_keeps_subtables_dotted_without_duplicates() {
     let path = dir.path().join("config.toml");
     tokio::fs::write(
         &path,
-        "[web]\nenabled = false\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
+        "[web]\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
          [other]\nport = 443\n",
     )
     .await
     .unwrap();
 
-    let mut cfg = ProxyConfig::default();
-    cfg.web.enabled = true;
+    let cfg = ProxyConfig::default();
 
     save_sections_to_disk(&path, &cfg, &["web"])
         .await
@@ -100,13 +99,12 @@ async fn save_web_section_is_idempotent_across_repeated_saves() {
     let path = dir.path().join("config.toml");
     tokio::fs::write(
         &path,
-        "[web]\nenabled = false\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n",
+        "[web]\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n",
     )
     .await
     .unwrap();
 
-    let mut cfg = ProxyConfig::default();
-    cfg.web.enabled = true;
+    let cfg = ProxyConfig::default();
 
     save_sections_to_disk(&path, &cfg, &["web"])
         .await
@@ -124,7 +122,7 @@ async fn save_web_section_is_idempotent_across_repeated_saves() {
 
 #[test]
 fn find_bounds_spans_dotted_subtables() {
-    let src = "[web]\nenabled = true\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
+    let src = "[web]\n\n[web.timeouts]\nhttp_overload_timeout_ms = 1\n\n\
                [other]\nport = 1\n";
     let bounds = find_toml_table_bounds(src, "web");
     assert!(bounds.is_some(), "should locate [web] block");
@@ -164,14 +162,13 @@ async fn save_web_handles_non_contiguous_subtables() {
     // Hand-edited layout: [web.timeouts] sits AFTER an unrelated [other].
     tokio::fs::write(
         &path,
-        "[web]\nenabled = false\n\n[other]\nport = 443\n\n\
+        "[web]\n\n[other]\nport = 443\n\n\
          [web.timeouts]\nhttp_overload_timeout_ms = 1\n",
     )
     .await
     .unwrap();
 
-    let mut cfg = ProxyConfig::default();
-    cfg.web.enabled = true;
+    let cfg = ProxyConfig::default();
 
     save_sections_to_disk(&path, &cfg, &["web"])
         .await

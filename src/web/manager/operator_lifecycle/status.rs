@@ -82,7 +82,7 @@ pub(crate) struct OperatorLifecycleStatus {
     pub(crate) age_ms: u64,
     /// Whether the operator-owned admission fence is open.
     pub(crate) admission_open: bool,
-    /// Operator and effective config admission conjunction.
+    /// Whether operator-owned admission permits new WEB work.
     pub(crate) effective_new_work_admission: bool,
     /// Active or latest drain retained until replacement or process restart.
     #[serde(skip_serializing_if = "Option::is_none")]

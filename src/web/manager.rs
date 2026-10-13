@@ -315,7 +315,7 @@ impl WebProcessRuntime {
             control_operations: Mutex::new(control::ControlOperationRegistry::default()),
             next_control_operation_id: AtomicU64::new(1),
             limits,
-            state: Mutex::new(ManagerState::new(initial_generation.id, config.web.enabled)),
+            state: Mutex::new(ManagerState::new()),
             stream_admission: Mutex::new(StreamAdmissionState::default()),
             learning: Mutex::new(carrier_learning),
             shutdown: CancellationToken::new(),

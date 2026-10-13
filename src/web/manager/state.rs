@@ -187,16 +187,12 @@ pub(super) struct ManagerState {
     pub(super) bootstrap_rate: RateState,
     /// Session creation rate limiter.
     pub(super) session_rate: RateState,
-    /// Generation-fenced issuance gate mirrored from the effective WEB policy.
-    pub(super) issuance_enabled: bool,
-    /// Generation that last authored `issuance_enabled`.
-    pub(super) issuance_generation: u64,
     /// Process shutdown admission latch.
     pub(super) closed: bool,
 }
 
 impl ManagerState {
-    pub(super) fn new(issuance_generation: u64, issuance_enabled: bool) -> Self {
+    pub(super) fn new() -> Self {
         Self {
             bootstraps: HashMap::new(),
             bootstraps_per_ip: HashMap::new(),
@@ -209,23 +205,14 @@ impl ManagerState {
             sessions_per_profile: HashMap::new(),
             bootstrap_rate: RateState::default(),
             session_rate: RateState::default(),
-            issuance_enabled,
-            issuance_generation,
             closed: false,
-        }
-    }
-
-    pub(super) fn apply_issuance_policy(&mut self, generation: u64, enabled: bool) {
-        if generation >= self.issuance_generation {
-            self.issuance_generation = generation;
-            self.issuance_enabled = enabled;
         }
     }
 }
 
 impl Default for ManagerState {
     fn default() -> Self {
-        Self::new(0, false)
+        Self::new()
     }
 }
 

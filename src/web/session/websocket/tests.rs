@@ -64,7 +64,6 @@ fn runtime(admission: bool) -> TestRuntime {
         max_streams_per_session: 1,
     });
     let mut config = ProxyConfig::default();
-    config.web.enabled = true;
     config.web.carrier = WebCarrier::WebsocketLanes;
     config.web.timeouts.shutdown_secs = 1;
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {

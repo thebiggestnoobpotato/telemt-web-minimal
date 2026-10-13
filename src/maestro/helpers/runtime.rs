@@ -11,7 +11,7 @@ const WEB_LINKS_LOG_TARGET: &str = "telemt::links";
 /// set, through the tracing subscriber so they follow the configured log
 /// destination.
 pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
-    if !config.web.enabled || !config.logging.show_users_links {
+    if !config.logging.show_users_links {
         return;
     }
     let Some(runtime) = config.web.runtime.as_ref() else {

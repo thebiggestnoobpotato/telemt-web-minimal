@@ -381,9 +381,6 @@ pub enum WebCarrierNegotiationAggressiveness {
 /// WEB ingress, carrier, fallback, and lifecycle configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebConfig {
-    /// Enables issuance of new WEB bridge and session credentials.
-    #[serde(default)]
-    pub enabled: bool,
     /// Global secret representation; instantiates a profile for every
     /// `[users]` user in every vhost. Unset leaves instantiation disabled.
     #[serde(default)]
@@ -456,7 +453,6 @@ impl WebConfig {
 impl Default for WebConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
             secret_mode: None,
             carrier: WebCarrier::default(),
             carrier_method: WebCarrierMethod::default(),

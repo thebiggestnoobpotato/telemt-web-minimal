@@ -4,6 +4,10 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     let limits = &config.web.limits;
     let global_covers_users =
         config.web.secret_mode.is_some() && !config.users.is_empty();
+    // The profile requirement follows the WEB-on condition: a configured
+    // listener. An earlier check guarantees any listener present here is
+    // network-eligible.
+    let web_listener_count = usize::from(config.listener.is_some());
     let Some(vhost) = config.web.vhost.as_mut() else {
         return Ok(());
     };
@@ -14,9 +18,9 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
             "web.vhost.public_addr must be a concrete socket address on port 443",
         );
     }
-    if config.web.enabled && vhost.profiles.is_empty() && !global_covers_users {
+    if web_listener_count > 0 && vhost.profiles.is_empty() && !global_covers_users {
         return config_error(
-            "web.vhost has no profiles: add [[web.vhost.profiles]] or set web.secret_mode when web.enabled=true",
+            "web.vhost has no profiles: add [[web.vhost.profiles]] or set web.secret_mode",
         );
     }
     if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {

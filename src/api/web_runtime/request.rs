@@ -70,8 +70,6 @@ pub(super) enum CloseSelectorRequest {
         #[serde(default)]
         state: Option<String>,
     },
-    /// Closes every point-in-time session below the submission high-water mark.
-    All {},
 }
 
 impl CloseSelectorRequest {
@@ -123,7 +121,6 @@ impl CloseSelectorRequest {
                 }
                 Ok(CloseOperationSelector::Filter(filter))
             }
-            Self::All {} => Ok(CloseOperationSelector::All),
         }
     }
 }

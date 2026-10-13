@@ -17,7 +17,6 @@ impl WebProcessRuntime {
             });
         }
         let generation = self.active_generation();
-        let config = generation.config();
         let now = Instant::now();
         let mut state = self.state.lock();
         let expired_recoveries = remove_expired_locked(&mut state, now);
@@ -25,7 +24,6 @@ impl WebProcessRuntime {
             crate::web::telemetry::WebBridgeRecoveryEvent::ExpiredUnused,
             expired_recoveries,
         );
-        state.apply_issuance_policy(generation.id, config.web.enabled);
         let valid = state.bootstraps.get(&bootstrap_hash).is_some_and(|entry| {
             entry.carrier_transitioning
                 && entry.carrier_phase == CarrierChainPhase::Provisional
@@ -40,7 +38,7 @@ impl WebProcessRuntime {
             .sessions
             .get(&replacement.old_session.token_hash())
             .is_some_and(|session| Arc::ptr_eq(session, &replacement.old_session));
-        if !valid || state.closed || !state.issuance_enabled {
+        if !valid || state.closed {
             drop(state);
             self.cancel_replacement(bootstrap_hash, &replacement.old_session);
             return Err(ManagerError::Closed);

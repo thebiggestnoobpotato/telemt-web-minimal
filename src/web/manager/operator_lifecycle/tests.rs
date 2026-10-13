@@ -265,28 +265,26 @@ async fn resume_after_force_commit_cancels_wait_but_preserves_force_evidence() {
 }
 
 #[tokio::test]
-async fn reload_cannot_reopen_operator_pause_and_resume_cannot_override_disabled_config() {
-    let mut initial_config = ProxyConfig::default();
-    initial_config.web.enabled = true;
-    let initial = test_runtime_generation(1, initial_config);
+async fn reload_cannot_reopen_operator_pause() {
+    let initial = test_runtime_generation(1, ProxyConfig::default());
     let active = Arc::new(ArcSwap::from(Arc::clone(&initial)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active));
     let paused = runtime.pause_operator().await.unwrap();
     assert!(!paused.admission_open);
 
-    let disabled = test_runtime_generation(2, ProxyConfig::default());
-    active.store(Arc::clone(&disabled));
+    let reloaded = test_runtime_generation(2, ProxyConfig::default());
+    active.store(Arc::clone(&reloaded));
     let after_reload = runtime.operator_lifecycle_status();
     assert_eq!(after_reload.state, OperatorLifecycleState::Paused);
     let resumed = runtime.resume_operator().await.unwrap();
     assert!(resumed.admission_open);
-    assert!(!resumed.effective_new_work_admission);
+    assert!(resumed.effective_new_work_admission);
 
     runtime.shutdown().await;
     initial.stop_sessions().await;
     initial.stop_background_tasks().await;
-    disabled.stop_sessions().await;
-    disabled.stop_background_tasks().await;
+    reloaded.stop_sessions().await;
+    reloaded.stop_background_tasks().await;
 }
 
 #[tokio::test]

@@ -84,11 +84,6 @@ impl WebProcessRuntime {
             .as_ref()
             .and_then(|runtime| matching_profile(runtime, &profile))
             .ok_or(ManagerError::Authentication)?;
-        if !config.web.enabled {
-            self.telemetry
-                .record_rejection(WebRejectionReason::ConfigDisabled);
-            return Err(ManagerError::Closed);
-        }
         let _operator_admission = self.try_operator_admission()?;
         let now = Instant::now();
         let mut state = self.state.lock();
@@ -97,8 +92,7 @@ impl WebProcessRuntime {
             WebBridgeRecoveryEvent::ExpiredUnused,
             expired_recoveries,
         );
-        state.apply_issuance_policy(generation.id, config.web.enabled);
-        if state.closed || !state.issuance_enabled {
+        if state.closed {
             self.record_limit_hit();
             self.telemetry
                 .record_rejection(WebRejectionReason::RuntimeClosed);

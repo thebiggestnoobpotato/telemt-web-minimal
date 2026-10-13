@@ -62,8 +62,7 @@ impl WebProcessRuntime {
             crate::web::telemetry::WebBridgeRecoveryEvent::ExpiredUnused,
             expired_recoveries,
         );
-        state.apply_issuance_policy(generation.id, config.web.enabled);
-        if state.closed || !state.issuance_enabled {
+        if state.closed {
             return Err(ManagerError::Closed);
         }
         let Some(entry) = state.bootstraps.get(&bootstrap_hash) else {

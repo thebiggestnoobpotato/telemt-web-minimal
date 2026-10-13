@@ -174,7 +174,6 @@ fn runtime_config_with_carriers_and_deadlines(
         }),
     );
     let mut config = ProxyConfig::default();
-    config.web.enabled = true;
     config.web.carrier = carrier;
     config.web.carriers = if carrier_negotiation_enabled {
         WebCarriers::Enabled(carriers.to_vec())

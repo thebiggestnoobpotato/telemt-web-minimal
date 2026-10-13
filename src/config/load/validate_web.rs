@@ -45,9 +45,9 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
         validate_web_listener(listener)?;
     }
 
-    if config.web.enabled && eligible_web_listener_count == 0 {
+    if web_listener_count > 0 && eligible_web_listener_count == 0 {
         return Err(ProxyError::Config(
-            "web.enabled requires a network-eligible [listener] entry".to_string(),
+            "a [listener] table requires a network-eligible entry".to_string(),
         ));
     }
     if web_listener_count > 0 && config.web.vhost.is_none() {

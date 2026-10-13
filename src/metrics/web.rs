@@ -73,7 +73,6 @@ pub(super) fn render(out: &mut String, publication: &WebRuntimePublication, conf
     for (name, value) in [
         ("runtime_available", runtime.is_some()),
         ("accepting_connections", accepting_connections),
-        ("config_enabled", config.web.enabled),
         ("operator_admission_open", operator_admission_open),
         ("effective_new_work_admission", effective_new_work_admission),
     ] {

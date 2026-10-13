@@ -295,13 +295,11 @@ pub(super) async fn bootstrap(
 
     print_maestro_line(format!("Telemt MTProxy v{}", env!("CARGO_PKG_VERSION")));
     info!("Log level: {}", effective_log_level);
-    if config.web.enabled {
-        info!(
-            "WEB: enabled ({} vhost(s), carrier={:?})",
-            usize::from(config.web.vhost.is_some()),
-            config.web.carrier
-        );
-    }
+    info!(
+        "WEB: enabled ({} vhost(s), carrier={:?})",
+        usize::from(config.web.vhost.is_some()),
+        config.web.carrier
+    );
 
     Ok(BootstrapState {
         process_started_at,
