@@ -3,7 +3,6 @@
 //! Subcommands:
 //! - `start [OPTIONS] [config.toml]` - Start the daemon
 //! - `stop [--pid-file PATH] [--strict-runtime-paths]` - Stop a running daemon
-//! - `reload [--pid-file PATH] [--strict-runtime-paths]` - Reload configuration (SIGHUP)
 //! - `status [--pid-file PATH] [--strict-runtime-paths]` - Check daemon status
 //! - `run [OPTIONS] [config.toml]` - Run in foreground (default behavior)
 //! - `healthcheck [OPTIONS] [config.toml]` - Run control-plane health probe
@@ -34,8 +33,6 @@ pub enum Subcommand {
     Start,
     /// Stop a running daemon (`stop` subcommand).
     Stop,
-    /// Reload configuration (`reload` subcommand).
-    Reload,
     /// Check daemon status (`status` subcommand).
     Status,
     /// Run health probe and exit with status code.
@@ -107,9 +104,6 @@ pub fn parse_command(args: &[String]) -> ParsedCommand {
             "stop" => {
                 cmd.subcommand = Subcommand::Stop;
             }
-            "reload" => {
-                cmd.subcommand = Subcommand::Reload;
-            }
             "status" => {
                 cmd.subcommand = Subcommand::Status;
             }
@@ -136,7 +130,7 @@ pub fn parse_command(args: &[String]) -> ParsedCommand {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
-            "start" | "stop" | "reload" | "status" | "run" | "healthcheck" => {}
+            "start" | "stop" | "status" | "run" | "healthcheck" => {}
             #[cfg(unix)]
             "--strict-runtime-paths" => {
                 cmd.daemon_opts.strict_runtime_paths = true;
@@ -207,10 +201,6 @@ pub fn execute_subcommand(cmd: &ParsedCommand) -> Option<i32> {
             &cmd.pid_file,
             cmd.daemon_opts.strict_runtime_paths,
         )),
-        Subcommand::Reload => Some(daemon_commands::reload(
-            &cmd.pid_file,
-            cmd.daemon_opts.strict_runtime_paths,
-        )),
         Subcommand::Status => Some(daemon_commands::status(
             &cmd.pid_file,
             cmd.daemon_opts.strict_runtime_paths,
@@ -251,7 +241,7 @@ pub fn execute_subcommand(cmd: &ParsedCommand) -> Option<i32> {
 #[cfg(not(unix))]
 pub fn execute_subcommand(cmd: &ParsedCommand) -> Option<i32> {
     match cmd.subcommand {
-        Subcommand::Stop | Subcommand::Reload | Subcommand::Status => {
+        Subcommand::Stop | Subcommand::Status => {
             eprintln!("[telemt] Subcommand not supported on this platform");
             Some(1)
         }

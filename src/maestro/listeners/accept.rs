@@ -26,7 +26,6 @@ pub(super) struct ListenerSlot {
     cancellation: CancellationToken,
     task: Option<JoinHandle<()>>,
     connections: TaskTracker,
-    web_runtime: Option<Arc<WebProcessRuntime>>,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
 }
 
@@ -212,7 +211,6 @@ impl ListenerSlot {
             cancellation,
             task: Some(task),
             connections,
-            web_runtime,
             active_runtime,
         }
     }
@@ -311,21 +309,4 @@ impl ListenerSlot {
         }
     }
 
-    pub(super) fn restart(&mut self, active_runtime: Arc<ArcSwap<RuntimeGeneration>>) {
-        self.active_runtime = active_runtime;
-        self.cancellation = CancellationToken::new();
-        self.connections = TaskTracker::new();
-        let web_acceptor_guard = self
-            .web_runtime
-            .as_ref()
-            .map(|runtime| runtime.telemetry().acceptor_guard());
-        self.task = Some(tokio::spawn(run_accept_loop(
-            self.handle.clone(),
-            self.spec.clone(),
-            self.web_runtime.clone(),
-            self.connections.clone(),
-            self.cancellation.clone(),
-            web_acceptor_guard,
-        )));
-    }
 }

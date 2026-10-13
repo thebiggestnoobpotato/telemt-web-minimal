@@ -5,8 +5,6 @@ use serde_json::Value as Json;
 use toml::Value as Toml;
 
 use super::ApiShared;
-#[cfg(test)]
-use super::config_store::write_atomic;
 use super::config_store::{
     EDITABLE_SECTIONS, compute_snapshot_revision, is_editable_section, load_candidate_snapshot,
     load_config_snapshot, render_top_level_section, resolve_single_source_owner, upsert_toml_table,
@@ -14,33 +12,16 @@ use super::config_store::{
 };
 use super::model::ApiFailure;
 use crate::config::ProxyConfig;
-use crate::config::hot_reload::classify_config_changes;
-use crate::maestro::reload::{ReloadAccepted, ReloadRequest, ReloadSubmitError};
-use crate::maestro::runtime_build::{
-    ResolvedReloadConfig, deferred_process_fields, resolve_reload_config,
-};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 /// Result of one validated managed-config mutation.
 #[derive(Debug, Serialize)]
 pub(super) struct PatchConfigResponse {
     /// Revision of the persisted desired configuration.
     pub revision: String,
-    /// Whether any changed field is not hot-reloadable.
-    pub restart_required: bool,
-    /// Whether the effective runtime snapshot must be reloaded.
-    pub runtime_reload_required: bool,
-    /// Whether any desired field remains deferred until process restart.
-    pub process_restart_required: bool,
-    /// Stable paths of desired fields retained from the active process.
-    pub deferred_process_fields: Vec<String>,
-    /// Top-level managed sections changed by the mutation.
+    /// Top-level config sections changed by the mutation.
     pub changed: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    /// Accepted runtime reload when one was requested and required.
-    pub reload: Option<ReloadAccepted>,
 }
 
 struct PreparedConfigPatch {
@@ -49,7 +30,6 @@ struct PreparedConfigPatch {
     owner_path: PathBuf,
     expected_owner_contents: String,
     owner_contents: String,
-    desired_config: Arc<ProxyConfig>,
     response: PatchConfigResponse,
 }
 
@@ -58,14 +38,13 @@ struct PreparedConfigPatch {
 pub(super) async fn patch_config(
     patch_json: Json,
     expected_revision: Option<String>,
-    reload_request: Option<ReloadRequest>,
     shared: &ApiShared,
 ) -> Result<PatchConfigResponse, ApiFailure> {
     let shared = shared.clone();
     shared
         .clone()
         .run_mutation_completion(async move {
-            patch_config_to_completion(patch_json, expected_revision, reload_request, &shared).await
+            patch_config_to_completion(patch_json, expected_revision, &shared).await
         })
         .await
 }
@@ -73,29 +52,11 @@ pub(super) async fn patch_config(
 async fn patch_config_to_completion(
     patch_json: Json,
     expected_revision: Option<String>,
-    reload_request: Option<ReloadRequest>,
     shared: &ApiShared,
 ) -> Result<PatchConfigResponse, ApiFailure> {
     let _guard = shared.mutation_lock.lock().await;
-    let active_config = shared.active_runtime.load_full().config();
     let mut prepared =
         prepare_patch_to_path(&shared.config_path, &patch_json, expected_revision).await?;
-    let resolved = reconcile_runtime_effect(
-        &mut prepared.response,
-        &active_config,
-        &prepared.desired_config,
-    )?;
-    let reservation = if let Some(request) = reload_request.filter(|_| resolved.runtime_changed) {
-        Some(
-            shared
-                .reload_control
-                .reserve(prepared.response.revision.clone(), request)
-                .await
-                .map_err(reload_submit_failure)?,
-        )
-    } else {
-        None
-    };
     prepared.response.revision = write_atomic_if_unchanged(
         prepared.config_path,
         prepared.expected_revision,
@@ -104,28 +65,12 @@ async fn patch_config_to_completion(
         prepared.owner_contents,
     )
     .await?;
-    if let Some(reservation) = reservation {
-        prepared.response.reload = Some(reservation.enqueue(prepared.desired_config));
-    }
     let resp = prepared.response;
     drop(_guard);
     shared
         .runtime_events
         .record("api.config.patch.ok", format!("changed={:?}", resp.changed));
     Ok(resp)
-}
-
-fn reconcile_runtime_effect(
-    response: &mut PatchConfigResponse,
-    active_config: &ProxyConfig,
-    desired_config: &ProxyConfig,
-) -> Result<ResolvedReloadConfig, ApiFailure> {
-    let resolved =
-        resolve_reload_config(active_config, desired_config).map_err(ApiFailure::bad_request)?;
-    response.runtime_reload_required = resolved.runtime_changed;
-    response.process_restart_required = !resolved.deferred_process_fields.is_empty();
-    response.deferred_process_fields = resolved.deferred_process_fields.clone();
-    Ok(resolved)
 }
 
 /// Core patch logic, decoupled from hyper/shared-state so it is unit-testable
@@ -243,12 +188,10 @@ async fn prepare_patch_to_path(
         ));
     }
 
-    // 4. classify the validated, normalized candidate.
+    // 4. record the validated, normalized candidate with its section-level delta.
     let revision = compute_snapshot_revision(&candidate.source_contents);
     let new_cfg = candidate.config;
-    let class = classify_config_changes(&old_cfg, &new_cfg);
-    let deferred_process_fields =
-        deferred_process_fields(&old_cfg, &new_cfg).map_err(ApiFailure::bad_request)?;
+    let changed = changed_sections(&old_cfg, &new_cfg);
 
     Ok(PreparedConfigPatch {
         config_path: config_path.to_path_buf(),
@@ -256,32 +199,52 @@ async fn prepare_patch_to_path(
         owner_path,
         expected_owner_contents,
         owner_contents,
-        desired_config: Arc::new(new_cfg),
-        response: PatchConfigResponse {
-            revision,
-            restart_required: class.restart_required,
-            runtime_reload_required: class.restart_required,
-            process_restart_required: !deferred_process_fields.is_empty(),
-            deferred_process_fields,
-            changed: class.changed,
-            reload: None,
-        },
+        response: PatchConfigResponse { revision, changed },
     })
 }
 
-fn reload_submit_failure(error: ReloadSubmitError) -> ApiFailure {
-    match error {
-        ReloadSubmitError::InProgress(reload_id) => ApiFailure::new(
-            hyper::StatusCode::CONFLICT,
-            "reload_in_progress",
-            format!("Reload {} is already in progress", reload_id),
-        ),
-        ReloadSubmitError::MaestroUnavailable => ApiFailure::new(
-            hyper::StatusCode::SERVICE_UNAVAILABLE,
-            "maestro_unavailable",
-            "Maestro reload coordinator is unavailable",
-        ),
+/// Sorts object keys recursively so section comparison ignores map ordering.
+fn canonicalize_json(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            let mut pairs: Vec<(String, serde_json::Value)> =
+                std::mem::take(map).into_iter().collect();
+            pairs.sort_by(|a, b| a.0.cmp(&b.0));
+            for (_, item) in pairs.iter_mut() {
+                canonicalize_json(item);
+            }
+            for (key, item) in pairs {
+                map.insert(key, item);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items.iter_mut() {
+                canonicalize_json(item);
+            }
+        }
+        _ => {}
     }
+}
+
+/// Top-level config sections whose canonical serialized form differs between
+/// the active and persisted snapshots.
+fn changed_sections(old_cfg: &ProxyConfig, new_cfg: &ProxyConfig) -> Vec<String> {
+    let mut lhs = serde_json::to_value(old_cfg).unwrap_or(serde_json::Value::Null);
+    let mut rhs = serde_json::to_value(new_cfg).unwrap_or(serde_json::Value::Null);
+    canonicalize_json(&mut lhs);
+    canonicalize_json(&mut rhs);
+
+    let mut out = Vec::new();
+    if let (Some(lo), Some(ro)) = (lhs.as_object(), rhs.as_object()) {
+        let mut keys: std::collections::BTreeSet<&String> = lo.keys().collect();
+        keys.extend(ro.keys());
+        for key in keys {
+            if lo.get(key) != ro.get(key) {
+                out.push(key.clone());
+            }
+        }
+    }
+    out
 }
 
 /// Returns only the editable config sections and current revision.

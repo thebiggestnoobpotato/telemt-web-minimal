@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use super::web::WebLimitsConfig;
-
 /// Request and response body retention policy for WEB debugging.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -17,7 +15,7 @@ pub enum WebDebugBodyCapture {
     Full,
 }
 
-/// Hot-reloadable WEB server-side debugging policy.
+/// Bounded WEB server-side debugging policy.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebDebugConfig {
     /// Enables process-owned WEB debug collection.
@@ -100,9 +98,3 @@ fn default_max_window_secs() -> u64 {
     3600
 }
 
-/// Checks whether a hot debug policy fits restart-frozen process capacities.
-pub(crate) fn web_debug_fits_limits(policy: &WebDebugConfig, limits: &WebLimitsConfig) -> bool {
-    policy.body_prefix_bytes <= limits.max_body_bytes
-        && policy.body_prefix_bytes <= limits.debug_bytes_global
-        && policy.fallback_body_prefix_bytes <= limits.debug_bytes_global
-}

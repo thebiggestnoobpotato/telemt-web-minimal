@@ -30,10 +30,10 @@ Options: `--port` (default `443`), `--user` (default `user`), `--secret`
 
 The command writes `/etc/telemt/config.toml` and a service file, starts the
 service, and prints the `tg://webproxy` links. Adjust `public_addr` in
-`[web.vhost]` to this server's public IP and port, then reload:
+`[web.vhost]` to this server's public IP and port, then restart the service:
 
 ```bash
-systemctl reload-or-restart telemt   # or `./target/release/telemt config.toml` to run in the foreground
+systemctl restart telemt   # or `./target/release/telemt config.toml` to run in the foreground
 ```
 
 # Telemt via Systemd

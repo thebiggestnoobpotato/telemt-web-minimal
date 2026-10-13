@@ -23,8 +23,7 @@ use tracing::{debug, info, warn};
 use crate::config::{ApiGrayAction, ProxyConfig};
 use crate::ip_tracker::UserIpTracker;
 use crate::maestro::control_plane::ProcessControlPlane;
-use crate::maestro::generation::{RuntimeGeneration, RuntimeWatchState};
-use crate::maestro::reload::{ReloadAccepted, ReloadControl, ReloadRequest, ReloadSubmitError};
+use crate::maestro::generation::RuntimeGeneration;
 use crate::proxy::shared_state::ProxySharedState;
 use crate::startup::StartupTracker;
 use crate::stats::Stats;
@@ -40,8 +39,6 @@ mod http_utils;
 mod handler;
 mod model;
 mod patch;
-#[cfg(test)]
-mod reload_tests;
 mod runtime_edge;
 mod runtime_init;
 mod runtime_min;
@@ -54,8 +51,7 @@ mod web_runtime;
 mod web_status;
 
 use config_store::{
-    current_revision, load_config_for_mutation, load_config_for_reload, load_config_from_disk,
-    parse_if_match,
+    current_revision, load_config_for_mutation, load_config_from_disk, parse_if_match,
 };
 use events::ApiEventStore;
 use handler::handle;
@@ -89,8 +85,6 @@ const ALLOW_GET_PATCH: &str = "GET, PATCH";
 
 pub(super) struct ApiRuntimeState {
     pub(super) process_started_at_epoch_secs: u64,
-    pub(super) config_reload_count: AtomicU64,
-    pub(super) last_config_reload_epoch_secs: AtomicU64,
     pub(super) admission_open: AtomicBool,
 }
 
@@ -109,7 +103,6 @@ pub(super) struct ApiShared {
     pub(super) runtime_state: Arc<ApiRuntimeState>,
     pub(super) startup_tracker: Arc<StartupTracker>,
     pub(super) proxy_shared: Arc<ProxySharedState>,
-    pub(super) reload_control: ReloadControl,
     pub(super) active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
     pub(super) web_trace: Arc<WebTraceStore>,
     pub(super) web_runtime_rx: watch::Receiver<WebRuntimePublication>,
@@ -136,7 +129,6 @@ impl ApiShared {
             runtime_state: self.runtime_state.clone(),
             startup_tracker: self.startup_tracker.clone(),
             proxy_shared: runtime.proxy_shared.clone(),
-            reload_control: self.reload_control.clone(),
             active_runtime: self.active_runtime.clone(),
             web_trace: self.web_trace.clone(),
             web_runtime_rx: self.web_runtime_rx.clone(),
@@ -187,47 +179,6 @@ fn user_action_route_matches(path: &str, suffix: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn reload_status_route_id(path: &str) -> Option<u64> {
-    path.strip_prefix("/v1/system/reload/")
-        .filter(|id| !id.is_empty() && !id.contains('/'))
-        .and_then(|id| id.parse().ok())
-}
-
-async fn submit_reload_from_disk(
-    config_path: &std::path::Path,
-    mutation_lock: &Mutex<()>,
-    reload_control: &ReloadControl,
-    expected_revision: Option<&str>,
-    request: ReloadRequest,
-) -> Result<(ReloadAccepted, String), ApiFailure> {
-    let _guard = mutation_lock.lock().await;
-    let (config, revision) = load_config_for_reload(config_path).await?;
-    if expected_revision.is_some_and(|expected| expected != revision) {
-        return Err(ApiFailure::new(
-            StatusCode::CONFLICT,
-            "revision_conflict",
-            "Config revision mismatch",
-        ));
-    }
-    let config = Arc::new(config);
-    let accepted = reload_control
-        .submit(config, revision.clone(), request)
-        .await
-        .map_err(|error| match error {
-            ReloadSubmitError::InProgress(reload_id) => ApiFailure::new(
-                StatusCode::CONFLICT,
-                "reload_in_progress",
-                format!("Reload {} is already in progress", reload_id),
-            ),
-            ReloadSubmitError::MaestroUnavailable => ApiFailure::new(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "maestro_unavailable",
-                "Maestro reload coordinator is unavailable",
-            ),
-        })?;
-    Ok((accepted, revision))
-}
-
 fn allowed_methods_for_path(path: &str) -> Option<&'static str> {
     if let Some(allow) = web_runtime::allowed_methods(path) {
         return Some(allow);
@@ -251,13 +202,11 @@ fn allowed_methods_for_path(path: &str) -> Option<&'static str> {
         | "/v1/stats/users/active-ips"
         | "/v1/stats/users"
         | "/web-status" => Some(ALLOW_GET),
-        "/v1/system/reload" => Some(ALLOW_POST),
         "/v1/users" => Some(ALLOW_GET_POST),
         "/v1/config" => Some(ALLOW_GET_PATCH),
         _ if user_action_route_matches(path, "/rotate-secret") => Some(ALLOW_POST),
         _ if user_action_route_matches(path, "/enable") => Some(ALLOW_POST),
         _ if user_action_route_matches(path, "/disable") => Some(ALLOW_POST),
-        _ if reload_status_route_id(path).is_some() => Some(ALLOW_GET),
         _ if path
             .strip_prefix("/v1/users/")
             .map(|user| !user.is_empty() && !user.contains('/'))
@@ -279,9 +228,8 @@ pub(crate) async fn serve(
     config_path: PathBuf,
     process_started_at_epoch_secs: u64,
     startup_tracker: Arc<StartupTracker>,
-    reload_control: ReloadControl,
     mut active_runtime_rx: watch::Receiver<Option<Arc<ArcSwap<RuntimeGeneration>>>>,
-    mut runtime_watch_rx: watch::Receiver<Option<RuntimeWatchState>>,
+    admission_rx: watch::Receiver<bool>,
     web_trace: Arc<WebTraceStore>,
     web_runtime_rx: watch::Receiver<WebRuntimePublication>,
     control_plane: ProcessControlPlane,
@@ -295,25 +243,15 @@ pub(crate) async fn serve(
             return;
         }
     };
-    let initial_watch_state = loop {
-        if let Some(watch_state) = runtime_watch_rx.borrow().clone() {
-            break watch_state;
-        }
-        if runtime_watch_rx.changed().await.is_err() {
-            warn!("Runtime watch channel closed before API bootstrap");
-            return;
-        }
-    };
-    let config_rx = initial_watch_state.config_rx.clone();
-    let admission_rx = initial_watch_state.admission_rx.clone();
+    let runtime = active_runtime.load_full();
+    let config = runtime.config();
+    let generation_id = runtime.id;
     let listen = listener.local_addr().ok();
 
     info!(listen = ?listen, "API endpoint ready at /v1/* and /web-status");
 
     let runtime_state = Arc::new(ApiRuntimeState {
         process_started_at_epoch_secs,
-        config_reload_count: AtomicU64::new(0),
-        last_config_reload_epoch_secs: AtomicU64::new(0),
         admission_open: AtomicBool::new(*admission_rx.borrow()),
     });
 
@@ -327,13 +265,12 @@ pub(crate) async fn serve(
         runtime_edge_recompute_lock: Arc::new(Mutex::new(())),
         cache_generation: Arc::new(AtomicU64::new(1)),
         runtime_events: Arc::new(ApiEventStore::new(
-            config_rx.borrow().api.runtime_edge_events_capacity,
+            config.api.runtime_edge_events_capacity,
         )),
         request_id: Arc::new(AtomicU64::new(1)),
         runtime_state: runtime_state.clone(),
         startup_tracker,
         proxy_shared,
-        reload_control,
         active_runtime,
         web_trace,
         web_runtime_rx,
@@ -341,7 +278,8 @@ pub(crate) async fn serve(
     });
 
     spawn_runtime_watchers(
-        runtime_watch_rx,
+        generation_id,
+        admission_rx,
         runtime_state.clone(),
         shared.runtime_events.clone(),
         &control_plane,

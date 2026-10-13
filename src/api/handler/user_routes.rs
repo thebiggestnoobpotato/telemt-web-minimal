@@ -7,28 +7,11 @@ pub(super) async fn handle(
     normalized_path: &str,
     shared: &Arc<ApiShared>,
     cfg: &ProxyConfig,
-    config_rx: &watch::Receiver<Arc<ProxyConfig>>,
+    config: &Arc<ProxyConfig>,
     request_id: u64,
     body_limit: usize,
 ) -> Result<Response<Full<Bytes>>, ApiFailure> {
     let api_cfg = &cfg.api;
-    if method == Method::GET
-        && let Some(reload_id) = reload_status_route_id(normalized_path)
-    {
-        let revision = current_revision(&shared.config_path).await?;
-        let status = shared
-            .reload_control
-            .status(reload_id)
-            .await
-            .ok_or_else(|| {
-                ApiFailure::new(
-                    StatusCode::NOT_FOUND,
-                    "reload_not_found",
-                    format!("Reload {} was not found", reload_id),
-                )
-            })?;
-        return Ok(success_response(StatusCode::OK, status, revision));
-    }
     if method == Method::POST
         && let Some(base_user) = normalized_path
             .strip_prefix("/v1/users/")
@@ -66,7 +49,7 @@ pub(super) async fn handle(
                 return Err(error);
             }
         };
-        let runtime_cfg = config_rx.borrow().clone();
+        let runtime_cfg = config.clone();
         data.user.in_runtime = runtime_cfg.users.contains_key(&data.user.username);
         shared.runtime_events.record(
             "api.user.rotate_secret.ok",
@@ -87,7 +70,7 @@ pub(super) async fn handle(
         if method == Method::GET {
             let revision = current_revision(&shared.config_path).await?;
             let disk_cfg = load_config_from_disk(&shared.config_path).await?;
-            let runtime_cfg = config_rx.borrow().clone();
+            let runtime_cfg = config.clone();
             let users = users_from_config(
                 &disk_cfg,
                 &shared.stats,
@@ -127,7 +110,7 @@ pub(super) async fn handle(
                     return Err(error);
                 }
             };
-            let runtime_cfg = config_rx.borrow().clone();
+            let runtime_cfg = config.clone();
             data.in_runtime = runtime_cfg.users.contains_key(&data.username);
             shared
                 .runtime_events
@@ -165,7 +148,7 @@ pub(super) async fn handle(
             shared
                 .runtime_events
                 .record("api.user.delete.ok", format!("username={}", deleted_user));
-            let runtime_cfg = config_rx.borrow().clone();
+            let runtime_cfg = config.clone();
             let in_runtime = runtime_cfg.users.contains_key(&deleted_user);
             let response = DeleteUserResponse {
                 username: deleted_user,

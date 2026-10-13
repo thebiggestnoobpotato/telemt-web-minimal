@@ -65,7 +65,6 @@ daemon_flags="/etc/telemt/config.toml"
 . /etc/rc.d/rc.subr
 
 rc_bg=YES
-rc_reload=NO
 
 rc_cmd $1
 ```

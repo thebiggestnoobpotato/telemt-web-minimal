@@ -37,7 +37,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cmd = cli::parse_command(&args);
 
-    // Handle subcommands that don't need the server (stop, reload, status, init)
+    // Handle subcommands that don't need the server (stop, status, init)
     if let Some(exit_code) = cli::execute_subcommand(&cmd) {
         std::process::exit(exit_code);
     }

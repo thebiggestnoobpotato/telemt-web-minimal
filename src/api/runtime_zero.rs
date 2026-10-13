@@ -24,9 +24,6 @@ pub(super) struct SystemInfoData {
     pub(super) uptime_seconds: f64,
     pub(super) config_path: String,
     pub(super) config_hash: String,
-    pub(super) config_reload_count: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) last_config_reload_epoch_secs: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -75,13 +72,6 @@ pub(super) fn build_system_info_data(
     _cfg: &ProxyConfig,
     revision: &str,
 ) -> SystemInfoData {
-    let last_reload_epoch_secs = shared
-        .runtime_state
-        .last_config_reload_epoch_secs
-        .load(Ordering::Relaxed);
-    let last_config_reload_epoch_secs =
-        (last_reload_epoch_secs > 0).then_some(last_reload_epoch_secs);
-
     let git_commit = option_env!("TELEMT_GIT_COMMIT")
         .or(option_env!("VERGEN_GIT_SHA"))
         .or(option_env!("GIT_COMMIT"))
@@ -105,11 +95,6 @@ pub(super) fn build_system_info_data(
         uptime_seconds: process_uptime_seconds(shared.runtime_state.process_started_at_epoch_secs),
         config_path: shared.config_path.display().to_string(),
         config_hash: revision.to_string(),
-        config_reload_count: shared
-            .runtime_state
-            .config_reload_count
-            .load(Ordering::Relaxed),
-        last_config_reload_epoch_secs,
     }
 }
 

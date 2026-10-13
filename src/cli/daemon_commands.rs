@@ -92,24 +92,6 @@ pub(super) fn stop(pid_file: &Path, strict_runtime_paths: bool) -> i32 {
     }
 }
 
-/// Sends SIGHUP to trigger configuration reload.
-pub(super) fn reload(pid_file: &Path, strict_runtime_paths: bool) -> i32 {
-    use nix::sys::signal::Signal;
-
-    println!("Reloading telemt configuration...");
-
-    match daemon::signal_pid_file(pid_file, Signal::SIGHUP, strict_runtime_paths) {
-        Ok(()) => {
-            println!("Reload signal sent successfully");
-            0
-        }
-        Err(e) => {
-            eprintln!("Failed to reload daemon: {}", e);
-            1
-        }
-    }
-}
-
 /// Reports daemon status without mutating PID lifecycle state.
 pub(super) fn status(pid_file: &Path, strict_runtime_paths: bool) -> i32 {
     match daemon::check_status(pid_file, strict_runtime_paths) {
@@ -139,7 +121,6 @@ mod tests {
 
     const CONTROL_PID: &str = "TELEMT_RUNTIME_PATH_TEST_PID";
     const CONTROL_READY: &str = "TELEMT_RUNTIME_PATH_TEST_READY";
-    const CONTROL_RELOADED: &str = "TELEMT_RUNTIME_PATH_TEST_RELOADED";
 
     struct ControlChild(Child);
 
@@ -163,7 +144,7 @@ mod tests {
 
     #[test]
     fn runtime_path_policy_defaults_to_compatibility_for_all_commands() {
-        for command in ["run", "start", "stop", "reload", "status"] {
+        for command in ["run", "start", "stop", "status"] {
             let args = vec![command.to_string(), "config.toml".to_string()];
             assert!(
                 !crate::cli::parse_command(&args)
@@ -197,11 +178,8 @@ mod tests {
             return;
         };
         let ready = PathBuf::from(std::env::var_os(CONTROL_READY).unwrap());
-        let reloaded = PathBuf::from(std::env::var_os(CONTROL_RELOADED).unwrap());
         let mut terminate =
             tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
-        let mut reload =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).unwrap();
         let mut owner = daemon::PidFile::new(PathBuf::from(pid_path), false);
         owner.acquire().unwrap();
         fs::write(&ready, b"ready").unwrap();
@@ -210,7 +188,6 @@ mod tests {
         loop {
             tokio::select! {
                 _ = terminate.recv() => break,
-                _ = reload.recv() => fs::write(&reloaded, b"reloaded").unwrap(),
                 _ = &mut deadline => panic!("daemon control subprocess timed out"),
             }
         }
@@ -232,7 +209,6 @@ mod tests {
             symlink(&real, &linked).unwrap();
             let pid_path = if linked_parent { &linked } else { &real }.join("telemt.pid");
             let ready = root.path().join("ready");
-            let reloaded = root.path().join("reloaded");
             let mut child = ControlChild(
                 Command::new(std::env::current_exe().unwrap())
                     .args([
@@ -242,7 +218,6 @@ mod tests {
                     ])
                     .env(CONTROL_PID, &pid_path)
                     .env(CONTROL_READY, &ready)
-                    .env(CONTROL_RELOADED, &reloaded)
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
                     .spawn()
@@ -267,17 +242,11 @@ mod tests {
             assert_eq!(command("status", false), Some(0));
             if trusted_parent {
                 assert_eq!(command("status", true), Some(0));
-                assert_eq!(command("reload", true), Some(0));
-                assert!(wait_for_file(&reloaded));
                 assert_eq!(command("stop", true), Some(0));
             } else {
                 assert_eq!(command("status", true), Some(1));
-                assert_eq!(command("reload", true), Some(1));
-                assert!(!reloaded.exists());
                 assert_eq!(command("stop", true), Some(1));
                 assert_eq!(command("status", false), Some(0));
-                assert_eq!(command("reload", false), Some(0));
-                assert!(wait_for_file(&reloaded));
                 assert_eq!(command("stop", false), Some(0));
             }
             assert!(child.0.wait().unwrap().success());

@@ -1,7 +1,6 @@
 //! Configuration.
 
 pub(crate) mod defaults;
-pub mod hot_reload;
 mod load;
 mod types;
 

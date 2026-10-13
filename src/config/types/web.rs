@@ -415,7 +415,7 @@ pub struct WebConfig {
     /// Hard process and protocol limits.
     #[serde(default)]
     pub limits: WebLimitsConfig,
-    /// Hot-reloadable bounded server-side debug policy.
+    /// Bounded server-side WEB debug policy.
     #[serde(default)]
     pub debug: WebDebugConfig,
     /// WEB lifecycle deadlines.

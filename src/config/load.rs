@@ -247,14 +247,9 @@ impl ProxyConfig {
         runtime_web::rebuild(self)
     }
 
-    /// Validates the mixed effective WEB snapshot after restart fields are retained.
+    /// Validates the WEB mode policy and resource bounds.
     pub(crate) fn validate_effective_web(&mut self) -> Result<()> {
         validate_web::validate(self)
-    }
-
-    /// Revalidates fallback separation after restart-only listener fields are resolved.
-    pub(crate) fn validate_web_fallback_listener_separation(&self) -> Result<()> {
-        validate_web::validate_fallback_listener_separation(self)
     }
 
     /// Returns authentication data owned by this configuration generation.
