@@ -3,7 +3,6 @@ use super::*;
 fn test_listener(port: u16) -> crate::config::ListenerConfig {
     crate::config::ListenerConfig {
         ip: Some("127.0.0.1".parse().unwrap()),
-        transport: crate::config::ListenerTransport::Web,
         port: Some(port),
         socket_path: None,
         socket_perm: None,
@@ -17,10 +16,7 @@ fn test_vhost() -> crate::config::WebVhostConfig {
     serde_json::from_value(serde_json::json!({
         "host": "proxy.example.com",
         "public_addr": "203.0.113.10:443",
-        "fallback": {
-            "mode": "http_upstream",
-            "upstream": "http://127.0.0.1:18090"
-        },
+        "upstream": "http://127.0.0.1:18090",
         "profiles": []
     }))
     .unwrap()
@@ -37,25 +33,21 @@ alice = "000102030405060708090a0b0c0d0e0f"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_client_ip_source = "x_forwarded_for"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
 [web]
 enabled = true
 fallback_fasttrack_mode = "{mode}"
+secret_mode = "plain"
 
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
 
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://127.0.0.1:18081"
-
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "alice"
-secret_mode = "plain"
 "#,
     );
     std::fs::write(&path, config).unwrap();
@@ -130,14 +122,13 @@ fn listener_web_policy_change_is_deferred_when_bind_identity_is_stable() {
     let mut old = ProxyConfig::default();
     old.listener = Some(crate::config::ListenerConfig {
         ip: Some("0.0.0.0".parse().unwrap()),
-        transport: crate::config::ListenerTransport::Web,
         port: Some(443),
         socket_path: None,
         socket_perm: None,
         web_client_ip_source: crate::config::WebClientIpSource::XForwardedFor,
         web_trusted_proxy_cidrs: vec!["127.0.0.1/32".parse().unwrap()],
     });
-    old.web.vhosts = vec![test_vhost()];
+    old.web.vhost = Some(test_vhost());
     // Active configurations are fully prepared; endpoint equality compares runtime snapshots.
     old.rebuild_runtime_user_auth().unwrap();
     old.rebuild_runtime_web().unwrap();
@@ -252,13 +243,27 @@ fn base_path_change_is_runtime_owned_and_rebuilds_route_identity() {
     let old_runtime = old.web.runtime.as_ref().unwrap();
     let old_capability = old_runtime.vhosts["proxy.example.com"].capabilities[0];
     let mut desired = old.clone();
-    desired.web.vhosts[0].base_path = "MixedCase/path".to_string();
+    desired
+        .web
+        .vhost
+        .as_mut()
+        .expect("web vhost")
+        .base_path = "MixedCase/path".to_string();
 
     let resolved = resolve_reload_config(&old, &desired).unwrap();
 
     assert!(resolved.deferred_process_fields.is_empty());
     assert!(resolved.runtime_changed);
-    assert_eq!(resolved.effective.web.vhosts[0].base_path, "MixedCase/path");
+    assert_eq!(
+        resolved
+            .effective
+            .web
+            .vhost
+            .as_ref()
+            .expect("web vhost")
+            .base_path,
+        "MixedCase/path"
+    );
     let runtime = resolved.effective.web.runtime.as_ref().unwrap();
     let vhost = &runtime.vhosts["proxy.example.com"];
     assert_eq!(vhost.base, "/MixedCase/path/");
@@ -352,7 +357,7 @@ fn web_debug_prefix_dependent_on_new_capacity_is_deferred_with_limits() {
 fn endpoint_only_listener_move_is_deferred_to_process_restart() {
     let mut old = ProxyConfig::default();
     old.listener = Some(test_listener(443));
-    old.web.vhosts = vec![test_vhost()];
+    old.web.vhost = Some(test_vhost());
     // Active configurations are fully prepared; endpoint equality compares runtime snapshots.
     old.rebuild_runtime_user_auth().unwrap();
     old.rebuild_runtime_web().unwrap();
@@ -374,22 +379,18 @@ fn endpoint_only_listener_move_is_deferred_to_process_restart() {
 fn deferred_listener_identity_cannot_create_an_effective_fallback_loop() {
     let mut old = ProxyConfig::default();
     old.listener = Some(test_listener(18080));
-    old.listener.as_mut().unwrap().transport = crate::config::ListenerTransport::Web;
     let mut desired = old.clone();
     desired.listener.as_mut().unwrap().port = Some(18081);
     desired.general.listen_backlog = desired.general.listen_backlog.saturating_add(1);
-    desired.web.vhosts = vec![
+    desired.web.vhost = Some(
         serde_json::from_value(serde_json::json!({
             "host": "proxy.example",
             "public_addr": "203.0.113.10:443",
-            "fallback": {
-                "mode": "http_upstream",
-                "upstream": "http://127.0.0.1:18080"
-            },
+            "upstream": "http://127.0.0.1:18080",
             "profiles": []
         }))
         .unwrap(),
-    ];
+    );
 
     assert!(desired.validate_web_fallback_listener_separation().is_ok());
     assert!(resolve_reload_config(&old, &desired).is_err());

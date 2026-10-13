@@ -38,7 +38,6 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         WEB_DEBUG_CONFIG_KEYS,
         WEB_TIMEOUTS_CONFIG_KEYS,
         WEB_VHOST_CONFIG_KEYS,
-        WEB_FALLBACK_CONFIG_KEYS,
         WEB_PROFILE_CONFIG_KEYS,
         ACCESS_CONFIG_KEYS,
         UPSTREAM_CONFIG_KEYS,
@@ -221,38 +220,24 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         LISTENER_CONFIG_KEYS,
     );
 
-    if let Some(vhosts) = table_at(parsed_toml, &["web"])
-        .and_then(|table| table.get("vhosts"))
-        .and_then(toml::Value::as_array)
-    {
-        for (vhost_idx, vhost) in vhosts.iter().enumerate() {
-            check_nested_table_value(
-                &mut unknown,
-                &known_for_suggestion,
-                format!("web.vhosts[{vhost_idx}]"),
-                vhost,
-                WEB_VHOST_CONFIG_KEYS,
-            );
-            if let Some(vhost) = vhost.as_table() {
-                if let Some(fallback) = vhost.get("fallback") {
+    if let Some(vhost) = table_at(parsed_toml, &["web"]).and_then(|table| table.get("vhost")) {
+        check_nested_table_value(
+            &mut unknown,
+            &known_for_suggestion,
+            "web.vhost".to_string(),
+            vhost,
+            WEB_VHOST_CONFIG_KEYS,
+        );
+        if let Some(vhost) = vhost.as_table() {
+            if let Some(profiles) = vhost.get("profiles").and_then(toml::Value::as_array) {
+                for (profile_idx, profile) in profiles.iter().enumerate() {
                     check_nested_table_value(
                         &mut unknown,
                         &known_for_suggestion,
-                        format!("web.vhosts[{vhost_idx}].fallback"),
-                        fallback,
-                        WEB_FALLBACK_CONFIG_KEYS,
+                        format!("web.vhost.profiles[{profile_idx}]"),
+                        profile,
+                        WEB_PROFILE_CONFIG_KEYS,
                     );
-                }
-                if let Some(profiles) = vhost.get("profiles").and_then(toml::Value::as_array) {
-                    for (profile_idx, profile) in profiles.iter().enumerate() {
-                        check_nested_table_value(
-                            &mut unknown,
-                            &known_for_suggestion,
-                            format!("web.vhosts[{vhost_idx}].profiles[{profile_idx}]"),
-                            profile,
-                            WEB_PROFILE_CONFIG_KEYS,
-                        );
-                    }
                 }
             }
         }

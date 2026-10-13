@@ -8,20 +8,17 @@ alice = "000102030405060708090a0b0c0d0e0f"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 [web]
 enabled = true
-[[web.vhosts]]
+secret_mode = "dd"
+[web.vhost]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://Example.COM:18081"
 resolve = "startup"
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "alice"
-secret_mode = "dd"
 "#;
 
 fn source(text: &str) -> ParsedConfigSource {
@@ -53,15 +50,8 @@ fn endpoint(config: &ProxyConfig) -> (FallbackEndpoint, &str) {
 }
 
 #[tokio::test]
-async fn fallback_dns_snapshot_deduplicates_normalized_origins_and_preserves_order() {
+async fn fallback_dns_snapshot_preserves_answer_order() {
     let mut parsed = source(SOURCE);
-    let mut second = parsed.config.web.vhosts[0].clone();
-    second.host = "bsi.bund.de".to_string();
-    second.fallback = WebFallbackConfig::HttpUpstream {
-        upstream: "http://example.com:18081/".to_string(),
-        resolve: WebFallbackResolve::Startup,
-    };
-    parsed.config.web.vhosts.push(second);
     let calls = AtomicUsize::new(0);
     prepare(&mut parsed.config, |host, port| {
         assert_eq!((host.as_str(), port), ("example.com", 18081));
@@ -215,10 +205,12 @@ async fn fallback_dns_evidence_is_bound_to_origin_and_port() {
     let loaded = prepared(&["10.0.0.2:18081"]).await;
     for changed in ["http://telekom.com:18081", "http://example.com:18082"] {
         let mut config = loaded.config.clone();
-        config.web.vhosts[0].fallback = WebFallbackConfig::HttpUpstream {
-            upstream: changed.to_string(),
-            resolve: WebFallbackResolve::Startup,
-        };
+        config
+            .web
+            .vhost
+            .as_mut()
+            .expect("web vhost")
+            .upstream = changed.to_string();
         assert!(
             config
                 .validate_effective_web()
@@ -256,10 +248,13 @@ async fn fallback_dns_effective_listener_overlay_rechecks_every_answer() {
     let old = prepared(&["10.0.0.2:18081"]).await;
     let mut parsed = source(SOURCE);
     parsed.config.listener.as_mut().unwrap().port = Some(18082);
-    parsed.config.web.vhosts[0].fallback = WebFallbackConfig::HttpUpstream {
-        upstream: "http://example.com:18080".to_string(),
-        resolve: WebFallbackResolve::Startup,
-    };
+    parsed
+        .config
+        .web
+        .vhost
+        .as_mut()
+        .expect("web vhost")
+        .upstream = "http://example.com:18080".to_string();
     prepare(&mut parsed.config, |_, _| {
         std::future::ready(Ok(vec![
             "10.0.0.2:18080".parse().unwrap(),
@@ -307,7 +302,7 @@ fn fallback_dns_startup_does_not_relax_origin_url_rules() {
         "http://example.com:0",
     ] {
         assert!(
-            parse_origin(0, url, WebFallbackResolve::Startup).is_err(),
+            parse_origin(url, WebFallbackResolve::Startup).is_err(),
             "accepted {url}"
         );
     }
@@ -350,11 +345,11 @@ fn fallback_unix_origin_requires_absolute_path_without_url_control() {
         "unix:/run/telemt\\sock",
     ] {
         assert!(
-            parse_origin(0, upstream, WebFallbackResolve::Never).is_err(),
+            parse_origin(upstream, WebFallbackResolve::Never).is_err(),
             "accepted {upstream}"
         );
     }
-    let parsed = parse_origin(0, "unix:/run/telemt.sock", WebFallbackResolve::Never).unwrap();
+    let parsed = parse_origin("unix:/run/telemt.sock", WebFallbackResolve::Never).unwrap();
     assert!(matches!(
         parsed,
         FallbackOrigin::Unix { ref path } if path == std::path::Path::new("/run/telemt.sock")
@@ -363,7 +358,7 @@ fn fallback_unix_origin_requires_absolute_path_without_url_control() {
 
 #[test]
 fn fallback_unix_origin_rejects_startup_resolve() {
-    assert!(parse_origin(0, "unix:/run/telemt.sock", WebFallbackResolve::Startup).is_err());
+    assert!(parse_origin("unix:/run/telemt.sock", WebFallbackResolve::Startup).is_err());
 }
 
 const UNIX_FALLBACK_SOURCE: &str = "upstream = \"unix:/run/telemt-fallback.sock\"";
@@ -397,8 +392,8 @@ fn fallback_unix_upstream_overlapping_unix_listener_is_rejected() {
             UNIX_FALLBACK_SOURCE,
         )
         .replace(
-            "ip = \"127.0.0.1\"\nport = 18080\ntransport = \"web\"\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]",
-            "socket_path = \"/run/telemt-fallback.sock\"\ntransport = \"web\"",
+            "ip = \"127.0.0.1\"\nport = 18080\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]",
+            "socket_path = \"/run/telemt-fallback.sock\"",
         );
     let error = pipeline::parse_source_graph(ConfigSourceGraph {
         rendered: text.to_string(),

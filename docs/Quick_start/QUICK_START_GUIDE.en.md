@@ -30,7 +30,7 @@ Options: `--port` (default `443`), `--user` (default `user`), `--secret`
 
 The command writes `/etc/telemt/config.toml` and a service file, starts the
 service, and prints the `tg://webproxy` links. Adjust `public_addr` in
-`[[web.vhosts]]` to this server's public IP and port, then reload:
+`[web.vhost]` to this server's public IP and port, then reload:
 
 ```bash
 systemctl reload-or-restart telemt   # or `./target/release/telemt config.toml` to run in the foreground
@@ -98,26 +98,22 @@ show_users_links = true
 [listener]
 ip = "0.0.0.0"
 port = 443
-transport = "web"
 # Trusted L7 reverse proxies allowed to supply the client IP header.
 # /0 networks are rejected; extend only with your own fronting proxies.
 web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [web]
 enabled = true
+# The single secret representation for every profile; required for
+# [[web.vhost.profiles]].
+secret_mode = "plain"
 
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 # Replace with this server's public IP and port.
 public_addr = "203.0.113.1:443"
-
-[web.vhosts.fallback]
-mode = "http_upstream"
+# Ordinary-site origin browsers and scanners see.
 upstream = "http://127.0.0.1:80"
-
-[[web.vhosts.profiles]]
-user = "user"
-secret_mode = "plain"
 
 [users]
 # format: "username" = "32_hex_chars_secret"
@@ -128,9 +124,11 @@ Notes:
 
 - The listener is a WEB listener and needs a non-empty
   `web_trusted_proxy_cidrs` list (no `/0` networks).
-- At least one `[[web.vhosts]]` entry is required whenever a listener is configured.
-- Every vhost needs a `fallback` (what browsers and scanners see) and one or
-  more `profiles` binding a `[users]` user to the vhost.
+- A `[web.vhost]` table is required whenever a listener is configured.
+- The vhost needs an `upstream` (what browsers and scanners see) and at
+  least one profile binding a `[users]` user to the vhost: `web.secret_mode`
+  covers every user, and explicit `[[web.vhost.profiles]]` entries (which
+  require it) add per-user ceilings.
 - See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.
 
 # Telemt via Docker
@@ -157,7 +155,7 @@ Mount the config directory instead.
 # Verify
 
 ```bash
-# Public web surface (fallback) must answer on the vhost
+# Public web surface (upstream) must answer on the vhost
 curl -sI https://proxy.example.com/ | head -3
 
 # Read-only WEB diagnostics (API must be enabled on a private bind)

@@ -245,11 +245,9 @@ mod tests {
             r#"
 [api]
 enabled = false
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://unresolvable.example.invalid:8080"
 resolve = "startup"
 "#,

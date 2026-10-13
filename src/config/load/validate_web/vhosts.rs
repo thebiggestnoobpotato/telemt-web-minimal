@@ -2,79 +2,96 @@ use super::*;
 
 pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     let limits = &config.web.limits;
-    if config.web.vhosts.len() > limits.max_vhosts {
-        return config_error("web.vhosts exceeds web.limits.max_vhosts");
+    let global_covers_users =
+        config.web.secret_mode.is_some() && !config.users.is_empty();
+    let Some(vhost) = config.web.vhost.as_mut() else {
+        return Ok(());
+    };
+    vhost.host = normalize_web_host(&vhost.host, "web.vhost.host")?;
+    validate_web_base_path(&vhost.base_path, "web.vhost.base_path")?;
+    if vhost.public_addr.port() != 443 || vhost.public_addr.ip().is_unspecified() {
+        return config_error(
+            "web.vhost.public_addr must be a concrete socket address on port 443",
+        );
     }
-    let mut hosts = HashSet::with_capacity(config.web.vhosts.len());
+    if config.web.enabled && vhost.profiles.is_empty() && !global_covers_users {
+        return config_error(
+            "web.vhost has no profiles: add [[web.vhost.profiles]] or set web.secret_mode when web.enabled=true",
+        );
+    }
+    if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {
+        return config_error("web.vhost.profiles require web.secret_mode");
+    }
+    validate_fallback(&vhost.upstream, vhost.resolve)?;
     let mut profile_count = 0usize;
-    for (vhost_idx, vhost) in config.web.vhosts.iter_mut().enumerate() {
-        vhost.host = normalize_web_host(&vhost.host, &format!("web.vhosts[{vhost_idx}].host"))?;
-        validate_web_base_path(
-            &vhost.base_path,
-            &format!("web.vhosts[{vhost_idx}].base_path"),
+    let mut profiles = HashSet::with_capacity(vhost.profiles.len());
+    for (profile_idx, profile) in vhost.profiles.iter().enumerate() {
+        if profile.user.is_empty() || profile.user.len() > 64 {
+            return config_error(&format!(
+                "web.vhost.profiles[{profile_idx}].user must contain 1..64 bytes"
+            ));
+        }
+        if !config.users.contains_key(&profile.user) {
+            return config_error(&format!(
+                "web.vhost.profiles[{profile_idx}].user references unknown access user `{}`",
+                profile.user
+            ));
+        }
+        if !profiles.insert(profile.user.as_str()) {
+            return config_error(&format!(
+                "duplicate WEB profile for user `{}` in vhost `{}`",
+                profile.user, vhost.host
+            ));
+        }
+        validate_profile_limits(
+            &profile.max_sessions,
+            &profile.max_streams,
+            &profile.max_streams_per_session,
+            limits,
+            &format!("web.vhost.profiles[{profile_idx}]"),
         )?;
-        if !hosts.insert(vhost.host.clone()) {
-            return config_error(&format!("duplicate WEB vhost host `{}`", vhost.host));
-        }
-        if vhost.public_addr.port() != 443 || vhost.public_addr.ip().is_unspecified() {
-            return config_error(&format!(
-                "web.vhosts[{vhost_idx}].public_addr must be a concrete socket address on port 443"
-            ));
-        }
-        if config.web.enabled && vhost.profiles.is_empty() {
-            return config_error(&format!(
-                "web.vhosts[{vhost_idx}].profiles must be non-empty when web.enabled=true"
-            ));
-        }
-        validate_fallback(vhost_idx, &vhost.fallback)?;
-        let mut profiles = HashSet::with_capacity(vhost.profiles.len());
-        for (profile_idx, profile) in vhost.profiles.iter().enumerate() {
-            if profile.user.is_empty() || profile.user.len() > 64 {
-                return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].profiles[{profile_idx}].user must contain 1..64 bytes"
-                ));
-            }
-            if !config.users.contains_key(&profile.user) {
-                return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].profiles[{profile_idx}].user references unknown access user `{}`",
-                    profile.user
-                ));
-            }
-            if !profiles.insert((profile.user.as_str(), profile.secret_mode)) {
-                return config_error(&format!(
-                    "duplicate WEB profile for user `{}` in vhost `{}`",
-                    profile.user, vhost.host
-                ));
-            }
-            let max_streams = profile.max_streams.unwrap_or(limits.max_streams_global);
-            let max_streams_per_session = profile
-                .max_streams_per_session
-                .unwrap_or(limits.max_streams_per_session);
-            if profile.max_sessions == Some(0)
-                || profile
-                    .max_sessions
-                    .is_some_and(|value| value > limits.max_sessions_global)
-                || profile.max_streams == Some(0)
-                || profile
-                    .max_streams
-                    .is_some_and(|value| value > limits.max_streams_global)
-                || profile.max_streams_per_session == Some(0)
-                || profile
-                    .max_streams_per_session
-                    .is_some_and(|value| value > limits.max_streams_per_session)
-                || max_streams_per_session > max_streams
-            {
-                return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].profiles[{profile_idx}] limits must be non-zero and within global WEB limits"
-                ));
-            }
-            profile_count = profile_count.checked_add(1).ok_or_else(|| {
-                ProxyError::Config("WEB profile count overflowed usize".to_string())
-            })?;
-        }
+        profile_count = profile_count.checked_add(1).ok_or_else(|| {
+            ProxyError::Config("WEB profile count overflowed usize".to_string())
+        })?;
+    }
+    // A set web.secret_mode instantiates one profile per user not already
+    // covered by an explicit profile in the vhost.
+    if config.web.secret_mode.is_some() {
+        let additions = config.users.len().saturating_sub(vhost.profiles.len());
+        profile_count = profile_count
+            .checked_add(additions)
+            .ok_or_else(|| ProxyError::Config("WEB profile count overflowed usize".to_string()))?;
     }
     if profile_count > limits.max_profiles {
         return config_error("WEB profiles exceed web.limits.max_profiles");
+    }
+    Ok(())
+}
+
+/// Profile ceilings must be non-zero, within the global WEB ceilings, and
+/// nested: the per-session stream ceiling cannot exceed the stream ceiling.
+fn validate_profile_limits(
+    max_sessions: &Option<usize>,
+    max_streams: &Option<usize>,
+    max_streams_per_session: &Option<usize>,
+    limits: &WebLimitsConfig,
+    field: &str,
+) -> Result<()> {
+    let effective_streams = max_streams.unwrap_or(limits.max_streams_global);
+    let effective_streams_per_session =
+        max_streams_per_session.unwrap_or(limits.max_streams_per_session);
+    if max_sessions == &Some(0)
+        || max_sessions.is_some_and(|value| value > limits.max_sessions_global)
+        || max_streams == &Some(0)
+        || max_streams.is_some_and(|value| value > limits.max_streams_global)
+        || max_streams_per_session == &Some(0)
+        || max_streams_per_session
+            .is_some_and(|value| value > limits.max_streams_per_session)
+        || effective_streams_per_session > effective_streams
+    {
+        return config_error(&format!(
+            "{field} limits must be non-zero and within global WEB limits"
+        ));
     }
     Ok(())
 }
@@ -148,9 +165,8 @@ pub(super) fn web_host_last_label_is_numeric(host: &str) -> bool {
     label.bytes().all(|byte| byte.is_ascii_digit())
 }
 
-pub(super) fn validate_fallback(vhost_idx: usize, fallback: &WebFallbackConfig) -> Result<()> {
-    let WebFallbackConfig::HttpUpstream { upstream, resolve } = fallback;
-    fallback_dns::parse_origin(vhost_idx, upstream, *resolve)?;
+pub(super) fn validate_fallback(upstream: &str, resolve: WebFallbackResolve) -> Result<()> {
+    fallback_dns::parse_origin(upstream, resolve)?;
     Ok(())
 }
 

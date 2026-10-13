@@ -28,9 +28,9 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
         };
         let Some(vhost) = config
             .web
-            .vhosts
-            .iter()
-            .find(|vhost| vhost.host == profile.host)
+            .vhost
+            .as_ref()
+            .filter(|vhost| vhost.host == profile.host)
         else {
             continue;
         };

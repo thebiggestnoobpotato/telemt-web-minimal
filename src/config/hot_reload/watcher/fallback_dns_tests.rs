@@ -6,20 +6,17 @@ alice = "000102030405060708090a0b0c0d0e0f"
 [listener]
 ip = "127.0.0.1"
 port = 18080
-transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 [web]
 enabled = true
-[[web.vhosts]]
+secret_mode = "dd"
+[web.vhost]
 host = "proxy.example.com"
 public_addr = "203.0.113.10:443"
-[web.vhosts.fallback]
-mode = "http_upstream"
 upstream = "http://localhost:18081"
 resolve = "startup"
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "alice"
-secret_mode = "dd"
 "#;
 
 #[tokio::test]

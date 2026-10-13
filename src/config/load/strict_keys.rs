@@ -61,7 +61,6 @@ const API_CONFIG_KEYS: &[&str] = &[
 
 const LISTENER_CONFIG_KEYS: &[&str] = &[
     "ip",
-    "transport",
     "port",
     "socket_path",
     "socket_perm",
@@ -71,6 +70,7 @@ const LISTENER_CONFIG_KEYS: &[&str] = &[
 
 const WEB_CONFIG_KEYS: &[&str] = &[
     "enabled",
+    "secret_mode",
     "carrier",
     "carrier_method",
     "conveyor",
@@ -82,7 +82,7 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "debug",
     "limits",
     "timeouts",
-    "vhosts",
+    "vhost",
 ];
 
 const WEB_LIMITS_CONFIG_KEYS: &[&str] = &[
@@ -119,7 +119,6 @@ const WEB_LIMITS_CONFIG_KEYS: &[&str] = &[
     "control_bytes_global",
     "max_bootstraps_global",
     "max_bootstraps_per_ip",
-    "max_vhosts",
     "max_profiles",
     "max_static_files",
     "max_static_file_bytes",
@@ -177,11 +176,16 @@ const WEB_TIMEOUTS_CONFIG_KEYS: &[&str] = &[
     "fallback_resolve_secs",
 ];
 
-const WEB_VHOST_CONFIG_KEYS: &[&str] = &["host", "base_path", "public_addr", "fallback", "profiles"];
-const WEB_FALLBACK_CONFIG_KEYS: &[&str] = &["mode", "upstream", "resolve"];
+const WEB_VHOST_CONFIG_KEYS: &[&str] = &[
+    "host",
+    "base_path",
+    "public_addr",
+    "upstream",
+    "resolve",
+    "profiles",
+];
 const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "user",
-    "secret_mode",
     "max_sessions",
     "max_streams",
     "max_streams_per_session",

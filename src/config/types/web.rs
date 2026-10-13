@@ -38,8 +38,6 @@ pub enum WebSecretMode {
 pub struct WebProfileConfig {
     /// Existing `[users]` key authenticated by the inner MTProxy handshake.
     pub user: String,
-    /// Exact client-facing secret representation advertised in WEB links.
-    pub secret_mode: WebSecretMode,
     /// Optional per-profile live session ceiling.
     #[serde(default)]
     pub max_sessions: Option<usize>,
@@ -51,21 +49,7 @@ pub struct WebProfileConfig {
     pub max_streams_per_session: Option<usize>,
 }
 
-/// Public-site fallback used for requests that are not authenticated WEB traffic.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "mode", rename_all = "snake_case")]
-pub enum WebFallbackConfig {
-    /// Stream requests to one fixed private HTTP origin.
-    HttpUpstream {
-        /// Origin URL without a query or fragment.
-        upstream: String,
-        /// Opt-in configuration-time resolution; literal addresses never require DNS.
-        #[serde(default)]
-        resolve: WebFallbackResolve,
-    },
-}
-
-/// One externally visible WEB hostname and its explicit access profiles.
+/// The externally visible WEB hostname and its explicit access profiles.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebVhostConfig {
     /// Canonical lowercase ACE hostname used by Telegram Desktop.
@@ -75,8 +59,11 @@ pub struct WebVhostConfig {
     pub base_path: String,
     /// Stable public destination tuple used by inner relay routing and KDF metadata.
     pub public_addr: SocketAddr,
-    /// Ordinary-site fallback for this hostname.
-    pub fallback: WebFallbackConfig,
+    /// Ordinary-site fallback origin: an `http://` origin or a `unix:` socket path.
+    pub upstream: String,
+    /// Opt-in configuration-time resolution; literal addresses never require DNS.
+    #[serde(default)]
+    pub resolve: WebFallbackResolve,
     /// Access users and exact secret modes enabled for this hostname.
     #[serde(default)]
     pub profiles: Vec<WebProfileConfig>,
@@ -184,10 +171,7 @@ pub struct WebLimitsConfig {
     /// Live bootstrap credential ceiling for one forwarded client address.
     #[serde(default = "default_web_max_bootstraps_per_ip")]
     pub max_bootstraps_per_ip: usize,
-    /// Maximum configured WEB virtual-host count.
-    #[serde(default = "default_web_max_vhosts")]
-    pub max_vhosts: usize,
-    /// Maximum configured WEB access-profile count across all virtual hosts.
+    /// Maximum configured WEB access-profile count in the vhost.
     #[serde(default = "default_web_max_profiles")]
     pub max_profiles: usize,
     /// Maximum retained WEB debug record count.
@@ -255,7 +239,6 @@ impl Default for WebLimitsConfig {
             control_bytes_global: default_web_control_bytes_global(),
             max_bootstraps_global: default_web_max_bootstraps_global(),
             max_bootstraps_per_ip: default_web_max_bootstraps_per_ip(),
-            max_vhosts: default_web_max_vhosts(),
             max_profiles: default_web_max_profiles(),
             debug_records_capacity: default_web_debug_records_capacity(),
             debug_bytes_global: default_web_debug_bytes_global(),
@@ -401,6 +384,10 @@ pub struct WebConfig {
     /// Enables issuance of new WEB bridge and session credentials.
     #[serde(default)]
     pub enabled: bool,
+    /// Global secret representation; instantiates a profile for every
+    /// `[users]` user in every vhost. Unset leaves instantiation disabled.
+    #[serde(default)]
+    pub secret_mode: Option<WebSecretMode>,
     /// Sole carrier when negotiation is disabled and final fallback when enabled.
     #[serde(default)]
     pub carrier: WebCarrier,
@@ -434,9 +421,9 @@ pub struct WebConfig {
     /// WEB lifecycle deadlines.
     #[serde(default)]
     pub timeouts: WebTimeoutsConfig,
-    /// Public hostnames served by WEB listeners.
+    /// The single public hostname served by WEB listeners.
     #[serde(default)]
-    pub vhosts: Vec<WebVhostConfig>,
+    pub vhost: Option<WebVhostConfig>,
     /// Validated immutable runtime snapshot built during configuration loading.
     #[serde(skip)]
     pub(crate) runtime: Option<Arc<WebRuntimeConfig>>,
@@ -470,6 +457,7 @@ impl Default for WebConfig {
     fn default() -> Self {
         Self {
             enabled: false,
+            secret_mode: None,
             carrier: WebCarrier::default(),
             carrier_method: WebCarrierMethod::default(),
             conveyor: default_web_conveyor(),
@@ -481,7 +469,7 @@ impl Default for WebConfig {
             limits: WebLimitsConfig::default(),
             debug: WebDebugConfig::default(),
             timeouts: WebTimeoutsConfig::default(),
-            vhosts: Vec::new(),
+            vhost: None,
             runtime: None,
             fallback_dns: Arc::default(),
         }

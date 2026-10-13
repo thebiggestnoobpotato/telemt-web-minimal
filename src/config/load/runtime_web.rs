@@ -20,23 +20,56 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     let mut runtime_capabilities = Vec::new();
 
     let carrier_candidates: Arc<[WebCarrier]> = config.web.carrier_candidates().into();
-    for (vhost_idx, vhost) in config.web.vhosts.iter().enumerate() {
-        let fallback = build_fallback(config, vhost_idx, vhost)?;
-        let mut profiles = Vec::with_capacity(vhost.profiles.len());
-        let mut capability_table = Vec::with_capacity(vhost.profiles.len());
-        let mut capabilities = HashSet::with_capacity(vhost.profiles.len());
-        for profile in &vhost.profiles {
-            let user_id = auth.user_id_by_name(&profile.user).ok_or_else(|| {
-                ProxyError::Config(format!(
-                    "WEB profile references unknown access user `{}`",
-                    profile.user
-                ))
+    if let Some(vhost) = &config.web.vhost {
+        let fallback = build_fallback(config, vhost)?;
+        // Explicit vhost profiles first, then the web.secret_mode profile
+        // instantiated for every user not already covered by an explicit
+        // profile in the vhost. Instantiated profiles use the global WEB
+        // ceilings.
+        let mut specs = Vec::with_capacity(vhost.profiles.len() + auth.entries().len());
+        if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {
+            return Err(ProxyError::Config(
+                "web.vhost.profiles require web.secret_mode".to_string(),
+            ));
+        }
+        if let Some(secret_mode) = config.web.secret_mode {
+            for profile in &vhost.profiles {
+                specs.push((
+                    profile.user.as_str(),
+                    secret_mode,
+                    profile.max_sessions,
+                    profile.max_streams,
+                    profile.max_streams_per_session,
+                ));
+            }
+            for entry in auth.entries() {
+                if vhost
+                    .profiles
+                    .iter()
+                    .any(|profile| profile.user == entry.user)
+                {
+                    continue;
+                }
+                specs.push((
+                    entry.user.as_str(),
+                    secret_mode,
+                    None,
+                    None,
+                    None,
+                ));
+            }
+        }
+        let mut profiles = Vec::with_capacity(specs.len());
+        let mut capability_table = Vec::with_capacity(specs.len());
+        let mut capabilities = HashSet::with_capacity(specs.len());
+        for (user, secret_mode, max_sessions, max_streams, max_streams_per_session) in &specs {
+            let user_id = auth.user_id_by_name(user).ok_or_else(|| {
+                ProxyError::Config(format!("WEB profile references unknown access user `{user}`"))
             })?;
             let auth_entry = auth.entry_by_id(user_id).ok_or_else(|| {
                 ProxyError::Config("WEB profile user snapshot is inconsistent".to_string())
             })?;
-            let (client_secret, client_secret_len) =
-                client_secret(auth_entry.secret, profile.secret_mode);
+            let (client_secret, client_secret_len) = client_secret(auth_entry.secret, *secret_mode);
             let capability = derive_web_capability(
                 &client_secret[..client_secret_len],
                 vhost.host.as_bytes(),
@@ -52,9 +85,9 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
             let runtime_profile = Arc::new(WebRuntimeProfile {
                 host: vhost.host.clone(),
                 public_addr: vhost.public_addr,
-                user: profile.user.clone(),
+                user: auth_entry.user.clone(),
                 credential_id: auth_entry.credential_id,
-                secret_mode: profile.secret_mode,
+                secret_mode: *secret_mode,
                 carrier: config.web.carrier,
                 carrier_negotiation_enabled: config.web.carrier_negotiation_enabled(),
                 carrier_learning: config.web.carrier_negotiation_enabled()
@@ -66,14 +99,9 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                     .carrier_negotiation_deadlines_secs,
                 capability,
                 key_fingerprint,
-                max_sessions: profile
-                    .max_sessions
-                    .unwrap_or(config.web.limits.max_sessions_global),
-                max_streams: profile
-                    .max_streams
-                    .unwrap_or(config.web.limits.max_streams_global),
-                max_streams_per_session: profile
-                    .max_streams_per_session
+                max_sessions: (*max_sessions).unwrap_or(config.web.limits.max_sessions_global),
+                max_streams: (*max_streams).unwrap_or(config.web.limits.max_streams_global),
+                max_streams_per_session: (*max_streams_per_session)
                     .unwrap_or(config.web.limits.max_streams_per_session),
             });
             capability_table.push(capability);
@@ -149,13 +177,8 @@ fn client_secret(secret: [u8; 16], mode: WebSecretMode) -> ([u8; 17], usize) {
     }
 }
 
-fn build_fallback(
-    config: &ProxyConfig,
-    vhost_idx: usize,
-    vhost: &WebVhostConfig,
-) -> Result<WebRuntimeFallback> {
-    let WebFallbackConfig::HttpUpstream { upstream, resolve } = &vhost.fallback;
-    fallback_dns::build_upstream(config, vhost_idx, upstream, *resolve)
+fn build_fallback(config: &ProxyConfig, vhost: &WebVhostConfig) -> Result<WebRuntimeFallback> {
+    fallback_dns::build_upstream(config, &vhost.upstream, vhost.resolve)
 }
 
 // Runtime WEB construction tests remain separate from the production loader.

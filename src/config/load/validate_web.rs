@@ -34,15 +34,10 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
 
 /// Validates source policy without requiring DNS evidence for opted-in origins.
 pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
-    let web_listener_count = config
-        .listener
-        .iter()
-        .filter(|listener| listener.transport == ListenerTransport::Web)
-        .count();
+    let web_listener_count = usize::from(config.listener.is_some());
     let eligible_web_listener_count = config
         .listener
         .iter()
-        .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| listener_is_network_eligible(listener, config))
         .count();
 
@@ -52,13 +47,12 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
 
     if config.web.enabled && eligible_web_listener_count == 0 {
         return Err(ProxyError::Config(
-            "web.enabled requires a network-eligible [listener] entry with transport=web"
-                .to_string(),
+            "web.enabled requires a network-eligible [listener] entry".to_string(),
         ));
     }
-    if web_listener_count > 0 && config.web.vhosts.is_empty() {
+    if web_listener_count > 0 && config.web.vhost.is_none() {
         return Err(ProxyError::Config(
-            "A WEB listener requires at least one [[web.vhosts]] entry".to_string(),
+            "A WEB listener requires a [web.vhost] table".to_string(),
         ));
     }
 
@@ -92,20 +86,18 @@ fn validate_fallback_listener_separation_inner(
     let web_endpoints = config
         .listener
         .iter()
-        .filter(|listener| listener.transport == ListenerTransport::Web)
         .filter(|listener| listener_is_network_eligible(listener, config))
         .filter_map(ListenerEndpoint::from_listener)
         .collect::<Vec<_>>();
-    for (vhost_idx, vhost) in config.web.vhosts.iter().enumerate() {
-        let WebFallbackConfig::HttpUpstream { upstream, resolve } = &vhost.fallback;
-        let origin = fallback_dns::parse_origin(vhost_idx, upstream, *resolve)?;
-        for endpoint in fallback_dns::addresses(config, vhost_idx, &origin, require_resolved)? {
+    if let Some(vhost) = &config.web.vhost {
+        let origin = fallback_dns::parse_origin(&vhost.upstream, vhost.resolve)?;
+        for endpoint in fallback_dns::addresses(config, &origin, require_resolved)? {
             if web_endpoints
                 .iter()
                 .any(|listener| fallback_endpoint_overlaps(listener, &endpoint))
             {
                 return config_error(&format!(
-                    "web.vhosts[{vhost_idx}].fallback upstream overlaps WEB listener {endpoint}"
+                    "web.vhost.upstream overlaps WEB listener {endpoint}"
                 ));
             }
         }
@@ -171,7 +163,7 @@ fn validate_web_listener(
     }
     if listener.web_trusted_proxy_cidrs.is_empty() {
         return Err(ProxyError::Config(
-            "listener.web_trusted_proxy_cidrs must be non-empty for transport=web".to_string(),
+            "listener.web_trusted_proxy_cidrs must be non-empty".to_string(),
         ));
     }
     if listener
@@ -268,7 +260,6 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         ("control_bytes_global", limits.control_bytes_global),
         ("max_bootstraps_global", limits.max_bootstraps_global),
         ("max_bootstraps_per_ip", limits.max_bootstraps_per_ip),
-        ("max_vhosts", limits.max_vhosts),
         ("max_profiles", limits.max_profiles),
         ("debug_records_capacity", limits.debug_records_capacity),
         ("debug_bytes_global", limits.debug_bytes_global),

@@ -258,26 +258,22 @@ show_users_links = true
 [listener]
 ip = "0.0.0.0"
 port = {port}
-transport = "web"
 # Trusted L7 reverse proxies allowed to supply the client IP header.
 # /0 networks are rejected; extend only with your own fronting proxies.
 web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 [web]
 enabled = true
+# The single secret representation for every profile; required for
+# [[web.vhost.profiles]].
+secret_mode = "plain"
 
-[[web.vhosts]]
+[web.vhost]
 host = "{domain}"
 # Replace with this server's public IP and port.
 public_addr = "203.0.113.1:443"
-
-[web.vhosts.fallback]
-mode = "http_upstream"
+# Ordinary-site origin what browsers and scanners see.
 upstream = "http://127.0.0.1:80"
-
-[[web.vhosts.profiles]]
-user = "{username}"
-secret_mode = "plain"
 
 [access]
 replay_check_len = 65536

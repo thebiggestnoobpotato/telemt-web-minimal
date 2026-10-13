@@ -34,12 +34,12 @@ pub use metrics::MetricsConfig;
 pub use network::{UpstreamConfig, UpstreamType};
 pub use policies::UserMaxUniqueIpsMode;
 #[allow(unused_imports)]
-pub use server::{ListenerConfig, ListenerEndpoint, ListenerTransport, WebClientIpSource};
+pub use server::{ListenerConfig, ListenerEndpoint, WebClientIpSource};
 #[allow(unused_imports)]
 pub use web::{
-    WebCarrierNegotiationAggressiveness, WebConfig, WebFallbackConfig, WebFallbackFastTrackMode,
-    WebFallbackResolve, WebHttpConnectionCapacityAction, WebLimitsConfig, WebProfileConfig,
-    WebSecretMode, WebTimeoutsConfig, WebVhostConfig,
+    WebCarrierNegotiationAggressiveness, WebConfig, WebFallbackFastTrackMode, WebFallbackResolve,
+    WebHttpConnectionCapacityAction, WebLimitsConfig, WebProfileConfig, WebSecretMode,
+    WebTimeoutsConfig, WebVhostConfig,
 };
 pub(crate) use web::{
     FallbackEndpoint, WebFallbackDnsSnapshot, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile,

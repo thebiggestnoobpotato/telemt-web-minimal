@@ -53,25 +53,21 @@ fn write_web_fasttrack_reload_config(path: &Path, mode: &str, log_level: &str) {
                 [listener]
                 ip = "127.0.0.1"
                 port = 18080
-                transport = "web"
                 web_client_ip_source = "x_forwarded_for"
                 web_trusted_proxy_cidrs = ["127.0.0.1/32"]
 
                 [web]
                 enabled = true
                 fallback_fasttrack_mode = "{mode}"
+                secret_mode = "plain"
 
-                [[web.vhosts]]
+                [web.vhost]
                 host = "proxy.example.com"
                 public_addr = "203.0.113.10:443"
-
-                [web.vhosts.fallback]
-                mode = "http_upstream"
                 upstream = "http://127.0.0.1:18081"
 
-                [[web.vhosts.profiles]]
+                [[web.vhost.profiles]]
                 user = "alice"
-                secret_mode = "plain"
             "#,
     );
     std::fs::write(path, config).unwrap();
@@ -235,7 +231,6 @@ fn listener_web_policy_fields_are_process_owned() {
     let mut old = sample_config();
     old.listener = Some(ListenerConfig {
         ip: Some("0.0.0.0".parse().unwrap()),
-        transport: crate::config::ListenerTransport::Web,
         port: Some(443),
         socket_path: None,
         socket_perm: None,
@@ -402,6 +397,18 @@ fn classify_cold_field_change_requires_restart() {
 
     let class = classify_config_changes(&old, &new);
     assert!(class.restart_required);
+}
+
+#[test]
+fn classify_web_secret_mode_change_is_hot() {
+    // The whole web table is overlaid hot (limits and fallback_fasttrack_mode
+    // excluded), so web.secret_mode changes never require a restart.
+    let old = ProxyConfig::default();
+    let mut new = ProxyConfig::default();
+    new.web.secret_mode = Some(crate::config::WebSecretMode::Dd);
+
+    let class = classify_config_changes(&old, &new);
+    assert!(!class.restart_required);
 }
 
 #[test]

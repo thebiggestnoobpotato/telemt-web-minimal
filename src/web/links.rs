@@ -46,9 +46,9 @@ pub fn web_links_for_user(config: &ProxyConfig, user: &str) -> Vec<String> {
         }
         let Some(vhost) = config
             .web
-            .vhosts
-            .iter()
-            .find(|vhost| vhost.host == profile.host)
+            .vhost
+            .as_ref()
+            .filter(|vhost| vhost.host == profile.host)
         else {
             continue;
         };
