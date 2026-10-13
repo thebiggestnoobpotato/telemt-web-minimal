@@ -45,15 +45,6 @@ pub fn parse_daemon_args(args: &[String]) -> DaemonOptions {
             s if s.starts_with("--run-as-group=") => {
                 opts.group = Some(s.trim_start_matches("--run-as-group=").to_string());
             }
-            "--working-dir" => {
-                i += 1;
-                if i < args.len() {
-                    opts.working_dir = Some(PathBuf::from(&args[i]));
-                }
-            }
-            s if s.starts_with("--working-dir=") => {
-                opts.working_dir = Some(PathBuf::from(s.trim_start_matches("--working-dir=")));
-            }
             _ => {}
         }
         i += 1;

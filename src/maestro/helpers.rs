@@ -162,20 +162,6 @@ pub(crate) fn parse_cli() -> CliArgs {
                     s.trim_start_matches("--runtime-path=").to_string(),
                 ));
             }
-            "--working-dir" => {
-                i += 1;
-                if i < args.len() {
-                    runtime_path = Some(PathBuf::from(args[i].clone()));
-                } else {
-                    eprintln!("Missing value for --working-dir");
-                    std::process::exit(0);
-                }
-            }
-            s if s.starts_with("--working-dir=") => {
-                runtime_path = Some(PathBuf::from(
-                    s.trim_start_matches("--working-dir=").to_string(),
-                ));
-            }
             "--silent" | "-s" => {
                 silent = true;
             }
@@ -260,7 +246,6 @@ fn print_help() {
     eprintln!(
         "  --runtime-path <DIR>    Set runtime base directory (absolute path; overrides config value)"
     );
-    eprintln!("  --working-dir <DIR>     Alias for --runtime-path");
     eprintln!("  --silent, -s            Suppress info logs");
     eprintln!("  --log-level <LEVEL>     debug|verbose|normal|silent");
     eprintln!("  --help, -h              Show this help");
@@ -288,7 +273,6 @@ fn print_help() {
         );
         eprintln!("  --run-as-user <USER>    Drop privileges to this user after binding");
         eprintln!("  --run-as-group <GROUP>  Drop privileges to this group after binding");
-        eprintln!("  --working-dir <DIR>     Working directory for daemon mode");
         eprintln!();
     }
     eprintln!("Setup (fire-and-forget):");

@@ -48,7 +48,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
         // Daemonize BEFORE runtime
         if daemon_opts.should_daemonize() {
-            match daemon::daemonize(daemon_opts.working_dir.as_deref()) {
+            match daemon::daemonize() {
                 Ok(daemon::DaemonizeResult::Parent) => {
                     std::process::exit(0);
                 }

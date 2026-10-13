@@ -35,8 +35,6 @@ pub struct DaemonOptions {
     pub user: Option<String>,
     /// Group to run as after binding sockets.
     pub group: Option<String>,
-    /// Working directory for the daemon.
-    pub working_dir: Option<PathBuf>,
     /// Explicit foreground mode (for systemd Type=simple).
     pub foreground: bool,
 }
@@ -67,7 +65,7 @@ pub enum DaemonError {
     #[error("setsid failed: {0}")]
     SetsidFailed(#[source] nix::Error),
 
-    /// Switching to the configured working directory failed.
+    /// Switching to the root directory failed.
     #[error("chdir failed: {0}")]
     ChdirFailed(#[source] nix::Error),
 
@@ -124,7 +122,7 @@ pub enum DaemonizeResult {
 ///
 /// Returns `DaemonizeResult::Parent` in the original parent (which should exit),
 /// or `DaemonizeResult::Child` in the final daemon child.
-pub fn daemonize(working_dir: Option<&Path>) -> Result<DaemonizeResult, DaemonError> {
+pub fn daemonize() -> Result<DaemonizeResult, DaemonError> {
     match unsafe { fork() } {
         Ok(ForkResult::Parent { .. }) => {
             return Ok(DaemonizeResult::Parent);
@@ -144,8 +142,7 @@ pub fn daemonize(working_dir: Option<&Path>) -> Result<DaemonizeResult, DaemonEr
         Err(e) => return Err(DaemonError::ForkFailed(e)),
     }
 
-    let target_dir = working_dir.unwrap_or(Path::new("/"));
-    chdir(target_dir).map_err(DaemonError::ChdirFailed)?;
+    chdir(Path::new("/")).map_err(DaemonError::ChdirFailed)?;
 
     redirect_stdio_to_devnull()?;
 
