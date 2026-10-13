@@ -245,7 +245,6 @@ fn generate_config(username: &str, secret: &str, port: u16, domain: &str) -> Str
 # Re-run `telemt --init` to regenerate
 
 [general]
-fast_mode = true
 upstream_connect_timeout = 10
 network_ipv4 = true
 network_ipv6 = true

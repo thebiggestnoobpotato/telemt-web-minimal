@@ -45,23 +45,23 @@ async fn carrier_method_api_rejects_invalid_values_without_writing() {
 
 #[test]
 fn json_object_converts_to_toml_table() {
-    let j: Json = serde_json::json!({"general": {"fast_mode": true}, "sample": 2});
+    let j: Json = serde_json::json!({"general": {"network_ipv6": true}, "sample": 2});
     let t = json_to_toml(&j).expect("convertible");
     let table = t.as_table().unwrap();
-    assert_eq!(table["general"]["fast_mode"].as_bool(), Some(true));
+    assert_eq!(table["general"]["network_ipv6"].as_bool(), Some(true));
     assert_eq!(table["sample"].as_integer(), Some(2));
 }
 
 #[test]
 fn deep_merge_overlays_tables_and_replaces_scalars() {
     let mut base: Toml =
-        toml::from_str("[general]\nfast_mode = false\nconfig_strict = false\n").unwrap();
-    let patch: Toml = toml::from_str("[general]\nfast_mode = true\n").unwrap();
+        toml::from_str("[general]\nnetwork_ipv6 = false\nconfig_strict = false\n").unwrap();
+    let patch: Toml = toml::from_str("[general]\nnetwork_ipv6 = true\n").unwrap();
 
     deep_merge(&mut base, &patch);
 
     let general = base["general"].as_table().unwrap();
-    assert_eq!(general["fast_mode"].as_bool(), Some(true));
+    assert_eq!(general["network_ipv6"].as_bool(), Some(true));
     assert_eq!(general["config_strict"].as_bool(), Some(false));
 }
 
@@ -76,7 +76,7 @@ fn temp_config(body: &str) -> (PathBuf, tempfile::TempDir) {
 
 #[tokio::test]
 async fn patch_rejects_access_section() {
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({"access": {"users": {"x": "y"}}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
     assert_eq!(err.code, "access_not_editable");
@@ -84,8 +84,8 @@ async fn patch_rejects_access_section() {
 
 #[tokio::test]
 async fn patch_revision_conflict() {
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
-    let patch: Json = serde_json::json!({"general": {"fast_mode": true}});
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
+    let patch: Json = serde_json::json!({"general": {"network_ipv6": true}});
     let err = apply_patch_to_path(&path, &patch, Some("deadbeef".into()))
         .await
         .unwrap_err();
@@ -96,7 +96,7 @@ async fn patch_revision_conflict() {
 async fn patch_logging_show_users_links_is_persisted() {
     // logging.show_users_links is process-owned: links are emitted once at
     // listener bind time, so the change applies at the next process start.
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({"logging": {"show_users_links": false}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.changed.iter().any(|c| c == "logging"));
@@ -113,7 +113,7 @@ async fn patch_logging_show_users_links_is_persisted() {
 #[tokio::test]
 async fn read_managed_config_strips_access() {
     let (path, _d) = temp_config(
-        "[general]\nfast_mode = true\n[users]\nbob = \"00000000000000000000000000000000\"\n",
+        "[general]\nnetwork_ipv6 = true\n[users]\nbob = \"00000000000000000000000000000000\"\n",
     );
     let (value, revision) = read_managed_config(&path).await.unwrap();
     let table = value.as_table().unwrap();
@@ -200,7 +200,7 @@ async fn invalid_web_patch_does_not_modify_the_source() {
 async fn read_managed_config_returns_only_editable_sections() {
     // The top-level api/metrics tables must not leak.
     let (path, _d) = temp_config(concat!(
-        "[general]\nfast_mode = true\n",
+        "[general]\nnetwork_ipv6 = true\n",
         "[api]\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[web]\nsecret_mode = \"plain\"\n",
@@ -222,7 +222,7 @@ async fn read_managed_config_returns_only_editable_sections() {
 #[tokio::test]
 async fn read_managed_config_returns_full_listener_table() {
     let (path, _d) = temp_config(concat!(
-        "[general]\nfast_mode = true\n",
+        "[general]\nnetwork_ipv6 = true\n",
         "[api]\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[web]\nsecret_mode = \"plain\"\n",
@@ -247,7 +247,7 @@ async fn read_managed_config_returns_full_listener_table() {
 #[tokio::test]
 async fn patch_rejects_stripped_server_section() {
     // `[server]` no longer exists; any patch under it is rejected wholesale.
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({"server": {"listeners": []}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
     assert_eq!(err.code, "section_not_editable");
@@ -257,7 +257,7 @@ async fn patch_rejects_stripped_server_section() {
 async fn patch_rejects_api_section() {
     // `api` is process-owned endpoint identity and stays outside the
     // editable section allowlist.
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({"api": {"enabled": false}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
     assert_eq!(err.code, "section_not_editable");
@@ -266,7 +266,7 @@ async fn patch_rejects_api_section() {
 #[tokio::test]
 async fn patch_listener_preserves_api() {
     let (path, _d) = temp_config(concat!(
-        "[general]\nfast_mode = true\n",
+        "[general]\nnetwork_ipv6 = true\n",
         "[api]\nenabled = true\nauth_header = \"SECRET\"\n",
         "[listener]\nip = \"0.0.0.0\"\nport = 443\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]\n",
         "[web]\nsecret_mode = \"plain\"\n",
@@ -304,7 +304,7 @@ async fn patch_listener_preserves_api() {
 async fn patch_rejects_non_editable_top_level_section() {
     // Top-level sections outside the editable allowlist are rejected wholesale;
     // the removed `[network]` section is one such key.
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({"network": {"ipv4": false}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
     assert_eq!(err.code, "section_not_editable");
@@ -314,7 +314,7 @@ async fn patch_rejects_non_editable_top_level_section() {
 async fn patch_logging_show_users_links_is_editable() {
     // The supported path: edit show_users_links via the [logging] section.
     let (path, _d) = temp_config(
-        "[general]\nfast_mode = true\n[logging]\nshow_users_links = true\n",
+        "[general]\nnetwork_ipv6 = true\n[logging]\nshow_users_links = true\n",
     );
     let patch: Json = serde_json::json!({"logging": {"show_users_links": false}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
@@ -336,18 +336,18 @@ async fn patch_writes_the_included_section_owner_only() {
     let root = dir.path().join("config.toml");
     let included = dir.path().join("general.toml");
     let root_body = "include = \"general.toml\"\n[other]\nvalue = 443\n";
-    let included_body = "[general]\nfast_mode = true\n";
+    let included_body = "[general]\nnetwork_ipv6 = true\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let patch: Json = serde_json::json!({
-        "general": {"fast_mode": true}
+        "general": {"network_ipv6": true}
     });
 
     let response = apply_patch_to_path(&root, &patch, None).await.unwrap();
 
     assert_eq!(tokio::fs::read_to_string(&root).await.unwrap(), root_body);
     let written = tokio::fs::read_to_string(&included).await.unwrap();
-    assert!(written.contains("fast_mode = true"));
+    assert!(written.contains("network_ipv6 = true"));
     assert_eq!(
         response.revision,
         crate::api::config_store::current_revision(&root)
@@ -358,12 +358,12 @@ async fn patch_writes_the_included_section_owner_only() {
 
 #[tokio::test]
 async fn prepared_patch_rejects_external_edit_before_commit() {
-    let (path, _directory) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _directory) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({
-        "general": {"fast_mode": true}
+        "general": {"network_ipv6": true}
     });
     let prepared = prepare_patch_to_path(&path, &patch, None).await.unwrap();
-    let external = "[general]\nfast_mode = false\n";
+    let external = "[general]\nnetwork_ipv6 = false\n";
     tokio::fs::write(&path, external).await.unwrap();
 
     let error = write_atomic_if_unchanged(
@@ -387,13 +387,13 @@ async fn patch_rejects_multiple_source_owners_without_writing() {
     let included = dir.path().join("web.toml");
     let root_body = concat!(
         "include = \"web.toml\"\n",
-        "[general]\nfast_mode = true\n"
+        "[general]\nnetwork_ipv6 = true\n"
     );
     let included_body = "[web]\nenabled = false\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let patch: Json = serde_json::json!({
-        "general": {"fast_mode": true},
+        "general": {"network_ipv6": true},
         "web": {"enabled": true}
     });
 
@@ -409,7 +409,7 @@ async fn patch_rejects_multiple_source_owners_without_writing() {
 
 #[tokio::test]
 async fn patch_empty_is_rejected() {
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({});
     assert!(apply_patch_to_path(&path, &patch, None).await.is_err());
 }
@@ -418,7 +418,7 @@ async fn patch_empty_is_rejected() {
 async fn patch_log_level_is_persisted() {
     // Default LogLevel is Normal; patch to "debug" and verify the persisted
     // source reflects the change.
-    let (path, _d) = temp_config("[general]\nfast_mode = true\n");
+    let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({"logging": {"log_level": "debug"}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.changed.iter().any(|c| c == "logging"));

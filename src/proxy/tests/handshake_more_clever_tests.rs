@@ -110,10 +110,16 @@ fn generate_tg_nonce_cryptographic_uniqueness_and_entropy() {
             &client_enc_key,
             client_enc_iv,
             &rng,
-            false,
         );
 
-        for byte in nonce.iter() {
+        // The enc material slot, proto tag and dc index are embedded by design;
+        // only the remaining regions are expected to be random.
+        for (idx, byte) in nonce.iter().enumerate() {
+            if (SKIP_LEN..SKIP_LEN + KEY_LEN + IV_LEN).contains(&idx)
+                || (PROTO_TAG_POS..DC_IDX_POS + 2).contains(&idx)
+            {
+                continue;
+            }
             total_set_bits += byte.count_ones() as usize;
         }
 
@@ -123,7 +129,9 @@ fn generate_tg_nonce_cryptographic_uniqueness_and_entropy() {
         );
     }
 
-    let total_bits = iterations * HANDSHAKE_LEN * 8;
+    let random_bytes =
+        HANDSHAKE_LEN - (KEY_LEN + IV_LEN) - (DC_IDX_POS + 2 - PROTO_TAG_POS);
+    let total_bits = iterations * random_bytes * 8;
     let ratio = (total_set_bits as f64) / (total_bits as f64);
     assert!(
         ratio > 0.48 && ratio < 0.52,

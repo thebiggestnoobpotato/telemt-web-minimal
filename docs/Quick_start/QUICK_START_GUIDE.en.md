@@ -85,7 +85,6 @@ The following is the minimal WEB configuration (what `telemt --init` generates):
 
 ```toml
 [general]
-fast_mode = true
 upstream_connect_timeout = 10
 network_ipv4 = true
 network_ipv6 = true

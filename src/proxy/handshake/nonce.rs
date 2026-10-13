@@ -1,12 +1,12 @@
 use super::*;
 
+/// Generates a handshake nonce with the reversed client enc key/iv material embedded in the enc slot.
 pub fn generate_tg_nonce(
     proto_tag: ProtoTag,
     dc_idx: i16,
     client_enc_key: &[u8; 32],
     client_enc_iv: u128,
     rng: &SecureRandom,
-    fast_mode: bool,
 ) -> ([u8; HANDSHAKE_LEN], [u8; 32], u128, [u8; 32], u128) {
     loop {
         let bytes = rng.bytes(HANDSHAKE_LEN);
@@ -32,14 +32,12 @@ pub fn generate_tg_nonce(
         // CRITICAL: write dc_idx so upstream DC knows where to route
         nonce[DC_IDX_POS..DC_IDX_POS + 2].copy_from_slice(&dc_idx.to_le_bytes());
 
-        if fast_mode {
-            let mut key_iv = Zeroizing::new(Vec::with_capacity(KEY_LEN + IV_LEN));
-            key_iv.extend_from_slice(client_enc_key);
-            key_iv.extend_from_slice(&client_enc_iv.to_be_bytes());
-            // Python/C compatibility requires reversed enc_key+enc_iv nonce bytes.
-            key_iv.reverse();
-            nonce[SKIP_LEN..SKIP_LEN + KEY_LEN + IV_LEN].copy_from_slice(&key_iv);
-        }
+        let mut key_iv = Zeroizing::new(Vec::with_capacity(KEY_LEN + IV_LEN));
+        key_iv.extend_from_slice(client_enc_key);
+        key_iv.extend_from_slice(&client_enc_iv.to_be_bytes());
+        // Python/C compatibility requires reversed enc_key+enc_iv nonce bytes.
+        key_iv.reverse();
+        nonce[SKIP_LEN..SKIP_LEN + KEY_LEN + IV_LEN].copy_from_slice(&key_iv);
 
         let enc_key_iv = &nonce[SKIP_LEN..SKIP_LEN + KEY_LEN + IV_LEN];
         let dec_key_iv = Zeroizing::new(enc_key_iv.iter().rev().copied().collect::<Vec<u8>>());

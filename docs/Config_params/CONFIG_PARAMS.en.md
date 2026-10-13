@@ -113,7 +113,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`network_ipv4`](#network_ipv4) | `bool` | `true` |
 | [`network_ipv6`](#network_ipv6) | `bool` | `false` |
 | [`network_prefer`](#network_prefer) | `u8` | `4` |
-| [`fast_mode`](#fast_mode) | `bool` | `true` |
 | [`dc_copy_buf_c2s_bytes`](#dc_copy_buf_c2s_bytes) | `usize` | `65536` |
 | [`dc_copy_buf_s2c_bytes`](#dc_copy_buf_s2c_bytes) | `usize` | `262144` |
 | [`dc_buffer_budget_max_bytes`](#dc_buffer_budget_max_bytes) | `usize` | `0` |
@@ -176,15 +175,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     network_prefer = 6
-    ```
-## fast_mode
-  - **Constraints / validation**: `bool`.
-  - **Description**: Enables fast-path optimizations for traffic processing.
-  - **Example**:
-
-    ```toml
-    [general]
-    fast_mode = true
     ```
 ## dc_copy_buf_c2s_bytes
   - **Constraints / validation**: Must be within `4096..=1048576` (bytes).

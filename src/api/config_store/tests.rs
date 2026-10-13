@@ -197,12 +197,12 @@ async fn manifest_revision_changes_when_an_included_source_changes() {
     tokio::fs::write(&root, "include = \"included.toml\"\n")
         .await
         .unwrap();
-    tokio::fs::write(&included, "[general]\nfast_mode = true\n")
+    tokio::fs::write(&included, "[general]\nnetwork_ipv6 = true\n")
         .await
         .unwrap();
     let first = current_revision(&root).await.unwrap();
 
-    tokio::fs::write(&included, "[general]\nfast_mode = false\n")
+    tokio::fs::write(&included, "[general]\nnetwork_ipv6 = false\n")
         .await
         .unwrap();
     let second = current_revision(&root).await.unwrap();
@@ -229,7 +229,7 @@ async fn access_mutation_writes_only_the_single_included_owner() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
     let included = dir.path().join("users.toml");
-    let root_body = "include = \"users.toml\"\n[general]\nfast_mode = true\n";
+    let root_body = "include = \"users.toml\"\n[general]\nnetwork_ipv6 = true\n";
     let included_body = "[users]\nalice = \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
@@ -254,8 +254,8 @@ async fn access_mutation_rejects_source_graph_change_after_snapshot() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("config.toml");
     let included = dir.path().join("users.toml");
-    let root_body = "include = \"users.toml\"\n[general]\nfast_mode = true\n";
-    let external_root = "include = \"users.toml\"\n[general]\nfast_mode = false\n";
+    let root_body = "include = \"users.toml\"\n[general]\nnetwork_ipv6 = true\n";
+    let external_root = "include = \"users.toml\"\n[general]\nnetwork_ipv6 = false\n";
     let included_body = "[users]\nalice = \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
@@ -311,7 +311,7 @@ async fn config_sidecar_lock_serializes_competing_revision_writers() {
     let path = dir.path().join("config.toml");
     let original = concat!(
         "[general]\n",
-        "fast_mode = true\n",
+        "network_ipv6 = true\n",
         "[users]\n",
         "alice = \"00000000000000000000000000000000\"\n"
     );

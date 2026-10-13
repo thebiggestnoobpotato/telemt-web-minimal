@@ -209,7 +209,6 @@ fn generate_tg_nonce_never_emits_reserved_bytes() {
             &client_enc_key,
             client_enc_iv,
             &rng,
-            false,
         );
 
         assert!(
@@ -309,7 +308,6 @@ fn encrypt_tg_nonce_with_ciphers_advances_counter_correctly() {
         &client_enc_key,
         client_enc_iv,
         &rng,
-        false,
     );
 
     let (_, mut returned_encryptor, _) = encrypt_tg_nonce_with_ciphers(&nonce);

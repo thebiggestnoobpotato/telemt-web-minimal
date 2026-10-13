@@ -72,7 +72,6 @@ fn test_generate_tg_nonce() {
         &client_enc_key,
         client_enc_iv,
         &rng,
-        false,
     );
 
     assert_eq!(nonce.len(), HANDSHAKE_LEN);
@@ -93,7 +92,6 @@ fn test_encrypt_tg_nonce() {
         &client_enc_key,
         client_enc_iv,
         &rng,
-        false,
     );
 
     let encrypted = encrypt_tg_nonce(&nonce);
@@ -135,7 +133,6 @@ fn test_generate_tg_nonce_enc_dec_material_is_consistent() {
         &client_enc_key,
         client_enc_iv,
         &rng,
-        false,
     );
 
     let enc_key_iv = &nonce[SKIP_LEN..SKIP_LEN + KEY_LEN + IV_LEN];
@@ -165,7 +162,7 @@ fn test_generate_tg_nonce_enc_dec_material_is_consistent() {
 }
 
 #[test]
-fn test_generate_tg_nonce_fast_mode_embeds_reversed_client_enc_material() {
+fn test_generate_tg_nonce_embeds_reversed_client_enc_material() {
     let client_enc_key = [0xABu8; 32];
     let client_enc_iv = 0x11223344556677889900aabbccddeeffu128;
     let rng = SecureRandom::new();
@@ -176,7 +173,6 @@ fn test_generate_tg_nonce_fast_mode_embeds_reversed_client_enc_material() {
         &client_enc_key,
         client_enc_iv,
         &rng,
-        true,
     );
 
     let mut expected = Vec::with_capacity(KEY_LEN + IV_LEN);
@@ -202,7 +198,6 @@ fn test_encrypt_tg_nonce_with_ciphers_matches_manual_suffix_encryption() {
         &client_enc_key,
         client_enc_iv,
         &rng,
-        false,
     );
 
     let (encrypted, _, _) = encrypt_tg_nonce_with_ciphers(&nonce);

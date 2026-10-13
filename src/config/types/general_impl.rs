@@ -8,7 +8,6 @@ impl Default for GeneralConfig {
             network_ipv4: default_true(),
             network_ipv6: default_network_ipv6(),
             network_prefer: default_prefer_4(),
-            fast_mode: default_true(),
             dc_copy_buf_c2s_bytes: default_dc_copy_buf_c2s_bytes(),
             dc_copy_buf_s2c_bytes: default_dc_copy_buf_s2c_bytes(),
             dc_buffer_budget_max_bytes: default_dc_buffer_budget_max_bytes(),

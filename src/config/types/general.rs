@@ -19,9 +19,6 @@ pub struct GeneralConfig {
     /// Preferred IP family for Telegram DC targets: `4` or `6`.
     #[serde(default = "default_prefer_4")]
     pub network_prefer: u8,
-    /// Fast nonce mode: pre-fills the client enc key/iv into the relay nonce.
-    #[serde(default = "default_true")]
-    pub fast_mode: bool,
     /// Copy buffer ceiling for client->DC direction in direct relay.
     #[serde(default = "default_dc_copy_buf_c2s_bytes")]
     pub dc_copy_buf_c2s_bytes: usize,

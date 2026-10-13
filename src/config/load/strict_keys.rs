@@ -21,7 +21,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "network_ipv4",
     "network_ipv6",
     "network_prefer",
-    "fast_mode",
     "dc_copy_buf_c2s_bytes",
     "dc_copy_buf_s2c_bytes",
     "dc_buffer_budget_max_bytes",

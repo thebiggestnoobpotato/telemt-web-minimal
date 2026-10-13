@@ -89,7 +89,6 @@ where
         &success.enc_key,
         success.enc_iv,
         rng,
-        config.general.fast_mode,
     );
 
     let (encrypted_nonce, tg_encryptor, tg_decryptor) = encrypt_tg_nonce_with_ciphers(&nonce);
