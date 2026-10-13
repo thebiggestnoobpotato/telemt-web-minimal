@@ -78,10 +78,6 @@ pub(crate) fn default_api_runtime_edge_events_capacity() -> usize {
     256
 }
 
-pub(crate) fn default_server_max_connections() -> u32 {
-    10_000
-}
-
 pub(crate) fn default_listen_backlog() -> u32 {
     1024
 }

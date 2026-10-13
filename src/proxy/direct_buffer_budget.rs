@@ -7,8 +7,6 @@ use tokio::sync::watch;
 
 // Process controller and system-memory sampling remain outside data-plane accounting.
 mod controller;
-#[cfg(test)]
-use controller::connection_fill_pct;
 pub(crate) use controller::{
     resolve_direct_buffer_hard_limit, run_direct_buffer_budget_controller,
 };

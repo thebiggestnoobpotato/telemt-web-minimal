@@ -95,7 +95,6 @@ where
         tg_writer,
         config.general.dc_copy_buf_c2s_bytes,
         config.general.dc_copy_buf_s2c_bytes,
-        config.general.max_connections,
         user,
         Arc::clone(&stats),
         relay_activity_timeout,

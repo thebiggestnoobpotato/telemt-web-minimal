@@ -59,8 +59,6 @@ pub(crate) enum WebRejectionReason {
     StreamTupleExhausted,
     /// Concurrent inner-handshake slots were exhausted.
     StreamHandshakeCapacity,
-    /// The active relay generation had no connection permit.
-    GenerationConnectionCapacity,
     /// One session reached its queued data ceiling.
     QueueSessionCapacity,
     /// The process-wide queued data ceiling was exhausted.
@@ -97,7 +95,7 @@ pub(crate) enum WebRejectionReason {
 
 impl WebRejectionReason {
     /// Complete fixed rejection set in stable metric order.
-    pub(crate) const ALL: [Self; 32] = [
+    pub(crate) const ALL: [Self; 31] = [
         Self::HttpConnectionCapacity,
         Self::HttpHandlerCapacity,
         Self::LanePollCapacity,
@@ -113,7 +111,6 @@ impl WebRejectionReason {
         Self::StreamRate,
         Self::StreamTupleExhausted,
         Self::StreamHandshakeCapacity,
-        Self::GenerationConnectionCapacity,
         Self::QueueSessionCapacity,
         Self::QueueGlobalCapacity,
         Self::WebSocketConnectionCapacity,
@@ -150,7 +147,6 @@ impl WebRejectionReason {
             Self::StreamRate => "stream_rate",
             Self::StreamTupleExhausted => "stream_tuple_exhausted",
             Self::StreamHandshakeCapacity => "stream_handshake_capacity",
-            Self::GenerationConnectionCapacity => "generation_connection_capacity",
             Self::QueueSessionCapacity => "queue_session_capacity",
             Self::QueueGlobalCapacity => "queue_global_capacity",
             Self::WebSocketConnectionCapacity => "websocket_connection_capacity",

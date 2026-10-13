@@ -51,7 +51,6 @@ impl WebSession {
             drop(completion);
             return false;
         }
-        let connection_permits = Arc::clone(&generation.max_connections);
         let deps = generation.client_runtime_deps();
         let replay_checker = Arc::clone(&generation.replay_checker);
         let session = Arc::clone(self);
@@ -74,7 +73,6 @@ impl WebSession {
                     logical_stream,
                     deps,
                     replay_checker,
-                    connection_permits,
                     peer_port,
                 ) => {}
             }
@@ -230,7 +228,6 @@ async fn run_stream(
     stream: WebLogicalStream,
     deps: crate::proxy::authenticated::ClientRuntimeDeps,
     replay_checker: Arc<crate::stats::ReplayChecker>,
-    connection_permits: Arc<tokio::sync::Semaphore>,
     peer_port: u16,
 ) {
     use tokio::io::AsyncReadExt;
@@ -277,17 +274,6 @@ async fn run_stream(
         None,
     );
     let Some(manager) = session.manager.upgrade() else {
-        return;
-    };
-    let Ok(_connection_permit) = connection_permits.try_acquire_owned() else {
-        manager.record_stream_rejected_reason(
-            crate::web::telemetry::WebRejectionReason::GenerationConnectionCapacity,
-        );
-        session.trace_lifecycle(
-            crate::web::trace::TraceLifecycleEvent::StreamRejected,
-            Some(stream_identity.id),
-            Some("connection_limit_after_first_byte"),
-        );
         return;
     };
     let Some(handshake_permit) = manager.try_stream_handshake() else {

@@ -137,7 +137,6 @@ pub(crate) async fn relay_direct_adaptive<CR, CW, SR, SW>(
     server_writer: SW,
     ceiling_c2s_bytes: usize,
     ceiling_s2c_bytes: usize,
-    max_connections: u32,
     user: &str,
     stats: Arc<Stats>,
     activity_timeout: Duration,
@@ -155,12 +154,7 @@ where
     let counters = Arc::new(SharedCounters::new());
     let user_owned = user.to_string();
 
-    let (base_c2s, base_s2c) = initial_base_sizes(
-        ceiling_c2s_bytes,
-        ceiling_s2c_bytes,
-        max_connections,
-        budget.target_bytes(),
-    );
+    let (base_c2s, base_s2c) = initial_base_sizes(ceiling_c2s_bytes, ceiling_s2c_bytes);
     let base_total = base_c2s.saturating_add(base_s2c);
     let mut lease = match budget.try_reserve(base_total, false) {
         Some(lease) => lease,
@@ -364,17 +358,7 @@ where
     }
 }
 
-fn initial_base_sizes(
-    ceiling_c2s: usize,
-    ceiling_s2c: usize,
-    max_connections: u32,
-    target_bytes: usize,
-) -> (usize, usize) {
-    let configured_total = ceiling_c2s.saturating_add(ceiling_s2c);
-    let configured_worst_case = configured_total.saturating_mul(max_connections as usize);
-    if max_connections != 0 && configured_worst_case <= target_bytes {
-        return (ceiling_c2s, ceiling_s2c);
-    }
+fn initial_base_sizes(ceiling_c2s: usize, ceiling_s2c: usize) -> (usize, usize) {
     (
         DIRECT_BASE_C2S_BYTES.min(ceiling_c2s),
         DIRECT_BASE_S2C_BYTES.min(ceiling_s2c),

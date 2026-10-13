@@ -129,7 +129,6 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`telemetry_core_enabled`](#telemetry_core_enabled) | `bool` | `true` |
 | [`telemetry_user_enabled`](#telemetry_user_enabled) | `bool` | `true` |
 | [`listen_backlog`](#listen_backlog) | `u32` | `1024` |
-| [`max_connections`](#max_connections) | `u32` | `10000` |
 
 ## runtime_path
   - **Constraints / validation**: `String` (optional). Must be absolute.
@@ -322,15 +321,6 @@ This document lists all configuration keys accepted by `config.toml`.
     ```toml
     [general]
     listen_backlog = 4096
-    ```
-## max_connections
-  - **Constraints / validation**: `u32`. `0` means unlimited.
-  - **Description**: Maximum number of concurrent client connections.
-  - **Example**:
-
-    ```toml
-    [general]
-    max_connections = 10000
     ```
 # [api]
 

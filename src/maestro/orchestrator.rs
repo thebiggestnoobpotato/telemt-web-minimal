@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use tokio::sync::{Semaphore, watch};
+use tokio::sync::watch;
 use tracing::{error, info};
 
 use crate::api;
@@ -93,12 +93,6 @@ pub(super) async fn run_telemt_core(
     );
     let _ = shared_state
         .activate_user_config_source(1, None, &config.users);
-    let max_connections_limit = if config.general.max_connections == 0 {
-        Semaphore::MAX_PERMITS
-    } else {
-        config.general.max_connections as usize
-    };
-    let max_connections = Arc::new(Semaphore::new(max_connections_limit));
     let web_trace = WebTraceStore::new(config.web.debug.clone(), &config.web.limits);
     let web_runtime_control = WebRuntimeControl::new();
 
@@ -224,7 +218,6 @@ pub(super) async fn run_telemt_core(
         upstream_manager.clone(),
         ip_tracker.clone(),
         direct_buffer_budget,
-        max_connections,
         runtime_task_scope.clone(),
         admission_tx,
         &runtime_log_filter,
@@ -245,7 +238,6 @@ pub(super) async fn run_telemt_core(
         runtime.rng,
         ip_tracker,
         shared_state,
-        runtime.max_connections,
         runtime_task_scope,
     );
     runtime_task_scope_guard.disarm();

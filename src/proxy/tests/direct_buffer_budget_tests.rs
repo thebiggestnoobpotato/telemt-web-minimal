@@ -1,6 +1,5 @@
 
 use super::*;
-use tokio::sync::Semaphore;
 
 #[test]
 fn lease_drop_releases_the_complete_reservation() {
@@ -89,13 +88,4 @@ fn controller_handoff_waits_for_inflight_update_and_fences_old_generation() {
 
     assert!(budget.begin_controller_update(1).is_none());
     assert!(budget.begin_controller_update(2).is_some());
-}
-
-#[test]
-fn connection_pressure_uses_process_wide_slot_ownership() {
-    let slots = Arc::new(Semaphore::new(10));
-    let _old_generation = Arc::clone(&slots).try_acquire_many_owned(3).unwrap();
-    let _new_generation = Arc::clone(&slots).try_acquire_many_owned(2).unwrap();
-
-    assert_eq!(connection_fill_pct(slots.as_ref(), 10), Some(50));
 }

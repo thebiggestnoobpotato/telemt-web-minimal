@@ -24,7 +24,6 @@ impl Default for GeneralConfig {
             dc_overrides: HashMap::new(),
             dc_default: None,
             listen_backlog: default_listen_backlog(),
-            max_connections: default_server_max_connections(),
         }
     }
 }

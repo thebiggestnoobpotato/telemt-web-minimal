@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use tokio::sync::{Semaphore, watch};
+use tokio::sync::watch;
 use tracing::info;
 
 use crate::config::{LogLevel, ProxyConfig};
@@ -21,7 +21,6 @@ use super::{connectivity, runtime_tasks};
 pub(super) struct RuntimeStartupState {
     pub(super) config: Arc<ProxyConfig>,
     pub(super) rng: Arc<SecureRandom>,
-    pub(super) max_connections: Arc<Semaphore>,
     pub(super) replay_checker: Arc<ReplayChecker>,
     pub(super) buffer_pool: Arc<BufferPool>,
     pub(super) admission_tx: watch::Sender<bool>,
@@ -37,7 +36,6 @@ pub(super) async fn prepare_runtime(
     upstream_manager: Arc<UpstreamManager>,
     ip_tracker: Arc<UserIpTracker>,
     direct_buffer_budget: Arc<DirectBufferBudget>,
-    max_connections: Arc<Semaphore>,
     runtime_task_scope: RuntimeTaskScope,
     admission_tx: watch::Sender<bool>,
     runtime_log_filter: &runtime_tasks::RuntimeLogFilter,
@@ -88,14 +86,11 @@ pub(super) async fn prepare_runtime(
         direct_buffer_budget,
         buffer_pool.clone(),
         stats,
-        max_connections.clone(),
-        config.general.max_connections,
     ));
 
     RuntimeStartupState {
         config,
         rng,
-        max_connections,
         replay_checker,
         buffer_pool,
         admission_tx,

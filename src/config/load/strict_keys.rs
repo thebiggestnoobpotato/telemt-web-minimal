@@ -37,7 +37,6 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "dc_overrides",
     "dc_default",
     "listen_backlog",
-    "max_connections",
 ];
 
 const METRICS_CONFIG_KEYS: &[&str] = &["port", "listen", "whitelist"];

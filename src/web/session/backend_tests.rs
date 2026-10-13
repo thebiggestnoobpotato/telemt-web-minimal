@@ -208,58 +208,6 @@ async fn open_without_data_does_not_start_the_inner_handshake_timeout() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn silent_open_does_not_consume_generation_connection_capacity() {
-    let runtime = test_runtime(WebCarrier::Https, 1);
-    let available = runtime.generation.max_connections.available_permits();
-
-    assert_eq!(runtime.process_frame(1, 1, FrameType::Open, &[]), Ok(1));
-    settle_tasks().await;
-
-    assert_eq!(
-        runtime.generation.max_connections.available_permits(),
-        available
-    );
-
-    assert_eq!(runtime.process_frame(1, 2, FrameType::Data, &[0x5a]), Ok(2));
-    settle_tasks().await;
-    assert_eq!(
-        runtime.generation.max_connections.available_permits(),
-        available - 1
-    );
-
-    runtime.shutdown().await;
-}
-
-#[tokio::test(start_paused = true)]
-async fn first_inner_byte_fails_closed_when_connection_capacity_is_exhausted() {
-    let runtime = test_runtime(WebCarrier::Https, 1);
-    let capacity = runtime.generation.max_connections.available_permits();
-    let permit = runtime
-        .generation
-        .max_connections
-        .clone()
-        .try_acquire_many_owned(capacity as u32)
-        .unwrap();
-
-    assert_eq!(runtime.process_frame(1, 1, FrameType::Open, &[]), Ok(1));
-    settle_tasks().await;
-    assert!(runtime.session.state.lock().streams.contains_key(&1));
-
-    assert_eq!(runtime.process_frame(1, 2, FrameType::Data, &[0x5a]), Ok(2));
-    settle_tasks().await;
-
-    assert!(!runtime.session.state.lock().streams.contains_key(&1));
-    assert_eq!(runtime.generation.max_connections.available_permits(), 0);
-
-    drop(permit);
-    assert_eq!(
-        runtime.generation.max_connections.available_permits(),
-        capacity
-    );
-    runtime.shutdown().await;
-}
-
-#[tokio::test(start_paused = true)]
 async fn the_first_inner_byte_starts_the_handshake_timeout() {
     let runtime = test_runtime(WebCarrier::Https, 1);
 
@@ -349,7 +297,6 @@ async fn closed_generation_admission_rejects_web_stream_before_backend() {
         "WEB stream bypassed the closed generation admission gate"
     );
     assert!(!runtime.session.state.lock().streams.contains_key(&1));
-    assert_eq!(runtime.generation.max_connections.available_permits(), 64);
 
     runtime.admission_tx.send_replace(true);
     assert_eq!(runtime.process_frame(2, 2, FrameType::Open, &[]), Ok(2));
@@ -361,7 +308,6 @@ async fn closed_generation_admission_rejects_web_stream_before_backend() {
         .await
         .expect("a new WEB stream did not start after admission reopened")
         .unwrap();
-    assert_eq!(runtime.generation.max_connections.available_permits(), 63);
 
     runtime.shutdown().await;
     drop(upstream);

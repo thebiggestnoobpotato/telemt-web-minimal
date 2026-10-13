@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use tokio::sync::{Notify, Semaphore, watch};
+use tokio::sync::{Notify, watch};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -163,7 +163,6 @@ pub(crate) struct RuntimeGeneration {
     pub(crate) rng: Arc<SecureRandom>,
     pub(crate) ip_tracker: Arc<UserIpTracker>,
     pub(crate) proxy_shared: Arc<ProxySharedState>,
-    pub(crate) max_connections: Arc<Semaphore>,
     background_tasks: RuntimeTaskScope,
     sessions: TaskTracker,
     session_cancel: CancellationToken,
@@ -184,7 +183,6 @@ impl RuntimeGeneration {
         rng: Arc<SecureRandom>,
         ip_tracker: Arc<UserIpTracker>,
         proxy_shared: Arc<ProxySharedState>,
-        max_connections: Arc<Semaphore>,
         background_tasks: RuntimeTaskScope,
     ) -> Arc<Self> {
         Arc::new(Self {
@@ -198,7 +196,6 @@ impl RuntimeGeneration {
             rng,
             ip_tracker,
             proxy_shared,
-            max_connections,
             background_tasks,
             sessions: TaskTracker::new(),
             session_cancel: CancellationToken::new(),
@@ -338,7 +335,6 @@ pub(crate) fn test_runtime_generation_with_admission(
         Arc::new(SecureRandom::new()),
         Arc::new(UserIpTracker::new()),
         ProxySharedState::new(),
-        Arc::new(Semaphore::new(64)),
         RuntimeTaskScope::new(),
     )
 }

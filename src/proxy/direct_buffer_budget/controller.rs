@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use tokio::sync::Semaphore;
-
 use super::*;
 use crate::stats::Stats;
 use crate::stream::BufferPool;
@@ -27,8 +25,6 @@ pub(crate) async fn run_direct_buffer_budget_controller(
     budget: Arc<DirectBufferBudget>,
     buffer_pool: Arc<BufferPool>,
     stats: Arc<Stats>,
-    connection_slots: Arc<Semaphore>,
-    max_connections: u32,
 ) {
     let mut interval = tokio::time::interval(CONTROL_INTERVAL);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -69,11 +65,9 @@ pub(crate) async fn run_direct_buffer_budget_controller(
             .saturating_sub(previous_rejected);
         previous_rejected = snapshot.admission_rejected_total;
 
-        let connection_pct = connection_fill_pct(connection_slots.as_ref(), max_connections);
         let memory_available_pct = percentage(sample.available_bytes, sample.total_bytes);
         let target_utilization_pct = percentage(snapshot.reserved_bytes, snapshot.target_bytes);
-        let pressure = connection_pct.is_some_and(|value| value >= 85)
-            || memory_available_pct.is_some_and(|value| value <= 15)
+        let pressure = memory_available_pct.is_some_and(|value| value <= 15)
             || target_utilization_pct.is_some_and(|value| value >= 90)
             || denied_delta > 0
             || fallback_delta > 0
@@ -110,8 +104,7 @@ pub(crate) async fn run_direct_buffer_budget_controller(
             continue;
         }
 
-        let healthy = memory_available_pct.is_none_or(|value| value >= 30)
-            && connection_pct.is_none_or(|value| value <= 70);
+        let healthy = memory_available_pct.is_none_or(|value| value >= 30);
         if !healthy {
             healthy_streak = 0;
             if headroom_target < snapshot.target_bytes {
@@ -132,19 +125,6 @@ pub(crate) async fn run_direct_buffer_budget_controller(
             );
         }
     }
-}
-
-pub(super) fn connection_fill_pct(
-    connection_slots: &Semaphore,
-    max_connections: u32,
-) -> Option<u8> {
-    if max_connections == 0 {
-        return None;
-    }
-    let max_connections = max_connections as usize;
-    let active =
-        max_connections.saturating_sub(connection_slots.available_permits().min(max_connections));
-    Some((active.saturating_mul(100) / max_connections).min(100) as u8)
 }
 
 fn percentage(value: u64, total: u64) -> Option<u8> {

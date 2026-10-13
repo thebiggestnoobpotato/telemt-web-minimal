@@ -106,14 +106,6 @@ root    hard    nofile  1048576
 ### Domain in the link instead of IP
 To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `[web.vhost]` table.
 
-### Total server connection limit
-This parameter limits the total number of active connections to the server:
-```toml
-[general]
-# Zero disables the limit; 10000 is the default.
-max_connections = 10000
-```
-
 ### Upstream Manager
 To configure outbound connections (upstreams), add the corresponding parameters to the `[[upstreams]]` section of the configuration file:
 

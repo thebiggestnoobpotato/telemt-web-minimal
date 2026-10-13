@@ -842,7 +842,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 ```
 
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
-- `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.runtime_path`, `general.dc_buffer_budget_max_bytes`, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
+- `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `logging`, `general.runtime_path`, `general.dc_buffer_budget_max_bytes`, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
 
 Example — replace the complete vhost table while changing its `base_path`:
 
