@@ -54,7 +54,7 @@ pub(super) async fn bootstrap(
     let cli_args = parse_cli();
     let config_path_cli = cli_args.config_path;
     let config_path_explicit = cli_args.config_path_explicit;
-    let data_path = cli_args.data_path;
+    let runtime_path = cli_args.runtime_path;
     let cli_silent = cli_args.silent;
     let cli_log_level = cli_args.log_level;
     let log_cli_options = cli_args.log_cli_options;
@@ -65,12 +65,12 @@ pub(super) async fn bootstrap(
             std::process::exit(1);
         }
     };
-    if let Some(ref data_path) = data_path
-        && !data_path.is_absolute()
+    if let Some(ref runtime_path) = runtime_path
+        && !runtime_path.is_absolute()
     {
         eprintln!(
-            "[telemt] data_path must be absolute: {}",
-            data_path.display()
+            "[telemt] runtime_path must be absolute: {}",
+            runtime_path.display()
         );
         std::process::exit(1);
     }
@@ -80,7 +80,7 @@ pub(super) async fn bootstrap(
         &config_path,
         &startup_cwd,
         config_path_explicit,
-        data_path.as_deref(),
+        runtime_path.as_deref(),
     );
 
     if let Err(e) = enter_runtime_directory(&runtime_base_dir) {
@@ -202,23 +202,23 @@ pub(super) async fn bootstrap(
         std::process::exit(1);
     }
 
-    if let Some(p) = data_path {
-        config.general.data_path = Some(p);
+    if let Some(p) = runtime_path {
+        config.general.runtime_path = Some(p);
     }
 
-    if let Some(ref data_path) = config.general.data_path {
-        if !data_path.is_absolute() {
+    if let Some(ref runtime_path) = config.general.runtime_path {
+        if !runtime_path.is_absolute() {
             eprintln!(
-                "[telemt] data_path must be absolute: {}",
-                data_path.display()
+                "[telemt] runtime_path must be absolute: {}",
+                runtime_path.display()
             );
             std::process::exit(1);
         }
 
-        if let Err(e) = enter_runtime_directory(data_path) {
+        if let Err(e) = enter_runtime_directory(runtime_path) {
             eprintln!(
-                "[telemt] Can't use data_path {}: {}",
-                data_path.display(),
+                "[telemt] Can't use runtime_path {}: {}",
+                runtime_path.display(),
                 e
             );
             std::process::exit(1);

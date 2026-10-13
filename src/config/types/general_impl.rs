@@ -3,7 +3,7 @@ use super::*;
 impl Default for GeneralConfig {
     fn default() -> Self {
         Self {
-            data_path: None,
+            runtime_path: None,
             config_strict: false,
             network_ipv4: default_true(),
             network_ipv6: default_network_ipv6(),

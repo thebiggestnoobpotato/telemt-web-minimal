@@ -108,7 +108,7 @@ This document lists all configuration keys accepted by `config.toml`.
 
 | Key | Type | Default |
 | --- | ---- | ------- |
-| [`data_path`](#data_path) | `String` | — |
+| [`runtime_path`](#runtime_path) | `String` | — |
 | [`config_strict`](#config_strict) | `bool` | `false` |
 | [`network_ipv4`](#network_ipv4) | `bool` | `true` |
 | [`network_ipv6`](#network_ipv6) | `bool` | `false` |
@@ -132,14 +132,14 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`listen_backlog`](#listen_backlog) | `u32` | `1024` |
 | [`max_connections`](#max_connections) | `u32` | `10000` |
 
-## data_path
-  - **Constraints / validation**: `String` (optional).
-  - **Description**: Optional runtime data directory path.
+## runtime_path
+  - **Constraints / validation**: `String` (optional). Must be absolute.
+  - **Description**: Optional runtime base directory the process enters at startup.
   - **Example**:
 
     ```toml
     [general]
-    data_path = "/var/lib/telemt"
+    runtime_path = "/var/lib/telemt"
     ```
 ## config_strict
   - **Constraints / validation**: `bool`.

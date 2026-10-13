@@ -63,9 +63,9 @@ pub(crate) fn resolve_runtime_base_dir(
     config_path: &Path,
     startup_cwd: &Path,
     config_path_explicit: bool,
-    data_path: Option<&Path>,
+    runtime_path: Option<&Path>,
 ) -> PathBuf {
-    if let Some(path) = data_path {
+    if let Some(path) = runtime_path {
         return normalize_runtime_dir(path, startup_cwd);
     }
 
@@ -108,8 +108,8 @@ pub(crate) struct CliArgs {
     pub config_path: String,
     /// Whether the config source was explicitly provided.
     pub config_path_explicit: bool,
-    /// Runtime directory override from CLI.
-    pub data_path: Option<PathBuf>,
+    /// Runtime base directory override from CLI.
+    pub runtime_path: Option<PathBuf>,
     /// Whether CLI requests minimal logging output.
     pub silent: bool,
     /// Verbosity override from CLI.
@@ -122,7 +122,7 @@ pub(crate) struct CliArgs {
 pub(crate) fn parse_cli() -> CliArgs {
     let mut config_path = "config.toml".to_string();
     let mut config_path_explicit = false;
-    let mut data_path: Option<PathBuf> = None;
+    let mut runtime_path: Option<PathBuf> = None;
     let mut silent = false;
     let mut log_level: Option<String> = None;
 
@@ -148,31 +148,31 @@ pub(crate) fn parse_cli() -> CliArgs {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
-            "--data-path" => {
+            "--runtime-path" => {
                 i += 1;
                 if i < args.len() {
-                    data_path = Some(PathBuf::from(args[i].clone()));
+                    runtime_path = Some(PathBuf::from(args[i].clone()));
                 } else {
-                    eprintln!("Missing value for --data-path");
+                    eprintln!("Missing value for --runtime-path");
                     std::process::exit(0);
                 }
             }
-            s if s.starts_with("--data-path=") => {
-                data_path = Some(PathBuf::from(
-                    s.trim_start_matches("--data-path=").to_string(),
+            s if s.starts_with("--runtime-path=") => {
+                runtime_path = Some(PathBuf::from(
+                    s.trim_start_matches("--runtime-path=").to_string(),
                 ));
             }
             "--working-dir" => {
                 i += 1;
                 if i < args.len() {
-                    data_path = Some(PathBuf::from(args[i].clone()));
+                    runtime_path = Some(PathBuf::from(args[i].clone()));
                 } else {
                     eprintln!("Missing value for --working-dir");
                     std::process::exit(0);
                 }
             }
             s if s.starts_with("--working-dir=") => {
-                data_path = Some(PathBuf::from(
+                runtime_path = Some(PathBuf::from(
                     s.trim_start_matches("--working-dir=").to_string(),
                 ));
             }
@@ -237,7 +237,7 @@ pub(crate) fn parse_cli() -> CliArgs {
     CliArgs {
         config_path,
         config_path_explicit,
-        data_path,
+        runtime_path,
         silent,
         log_level,
         log_cli_options,
@@ -258,9 +258,9 @@ fn print_help() {
     eprintln!();
     eprintln!("Options:");
     eprintln!(
-        "  --data-path <DIR>       Set data directory (absolute path; overrides config value)"
+        "  --runtime-path <DIR>    Set runtime base directory (absolute path; overrides config value)"
     );
-    eprintln!("  --working-dir <DIR>     Alias for --data-path");
+    eprintln!("  --working-dir <DIR>     Alias for --runtime-path");
     eprintln!("  --silent, -s            Suppress info logs");
     eprintln!("  --log-level <LEVEL>     debug|verbose|normal|silent");
     eprintln!("  --help, -h              Show this help");

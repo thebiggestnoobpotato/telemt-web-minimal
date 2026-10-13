@@ -16,7 +16,7 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
 ];
 
 const GENERAL_CONFIG_KEYS: &[&str] = &[
-    "data_path",
+    "runtime_path",
     "config_strict",
     "network_ipv4",
     "network_ipv6",

@@ -4,8 +4,9 @@ use super::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
+    /// Runtime base directory entered at startup; must be absolute when set.
     #[serde(default)]
-    pub data_path: Option<PathBuf>,
+    pub runtime_path: Option<PathBuf>,
     /// Reject unknown TOML config keys during load; startup fails fast.
     #[serde(default)]
     pub config_strict: bool,

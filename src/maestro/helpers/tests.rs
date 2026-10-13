@@ -100,25 +100,25 @@ fn resolve_runtime_config_path_defaults_to_startup_config_when_none_found() {
 }
 
 #[test]
-fn resolve_runtime_base_dir_prefers_cli_data_path() {
+fn resolve_runtime_base_dir_prefers_cli_runtime_path() {
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let startup_cwd = std::env::temp_dir().join(format!("telemt_runtime_base_cwd_{nonce}"));
-    let data_path = std::env::temp_dir().join(format!("telemt_runtime_base_data_{nonce}"));
+    let runtime_path = std::env::temp_dir().join(format!("telemt_runtime_base_path_{nonce}"));
     std::fs::create_dir_all(&startup_cwd).unwrap();
-    std::fs::create_dir_all(&data_path).unwrap();
+    std::fs::create_dir_all(&runtime_path).unwrap();
 
     let resolved = resolve_runtime_base_dir(
         &startup_cwd.join("config.toml"),
         &startup_cwd,
         true,
-        Some(&data_path),
+        Some(&runtime_path),
     );
-    assert_eq!(resolved, data_path.canonicalize().unwrap());
+    assert_eq!(resolved, runtime_path.canonicalize().unwrap());
 
-    let _ = std::fs::remove_dir(&data_path);
+    let _ = std::fs::remove_dir(&runtime_path);
     let _ = std::fs::remove_dir(&startup_cwd);
 }
 
