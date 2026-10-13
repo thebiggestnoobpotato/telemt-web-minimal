@@ -105,11 +105,6 @@ impl ProxySharedState {
         })
     }
 
-    /// Returns the process authority shared by every runtime generation.
-    pub(crate) fn user_admission(&self) -> Arc<UserAdmissionAuthority> {
-        Arc::clone(&self.user_admission)
-    }
-
     /// Reconciles the complete user authentication policy from configuration.
     pub(crate) fn apply_user_config(
         &self,
@@ -132,17 +127,7 @@ impl ProxySharedState {
         )
     }
 
-    /// Applies an update only from the active runtime generation.
-    pub(crate) fn apply_user_config_from_source(
-        &self,
-        source_generation: u64,
-        users: &HashMap<String, String>,
-    ) -> Option<Vec<(String, usize)>> {
-        self.user_admission
-            .apply_config_from_source(source_generation, users)
-    }
-
-    /// Applies one persisted user mutation before asynchronous config reload.
+    /// Stages one persisted user credential into the live admission set.
     pub(crate) fn stage_user(
         &self,
         user: &str,
@@ -151,7 +136,7 @@ impl ProxySharedState {
         self.user_admission.stage_user(user, secret)
     }
 
-    /// Applies one prevalidated persisted credential before asynchronous reload.
+    /// Stages one prevalidated persisted credential into the live admission set.
     pub(crate) fn stage_user_credential(
         &self,
         user: &str,

@@ -95,14 +95,6 @@ impl Drop for SessionRegistration<'_> {
     }
 }
 
-/// Process-visible control-plane receivers for one active runtime generation.
-#[derive(Clone)]
-pub(crate) struct RuntimeWatchState {
-    pub(crate) generation_id: u64,
-    pub(crate) config_rx: watch::Receiver<Arc<ProxyConfig>>,
-    pub(crate) admission_rx: watch::Receiver<bool>,
-}
-
 /// Cancellation and join ownership for one generation's background tasks.
 #[derive(Clone)]
 pub(crate) struct RuntimeTaskScope {
@@ -162,7 +154,7 @@ impl RuntimeTaskScope {
 /// Runtime-owned data plane and control-plane dependencies for one generation.
 pub(crate) struct RuntimeGeneration {
     pub(crate) id: u64,
-    pub(crate) config_rx: watch::Receiver<Arc<ProxyConfig>>,
+    pub(crate) config: Arc<ProxyConfig>,
     pub(crate) admission_rx: watch::Receiver<bool>,
     pub(crate) stats: Arc<Stats>,
     pub(crate) upstream_manager: Arc<UpstreamManager>,
@@ -183,7 +175,7 @@ impl RuntimeGeneration {
     /// Builds one fully owned runtime generation.
     pub(crate) fn new(
         id: u64,
-        config_rx: watch::Receiver<Arc<ProxyConfig>>,
+        config: Arc<ProxyConfig>,
         admission_rx: watch::Receiver<bool>,
         stats: Arc<Stats>,
         upstream_manager: Arc<UpstreamManager>,
@@ -197,7 +189,7 @@ impl RuntimeGeneration {
     ) -> Arc<Self> {
         Arc::new(Self {
             id,
-            config_rx,
+            config,
             admission_rx,
             stats,
             upstream_manager,
@@ -214,18 +206,9 @@ impl RuntimeGeneration {
         })
     }
 
-    /// Returns the latest hot-reloaded configuration for this generation.
+    /// Returns the immutable configuration for this generation.
     pub(crate) fn config(&self) -> Arc<ProxyConfig> {
-        self.config_rx.borrow().clone()
-    }
-
-    /// Returns receivers used by process-scoped observers of this generation.
-    pub(crate) fn watch_state(&self) -> RuntimeWatchState {
-        RuntimeWatchState {
-            generation_id: self.id,
-            config_rx: self.config_rx.clone(),
-            admission_rx: self.admission_rx.clone(),
-        }
+        self.config.clone()
     }
 
     /// Pins all dependencies required by a client stream without retaining the generation.
@@ -331,10 +314,10 @@ pub(crate) fn test_runtime_generation_with_admission(
     config: ProxyConfig,
     admission_rx: watch::Receiver<bool>,
 ) -> Arc<RuntimeGeneration> {
-    let (config_tx, config_rx) = watch::channel(Arc::new(config.clone()));
+    let config = Arc::new(config);
     let stats = Arc::new(Stats::new());
     let upstream_manager = Arc::new(UpstreamManager::new(
-        config.upstreams,
+        config.upstreams.clone(),
         config.general.upstream_connect_retry_attempts,
         config.general.upstream_connect_retry_backoff_ms,
         config.general.upstream_connect_budget_ms,
@@ -344,10 +327,9 @@ pub(crate) fn test_runtime_generation_with_admission(
         config.general.network_prefer == 6,
         stats.clone(),
     ));
-    let _config_tx = config_tx;
     RuntimeGeneration::new(
         id,
-        config_rx,
+        config,
         admission_rx,
         stats,
         upstream_manager,

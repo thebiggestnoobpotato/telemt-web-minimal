@@ -222,7 +222,7 @@ pub(crate) fn parse_cli() -> CliArgs {
                 }
             }
             s if !s.starts_with('-') => {
-                if !matches!(s, "run" | "start" | "stop" | "reload" | "status") {
+                if !matches!(s, "run" | "start" | "stop" | "status") {
                     config_path = s.to_string();
                     config_path_explicit = true;
                 }
@@ -253,7 +253,6 @@ fn print_help() {
     {
         eprintln!("  start                   Start as background daemon");
         eprintln!("  stop                    Stop a running daemon");
-        eprintln!("  reload                  Reload configuration (send SIGHUP)");
         eprintln!("  status                  Check if daemon is running");
     }
     eprintln!();

@@ -43,7 +43,7 @@ async fn fallback_dns_api_get_and_mutation_base_need_no_prepared_runtime() {
 }
 
 #[tokio::test]
-async fn fallback_dns_api_patch_without_reload_prepares_before_disk_write() {
+async fn fallback_dns_api_patch_prepares_before_disk_write() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
     std::fs::write(&path, SOURCE).unwrap();
@@ -62,15 +62,13 @@ async fn fallback_dns_api_patch_without_reload_prepares_before_disk_write() {
     assert_eq!(std::fs::read(&path).unwrap(), before);
     assert!(active.web.runtime.is_some());
 
-    let prepared = prepare_patch_to_path(
+    prepare_patch_to_path(
         &path,
         &serde_json::json!({"web": {"conveyor": false}}),
         None,
     )
     .await
     .unwrap();
-    assert_eq!(prepared.desired_config.web.fallback_dns.origins.len(), 1);
-    assert!(prepared.desired_config.web.runtime.is_some());
     assert_eq!(std::fs::read(&path).unwrap(), before);
     apply_patch_to_path(
         &path,
@@ -81,6 +79,8 @@ async fn fallback_dns_api_patch_without_reload_prepares_before_disk_write() {
     .unwrap();
     let reloaded = ProxyConfig::load_prepared(path).await.unwrap();
     assert!(!reloaded.config.web.conveyor);
+    assert_eq!(reloaded.config.web.fallback_dns.origins.len(), 1);
+    assert!(reloaded.config.web.runtime.is_some());
 }
 
 #[tokio::test]

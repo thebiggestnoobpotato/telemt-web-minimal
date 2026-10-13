@@ -247,7 +247,7 @@ impl UserAdmissionAuthority {
         Some(cancel_owners(cancellations))
     }
 
-    /// Applies one persisted user value ahead of asynchronous runtime reload.
+    /// Stages one persisted user value into the live credential set.
     pub(crate) fn stage_user(
         &self,
         user: &str,
@@ -257,7 +257,7 @@ impl UserAdmissionAuthority {
         Some(self.stage_user_credential(user, credential_id))
     }
 
-    /// Applies one already validated credential mutation ahead of runtime reload.
+    /// Stages one already validated credential mutation into the live credential set.
     pub(crate) fn stage_user_credential(
         &self,
         user: &str,

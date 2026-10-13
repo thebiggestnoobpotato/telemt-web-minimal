@@ -220,24 +220,6 @@ pub(super) fn build_upstream(
     }
 }
 
-impl ProxyConfig {
-    /// Compares selected endpoints separately from source-only configuration equality.
-    pub(crate) fn web_fallback_endpoints_equal(&self, other: &Self) -> bool {
-        fn selected(config: &ProxyConfig) -> impl Iterator<Item = (&String, FallbackEndpoint)> {
-            config
-                .web
-                .runtime
-                .iter()
-                .flat_map(|runtime| runtime.vhosts.iter())
-                .filter_map(|(host, vhost)| match &vhost.fallback {
-                    WebRuntimeFallback::HttpUpstream { endpoint, .. } => {
-                        Some((host, endpoint.clone()))
-                    }
-                })
-        }
-        selected(self).eq(selected(other))
-    }
-}
 
 #[cfg(test)]
 mod tests;

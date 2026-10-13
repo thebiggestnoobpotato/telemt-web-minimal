@@ -2,9 +2,9 @@ use super::*;
 
 // Read-only fixed API endpoints.
 mod read_routes;
-// Fixed configuration and lifecycle mutations.
+// Fixed configuration and user-resource mutations.
 mod fixed_routes;
-// Dynamic reload and user-resource routes.
+// Dynamic user-resource routes.
 mod user_routes;
 
 pub(super) async fn handle(
@@ -18,13 +18,13 @@ pub(super) async fn handle(
         *shared.runtime_edge_connections_cache.lock().await = None;
     }
     let shared = Arc::new(shared.for_runtime(runtime.as_ref()));
-    let config_rx = runtime.config_rx.clone();
+    let config = runtime.config();
     shared
         .runtime_state
         .admission_open
         .store(*runtime.admission_rx.borrow(), Ordering::Relaxed);
     let request_id = shared.next_request_id();
-    let cfg = config_rx.borrow().clone();
+    let cfg = config.clone();
     let api_cfg = &cfg.api;
 
     if !api_cfg.enabled {
@@ -99,7 +99,7 @@ pub(super) async fn handle(
         body_limit,
         &shared,
         cfg.as_ref(),
-        &config_rx,
+        &config,
         request_id,
     )
     .await;
@@ -118,7 +118,7 @@ async fn dispatch(
     body_limit: usize,
     shared: &Arc<ApiShared>,
     cfg: &ProxyConfig,
-    config_rx: &watch::Receiver<Arc<ProxyConfig>>,
+    config: &Arc<ProxyConfig>,
     request_id: u64,
 ) -> Result<Response<Full<Bytes>>, ApiFailure> {
     if web_runtime::is_route(normalized_path) {
@@ -149,7 +149,7 @@ async fn dispatch(
         query,
         shared.as_ref(),
         cfg,
-        config_rx,
+        config,
     )
     .await?
     {
@@ -158,15 +158,11 @@ async fn dispatch(
 
     match (method.as_str(), normalized_path) {
         ("POST", "/v1/users") => {
-            fixed_routes::create_user_route(req, shared, cfg, config_rx, request_id, body_limit)
-                .await
+            fixed_routes::create_user_route(req, shared, cfg, config, request_id, body_limit).await
         }
         ("GET", "/v1/config") => fixed_routes::get_config_route(shared).await,
-        ("POST", "/v1/system/reload") => {
-            fixed_routes::reload_route(req, shared, cfg, request_id, body_limit).await
-        }
         ("PATCH", "/v1/config") => {
-            fixed_routes::patch_config_route(req, shared, cfg, query, request_id, body_limit).await
+            fixed_routes::patch_config_route(req, shared, cfg, request_id, body_limit).await
         }
         _ => {
             user_routes::handle(
@@ -176,7 +172,7 @@ async fn dispatch(
                 normalized_path,
                 shared,
                 cfg,
-                config_rx,
+                config,
                 request_id,
                 body_limit,
             )

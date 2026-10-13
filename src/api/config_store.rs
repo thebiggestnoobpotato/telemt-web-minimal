@@ -71,15 +71,6 @@ pub(super) async fn current_revision(config_path: &Path) -> Result<String, ApiFa
     Ok(compute_source_revision(&graph))
 }
 
-pub(crate) async fn current_revision_for_maestro(config_path: &Path) -> Result<String, String> {
-    let config_path = config_path.to_path_buf();
-    tokio::task::spawn_blocking(move || ProxyConfig::read_source_graph(config_path))
-        .await
-        .map_err(|error| format!("failed to join config reader: {error}"))?
-        .map(|graph| compute_source_revision(&graph))
-        .map_err(|error| error.to_string())
-}
-
 pub(super) fn compute_revision(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
@@ -266,19 +257,6 @@ pub(super) async fn load_config_from_disk(config_path: &Path) -> Result<ProxyCon
     load_config_snapshot(config_path, false)
         .await
         .map(|source| source.config)
-}
-
-/// Acquires fresh fallback evidence for an explicit API reload, even at the same revision.
-pub(super) async fn load_config_for_reload(
-    config_path: &Path,
-) -> Result<(ProxyConfig, String), ApiFailure> {
-    let loaded = load_config_snapshot(config_path, true).await?;
-    let revision = compute_snapshot_revision(&loaded.source_contents);
-    let loaded = loaded
-        .prepare()
-        .await
-        .map_err(|error| ApiFailure::bad_request(format!("invalid runtime config: {error}")))?;
-    Ok((loaded.config, revision))
 }
 
 #[allow(dead_code)]

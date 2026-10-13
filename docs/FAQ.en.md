@@ -68,7 +68,7 @@ user3 = "00000000000000000000000000000003"
 [[web.vhost.profiles]]
 user = "user1"
 ```
-5. Save the configuration (Ctrl+S -> Ctrl+X). There is no need to restart the telemt service.
+5. Save the configuration (Ctrl+S -> Ctrl+X) and restart the telemt service to apply the changes.
 6. Get the ready-to-use `tg://webproxy` links using the command:
 ```bash
 curl -s http://127.0.0.1:9091/v1/users | jq

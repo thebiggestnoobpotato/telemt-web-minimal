@@ -1,34 +1,22 @@
-use std::path::Path;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use tokio::sync::watch;
-use tracing::info;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Registry;
 use tracing_subscriber::reload;
 
-use crate::config::hot_reload::spawn_config_watcher;
 use crate::config::{LogLevel, ProxyConfig};
 use crate::ip_tracker::UserIpTracker;
 use crate::metrics;
-use crate::proxy::shared_state::ProxySharedState;
 use crate::startup::{
-    COMPONENT_CONFIG_WATCHER_START, COMPONENT_METRICS_START, COMPONENT_RUNTIME_READY,
-    StartupTracker,
+    COMPONENT_METRICS_START, COMPONENT_RUNTIME_READY, StartupTracker,
 };
-use crate::stats::telemetry::TelemetryPolicy;
 use crate::stats::{ReplayChecker, Stats};
 use crate::transport::UpstreamManager;
 
 use super::control_plane::ProcessControlPlane;
 use super::generation::RuntimeGeneration;
 use super::generation::RuntimeTaskScope;
-
-pub(crate) struct RuntimeWatches {
-    pub(crate) config_rx: watch::Receiver<Arc<ProxyConfig>>,
-    pub(crate) log_level_rx: watch::Receiver<LogLevel>,
-}
 
 #[derive(Clone)]
 pub(crate) struct RuntimeLogFilter {
@@ -40,36 +28,8 @@ impl RuntimeLogFilter {
         Self { handle }
     }
 
-    pub(crate) fn start(
-        &self,
-        has_rust_log: bool,
-        effective_log_level: &LogLevel,
-        log_level_rx: watch::Receiver<LogLevel>,
-        task_scope: RuntimeTaskScope,
-    ) {
+    pub(crate) fn start(&self, has_rust_log: bool, effective_log_level: &LogLevel) {
         self.apply(effective_log_level, has_rust_log);
-        self.spawn_watcher(log_level_rx, task_scope);
-    }
-
-    pub(crate) fn apply_reload(&self, level: &LogLevel) {
-        self.apply(level, false);
-    }
-
-    pub(crate) fn spawn_watcher(
-        &self,
-        mut log_level_rx: watch::Receiver<LogLevel>,
-        task_scope: RuntimeTaskScope,
-    ) {
-        let filter = self.clone();
-        task_scope.spawn(async move {
-            loop {
-                if log_level_rx.changed().await.is_err() {
-                    break;
-                }
-                let level = log_level_rx.borrow_and_update().clone();
-                filter.apply_reload(&level);
-            }
-        });
     }
 
     fn apply(&self, level: &LogLevel, has_rust_log: bool) {
@@ -84,19 +44,15 @@ impl RuntimeLogFilter {
 pub(crate) async fn spawn_runtime_tasks(
     generation_id: u64,
     config: &Arc<ProxyConfig>,
-    config_path: &Path,
     prefer_ipv6: bool,
     decision_ipv4_dc: bool,
     decision_ipv6_dc: bool,
-    startup_tracker: &Arc<StartupTracker>,
     stats: Arc<Stats>,
     upstream_manager: Arc<UpstreamManager>,
     replay_checker: Arc<ReplayChecker>,
     ip_tracker: Arc<UserIpTracker>,
-    shared_state: Arc<ProxySharedState>,
     task_scope: RuntimeTaskScope,
-    config_watcher_activation: Option<watch::Receiver<bool>>,
-) -> RuntimeWatches {
+) {
     let um_clone = upstream_manager.clone();
     let dc_overrides_for_health = config.general.dc_overrides.clone();
     task_scope.spawn(async move {
@@ -129,99 +85,6 @@ pub(crate) async fn spawn_runtime_tasks(
             .await;
     });
 
-    startup_tracker
-        .start_component(
-            COMPONENT_CONFIG_WATCHER_START,
-            Some("spawn config hot-reload watcher".to_string()),
-        )
-        .await;
-    let (config_rx, log_level_rx, config_watcher_task) = spawn_config_watcher(
-        config_path.to_path_buf(),
-        config.clone(),
-        task_scope.cancellation_token(),
-        config_watcher_activation,
-    );
-    task_scope.spawn(config_watcher_task);
-    startup_tracker
-        .complete_component(
-            COMPONENT_CONFIG_WATCHER_START,
-            Some("config hot-reload watcher started".to_string()),
-        )
-        .await;
-    let stats_policy = stats.clone();
-    let mut config_rx_policy = config_rx.clone();
-    task_scope.spawn(async move {
-        loop {
-            if config_rx_policy.changed().await.is_err() {
-                break;
-            }
-            let cfg = config_rx_policy.borrow_and_update().clone();
-            stats_policy
-                .apply_telemetry_policy(TelemetryPolicy::from_config(&cfg.general));
-        }
-    });
-
-    let ip_tracker_policy = ip_tracker.clone();
-    let mut config_rx_ip_limits = config_rx.clone();
-    task_scope.spawn(async move {
-        let mut previous = config_rx_ip_limits.borrow().access.clone();
-
-        loop {
-            if config_rx_ip_limits.changed().await.is_err() {
-                break;
-            }
-            let cfg = config_rx_ip_limits.borrow_and_update().clone();
-
-            if previous.user_max_unique_ips != cfg.access.user_max_unique_ips
-                || previous.global_user_max_unique_ips
-                    != cfg.access.global_user_max_unique_ips
-                || previous.user_max_unique_ips_mode != cfg.access.user_max_unique_ips_mode
-                || previous.user_max_unique_ips_window_secs
-                    != cfg.access.user_max_unique_ips_window_secs
-            {
-                let _ = ip_tracker_policy
-                    .apply_policy_from_source(
-                        generation_id,
-                        cfg.access.global_user_max_unique_ips,
-                        &cfg.access.user_max_unique_ips,
-                        cfg.access.user_max_unique_ips_mode,
-                        cfg.access.user_max_unique_ips_window_secs,
-                    )
-                    .await;
-                previous = cfg.access.clone();
-            }
-        }
-    });
-
-    let shared_users = shared_state.clone();
-    let mut config_rx_users = config_rx.clone();
-    task_scope.spawn(async move {
-        loop {
-            if config_rx_users.changed().await.is_err() {
-                break;
-            }
-            let cfg = config_rx_users.borrow_and_update().clone();
-            let Some(cancelled_users) =
-                shared_users.apply_user_config_from_source(generation_id, &cfg.users)
-            else {
-                continue;
-            };
-            for (user, cancelled) in cancelled_users {
-                if cancelled > 0 {
-                    info!(
-                        user = %user,
-                        cancelled,
-                        "User sessions cancelled after config reload"
-                    );
-                }
-            }
-        }
-    });
-
-    RuntimeWatches {
-        config_rx,
-        log_level_rx,
-    }
 }
 
 pub(crate) fn log_filter_spec(has_rust_log: bool, effective_log_level: &LogLevel) -> String {

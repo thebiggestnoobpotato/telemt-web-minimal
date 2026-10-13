@@ -52,17 +52,6 @@ pub(crate) fn listener_bind_plan(
     Ok(plan)
 }
 
-/// Returns whether an endpoint-only change can use coordinated process rebind.
-pub(crate) fn listener_rebind_supported(old: &ProxyConfig, desired: &ProxyConfig) -> bool {
-    let Ok(old_plan) = listener_bind_plan(old) else {
-        return false;
-    };
-    let Ok(desired_plan) = listener_bind_plan(desired) else {
-        return false;
-    };
-    old_plan == desired_plan
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,28 +109,4 @@ mod tests {
             .all(|endpoint| matches!(endpoint, ListenerEndpoint::Unix(_))));
     }
 
-    #[test]
-    fn retained_policy_change_is_not_rebindable() {
-        let mut old = ProxyConfig::default();
-        old.listener = Some(listener("127.0.0.1", 443));
-        let mut desired = old.clone();
-        desired
-            .listener
-            .as_mut()
-            .unwrap()
-            .web_trusted_proxy_cidrs
-            .push("127.0.0.1/32".parse().unwrap());
-
-        assert!(!listener_rebind_supported(&old, &desired));
-    }
-
-    #[test]
-    fn endpoint_move_is_not_rebindable() {
-        let mut old = ProxyConfig::default();
-        old.listener = Some(listener("127.0.0.1", 443));
-        let mut desired = old.clone();
-        desired.listener.as_mut().unwrap().port = Some(444);
-
-        assert!(!listener_rebind_supported(&old, &desired));
-    }
 }

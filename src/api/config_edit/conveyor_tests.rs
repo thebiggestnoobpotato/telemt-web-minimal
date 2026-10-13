@@ -1,19 +1,16 @@
 use super::*;
 
 #[tokio::test]
-async fn conveyor_api_is_boolean_hot_and_rejects_invalid_patch_atomically() {
+async fn conveyor_api_is_boolean_and_rejects_invalid_patch_atomically() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
     std::fs::write(&path, "[web]\nconveyor = true\n").unwrap();
     for enabled in [false, true] {
-        let active = ProxyConfig::load(&path).unwrap();
         let patch = serde_json::json!({"web": {"conveyor": enabled}});
-        let mut response = apply_patch_to_path(&path, &patch, None).await.unwrap();
+        let response = apply_patch_to_path(&path, &patch, None).await.unwrap();
+        assert!(response.changed.iter().any(|section| section == "web"));
         let desired = ProxyConfig::load(&path).unwrap();
-        let resolved = reconcile_runtime_effect(&mut response, &active, &desired).unwrap();
-        assert_eq!(resolved.effective.web.conveyor, enabled);
-        assert!(response.runtime_reload_required);
-        assert!(!response.process_restart_required);
+        assert_eq!(desired.web.conveyor, enabled);
         let (managed, _) = read_managed_config(&path).await.unwrap();
         assert_eq!(managed["web"]["conveyor"].as_bool(), Some(enabled));
         let previous = std::fs::read(&path).unwrap();

@@ -6,7 +6,7 @@ pub(super) async fn handle(
     query: Option<&str>,
     shared: &ApiShared,
     cfg: &ProxyConfig,
-    config_rx: &watch::Receiver<Arc<ProxyConfig>>,
+    config: &Arc<ProxyConfig>,
 ) -> Result<Option<Response<Full<Bytes>>>, ApiFailure> {
     let api_cfg = &cfg.api;
     match (method.as_str(), normalized_path) {
@@ -144,7 +144,7 @@ pub(super) async fn handle(
         ("GET", "/v1/stats/users") | ("GET", "/v1/users") => {
             let revision = current_revision(&shared.config_path).await?;
             let disk_cfg = load_config_from_disk(&shared.config_path).await?;
-            let runtime_cfg = config_rx.borrow().clone();
+            let runtime_cfg = config.clone();
             let users = users_from_config(
                 &disk_cfg,
                 &shared.stats,

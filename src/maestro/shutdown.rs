@@ -4,8 +4,6 @@
 //! - SIGINT (Ctrl+C) / SIGTERM: Graceful shutdown
 //! - SIGQUIT: Graceful shutdown with stats dump
 //! - SIGUSR2: Dump runtime status to log
-//!
-//! SIGHUP is handled separately in config/hot_reload.rs for config reload.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -20,7 +18,7 @@ use tracing::{info, warn};
 use super::control_plane::ProcessControlPlane;
 use super::generation::RuntimeGeneration;
 use super::helpers::{format_uptime, unit_label};
-use super::reload_supervisor::ReloadSupervisorHandle;
+use super::listeners::ListenerManager;
 use crate::stats::Stats;
 
 /// Signal that triggered shutdown.
@@ -48,7 +46,7 @@ impl std::fmt::Display for ShutdownSignal {
 pub(crate) async fn wait_for_shutdown(
     process_started_at: Instant,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
-    reload_supervisor: ReloadSupervisorHandle,
+    listener_manager: ListenerManager,
     process_control_plane: ProcessControlPlane,
 ) {
     let signal = wait_for_shutdown_signal().await;
@@ -56,7 +54,7 @@ pub(crate) async fn wait_for_shutdown(
         signal,
         process_started_at,
         active_runtime,
-        reload_supervisor,
+        listener_manager,
         process_control_plane,
     )
     .await;
@@ -87,13 +85,12 @@ async fn perform_shutdown(
     signal: ShutdownSignal,
     process_started_at: Instant,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
-    reload_supervisor: ReloadSupervisorHandle,
+    mut listener_manager: ListenerManager,
     process_control_plane: ProcessControlPlane,
 ) {
     let shutdown_started_at = Instant::now();
     info!(signal = %signal, "Received shutdown signal");
 
-    let listener_manager = reload_supervisor.quiesce().await;
     let runtime = active_runtime.load_full();
     let stats = runtime.stats.as_ref();
 
@@ -106,7 +103,7 @@ async fn perform_shutdown(
     let uptime_secs = process_started_at.elapsed().as_secs();
     info!("Uptime: {}", format_uptime(uptime_secs));
 
-    if let Err(error) = listener_manager.lock().await.shutdown().await {
+    if let Err(error) = listener_manager.shutdown().await {
         warn!(error = %error, "Failed to stop one or more listener tasks cleanly");
     }
 

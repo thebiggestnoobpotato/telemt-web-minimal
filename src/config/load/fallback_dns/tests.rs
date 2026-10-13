@@ -223,7 +223,7 @@ async fn fallback_dns_evidence_is_bound_to_origin_and_port() {
 }
 
 #[tokio::test]
-async fn fallback_dns_reload_pins_old_generation_and_detects_dns_only_changes() {
+async fn fallback_dns_answer_changes_do_not_alter_rendered_config() {
     let old = prepared(&["10.0.0.2:18081"]).await;
     let new = prepared(&["10.0.0.3:18081"]).await;
     assert_eq!(old.rendered_hash, new.rendered_hash);
@@ -231,44 +231,13 @@ async fn fallback_dns_reload_pins_old_generation_and_detects_dns_only_changes() 
         serde_json::to_value(&old.config).unwrap(),
         serde_json::to_value(&new.config).unwrap()
     );
-    let resolved =
-        crate::maestro::runtime_build::resolve_reload_config(&old.config, &new.config).unwrap();
-    assert!(resolved.runtime_changed);
-    assert!(!old.config.web_fallback_endpoints_equal(&new.config));
     assert_eq!(
         endpoint(&old.config).0,
         FallbackEndpoint::Tcp("10.0.0.2:18081".parse().unwrap())
     );
-    let same = prepared(&["10.0.0.3:18081", "10.0.0.4:18081"]).await;
-    assert!(same.config.web_fallback_endpoints_equal(&new.config));
-}
-
-#[tokio::test]
-async fn fallback_dns_effective_listener_overlay_rechecks_every_answer() {
-    let old = prepared(&["10.0.0.2:18081"]).await;
-    let mut parsed = source(SOURCE);
-    parsed.config.listener.as_mut().unwrap().port = Some(18082);
-    parsed
-        .config
-        .web
-        .vhost
-        .as_mut()
-        .expect("web vhost")
-        .upstream = "http://example.com:18080".to_string();
-    prepare(&mut parsed.config, |_, _| {
-        std::future::ready(Ok(vec![
-            "10.0.0.2:18080".parse().unwrap(),
-            "127.0.0.1:18080".parse().unwrap(),
-        ]))
-    })
-    .await
-    .unwrap();
-    let desired = pipeline::finish(parsed).unwrap();
-    assert!(
-        crate::maestro::runtime_build::resolve_reload_config(&old.config, &desired.config)
-            .err()
-            .unwrap()
-            .contains("overlaps WEB listener")
+    assert_eq!(
+        endpoint(&new.config).0,
+        FallbackEndpoint::Tcp("10.0.0.3:18081".parse().unwrap())
     );
 }
 

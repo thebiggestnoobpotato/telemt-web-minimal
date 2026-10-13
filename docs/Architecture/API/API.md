@@ -107,9 +107,7 @@ Notes:
 | `GET` | `/v1/stats/users/active-ips` | none | `200` | `UserActiveIps[]` |
 | `GET` | `/v1/stats/users` | none | `200` | `UserInfo[]` |
 | `GET` | `/v1/config` | none | `200` | `ConfigData` |
-| `PATCH` | `/v1/config` | sparse JSON object; optional reload query | `200` or `202` | `PatchConfigResponse` |
-| `POST` | `/v1/system/reload` | `ReloadRequest` or empty body | `202` | `ReloadAccepted` |
-| `GET` | `/v1/system/reload/{id}` | none | `200` | `ReloadStatus` |
+| `PATCH` | `/v1/config` | sparse JSON object | `200` | `PatchConfigResponse` |
 | `GET` | `/v1/users` | none | `200` | `UserInfo[]` |
 | `POST` | `/v1/users` | `CreateUserRequest` | `201` or `202` | `CreateUserResponse` |
 | `GET` | `/v1/users/{username}` | none | `200` | `UserInfo` |
@@ -123,7 +121,7 @@ Notes:
 | --- | --- |
 | `GET /v1/health` | Returns basic API liveness and current `read_only` flag. |
 | `GET /v1/health/ready` | Returns readiness based on admission state and upstream health; returns `503` when not ready. |
-| `GET /v1/system/info` | Returns binary/build metadata, process uptime, config path/hash, and reload counters. |
+| `GET /v1/system/info` | Returns binary/build metadata, process uptime, and config path/hash. |
 | `GET /v1/runtime/gates` | Returns the admission-gate state and startup gate progress. |
 | `GET /v1/runtime/initialization` | Returns startup progress and the per-component timeline. |
 | `GET /v1/limits/effective` | Returns effective timeout, upstream, unique-IP, and TCP policy values after config defaults/resolution. |
@@ -148,9 +146,7 @@ Notes:
 | `GET /v1/stats/users/active-ips` | Returns users that currently have non-empty active source-IP lists. |
 | `GET /v1/stats/users` | Alias of `GET /v1/users`; returns disk-first user views with runtime lag flag. |
 | `GET /v1/config` | Returns the current editable config sections as JSON (no `access.*`) plus the revision. |
-| `PATCH /v1/config` | Applies a sparse patch and optionally submits an in-process runtime reload to Maestro. |
-| `POST /v1/system/reload` | Loads and validates the current on-disk config, then asks Maestro to prepare and activate a new runtime generation. |
-| `GET /v1/system/reload/{id}` | Returns one retained reload status; the coordinator retains the most recent 32 operations. |
+| `PATCH /v1/config` | Validates the merged candidate, writes it atomically, and reports the changed top-level sections. The written configuration becomes effective at the next process restart. |
 | `GET /v1/users` | Returns disk-first user views sorted by username. |
 | `POST /v1/users` | Creates a user and returns the effective user view plus secret. |
 | `GET /v1/users/{username}` | Returns one disk-first user view or `404` when absent. |
@@ -171,7 +167,6 @@ Notes:
 | `404` | `not_found` | Unknown route, unknown user, or unsupported sub-route. |
 | `405` | `method_not_allowed` | Unsupported method for `/v1/users/{username}` route shape. |
 | `409` | `revision_conflict` | `If-Match` mismatch, or the source graph/owner changed during a fenced write. |
-| `409` | `reload_in_progress` | Another reload operation is non-terminal. |
 | `409` | `web_runtime_mismatch` | A runtime instance, session reference, or operation reference belongs to another WEB process instance. |
 | `409` | `web_issuance_enabled` | A WEB close-all operation was requested while effective issuance remained enabled. |
 | `409` | `web_operation_in_progress` | Another bounded WEB close operation is active. |
@@ -183,7 +178,6 @@ Notes:
 | `410` | success envelope | A valid WEB session reference resolves to a retained closed-session tombstone. |
 | `500` | `internal_error` | Internal error (I/O, serialization, config load/save). |
 | `503` | `api_disabled` | API disabled in config. |
-| `503` | `maestro_unavailable` | Maestro's reload command channel is unavailable. |
 | `503` | `web_runtime_unavailable` | The WEB runtime is not running or has left the readable lifecycle. |
 | `503` | `web_snapshot_busy` | An exact non-blocking WEB session snapshot encountered lock contention. |
 
@@ -205,7 +199,7 @@ Notes:
 - Body size limit is enforced during streaming read (`413 payload_too_large`).
 - Invalid transport body frame returns `400 bad_request` (`Invalid request body`).
 - Invalid JSON returns `400 bad_request` (`Invalid JSON body`).
-- `Content-Type` is not required for existing config/user/reload JSON parsing. Every WEB runtime POST requires exactly one header with the exact value `application/json`.
+- `Content-Type` is not required for existing config/user JSON parsing. Every WEB runtime POST requires exactly one header with the exact value `application/json`.
 - Existing request DTOs retain their documented unknown-field behavior. WEB runtime POST DTOs reject unknown JSON fields.
 - `PATCH` uses JSON Merge Patch semantics for optional per-user fields: omitted means unchanged, explicit `null` removes the config entry, and a non-null value sets it.
 - `If-Match` supports both quoted and unquoted values; surrounding whitespace is trimmed.
@@ -272,13 +266,13 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
 | `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation for every profile, instantiated for every `[users]` user in the vhost using the `[web.limits]` ceilings; `web.vhost` includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 
-The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are valid desired configuration but remain process-deferred; the patch response reports `web.limits` in `deferred_process_fields` until restart.
+The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are persisted by the patch but take effect only at the next process restart.
 
 ### WEB runtime identity and lifecycle
 
 The WEB control plane is process-fenced. `runtime_instance` is a random 128-bit lowercase hexadecimal value created with the process-owned WEB runtime. Session references use `ws1.<runtime_instance>.<16-lowercase-hex-id>`, close-operation references use `wo1.<runtime_instance>.<16-lowercase-hex-id>`, and drain references use `wd1.<runtime_instance>.<16-lowercase-hex-id>`. Treat all references as opaque. A reference from another process instance returns `409 web_runtime_mismatch`, preventing an old controller from targeting reused counters after restart.
 
-`GET /v1/config` is the desired on-disk configuration view. `GET /v1/runtime/web/status` is the effective process view. Its envelope `revision` still identifies the current source graph and can therefore be newer than the active runtime generation while a reload is pending.
+`GET /v1/config` is the desired on-disk configuration view. `GET /v1/runtime/web/status` is the effective process view. Its envelope `revision` still identifies the current source graph and can therefore be newer than the configuration active in the process while a persisted change awaits restart.
 
 `WebStatusData` contains:
 
@@ -359,7 +353,7 @@ Pause and drain block bootstrap issuance, initial/replacement session creation, 
 
 Drain remains graceful until either all live sessions, logical-stream ownership, and session-owned WebSockets reach zero or its deadline fires. The deadline is the latest time to commit close signals, not a claim that cooperative task teardown is already complete. At the deadline every remaining live session receives an idempotent close signal outside manager locks, status becomes `force_closing`, and only confirmed zero publishes `drained` with outcome `forced`. Natural zero publishes outcome `graceful`. Both outcomes keep operator admission closed until explicit resume.
 
-This lifecycle is ephemeral: it survives in-process generation reload because its authority is process-owned, is not written to configuration, and starts as `running` after process restart. Resume never overrides `web.enabled=false`, disabled-user policy, generation health admission, or terminal process shutdown. The global health/readiness and native TCP/Unix admission contracts are unchanged.
+This lifecycle is ephemeral: its authority is process-owned, it is not written to configuration, and it starts as `running` at process start. Resume never overrides `web.enabled=false`, disabled-user policy, or terminal process shutdown. The global health/readiness and native TCP/Unix admission contracts are unchanged.
 
 `POST /v1/runtime/web/sessions/close` accepts:
 
@@ -389,28 +383,16 @@ Only one close operation runs at a time. Work is chunked into at most 128 regist
 
 Debug clear swaps the retained ring under a new epoch and reports `records_cleared`, still-leased snapshot bytes, and `epoch`; old in-flight commits cannot restore removed data. Learning reset swaps bounded evidence under a new epoch and reports `entries_cleared` and `epoch`; live sessions and already frozen negotiation chains are unaffected.
 
-Deterministic close-all sequence:
-
-1. `PATCH /v1/config?reload=drain` with `{"web":{"enabled":false}}`.
-2. Poll the accepted reload, then `GET /v1/runtime/web/status` until `runtime.manager.issuance_enabled=false`.
-3. Submit the `all` close selector with the same status `runtime_instance`.
-4. Poll the returned operation to a terminal state.
-
-`web.enabled=false` only stops new bridge/bootstrap/session issuance. It never implicitly closes active WEB sessions.
+Deterministic close-all: submit `POST /v1/runtime/web/lifecycle/drain` with a bounded `timeout_secs`; at the deadline it force-closes every remaining live session and reports `force_closing` until zero is confirmed. The `all` close selector is rejected with `409 web_issuance_enabled` while effective issuance remains enabled — the state of every running WEB process — and `web.enabled=false` stops new bridge/bootstrap/session issuance only from the next process start.
 
 ### `PatchConfigResponse`
 
-Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was accepted).
+Returned by `PATCH /v1/config` on success (`200`).
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `revision` | `string` | SHA-256 hex of the canonical recursive source manifest after the patch was written. |
-| `restart_required` | `bool` | Legacy classifier result: `true` when the old file watcher alone cannot apply every changed field. Use `runtime_reload_required` and `process_restart_required` for new integrations. |
-| `runtime_reload_required` | `bool` | `true` when effective runtime-owned state differs and must be activated. With a reload query an operation is enqueued; without one, supported hot fields may be applied by the file watcher. |
-| `process_restart_required` | `bool` | `true` when a process-owned field changed and remains deferred after an in-process reload. |
-| `deferred_process_fields` | `string[]` | Process-owned sockets, paths, capacities, or policies retained by the active process. |
 | `changed` | `string[]` | Top-level section names that differed between the old and new config (e.g. `["general"]`). |
-| `reload` | `ReloadAccepted?` | Present only when the patch included a valid reload query and Maestro accepted the operation. |
 
 ### `HealthData`
 | Field | Type | Description |
@@ -459,8 +441,6 @@ Returned by `PATCH /v1/config` on success (`200`, or `202` when a reload was acc
 | `uptime_seconds` | `f64` | Process uptime in seconds. |
 | `config_path` | `string` | Active config file path used by runtime. |
 | `config_hash` | `string` | SHA-256 hash of the canonical recursive configuration source manifest (same value as envelope `revision`). |
-| `config_reload_count` | `u64` | Number of successfully observed config updates since process start. |
-| `last_config_reload_epoch_secs` | `u64?` | Unix epoch seconds of the latest observed config reload; null/absent before first reload. |
 
 ### `RuntimeGatesData`
 | Field | Type | Description |
@@ -795,7 +775,7 @@ Link generation:
 | Field | Type | Description |
 | --- | --- | --- |
 | `username` | `string` | Deleted username. |
-| `in_runtime` | `bool` | `true` when runtime config still contains the user and hot-reload has not applied deletion yet. |
+| `in_runtime` | `bool` | `true` when the configuration active in the process (loaded at start) still contains the user; it clears at the next process restart. |
 
 ## Config Endpoints
 
@@ -851,43 +831,18 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 
 **Read-only mode:** returns `403 read_only` when the API runs with `read_only = true`.
 
-**Optional in-process reload query:**
+**Application:** the endpoint writes the patch and returns `200`. The written configuration is the desired on-disk state; the running process keeps its start-time configuration until the next process restart.
 
-| Query | Required | Description |
-| --- | --- | --- |
-| `reload=instant` | no | Activates a new generation and cancels sessions owned by the previous generation. |
-| `reload=drain` | no | Activates a new generation and lets old sessions finish until `timeout_secs`. |
-| `timeout_secs=1..3600` | for `reload=drain` | Bounded old-generation drain interval. Invalid with `reload=instant`. |
-| `failure_policy=keep_new\|rollback` | no | Defaults to `keep_new`. `rollback` applies only through the activation barrier, before old-generation teardown. |
-
-Without a `reload` query parameter, the endpoint writes the patch and the file watcher applies only supported hot fields. With a reload query, coordinator capacity and status are reserved before the source file is replaced. Runtime-owned changes enqueue the validated immutable snapshot after the atomic write. A process-only patch is persisted with `200`, reports its deferred fields, and does not create a reload operation.
-
-**Success `200` or `202` response body** (`data` field of the standard envelope):
+**Success `200` response body** (`data` field of the standard envelope):
 ```json
 {
   "revision": "<new-sha256-hex>",
-  "restart_required": true,
-  "runtime_reload_required": true,
-  "process_restart_required": false,
-  "deferred_process_fields": [],
-  "changed": ["web"],
-  "reload": {
-    "reload_id": 7,
-    "target_generation": 2,
-    "config_revision": "<new-sha256-hex>",
-    "state": "accepted",
-    "mode": "instant",
-    "failure_policy": "keep_new"
-  }
+  "changed": ["web"]
 }
 ```
 
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
-- `restart_required` — legacy file-watcher classification retained for compatibility.
-- `runtime_reload_required` — reports that effective runtime-owned state differs and needs activation. With an explicit reload query Telemt enqueues the immutable snapshot; otherwise the watcher may apply supported hot fields.
-- `process_restart_required` and `deferred_process_fields` — report process-owned fields that remain unchanged by an in-process reload. Any `listener` change (including endpoint moves), `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.dc_buffer_budget_max_bytes`, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings all require a process restart.
-- `changed` — list of top-level section names that differed.
-- `reload` — accepted operation metadata; omitted without a reload query and for process-only patches that cannot change the active generation.
+- `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.listen`, `metrics.port`, `general.max_connections`, `logging`, `general.data_path`, `general.dc_buffer_budget_max_bytes`, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
 
 Example — replace the complete vhost table while changing its `base_path`:
 
@@ -905,14 +860,13 @@ Example — replace the complete vhost table while changing its `base_path`:
 }
 ```
 
-A valid base-path-only change reports `restart_required=false`, `runtime_reload_required=true`, `process_restart_required=false`, `deferred_process_fields=[]`, and `changed=["web"]`. An invalid path returns `400 bad_request`; no source file or active runtime state changes.
+A valid base-path-only change reports `changed=["web"]`; the new base applies at the next process restart. An invalid path returns `400 bad_request`; no source file changes.
 
 **Status codes:**
 
 | HTTP | `error.code` | Condition |
 | --- | --- | --- |
 | `200` | — | Patch applied successfully. |
-| `202` | — | Patch applied and runtime reload accepted. |
 | `400` | `bad_request` | Invalid JSON, empty patch, or config validation/deserialization failure. |
 | `400` | `access_not_editable` | Patch contains an `access` key. |
 | `400` | `section_not_editable` | Patch contains an unknown or non-editable top-level key (e.g. `server`, `api`, `network`). |
@@ -920,7 +874,6 @@ A valid base-path-only change reports `restart_required=false`, `runtime_reload_
 | `403` | `read_only` | API is in read-only mode. |
 | `405` | `method_not_allowed` | Method other than `GET` or `PATCH` used on `/v1/config`. |
 | `409` | `revision_conflict` | `If-Match` does not match, or the source graph/owner changes during the fenced write. |
-| `409` | `reload_in_progress` | Another runtime reload is active; the patch is not written. |
 | `409` | `config_patch_not_atomic` | Touched semantic sections have multiple source owners or cannot be mutated as one source-file transaction. |
 | `500` | `internal_error` | I/O or serialization failure. |
 
@@ -933,32 +886,8 @@ curl -s -H "Authorization: <token>" http://127.0.0.1:<api>/v1/system/info | jq -
 curl -s -X PATCH -H "Authorization: <token>" -H "If-Match: <revision>" \
   -H "Content-Type: application/json" \
   -d '{"logging":{"log_level":"verbose"}}' \
-  'http://127.0.0.1:<api>/v1/config?reload=instant'
+  'http://127.0.0.1:<api>/v1/config'
 ```
-
-## Runtime Reload Endpoints
-
-### `POST /v1/system/reload`
-
-Loads the current on-disk config under the API mutation lock and submits an immutable config snapshot to Maestro. `If-Match` is optional and uses the same revision contract as `PATCH /v1/config`. An empty body defaults to `{"mode":"instant","failure_policy":"keep_new"}`.
-
-```json
-{
-  "mode": "drain",
-  "timeout_secs": 30,
-  "failure_policy": "rollback"
-}
-```
-
-The endpoint returns `202` with `ReloadAccepted`. A concurrent non-terminal reload returns `409 reload_in_progress`. Config parsing or validation failure is reported before a command is submitted.
-
-### `GET /v1/system/reload/{id}`
-
-Returns `ReloadStatus` with `state` equal to `accepted`, `preparing`, `activating`, `draining`, `succeeded`, `rolled_back`, or `failed`. Terminal statuses include `finished_at_epoch_secs`; failures include `error`. Successful activation may include `warnings` for old-generation cleanup failures and `deferred_process_fields` for process-owned settings.
-
-Runtime generation activation rebuilds statistics, upstream routing, replay and buffer state, IP tracking, admission state, and the WEB runtime (vhost and carrier profiles). All `listener` fields, including the bound socket and its acceptor, are process-scoped: any listener change (including an endpoint move) is deferred to process restart and reported as a deferred field. API, metrics, PID ownership, and logging remain process-scoped. Maestro does not invoke systemd, containerd, or another process supervisor.
-
-The revision is verified again after preparation. With `failure_policy=rollback`, a changed revision or revision read failure rolls the candidate back; with `failure_policy=keep_new`, the condition is reported in `warnings` and activation continues.
 
 ## WEB Proxy Management
 
@@ -966,21 +895,20 @@ The API exposes WEB desired configuration through the common config resource, pr
 
 | Operation | Current contract |
 | --- | --- |
-| Read or patch `[web]`, the vhost table, profiles, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge; changing `web.vhost.base_path` therefore requires the complete vhost table. `web.limits` and `web.fallback_fasttrack_mode` remain process-deferred. |
-| Persist `[listener]` | Supported through `PATCH /v1/config`; the table deep-merges field-by-field. All listener fields are process-bound: any change (including an endpoint move) remains deferred until process restart. |
-| Apply an externally edited WEB config | Update the owning TOML source, call `POST /v1/system/reload`, then poll `GET /v1/system/reload/{id}`. |
-| Inspect restart requirements | Read `deferred_process_fields` from reload status. Every `listener` change, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings require process restart. |
+| Read or patch `[web]`, the vhost table, profiles, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge; changing `web.vhost.base_path` therefore requires the complete vhost table. Changed values apply at the next process restart. |
+| Persist `[listener]` | Supported through `PATCH /v1/config`; the table deep-merges field-by-field. All listener fields are process-bound: any change (including an endpoint move) applies only at the next process restart. |
+| Apply an externally edited WEB config | Update the owning TOML source, then restart the service. |
 | Inspect WEB lifecycle, capacity, sessions, operations, learning, and debug state | Use the authenticated `GET /v1/runtime/web/*` routes documented above. |
 | Pause, drain, or resume new WEB work | Use `POST /v1/runtime/web/lifecycle/pause`, `/drain`, or `/resume` with the current `runtime_instance`. |
-| Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`; close-all first requires effective issuance to be disabled. |
+| Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`; the `all` selector is rejected while effective issuance remains enabled. For a full stop, use a bounded `POST /v1/runtime/web/lifecycle/drain`. |
 | Clear debug records or reset carrier learning | Use `POST /v1/runtime/web/debug/clear` or `/carrier-learning/reset` with the current `runtime_instance`. |
 | Manage access users | Use `/v1/users`. Creating a user does not add per-vhost profile membership; new users are covered automatically by `web.secret_mode`, otherwise add membership through the `web` config patch. |
-| Rotate a profiled user's secret | Use `/v1/users/{username}/rotate-secret`; the durable credential identity is staged immediately and active owners for the old identity are cancelled. The config watcher rebuilds WEB capabilities from the new access snapshot. The API returns the raw secret, not a `tg://webproxy` link. |
+| Rotate a profiled user's secret | Use `/v1/users/{username}/rotate-secret`; the durable credential identity is staged immediately and active owners for the old identity are cancelled. The API returns the raw secret, not a `tg://webproxy` link. |
 | Read WEB-specific runtime diagnostics | Use authenticated `GET /web-status`; filters cover client IP, process session ID, User-Agent, and non-secret key fingerprint, with optional grouping, expandable HTTP request-to-response details, and WebSocket handshake/message/frame rows. |
 
-`web.enabled`, `web.carrier`, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots are runtime-generation fields. A changed carrier applies only to newly issued bridge sessions; existing sessions and issued bootstrap chains retain their issuance-time policy. `web.enabled=false` stops new issuance but never closes live sessions implicitly. WEB listener inventory and trust policy, plus all `[web.limits]`, are process-owned. A successful reload can therefore activate the runtime-owned subset while reporting the process-owned subset as deferred.
+`web.enabled`, `web.carrier`, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots are read at process start and stay in effect for the lifetime of the process; a carrier change applies to bridge sessions issued after the next restart, and live sessions retain their issuance-time policy. `web.enabled=false` stops new issuance from the next process start and never closes live sessions implicitly. WEB listener inventory and trust policy, plus all `[web.limits]`, are process-owned.
 
-`base_path` scopes only the WEB data listener. It never prefixes Control API `/v1/*`, `/web-status`, or `/metrics`. `GET /v1/config` shows the desired path but does not prove runtime activation because WEB status intentionally exposes no host, path, or capability. Confirm a terminal reload, the expected `runtime.generation_id`, and external probes of the new and old exact routes. Paths and base paths are never Prometheus labels.
+`base_path` scopes only the WEB data listener. It never prefixes Control API `/v1/*`, `/web-status`, or `/metrics`. `GET /v1/config` shows the desired path but does not prove runtime activation because WEB status intentionally exposes no host, path, or capability. Confirm the process restart and probe the new exact route externally. Paths and base paths are never Prometheus labels.
 
 Before deleting a user referenced by a WEB profile, remove and apply the profile first. User mutations validate the complete resulting configuration, so a dangling WEB profile is rejected rather than persisted.
 
@@ -994,7 +922,7 @@ Deployment, TLS-terminator examples, links, and WEB-specific verification are do
 
 | Endpoint | Notes |
 | --- | --- |
-| `PATCH /v1/config` | Deep-merges and validates the patch, writes touched sections via atomic `tmp + rename`, and optionally submits the exact written revision for an in-process Maestro reload. |
+| `PATCH /v1/config` | Deep-merges and validates the patch, writes touched sections via atomic `tmp + rename`, and reports the new revision plus the changed top-level sections. |
 | `POST /v1/users` | Creates and validates a user, atomically updates only affected `access.*` TOML tables, then stages the credential in process-wide admission after the durable write. |
 | `PATCH /v1/users/{username}` | Partial update of provided fields only. Missing fields remain unchanged; explicit `null` removes optional entries. Admission is staged only when `secret` changes; an identity change cancels current owners, while a metadata-only patch does not. |
 | `POST /v1/users/{username}/rotate-secret` | Replaces the user's secret with a provided valid 32-hex value or a generated value, stages the new process-wide admission identity, cancels owners of the old identity, then returns the effective secret in `CreateUserResponse`. |
@@ -1062,12 +990,10 @@ The current runtime exports these additional bounded-cardinality families. All u
 | Bind failure | Failed API bind logs warning and API task exits (no auto-retry loop). |
 | Upstream runtime endpoint | `/v1/stats/upstreams` always returns `zero`, but runtime fields (`summary`, `upstreams`) require `[api].minimal_runtime_enabled=true`. |
 | Restart requirements | `api` changes are restart-required for predictable behavior. |
-| Hot-reload nuance | A pure `api`-only config change may not propagate through watcher broadcast; a mixed change (with hot fields) may propagate API flags while still warning that restart is required. |
-| Runtime apply path | Successful writes are picked up by existing config watcher/hot-reload path. |
 | Exposure | Built-in TLS/mTLS is not provided. Use loopback bind + reverse proxy if needed. |
 | Pagination | User list currently has no pagination/filtering. |
 | Serialization side effect | Updated TOML table bodies are re-serialized on write. Endpoints that persist full config can still rewrite broader formatting/comments. |
 
 ## Known Limitations (Current Release)
 
-- API runtime controls under `api` are documented as restart-required; hot-reload behavior for these fields is not strictly uniform in all change combinations.
+- API runtime controls under `api` are documented as restart-required; a change to them applies only at the next process restart.

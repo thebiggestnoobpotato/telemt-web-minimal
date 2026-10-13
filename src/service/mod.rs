@@ -131,7 +131,6 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart={exe} --foreground --pid-file {pid_file} {config}
-ExecReload=/bin/kill -HUP $MAINPID
 PIDFile={pid_file}
 Restart=always
 RestartSec=5
@@ -203,12 +202,6 @@ start_pre() {{
     checkpath --directory --owner {user}:{group} --mode 0755 /var/lib/telemt
     checkpath --directory --owner {user}:{group} --mode 0755 /var/log/telemt
 }}
-
-reload() {{
-    ebegin "Reloading ${{RC_SVCNAME}}"
-    start-stop-daemon --signal HUP --pidfile "${{pidfile}}"
-    eend $?
-}}
 "#,
         description = opts.description,
         exe = opts.exe_path.display(),
@@ -260,22 +253,10 @@ command="{exe}"
 command_args="--daemon --syslog --pid-file ${{telemt_pidfile}} ${{telemt_config}}"
 
 start_precmd="telemt_prestart"
-reload_cmd="telemt_reload"
-extra_commands="reload"
 
 telemt_prestart() {{
     install -d -o ${{telemt_user}} -g ${{telemt_group}} -m 755 /var/run
     install -d -o ${{telemt_user}} -g ${{telemt_group}} -m 755 /var/lib/telemt
-}}
-
-telemt_reload() {{
-    if [ -f "${{pidfile}}" ]; then
-        echo "Reloading ${{name}} configuration."
-        kill -HUP $(cat ${{pidfile}})
-    else
-        echo "${{name}} is not running."
-        return 1
-    fi
 }}
 
 run_rc_command "$1"
@@ -304,8 +285,8 @@ To check status:
 To view logs:
   journalctl -u telemt -f
 
-To reload configuration:
-  sudo systemctl reload telemt
+To apply configuration changes:
+  sudo systemctl restart telemt
 "#
         }
         InitSystem::OpenRC => {
@@ -317,8 +298,8 @@ To reload configuration:
 To check status:
   sudo rc-service telemt status
 
-To reload configuration:
-  sudo rc-service telemt reload
+To apply configuration changes:
+  sudo rc-service telemt restart
 "#
         }
         InitSystem::FreeBSDRc => {
@@ -330,8 +311,8 @@ To reload configuration:
 To check status:
   sudo service telemt status
 
-To reload configuration:
-  sudo service telemt reload
+To apply configuration changes:
+  sudo service telemt restart
 "#
         }
         InitSystem::Unknown => {
@@ -354,7 +335,6 @@ mod tests {
         assert!(unit.contains("[Unit]"));
         assert!(unit.contains("[Service]"));
         assert!(unit.contains("[Install]"));
-        assert!(unit.contains("ExecReload="));
         assert!(unit.contains("PIDFile="));
     }
 
@@ -386,7 +366,6 @@ mod tests {
         let script = generate_openrc_script(&opts);
         assert!(script.contains("#!/sbin/openrc-run"));
         assert!(script.contains("depend()"));
-        assert!(script.contains("reload()"));
     }
 
     #[test]

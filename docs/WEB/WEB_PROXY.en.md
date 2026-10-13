@@ -110,11 +110,11 @@ enabled = true
 secret_mode = "dd"
 ```
 
-Accepted-socket overload handling is independently configurable. `drop` preserves the legacy close after `accept(2)`. `respond` writes an empty retryable `503` without parsing a request. `wait` waits outside the accept loop for ordinary connection capacity and then enters normal HTTP handling; timeout writes the same `503`. Both waiting and response writing use `web.timeouts.http_overload_timeout_ms` per phase. `web.limits.max_http_overload_connections` bounds sockets outside ordinary capacity and requires a process restart when changed; the action and timeout are hot-reloadable.
+Accepted-socket overload handling is independently configurable. `drop` preserves the legacy close after `accept(2)`. `respond` writes an empty retryable `503` without parsing a request. `wait` waits outside the accept loop for ordinary connection capacity and then enters normal HTTP handling; timeout writes the same `503`. Both waiting and response writing use `web.timeouts.http_overload_timeout_ms` per phase. `web.limits.max_http_overload_connections` bounds sockets outside ordinary capacity; a change to it, the action, or the timeout applies at the next process restart.
 
 `base_path` defaults to empty. A non-empty value is at most 128 ASCII bytes and consists of slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments without leading or trailing slash. The root vhost (empty `base_path`) preserves the v1 capability derivation. A path vhost uses the v2 context over the exact canonical host and base path, so changing case or any segment changes both the route and capability.
 
-`fallback_fasttrack_mode` controls only capability work for `GET/HEAD` at the configured base root. `off` is the default and preserves the legacy full scan without fast-track counters. `shadow` records which structurally impossible requests could bypass the scan but still performs the complete legacy scan. `enforce` bypasses capability work only for `HEAD` or an absent/noncanonical `bridge` query. Every exact canonical bridge GET at the base root performs a complete scan across all profiles of the selected vhost, for both matches and misses. The setting requires a process restart; reload persists the desired value but reports `web.fallback_fasttrack_mode` as deferred. Fast-track does not protect against adversarial CPU load because a scanner can always submit canonical candidates, and enforce mode may expose a public request-shape timing class. Do not enable enforce without external timing measurements through the production TLS terminator.
+`fallback_fasttrack_mode` controls only capability work for `GET/HEAD` at the configured base root. `off` is the default and preserves the legacy full scan without fast-track counters. `shadow` records which structurally impossible requests could bypass the scan but still performs the complete legacy scan. `enforce` bypasses capability work only for `HEAD` or an absent/noncanonical `bridge` query. Every exact canonical bridge GET at the base root performs a complete scan across all profiles of the selected vhost, for both matches and misses. The setting is process-owned: a changed value applies at the next process restart. Fast-track does not protect against adversarial CPU load because a scanner can always submit canonical candidates, and enforce mode may expose a public request-shape timing class. Do not enable enforce without external timing measurements through the production TLS terminator.
 
 ## Server-side carrier negotiation
 
@@ -344,17 +344,17 @@ log {
 
 Set `web_trusted_proxy_cidrs` to the address Caddy uses to connect to Telemt, for example `["127.0.0.1/32"]` for the configuration above.
 
-## Lifecycle and reload behavior
+## Lifecycle behavior
 
 | Configuration | Runtime behavior |
 | --- | --- |
 | WEB listener inventory, bind address, and trust policy | Process-owned; restart Telemt. |
 | Any `[web.limits]` value | Process-owned memory/resource contract; restart Telemt. |
-| `web.enabled`, carrier/negotiation policy, `web.debug`, timeouts, vhosts, profiles, and fallbacks | Applied by the config watcher or a runtime generation reload. |
-| A vhost `base_path` change | Atomically switches new HTTP routing and capability derivation. Reissue the generated link. Already upgraded WebSockets and in-flight routed exchanges continue. Later old-base requests carrying a process-authentic bootstrap or session token receive a local no-store `404`; the now-inactive old capability follows ordinary fallback handling. An existing session bearer remains usable only on the new exact base, while an unused bootstrap issued for the old capability cannot create a session on the new base. |
-| Operator pause/drain state | Process-owned and ephemeral; survives generation reload, never writes config, and resets to `running` after process restart. |
+| `web.enabled`, carrier/negotiation policy, `web.debug`, timeouts, vhosts, profiles, and fallbacks | Read at process start; a change applies at the next process restart. |
+| A vhost `base_path` change | Changes new HTTP routing and capability derivation from the next process restart. Reissue the generated link before the restart. After the restart, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling; old bootstraps and session tokens are process-local and no longer valid. |
+| Operator pause/drain state | Process-owned and ephemeral; never writes config, and resets to `running` at process start. |
 | Existing HTTP connections and WEB sessions | Keep their acquisition-time HTTP idle limit, carrier candidates, limits, body timeout, closed-token replay lifetime, and absolute session/negotiation deadlines; each issued bridge embeds its request, retry, recovery, and probe-coalescing values. A recovery epoch freezes its current bridge budget, while a successful recovery representation refreshes the policy used by later epochs and the fresh session. WebSocket upgrade, open, write, backpressure, and eviction operations use the parent session's frozen deadlines. Newly issued bridges use the active policy, while new logical streams use the active relay generation. |
-| Process shutdown | Captures the latest reloaded `web.timeouts.shutdown_secs` once and shares that single absolute deadline across listener acceptors and connections plus WEB sessions and auxiliary tasks. The waits do not receive sequential per-component budgets. |
+| Process shutdown | Captures the configured `web.timeouts.shutdown_secs` once and shares that single absolute deadline across listener acceptors and connections plus WEB sessions and auxiliary tasks. The waits do not receive sequential per-component budgets. |
 
 Each logical stream keeps its session's creation-time client IP and owns a process-unique, non-zero synthetic source port for the complete relay lifetime. This preserves one stable, non-colliding source/destination tuple for the direct-relay KDF routing.
 
@@ -362,7 +362,7 @@ HTTP idle accounting protects only explicitly bounded request-body, long-poll, f
 
 An `OPEN` reserves the bounded logical-stream and tuple ownership but does not consume the relay generation's `max_connections` permit. Telemt acquires that permit only after the first inner byte arrives; the frozen first-byte deadline and stream limits bound silent opens, and capacity exhaustion then closes only the affected stream.
 
-Treat a live `base_path` change as a credential-bearing route migration. Stop issuing or distribute no new old links, prepare the new link, drain affected sessions when feasible, apply the reload, verify the new route through the public TLS endpoint, and then distribute the new link. Keep both the old and new frontend prefixes routed to Telemt while old capabilities or tokens may still arrive: Telemt must perform the credential-aware local rejection. One vhost cannot accept both bases simultaneously. A true overlap window requires a second hostname/vhost and, when the same host must be retained, a separate process or deployment boundary.
+Treat a live `base_path` change as a credential-bearing route migration. Stop issuing or distribute no new old links, prepare the new link, drain affected sessions when feasible, restart the service, verify the new route through the public TLS endpoint, and then distribute the new link. Keep the old frontend prefix routed to Telemt while old links may still arrive: requests on the old base are no longer routed by the vhost and follow ordinary fallback handling. One vhost cannot accept both bases simultaneously. A true overlap window requires a second hostname/vhost and, when the same host must be retained, a separate process or deployment boundary.
 
 ## API management
 
@@ -370,9 +370,9 @@ WEB configuration, runtime status, and bounded runtime controls share the authen
 
 | Operation | API support |
 | --- | --- |
-| Read or patch `[web]`, vhosts, profiles, fallbacks, timeouts, or limits | Yes, through `GET` or `PATCH /v1/config`. The derived `web.runtime` snapshot is never returned or writable. Nested tables merge field-by-field; arrays replace the previous array wholesale. Every `[web.limits]` change is accepted as desired configuration but reported as deferred until process restart. |
-| Persist `[listener]` | Yes, through `PATCH /v1/config`, but a changed WEB listener remains deferred until process restart. |
-| Apply an externally edited WEB configuration | Yes, through `POST /v1/system/reload`, then inspect the operation status. |
+| Read or patch `[web]`, vhosts, profiles, fallbacks, timeouts, or limits | Yes, through `GET` or `PATCH /v1/config`. The derived `web.runtime` snapshot is never returned or writable. Nested tables merge field-by-field; arrays replace the previous array wholesale. Changed `[web.limits]` values apply at the next process restart. |
+| Persist `[listener]` | Yes, through `PATCH /v1/config`; a changed WEB listener applies at the next process restart. |
+| Apply an externally edited WEB configuration | Edit the TOML file, then restart the service. |
 | Inspect bounded server-side WEB request and lifecycle details | Yes, through authenticated `GET /web-status`. |
 | Inspect lifecycle, capacity planes, learning/debug state, and live sessions | Yes, through `GET /v1/runtime/web/status` and `/v1/runtime/web/sessions`. |
 | Close selected live WEB sessions | Yes, through the asynchronous `POST /v1/runtime/web/sessions/close` operation. |
@@ -406,12 +406,12 @@ Every runtime POST requires `Content-Type: application/json` exactly, rejects un
 
 - `POST /v1/runtime/web/lifecycle/pause` with `{"runtime_instance":"..."}`. It blocks new bootstrap, session incarnation, replacement, and logical-stream admission after a linearizable fence. Existing carrier exchanges and streams continue, exact session replay remains available, and bridge rejection stays on the fallback route.
 - `POST /v1/runtime/web/lifecycle/drain` with `{"runtime_instance":"...","timeout_secs":30}`. It returns `202`, keeps the same admission fence closed, and waits asynchronously for sessions, streams, and session-owned WebSockets. At the monotonic deadline it signals close to every remaining live session and reports `force_closing` until zero is confirmed. Natural and forced completion both remain closed until resume. A concurrent second drain returns `409 web_lifecycle_in_progress`.
-- `POST /v1/runtime/web/lifecycle/resume` with `{"runtime_instance":"..."}`. It cancels an active drain and reopens only operator admission. If forced close already committed, old session cancellation cannot be undone. Config, user, generation, and terminal shutdown gates still dominate.
+- `POST /v1/runtime/web/lifecycle/resume` with `{"runtime_instance":"..."}`. It cancels an active drain and reopens only operator admission. If forced close already committed, old session cancellation cannot be undone. Config, user, and terminal shutdown gates still dominate.
 - `POST /v1/runtime/web/sessions/close` with one selector: `{"kind":"refs","session_refs":[...]}`, `{"kind":"filter",...}`, or `{"kind":"all"}`. Exact refs are limited to 200, a filter must be non-empty, only one close operation may run, and `all` is rejected while effective issuance remains enabled. The `202` response returns `operation_id`; poll `GET /v1/runtime/web/operations/{operation_id}`. The operation scans only sessions at or below its submission high-water mark in chunks of 128.
 - `POST /v1/runtime/web/debug/clear` with `{"runtime_instance":"..."}`. The response reports cleared records, bytes still leased by already rendered snapshots, and the new epoch. In-flight writers from the old epoch cannot repopulate the ring.
 - `POST /v1/runtime/web/carrier-learning/reset` with the same body shape. It clears retained process-local evidence and advances the learning epoch; already frozen attempt chains and live sessions are unchanged.
 
-For a deterministic close-all, patch `{"web":{"enabled":false}}` with runtime reload enabled, wait until `runtime.manager.issuance_enabled` is `false`, submit the `all` selector using that same `runtime_instance`, and poll the operation to a terminal state. Disabling WEB stops new bootstrap/session issuance but never implicitly closes existing sessions.
+For a deterministic close-all, submit `POST /v1/runtime/web/lifecycle/drain` with a bounded `timeout_secs`: at the deadline it force-closes every remaining live session and reports `force_closing` until zero is confirmed. The `all` close selector is rejected while effective issuance remains enabled, and `web.enabled = false` stops new bootstrap/session issuance only from the next process start.
 
 Operator lifecycle is WEB-only and does not change global readiness, liveness, or any other process-scoped state. A pre-pause WebSocket lane reservation is already admitted logical work: it may finish opening and remains included in drain accounting. Lifecycle rejection consumes no rate/quota tokens and adds no hot-path relay lock.
 
@@ -436,26 +436,19 @@ max_window_secs = 3600
 
 Open `http://127.0.0.1:9091/web-status` with the same direct-peer whitelist and exact `Authorization` header used by the API. A trailing slash is accepted. Only `GET` is allowed. The page supports `window_secs`, canonical `ip`, numeric `session`, case-insensitive `user_agent`, and `key` filters. Repeat `group_by=ip`, `group_by=session`, `group_by=user_agent`, or `group_by=key` to build grouped summaries; `limit` is restricted to `1..=1000`. HTTP rows expand from request through response with method, path, sanitized headers, body metadata or bytes, timing points, parsed frames, and typed lifecycle events, including carrier attempt, commit, healthy, reported-failure, exact close reason, peer gap, and recovered-session predecessor transitions. WebSocket operation adds the sanitized `GET` to `101` handshake plus bounded per-message direction, message type, payload/body capture, processing time, connection/lane identifiers, and parsed inner frames. Raw subprotocols and session tokens are never retained.
 
-The process-owned ring survives runtime generation replacement. Capture-policy changes clear incompatible retained records; window-only changes do not. The ring defaults to 65536 records and 64 MiB retained plus in-flight bytes, the HTML response is capped at 8 MiB, grouping is capped at 1024 groups, and no more than two response bodies retain page permits concurrently. Change `web.limits.debug_records_capacity` or `web.limits.debug_bytes_global` only with a process restart. A hot prefix that fits only a simultaneously increased restart-only capacity is deferred until that restart.
+The process-owned ring is cleared at process restart. The ring defaults to 65536 records and 64 MiB retained plus in-flight bytes, the HTML response is capped at 8 MiB, grouping is capped at 1024 groups, and no more than two response bodies retain page permits concurrently. A changed `web.limits.debug_records_capacity` or `web.limits.debug_bytes_global` applies at the next process restart, and a `web.debug` prefix that fits only a larger capacity takes effect only when that capacity is active at process start.
 
 `body_capture = "off"` omits bodies, `metadata` retains lengths and terminal states, `prefix` retains configured prefixes, and `full` retains recognized carrier bodies up to `web.limits.max_body_bytes`. Ordinary fallback bodies remain limited by `fallback_body_prefix_bytes` even in `full` mode. Queries and raw capabilities are never stored; credential header values are omitted; known WEB capabilities and bearer tokens are scrubbed from captured bodies; the displayed key is a non-secret domain-separated fingerprint. Timing ends at Hyper body polling and does not claim kernel flush or TCP acknowledgment.
 
-Generated-bridge sideband reporting is effective only when `enabled`, `capture_lifecycle`, and `sideband` are all `true`. The policy is hot-reloadable, but only newly issued bridge pages contain the reporter. Each page can report each of the eight fixed events at most once: `runtime_started`, `status_posted`, `hello_received`, `boundary_timeout`, `hello_timeout`, `client_close_before_hello`, `document_unloaded_before_hello`, and `runtime_error_before_hello`. Reports are exact canonical JSON POSTs to `BASEapi/v1/diagnostic`, use the bootstrap bearer without consuming it, and do not participate in carrier framing. Malformed or unauthenticated reports follow the sanitized fallback path.
+Generated-bridge sideband reporting is effective only when `enabled`, `capture_lifecycle`, and `sideband` are all `true`. The policy is read at process start; only bridge pages generated after it is enabled contain the reporter. Each page can report each of the eight fixed events at most once: `runtime_started`, `status_posted`, `hello_received`, `boundary_timeout`, `hello_timeout`, `client_close_before_hello`, `document_unloaded_before_hello`, and `runtime_error_before_hello`. Reports are exact canonical JSON POSTs to `BASEapi/v1/diagnostic`, use the bootstrap bearer without consuming it, and do not participate in carrier framing. Malformed or unauthenticated reports follow the sanitized fallback path.
 
-After an administrator or configuration system atomically updates the TOML file, set `TELEMT_API_AUTH` to the exact value configured in `auth_header` and submit an observable generation reload:
+After an administrator or configuration system updates the TOML file, restart the service:
 
 ```bash
-curl -sS -X POST http://127.0.0.1:9091/v1/system/reload \
-  -H "Authorization: ${TELEMT_API_AUTH}" \
-  -H 'Content-Type: application/json' \
-  -d '{"mode":"drain","timeout_secs":30,"failure_policy":"rollback"}'
-
-# Use data.reload_id from the response.
-curl -sS http://127.0.0.1:9091/v1/system/reload/RELOAD_ID \
-  -H "Authorization: ${TELEMT_API_AUTH}"
+systemctl restart telemt
 ```
 
-A terminal `succeeded` status confirms runtime activation. Changed carrier, candidate, deadline, or learning policy is used by newly issued bridge sessions; existing sessions and in-flight attempt chains are not migrated. If `deferred_process_fields` contains `listener` or `web.limits`, the file is valid and persisted but those settings still require a Telemt restart.
+After the restart, the carrier, candidate, deadline, learning, and every other WEB value from the file is active. Sessions and in-flight attempt chains of the previous process do not survive the restart.
 
 Access-user operations use the existing endpoints, for example:
 
@@ -469,7 +462,7 @@ curl -sS -X POST http://127.0.0.1:9091/v1/users/web-user/rotate-secret \
   -d '{}'
 ```
 
-The config watcher rebuilds WEB capabilities after a secret rotation. The users API returns the secret, not a `tg://webproxy` URL; construct the link with the configured hostname and the profile's `plain` or `dd` representation. Before deleting a user referenced by a WEB profile, remove and apply that profile first so the resulting configuration remains valid.
+Secret rotation is effective immediately in the running process: the new durable credential identity is staged into admission and active owners of the old identity are cancelled. The users API returns the secret, not a `tg://webproxy` URL; construct the link with the configured hostname and the profile's `plain` or `dd` representation. Before deleting a user referenced by a WEB profile, remove and apply that profile first so the resulting configuration remains valid.
 
 See the complete [Control API contract](../Architecture/API/API.md) for request envelopes, revisions, failure modes, and all user endpoints.
 
@@ -480,7 +473,7 @@ See the complete [Control API contract](../Architecture/API/API.md) for request 
 - Telemt rejects a request locally when its URI or headers contain an active capability or any authentic token minted by the current process but the request does not match the carrier contract. Such credentials are never forwarded to the fallback. A merely canonical-looking forged value remains ordinary fallback traffic.
 - Keep one stable public address per vhost. If DNS returns several ingress addresses, each deployment must use the address matching its external path.
 - Bootstrap and session registries are process-local. A multi-process or multi-host upstream pool requires affinity for the complete vhost: initial and recovery root GET, session creation, uplink, downlink, WebSocket Upgrade, and DELETE. A single Telemt process needs no extra affinity.
-- An unused bootstrap survives a configuration reload only when the exact profile identity remains active: host, `public_addr`, user, secret mode, carrier candidates, negotiation deadlines, and capability. Existing created sessions retain their immutable carrier and profile identity and remain lifecycle-bounded.
+- An unused bootstrap is process-local and is retired at process restart; within one process it remains valid only while the exact profile identity remains active: host, `public_addr`, user, secret mode, carrier candidates, negotiation deadlines, and capability. Existing created sessions retain their immutable carrier and profile identity and remain lifecycle-bounded.
 - The fallback is part of the anti-probing contract. Verify its ordinary 404 behavior and response timing through the public TLS endpoint before distributing links.
 
 ## Initial verification
@@ -499,7 +492,7 @@ See the complete [Control API contract](../Architecture/API/API.md) for request 
 
 | Symptom | Check |
 | --- | --- |
-| WEB configuration is valid on disk but listener behavior did not change | Inspect reload `deferred_process_fields`; listener and `[web.limits]` changes require restart. |
+| WEB configuration is valid on disk but behavior did not change | The new values apply at the next process restart; restart the service. |
 | Carrier requests reach the fallback | Verify exact vhost, link secret mode, direct proxy CIDR, and one parseable `X-Forwarded-For` value. |
 | A link stopped working after `base_path` changed | Import the newly printed path link and verify that the complete new prefix reaches Telemt unchanged. Existing sessions may recover only through the new exact base; old capabilities cannot be reused. |
 | `/telegram/web` redirects to `/telegram/web/` | Add an exact non-WEB handler for the no-slash path. Only the slash-terminated configured subtree belongs to Telemt's WEB contract. |

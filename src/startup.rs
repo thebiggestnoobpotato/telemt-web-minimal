@@ -8,7 +8,6 @@ pub const COMPONENT_API_BOOTSTRAP: &str = "api_bootstrap";
 pub const COMPONENT_NETWORK_PROBE: &str = "network_probe";
 pub const COMPONENT_DC_CONNECTIVITY_PING: &str = "dc_connectivity_ping";
 pub const COMPONENT_LISTENERS_BIND: &str = "listeners_bind";
-pub const COMPONENT_CONFIG_WATCHER_START: &str = "config_watcher_start";
 pub const COMPONENT_METRICS_START: &str = "metrics_start";
 pub const COMPONENT_RUNTIME_READY: &str = "runtime_ready";
 
@@ -250,7 +249,6 @@ fn component_blueprint() -> Vec<StartupComponent> {
         component(COMPONENT_NETWORK_PROBE, "Network probe", 10.0),
         component(COMPONENT_DC_CONNECTIVITY_PING, "DC connectivity ping", 8.0),
         component(COMPONENT_LISTENERS_BIND, "Listener bind", 8.0),
-        component(COMPONENT_CONFIG_WATCHER_START, "Config watcher start", 2.0),
         component(COMPONENT_METRICS_START, "Metrics start", 1.0),
         component(COMPONENT_RUNTIME_READY, "Runtime ready", 1.0),
     ]

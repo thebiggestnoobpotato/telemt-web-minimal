@@ -18,10 +18,7 @@ use crate::transport::UpstreamManager;
 use crate::web::control::WebRuntimeControl;
 use crate::web::trace::WebTraceStore;
 
-use super::{
-    bootstrap, control_plane, generation, listeners, reload, reload_supervisor, runtime_startup,
-    runtime_tasks, shutdown,
-};
+use super::{bootstrap, control_plane, generation, listeners, runtime_startup, runtime_tasks, shutdown};
 
 // Shared maestro startup and main loop. `drop_after_bind` runs on Unix after listeners are
 // bound; it is a no-op on other platforms.
@@ -106,11 +103,8 @@ pub(super) async fn run_telemt_core(
     let web_runtime_control = WebRuntimeControl::new();
 
     let (admission_tx, admission_rx) = watch::channel(true);
-    let (reload_control, reload_commands) = reload::ReloadControl::channel(1);
     let (active_runtime_tx, active_runtime_rx) =
         watch::channel(None::<Arc<ArcSwap<generation::RuntimeGeneration>>>);
-    let (runtime_watch_tx, runtime_watch_rx) =
-        watch::channel(None::<generation::RuntimeWatchState>);
     startup_tracker
         .start_component(
             COMPONENT_API_BOOTSTRAP,
@@ -151,9 +145,8 @@ pub(super) async fn run_telemt_core(
             let proxy_shared_api = shared_state.clone();
             let config_path_api = config_path.clone();
             let startup_tracker_api = startup_tracker.clone();
-            let reload_control_api = reload_control.clone();
             let active_runtime_rx_api = active_runtime_rx.clone();
-            let runtime_watch_rx_api = runtime_watch_rx.clone();
+            let admission_rx_api = admission_rx.clone();
             let web_trace_api = web_trace.clone();
             let web_runtime_rx_api = web_runtime_control.subscribe();
             let api_control_plane = process_control_plane.clone();
@@ -168,9 +161,8 @@ pub(super) async fn run_telemt_core(
                     config_path_api,
                     process_started_at_epoch_secs,
                     startup_tracker_api,
-                    reload_control_api,
                     active_runtime_rx_api,
-                    runtime_watch_rx_api,
+                    admission_rx_api,
                     web_trace_api,
                     web_runtime_rx_api,
                     api_task_control_plane,
@@ -225,14 +217,12 @@ pub(super) async fn run_telemt_core(
 
     let runtime = runtime_startup::prepare_runtime(
         config,
-        &config_path,
         &decision,
         process_started_at,
         &startup_tracker,
         stats.clone(),
         upstream_manager.clone(),
         ip_tracker.clone(),
-        shared_state.clone(),
         direct_buffer_budget,
         max_connections,
         runtime_task_scope.clone(),
@@ -246,7 +236,7 @@ pub(super) async fn run_telemt_core(
 
     let runtime_generation = generation::RuntimeGeneration::new(
         1,
-        runtime.config_rx.clone(),
+        runtime.config.clone(),
         admission_rx,
         stats.clone(),
         upstream_manager.clone(),
@@ -280,7 +270,6 @@ pub(super) async fn run_telemt_core(
         return Err(error.into());
     }
 
-    runtime_watch_tx.send_replace(Some(active_runtime.load_full().watch_state()));
     active_runtime_tx.send_replace(Some(active_runtime.clone()));
     runtime_tasks::mark_runtime_ready(&startup_tracker).await;
 
@@ -290,17 +279,6 @@ pub(super) async fn run_telemt_core(
         web_trace.clone(),
         web_runtime_control,
     );
-    let reload_supervisor = reload_supervisor::ReloadSupervisor::spawn(
-        active_runtime.clone(),
-        reload_control,
-        reload_commands,
-        config_path,
-        runtime_log_filter,
-        runtime_watch_tx,
-        listener_manager,
-        web_trace,
-    );
-
     shutdown::spawn_signal_handlers(
         active_runtime.clone(),
         process_started_at,
@@ -309,7 +287,7 @@ pub(super) async fn run_telemt_core(
     shutdown::wait_for_shutdown(
         process_started_at,
         active_runtime,
-        reload_supervisor,
+        listener_manager,
         process_control_plane,
     )
     .await;

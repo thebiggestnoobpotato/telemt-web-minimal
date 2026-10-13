@@ -1,20 +1,14 @@
 use super::*;
 
 #[tokio::test]
-async fn carrier_method_api_defaults_and_patches_are_hot() {
+async fn carrier_method_api_defaults_and_patches_are_persisted() {
     let (path, _directory) = temp_config("[web]\nenabled = false\n");
     let (value, _) = read_managed_config(&path).await.unwrap();
     assert_eq!(value["web"]["carrier_method"].as_str(), Some("post"));
     for token in ["put", "post"] {
-        let active = ProxyConfig::load(&path).unwrap();
         let patch = serde_json::json!({"web": {"carrier_method": token}});
-        let mut response = apply_patch_to_path(&path, &patch, None).await.unwrap();
-        let desired = ProxyConfig::load(&path).unwrap();
-        reconcile_runtime_effect(&mut response, &active, &desired).unwrap();
-        assert!(!response.restart_required);
-        assert!(response.runtime_reload_required);
-        assert!(!response.process_restart_required);
-        assert!(response.deferred_process_fields.is_empty());
+        let response = apply_patch_to_path(&path, &patch, None).await.unwrap();
+        assert!(response.changed.iter().any(|section| section == "web"));
         let (value, revision) = read_managed_config(&path).await.unwrap();
         assert_eq!(value["web"]["carrier_method"].as_str(), Some(token));
         assert_eq!(revision, response.revision);
@@ -99,16 +93,12 @@ async fn patch_revision_conflict() {
 }
 
 #[tokio::test]
-async fn patch_logging_show_users_links_reports_restart_required() {
+async fn patch_logging_show_users_links_is_persisted() {
     // logging.show_users_links is process-owned: links are emitted once at
-    // listener bind time, so the change is deferred until a process restart.
+    // listener bind time, so the change applies at the next process start.
     let (path, _d) = temp_config("[general]\nfast_mode = true\n");
     let patch: Json = serde_json::json!({"logging": {"show_users_links": false}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
-    assert!(resp.restart_required);
-    assert!(resp.runtime_reload_required);
-    assert!(resp.process_restart_required);
-    assert!(resp.deferred_process_fields.iter().any(|f| f == "logging"));
     assert!(resp.changed.iter().any(|c| c == "logging"));
     let written = std::fs::read_to_string(&path).unwrap();
     assert!(written.contains("show_users_links = false"));
@@ -156,9 +146,8 @@ async fn read_managed_config_exposes_web_without_runtime_or_access_secrets() {
 }
 
 #[tokio::test]
-async fn patch_web_debug_is_hot_and_limits_are_process_deferred() {
+async fn patch_web_debug_and_limits_are_persisted() {
     let (path, _directory) = temp_config("[web]\nenabled = false\n");
-    let active = ProxyConfig::load(&path).unwrap();
     let debug_patch: Json = serde_json::json!({
         "web": {"debug": {
             "enabled": true,
@@ -166,52 +155,31 @@ async fn patch_web_debug_is_hot_and_limits_are_process_deferred() {
             "capture_headers": false
         }}
     });
-    let mut debug = apply_patch_to_path(&path, &debug_patch, None)
-        .await
-        .unwrap();
-    let desired = ProxyConfig::load(&path).unwrap();
-    reconcile_runtime_effect(&mut debug, &active, &desired).unwrap();
-    assert!(!debug.restart_required);
-    assert!(debug.runtime_reload_required);
-    assert!(!debug.process_restart_required);
+    let debug = apply_patch_to_path(&path, &debug_patch, None).await.unwrap();
     assert!(debug.changed.iter().any(|section| section == "web"));
+    let desired = ProxyConfig::load(&path).unwrap();
     assert!(desired.web.debug.sideband);
 
     let limits_patch: Json = serde_json::json!({
         // Extra HTTP heads must fit alongside the default-on conveyor metadata reservation.
         "web": {"limits": {"max_http_connections": 2049, "memory_envelope_bytes": 1610612736u64}}
     });
-    let limits = apply_patch_to_path(&path, &limits_patch, None)
-        .await
-        .unwrap();
-    assert!(limits.process_restart_required);
-    assert!(
-        limits
-            .deferred_process_fields
-            .iter()
-            .any(|field| field == "web.limits")
-    );
+    let limits = apply_patch_to_path(&path, &limits_patch, None).await.unwrap();
+    assert!(limits.changed.iter().any(|section| section == "web"));
+    let desired = ProxyConfig::load(&path).unwrap();
+    assert_eq!(desired.web.limits.max_http_connections, 2049);
 }
 
 #[tokio::test]
-async fn patch_web_fallback_fasttrack_requires_only_process_restart() {
+async fn patch_web_fallback_fasttrack_is_persisted() {
     let (path, _directory) = temp_config("[web]\nenabled = false\n");
-    let active = ProxyConfig::load(&path).unwrap();
     let patch: Json = serde_json::json!({
         "web": {"fallback_fasttrack_mode": "shadow"}
     });
-
-    let mut prepared = prepare_patch_to_path(&path, &patch, None).await.unwrap();
-    reconcile_runtime_effect(&mut prepared.response, &active, &prepared.desired_config).unwrap();
-    let response = prepared.response;
-
-    assert!(response.restart_required);
-    assert!(!response.runtime_reload_required);
-    assert!(response.process_restart_required);
-    assert_eq!(
-        response.deferred_process_fields,
-        vec!["web.fallback_fasttrack_mode".to_string()]
-    );
+    let response = apply_patch_to_path(&path, &patch, None).await.unwrap();
+    assert!(response.changed.iter().any(|c| c == "web"));
+    let written = std::fs::read_to_string(&path).unwrap();
+    assert!(written.contains("fallback_fasttrack_mode = \"shadow\""));
 }
 
 #[tokio::test]
@@ -440,45 +408,6 @@ async fn patch_rejects_multiple_source_owners_without_writing() {
 }
 
 #[tokio::test]
-async fn unavailable_reload_coordinator_is_detected_before_config_write() {
-    let (path, _dir) = temp_config("[general]\nfast_mode = true\n");
-    let original = tokio::fs::read_to_string(&path).await.unwrap();
-    let patch: Json = serde_json::json!({
-        "general": {"fast_mode": true}
-    });
-    let prepared = prepare_patch_to_path(&path, &patch, None).await.unwrap();
-    let (control, receiver) = crate::maestro::reload::ReloadControl::channel(1);
-    drop(receiver);
-
-    let error = match control
-        .reserve(prepared.response.revision.clone(), ReloadRequest::default())
-        .await
-    {
-        Ok(_) => panic!("closed reload coordinator must reject the reservation"),
-        Err(error) => error,
-    };
-
-    assert_eq!(error, ReloadSubmitError::MaestroUnavailable);
-    assert_eq!(tokio::fs::read_to_string(&path).await.unwrap(), original);
-}
-
-#[tokio::test]
-async fn failed_config_write_releases_reload_reservation() {
-    let dir = tempfile::tempdir().unwrap();
-    let (control, _receiver) = crate::maestro::reload::ReloadControl::channel(1);
-    let reservation = control
-        .reserve("candidate-revision".to_string(), ReloadRequest::default())
-        .await
-        .unwrap();
-
-    let result = write_atomic(dir.path().to_path_buf(), "invalid target".to_string()).await;
-    drop(reservation);
-
-    assert!(result.is_err());
-    assert_eq!(control.in_progress().await, None);
-}
-
-#[tokio::test]
 async fn patch_empty_is_rejected() {
     let (path, _d) = temp_config("[general]\nfast_mode = true\n");
     let patch: Json = serde_json::json!({});
@@ -486,15 +415,14 @@ async fn patch_empty_is_rejected() {
 }
 
 #[tokio::test]
-async fn patch_log_level_is_hot() {
-    // logging.log_level is hot-reloadable -> a patch changing only it must
-    // report restart_required = false (exercises the full apply path, not
-    // just the classifier). Default LogLevel is Normal; patch to "debug".
+async fn patch_log_level_is_persisted() {
+    // Default LogLevel is Normal; patch to "debug" and verify the persisted
+    // source reflects the change.
     let (path, _d) = temp_config("[general]\nfast_mode = true\n");
     let patch: Json = serde_json::json!({"logging": {"log_level": "debug"}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
-    assert!(!resp.restart_required);
-    assert!(!resp.runtime_reload_required);
-    assert!(!resp.process_restart_required);
     assert!(resp.changed.iter().any(|c| c == "logging"));
+    let written = tokio::fs::read_to_string(&path).await.unwrap();
+    let parsed: toml::Value = toml::from_str(&written).unwrap();
+    assert_eq!(parsed["logging"]["log_level"].as_str(), Some("debug"));
 }

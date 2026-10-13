@@ -6,8 +6,7 @@ use super::*;
 pub struct GeneralConfig {
     #[serde(default)]
     pub data_path: Option<PathBuf>,
-    /// Reject unknown TOML config keys during load.
-    /// Startup fails fast; hot-reload rejects the new snapshot and keeps the current config.
+    /// Reject unknown TOML config keys during load; startup fails fast.
     #[serde(default)]
     pub config_strict: bool,
     /// Allow IPv4 Telegram DC targets.

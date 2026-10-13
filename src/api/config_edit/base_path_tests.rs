@@ -46,18 +46,12 @@ async fn config_api_applies_valid_base_path_and_preserves_source_on_invalid_patc
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("config.toml");
     std::fs::write(&path, web_config()).unwrap();
-    let active = ProxyConfig::load(&path).unwrap();
 
-    let mut response = apply_patch_to_path(&path, &vhost_patch("MixedCase/path"), None)
+    let response = apply_patch_to_path(&path, &vhost_patch("MixedCase/path"), None)
         .await
         .unwrap();
+    assert!(response.changed.iter().any(|section| section == "web"));
     let desired = ProxyConfig::load(&path).unwrap();
-    let resolved = reconcile_runtime_effect(&mut response, &active, &desired).unwrap();
-    assert!(!response.restart_required);
-    assert!(response.runtime_reload_required);
-    assert!(!response.process_restart_required);
-    assert!(response.deferred_process_fields.is_empty());
-    assert!(resolved.runtime_changed);
     assert_eq!(
         desired
             .web
@@ -68,7 +62,7 @@ async fn config_api_applies_valid_base_path_and_preserves_source_on_invalid_patc
         "MixedCase/path"
     );
     assert_eq!(
-        resolved.effective.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].base,
+        desired.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].base,
         "/MixedCase/path/"
     );
 
