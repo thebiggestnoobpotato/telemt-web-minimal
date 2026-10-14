@@ -65,7 +65,6 @@ async fn mtproto_user_scan_timing_manual_benchmark() {
     let target_secret_hex = "dededededededededededededededede";
 
     let mut config = ProxyConfig::default();
-    config.access.ignore_time_skew = true;
 
     for i in 0..DECOY_USERS {
         config.users.insert(
@@ -78,8 +77,6 @@ async fn mtproto_user_scan_timing_manual_benchmark() {
         .users
         .insert(preferred_user.to_string(), target_secret_hex.to_string());
 
-    let replay_checker_preferred = ReplayChecker::new(65_536, Duration::from_secs(60));
-    let replay_checker_full_scan = ReplayChecker::new(65_536, Duration::from_secs(60));
     let peer_a: SocketAddr = "192.0.2.241:12345".parse().unwrap();
     let peer_b: SocketAddr = "192.0.2.242:12345".parse().unwrap();
 
@@ -101,7 +98,6 @@ async fn mtproto_user_scan_timing_manual_benchmark() {
             tokio::io::sink(),
             peer_a,
             &config,
-            &replay_checker_preferred,
             false,
             Some(preferred_user),
         )
@@ -116,7 +112,6 @@ async fn mtproto_user_scan_timing_manual_benchmark() {
             tokio::io::sink(),
             peer_b,
             &config,
-            &replay_checker_full_scan,
             false,
             None,
         )

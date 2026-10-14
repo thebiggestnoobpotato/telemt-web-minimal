@@ -11,14 +11,12 @@ use std::net::IpAddr;
 
 use super::defaults::*;
 
-mod access;
 mod api;
 mod general;
 mod general_impl;
 mod logging;
 mod metrics;
 mod network;
-mod policies;
 mod server;
 mod web;
 // WEB carrier tokens and fixed-slot policy helpers remain independent from bulky config types.
@@ -26,13 +24,11 @@ mod web_carrier;
 // WEB debug capture policy stays independent from the bulky config types.
 mod web_debug;
 
-pub use access::AccessConfig;
 pub use api::{ApiConfig, ApiGrayAction};
 pub use general::GeneralConfig;
 pub use logging::{LogLevel, LoggingConfig, LoggingDestination};
 pub use metrics::MetricsConfig;
 pub use network::{UpstreamConfig, UpstreamType};
-pub use policies::UserMaxUniqueIpsMode;
 #[allow(unused_imports)]
 pub use server::{ListenerConfig, ListenerEndpoint, WebClientIpSource};
 #[allow(unused_imports)]

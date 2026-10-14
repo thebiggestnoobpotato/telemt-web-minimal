@@ -74,7 +74,6 @@ pub(super) async fn handle(
             let users = users_from_config(
                 &disk_cfg,
                 &shared.stats,
-                &shared.ip_tracker,
                 Some(runtime_cfg.as_ref()),
             )
             .await;

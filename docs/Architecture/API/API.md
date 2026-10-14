@@ -104,7 +104,6 @@ Notes:
 | `POST` | `/v1/runtime/web/lifecycle/pause` | `RuntimeInstanceRequest` | `200` | `OperatorLifecycleStatus` |
 | `POST` | `/v1/runtime/web/lifecycle/drain` | `DrainRequest` | `202` | `OperatorLifecycleStatus` |
 | `POST` | `/v1/runtime/web/lifecycle/resume` | `RuntimeInstanceRequest` | `200` | `OperatorLifecycleStatus` |
-| `GET` | `/v1/stats/users/active-ips` | none | `200` | `UserActiveIps[]` |
 | `GET` | `/v1/stats/users` | none | `200` | `UserInfo[]` |
 | `GET` | `/v1/config` | none | `200` | `ConfigData` |
 | `PATCH` | `/v1/config` | sparse JSON object | `200` | `PatchConfigResponse` |
@@ -143,15 +142,14 @@ Notes:
 | `POST /v1/runtime/web/lifecycle/pause` | Ephemerally closes new WEB work admission without closing existing sessions or streams. |
 | `POST /v1/runtime/web/lifecycle/drain` | Starts one asynchronous graceful WEB drain under a bounded monotonic deadline. |
 | `POST /v1/runtime/web/lifecycle/resume` | Cancels an active drain, if any, and reopens only the operator-owned admission fence. |
-| `GET /v1/stats/users/active-ips` | Returns users that currently have non-empty active source-IP lists. |
 | `GET /v1/stats/users` | Alias of `GET /v1/users`; returns disk-first user views with runtime lag flag. |
-| `GET /v1/config` | Returns the current editable config sections as JSON (no `access.*`) plus the revision. |
+| `GET /v1/config` | Returns the current editable config sections as JSON plus the revision. |
 | `PATCH /v1/config` | Validates the merged candidate, writes it atomically, and reports the changed top-level sections. The written configuration becomes effective at the next process restart. |
 | `GET /v1/users` | Returns disk-first user views sorted by username. |
 | `POST /v1/users` | Creates a user and returns the effective user view plus secret. |
 | `GET /v1/users/{username}` | Returns one disk-first user view or `404` when absent. |
 | `PATCH /v1/users/{username}` | Updates selected per-user fields with JSON Merge Patch semantics. |
-| `DELETE /v1/users/{username}` | Deletes one user and related API-managed per-user access-map entries. |
+| `DELETE /v1/users/{username}` | Deletes one user from the API-managed `[users]` table. |
 | `POST /v1/users/{username}/rotate-secret` | Rotates one user's secret and returns the effective secret. |
 
 ## Common Error Codes
@@ -159,8 +157,7 @@ Notes:
 | HTTP | `error.code` | Trigger |
 | --- | --- | --- |
 | `400` | `bad_request` | Invalid JSON, validation failures, malformed request body. |
-| `400` | `access_not_editable` | `PATCH /v1/config` body contains an `access` key (managed via users API). |
-| `400` | `section_not_editable` | `PATCH /v1/config` body contains an unknown or non-editable top-level key (e.g. `server`, `api`, `network`). |
+| `400` | `section_not_editable` | `PATCH /v1/config` body contains an unknown or non-editable top-level key (e.g. `users`, `server`, `api`, `network`). |
 | `401` | `unauthorized` | Missing/invalid `Authorization` when `auth_header` is configured. |
 | `403` | `forbidden` | Source IP is not allowed by whitelist. |
 | `403` | `read_only` | Mutating endpoint called while `read_only=true`. |
@@ -217,21 +214,18 @@ Notes:
 | --- | --- | --- | --- |
 | `username` | `string` | yes | `[A-Za-z0-9_.-]`, length `1..64`. |
 | `secret` | `string` | no | Exactly 32 hex chars. If missing, generated automatically. |
-| `max_unique_ips` | `usize` | no | Per-user unique source IP limit. |
 
 ### `PatchUserRequest`
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `secret` | `string` | no | Exactly 32 hex chars. |
-| `max_unique_ips` | `usize` or `null` | no | Per-user unique source IP limit; `null` removes the per-user override. |
 
 ### `PatchConfigRequest`
 
 A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `listener`, `upstreams`, `web`). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
 
 **Rejected keys:**
-- `access` → `400 access_not_editable` (users/secrets are managed via `POST/PATCH /v1/users`).
-- An unknown or non-editable top-level key (e.g. `network`, `server`, `api`, `metrics`) → `400 section_not_editable`.
+- An unknown or non-editable top-level key (e.g. `users`, `network`, `server`, `api`, `metrics`) → `400 section_not_editable`. Users and secrets are managed via `POST/PATCH /v1/users`.
 - An object with no editable keys → `400 bad_request` (empty patch).
 
 Example — patch one `logging` field:
@@ -265,7 +259,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
 | `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation for every profile, instantiated for every `[users]` user in the vhost using the `[web.limits]` ceilings; `web.vhost` includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
 
-The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `access` (users/secrets), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are persisted by the patch but take effect only at the next process restart.
+The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are persisted by the patch but take effect only at the next process restart.
 
 ### WEB runtime identity and lifecycle
 
@@ -475,8 +469,6 @@ Returned by `PATCH /v1/config` on success (`200`).
 | Field | Type | Description |
 | --- | --- | --- |
 | `upstream` | `EffectiveUpstreamLimits` | Effective upstream connect/retry limits. |
-| `user_ip_policy` | `EffectiveUserIpPolicyLimits` | Effective unique-IP policy mode/window. |
-| `user_tcp_policy` | `EffectiveUserTcpPolicyLimits` | Effective per-user TCP connection policy. |
 
 #### `EffectiveUpstreamLimits`
 | Field | Type | Description |
@@ -732,20 +724,9 @@ Returned by `PATCH /v1/config` on success (`200`).
 | --- | --- | --- |
 | `username` | `string` | Username. |
 | `in_runtime` | `bool` | Whether current runtime config already contains this user. |
-| `max_unique_ips` | `usize?` | Optional unique IP limit. |
 | `current_connections` | `u64` | Live connections for this user from per-user telemetry; reports `0` while user telemetry is disabled. |
-| `active_unique_ips` | `usize` | Current active unique source IPs. |
-| `active_unique_ips_list` | `ip[]` | Current active unique source IP list. |
-| `recent_unique_ips` | `usize` | Unique source IP count inside the configured recent window. |
-| `recent_unique_ips_list` | `ip[]` | Recent-window unique source IP list. |
 | `total_octets` | `u64` | Total traffic octets for this user. |
 | `links` | `UserLinks` | Active connection links derived from current config. |
-
-### `UserActiveIps`
-| Field | Type | Description |
-| --- | --- | --- |
-| `username` | `string` | Username with at least one active tracked source IP. |
-| `active_ips` | `ip[]` | Active source IPs for this user. |
 
 #### `UserLinks`
 
@@ -778,7 +759,7 @@ Link generation:
 
 ### `GET /v1/config`
 
-Returns the current editable config sections as TOML-shaped JSON, plus the current revision. The `access` section (users and secrets) is always stripped and never appears in the response.
+Returns the current editable config sections as TOML-shaped JSON, plus the current revision. The `users` section (credentials) is always stripped and never appears in the response.
 
 **Auth:** requires `Authorization` header when `auth_header` is configured (same as all other endpoints).
 
@@ -818,8 +799,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 
 | Key | HTTP | `error.code` |
 | --- | --- | --- |
-| `access` | `400` | `access_not_editable` |
-| An unknown or non-editable top-level key (e.g. `server`, `api`, `network`) | `400` | `section_not_editable` |
+| An unknown or non-editable top-level key (e.g. `users`, `server`, `api`, `network`) | `400` | `section_not_editable` |
 | Object with no editable key | `400` | `bad_request` |
 
 **Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. In particular, `web.vhost` is a single table: changing its `base_path` requires sending the complete vhost table, including each required `host`, `public_addr`, `upstream`, and profile field. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched TOML table bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a TOML table returns `409 config_patch_not_atomic` without writing any file.
@@ -865,8 +845,7 @@ A valid base-path-only change reports `changed=["web"]`; the new base applies at
 | --- | --- | --- |
 | `200` | — | Patch applied successfully. |
 | `400` | `bad_request` | Invalid JSON, empty patch, or config validation/deserialization failure. |
-| `400` | `access_not_editable` | Patch contains an `access` key. |
-| `400` | `section_not_editable` | Patch contains an unknown or non-editable top-level key (e.g. `server`, `api`, `network`). |
+| `400` | `section_not_editable` | Patch contains an unknown or non-editable top-level key (e.g. `users`, `server`, `api`, `network`). |
 | `401` | `unauthorized` | Missing or invalid `Authorization` header. |
 | `403` | `read_only` | API is in read-only mode. |
 | `405` | `method_not_allowed` | Method other than `GET` or `PATCH` used on `/v1/config`. |
@@ -899,7 +878,7 @@ The API exposes WEB desired configuration through the common config resource, pr
 | Pause, drain, or resume new WEB work | Use `POST /v1/runtime/web/lifecycle/pause`, `/drain`, or `/resume` with the current `runtime_instance`. |
 | Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`. For a full stop, use a bounded `POST /v1/runtime/web/lifecycle/drain`. |
 | Clear debug records or reset carrier learning | Use `POST /v1/runtime/web/debug/clear` or `/carrier-learning/reset` with the current `runtime_instance`. |
-| Manage access users | Use `/v1/users`. Creating a user does not add per-vhost profile membership; new users are covered automatically by `web.secret_mode`, otherwise add membership through the `web` config patch. |
+| Manage users | Use `/v1/users`. Creating a user does not add per-vhost profile membership; new users are covered automatically by `web.secret_mode`, otherwise add membership through the `web` config patch. |
 | Rotate a profiled user's secret | Use `/v1/users/{username}/rotate-secret`; the durable credential identity is staged immediately and active owners for the old identity are cancelled. The API returns the raw secret, not a `tg://webproxy` link. |
 | Read WEB-specific runtime diagnostics | Use authenticated `GET /web-status`; filters cover client IP, process session ID, User-Agent, and non-secret key fingerprint, with optional grouping, expandable HTTP request-to-response details, and WebSocket handshake/message/frame rows. |
 
@@ -920,10 +899,10 @@ Deployment, TLS-terminator examples, links, and WEB-specific verification are do
 | Endpoint | Notes |
 | --- | --- |
 | `PATCH /v1/config` | Deep-merges and validates the patch, writes touched sections via atomic `tmp + rename`, and reports the new revision plus the changed top-level sections. |
-| `POST /v1/users` | Creates and validates a user, atomically updates only affected `access.*` TOML tables, then stages the credential in process-wide admission after the durable write. |
+| `POST /v1/users` | Creates and validates a user, atomically updates the API-managed `[users]` TOML table, then stages the credential in process-wide admission after the durable write. |
 | `PATCH /v1/users/{username}` | Partial update of provided fields only. Missing fields remain unchanged; explicit `null` removes optional entries. Admission is staged only when `secret` changes; an identity change cancels current owners, while a metadata-only patch does not. |
 | `POST /v1/users/{username}/rotate-secret` | Replaces the user's secret with a provided valid 32-hex value or a generated value, stages the new process-wide admission identity, cancels owners of the old identity, then returns the effective secret in `CreateUserResponse`. |
-| `DELETE /v1/users/{username}` | Deletes only the specified user, removes it from API-managed optional `access.user_*` maps, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates only related API-managed `access.*` TOML tables. |
+| `DELETE /v1/users/{username}` | Deletes only the specified user from the API-managed `[users]` table, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates the owning source file. |
 
 All accepted durable config and user mutations:
 - Respect `read_only` mode.

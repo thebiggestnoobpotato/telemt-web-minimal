@@ -15,7 +15,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
 }
 
@@ -221,32 +220,6 @@ fn test_encrypt_tg_nonce_with_ciphers_matches_manual_suffix_encryption() {
     );
 }
 
-#[tokio::test]
-async fn invalid_mtproto_probe_does_not_pollute_replay_cache() {
-    let config = test_config_with_secret_hex("11111111111111111111111111111111");
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
-    let peer: SocketAddr = "198.51.100.26:44325".parse().unwrap();
-    let handshake = [0u8; HANDSHAKE_LEN];
-
-    let before = replay_checker.stats();
-    let result = handle_mtproto_handshake(
-        &handshake,
-        tokio::io::empty(),
-        tokio::io::sink(),
-        peer,
-        &config,
-        &replay_checker,
-        false,
-        None,
-    )
-    .await;
-    let after = replay_checker.stats();
-
-    assert!(matches!(result, HandshakeResult::BadClient { .. }));
-    assert_eq!(before.total_additions, after.total_additions);
-    assert_eq!(before.total_hits, after.total_hits);
-}
-
 #[test]
 fn stress_decode_user_secrets_keeps_preferred_user_first_in_large_set() {
     let shared = ProxySharedState::new();
@@ -290,7 +263,6 @@ fn stress_decode_user_secrets_keeps_preferred_user_first_in_large_set() {
 async fn mtproto_runtime_snapshot_prefers_preferred_user_hint() {
     let mut config = ProxyConfig::default();
     config.users.clear();
-    config.access.ignore_time_skew = true;
     config.users.insert(
         "alpha".to_string(),
         "11111111111111111111111111111111".to_string(),
@@ -303,7 +275,6 @@ async fn mtproto_runtime_snapshot_prefers_preferred_user_hint() {
 
     let handshake =
         make_valid_mtproto_handshake("22222222222222222222222222222222", ProtoTag::Secure, 2);
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "198.51.100.214:44326".parse().unwrap();
     let shared = ProxySharedState::new();
 
@@ -313,7 +284,6 @@ async fn mtproto_runtime_snapshot_prefers_preferred_user_hint() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         Some("beta"),
         shared.as_ref(),
@@ -1218,7 +1188,6 @@ async fn saturation_allows_valid_mtproto_even_when_peer_ip_is_currently_throttle
 
     let secret_hex = "64646464646464646464646464646464";
     let mut config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "198.51.100.106:45106".parse().unwrap();
     let now = Instant::now();
 
@@ -1249,7 +1218,6 @@ async fn saturation_allows_valid_mtproto_even_when_peer_ip_is_currently_throttle
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
         shared.as_ref(),
@@ -1270,7 +1238,6 @@ async fn saturation_still_rejects_invalid_mtproto_probe_and_records_failure() {
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 
     let config = test_config_with_secret_hex("65656565656565656565656565656565");
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "198.51.100.107:45107".parse().unwrap();
     let now = Instant::now();
     {
@@ -1292,7 +1259,6 @@ async fn saturation_still_rejects_invalid_mtproto_probe_and_records_failure() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
         shared.as_ref(),
@@ -1313,7 +1279,6 @@ async fn saturation_grace_exhaustion_preauth_throttles_repeated_invalid_mtproto_
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 
     let config = test_config_with_secret_hex("65656565656565656565656565656565");
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "198.51.100.206:45206".parse().unwrap();
     let now = Instant::now();
     insert_auth_probe_state_for_testing_in_shared(
@@ -1343,7 +1308,6 @@ async fn saturation_grace_exhaustion_preauth_throttles_repeated_invalid_mtproto_
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
     )
@@ -1363,7 +1327,6 @@ async fn saturation_grace_progression_mtproto_reaches_cap_then_stops_incrementin
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 
     let config = test_config_with_secret_hex("71717171717171717171717171717171");
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "198.51.100.208:45208".parse().unwrap();
     let now = Instant::now();
     insert_auth_probe_state_for_testing_in_shared(
@@ -1398,7 +1361,6 @@ async fn saturation_grace_progression_mtproto_reaches_cap_then_stops_incrementin
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
             shared.as_ref(),
@@ -1426,7 +1388,6 @@ async fn saturation_grace_progression_mtproto_reaches_cap_then_stops_incrementin
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
         shared.as_ref(),

@@ -1,4 +1,3 @@
-use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -7,11 +6,9 @@ use tracing::warn;
 use crate::config::ProxyConfig;
 use crate::crypto::SecureRandom;
 use crate::error::{ProxyError, Result};
-use crate::ip_tracker::UserIpTracker;
 use crate::proxy::direct_relay::handle_via_direct_with_shared;
 use crate::proxy::handshake::HandshakeSuccess;
 use crate::proxy::shared_state::ProxySharedState;
-use crate::proxy::user_admission::UserIncarnation;
 use crate::stats::{Stats, UserConnectionObservation};
 use crate::stream::{BufferPool, CryptoReader, CryptoWriter};
 use crate::transport::UpstreamManager;
@@ -29,8 +26,6 @@ pub(crate) struct ClientRuntimeDeps {
     pub(crate) buffer_pool: Arc<BufferPool>,
     /// Process cryptographic random source.
     pub(crate) rng: Arc<SecureRandom>,
-    /// Per-user source-IP admission tracker.
-    pub(crate) ip_tracker: Arc<UserIpTracker>,
     /// Process-shared admission and relay coordination state.
     pub(crate) shared: Arc<ProxySharedState>,
 }
@@ -41,7 +36,6 @@ pub(crate) async fn run_authenticated<R, W>(
     client_writer: CryptoWriter<W>,
     success: HandshakeSuccess,
     deps: ClientRuntimeDeps,
-    peer_addr: SocketAddr,
 ) -> Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
@@ -60,18 +54,7 @@ where
         return Err(ProxyError::UserDisabled { user });
     };
 
-    let user_reservation = acquire_user_connection_reservation_for_incarnation(
-        &user,
-        user_incarnation,
-        Arc::clone(&deps.stats),
-        peer_addr,
-        Arc::clone(&deps.ip_tracker),
-    )
-    .await
-    .map_err(|error| {
-        warn!(user = %user, error = %error, "User admission check failed");
-        error
-    })?;
+    let user_reservation = UserConnectionReservation::new(&user, Arc::clone(&deps.stats));
     let Some(user_session) = deps
         .shared
         .register_authenticated_user_session(&user, credential_id)
@@ -96,7 +79,7 @@ where
         session_cancel,
     )
     .await;
-    user_reservation.release().await;
+    user_reservation.release();
     relay_result
 }
 
@@ -126,93 +109,31 @@ where
     .await
 }
 
-#[must_use = "the reservation owns source-IP admission until release or drop"]
-/// Owns one authenticated user's source-IP admission slot.
+#[must_use = "the reservation owns the connection observation until release or drop"]
+/// Owns one authenticated user's active-connection observation slot.
 pub(crate) struct UserConnectionReservation {
     stats: Arc<Stats>,
     _stats_observation: Option<UserConnectionObservation>,
-    ip_permit: Option<UserIpPermit>,
     released: bool,
 }
 
-struct UserIpPermit {
-    tracker: Arc<UserIpTracker>,
-    owner: Option<UserIpOwner>,
-}
-
-struct UserIpOwner {
-    user: String,
-    incarnation: UserIncarnation,
-    ip: IpAddr,
-}
-
-impl UserIpPermit {
-    fn new(
-        tracker: Arc<UserIpTracker>,
-        user: String,
-        incarnation: UserIncarnation,
-        ip: IpAddr,
-    ) -> Self {
-        Self {
-            tracker,
-            owner: Some(UserIpOwner {
-                user,
-                incarnation,
-                ip,
-            }),
-        }
-    }
-
-    async fn release(mut self) {
-        let Some(owner) = self.owner.as_ref() else {
-            return;
-        };
-        self.tracker
-            .remove_ip_for_incarnation(&owner.user, owner.incarnation, owner.ip)
-            .await;
-        self.owner = None;
-    }
-}
-
-impl Drop for UserIpPermit {
-    fn drop(&mut self) {
-        let Some(owner) = self.owner.take() else {
-            return;
-        };
-        self.tracker
-            .enqueue_cleanup_for_incarnation(owner.user, owner.incarnation, owner.ip);
-    }
-}
-
 impl UserConnectionReservation {
-    /// Creates a reservation fenced to one authenticated user incarnation.
-    pub(crate) fn new_for_incarnation(
-        stats: Arc<Stats>,
-        ip_tracker: Arc<UserIpTracker>,
-        user: String,
-        ip: IpAddr,
-        incarnation: UserIncarnation,
-        stats_observation: Option<UserConnectionObservation>,
-        tracks_ip: bool,
-    ) -> Self {
-        let ip_permit = tracks_ip.then(|| UserIpPermit::new(ip_tracker, user, incarnation, ip));
+    /// Creates a reservation observing one authenticated user's connection.
+    pub(crate) fn new(user: &str, stats: Arc<Stats>) -> Self {
+        let stats_observation = stats.observe_user_current_connection(user);
         Self {
             stats,
             _stats_observation: stats_observation,
-            ip_permit,
             released: false,
         }
     }
 
-    /// Releases the source-IP admission slot through the asynchronous cleanup path.
-    pub(crate) async fn release(mut self) {
-        if let Some(ip_permit) = self.ip_permit.take() {
-            ip_permit.release().await;
-        }
+    /// Releases the connection observation.
+    pub(crate) fn release(mut self) {
         self.released = true;
     }
 
-    /// Defers IP cleanup when admission fails after the asynchronous reservation step.
+    /// Marks the observation released when admission fails after the reservation step.
     pub(crate) fn release_deferred(mut self) {
         self.released = true;
     }
@@ -225,39 +146,4 @@ impl Drop for UserConnectionReservation {
         }
         self.stats.increment_session_drop_fallback_total();
     }
-}
-
-async fn acquire_user_connection_reservation_for_incarnation(
-    user: &str,
-    incarnation: UserIncarnation,
-    stats: Arc<Stats>,
-    peer_addr: SocketAddr,
-    ip_tracker: Arc<UserIpTracker>,
-) -> Result<UserConnectionReservation> {
-    let stats_observation = stats.observe_user_current_connection(user);
-
-    if let Err(reason) = ip_tracker
-        .check_and_add_for_incarnation(user, incarnation, peer_addr.ip())
-        .await
-    {
-        warn!(
-            user = %user,
-            ip = %peer_addr.ip(),
-            reason = %reason,
-            "IP limit exceeded"
-        );
-        return Err(ProxyError::ConnectionLimitExceeded {
-            user: user.to_string(),
-        });
-    }
-
-    Ok(UserConnectionReservation::new_for_incarnation(
-        stats,
-        ip_tracker,
-        user.to_string(),
-        peer_addr.ip(),
-        incarnation,
-        stats_observation,
-        true,
-    ))
 }

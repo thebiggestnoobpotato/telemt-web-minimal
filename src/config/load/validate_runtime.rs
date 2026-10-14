@@ -41,11 +41,5 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
     }
 
 
-    if config.access.user_max_unique_ips_window_secs == 0 {
-        return Err(ProxyError::Config(
-            "access.user_max_unique_ips_window_secs must be > 0".to_string(),
-        ));
-    }
-
     Ok(())
 }

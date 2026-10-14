@@ -9,20 +9,9 @@ pub(in crate::api) struct UserLinks {
 pub(in crate::api) struct UserInfo {
     pub(in crate::api) username: String,
     pub(in crate::api) in_runtime: bool,
-    pub(in crate::api) max_unique_ips: Option<usize>,
     pub(in crate::api) current_connections: u64,
-    pub(in crate::api) active_unique_ips: usize,
-    pub(in crate::api) active_unique_ips_list: Vec<IpAddr>,
-    pub(in crate::api) recent_unique_ips: usize,
-    pub(in crate::api) recent_unique_ips_list: Vec<IpAddr>,
     pub(in crate::api) total_octets: u64,
     pub(in crate::api) links: UserLinks,
-}
-
-#[derive(Serialize)]
-pub(in crate::api) struct UserActiveIps {
-    pub(in crate::api) username: String,
-    pub(in crate::api) active_ips: Vec<IpAddr>,
 }
 
 #[derive(Serialize)]
@@ -41,14 +30,11 @@ pub(in crate::api) struct DeleteUserResponse {
 pub(in crate::api) struct CreateUserRequest {
     pub(in crate::api) username: String,
     pub(in crate::api) secret: Option<String>,
-    pub(in crate::api) max_unique_ips: Option<usize>,
 }
 
 #[derive(Deserialize)]
 pub(in crate::api) struct PatchUserRequest {
     pub(in crate::api) secret: Option<String>,
-    #[serde(default, deserialize_with = "patch_field")]
-    pub(in crate::api) max_unique_ips: Patch<usize>,
 }
 
 #[derive(Default, Deserialize)]

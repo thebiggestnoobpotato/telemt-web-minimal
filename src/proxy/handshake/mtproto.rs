@@ -8,7 +8,6 @@ pub async fn handle_mtproto_handshake<R, W>(
     writer: W,
     peer: SocketAddr,
     config: &ProxyConfig,
-    replay_checker: &ReplayChecker,
     is_tls: bool,
     preferred_user: Option<&str>,
 ) -> HandshakeResult<(CryptoReader<R>, CryptoWriter<W>, HandshakeSuccess), R, W>
@@ -23,7 +22,6 @@ where
         writer,
         peer,
         config,
-        replay_checker,
         is_tls,
         preferred_user,
         None,
@@ -41,7 +39,6 @@ pub async fn handle_mtproto_handshake_with_shared<R, W>(
     writer: W,
     peer: SocketAddr,
     config: &ProxyConfig,
-    replay_checker: &ReplayChecker,
     is_tls: bool,
     preferred_user: Option<&str>,
     shared: &ProxySharedState,
@@ -56,7 +53,6 @@ where
         writer,
         peer,
         config,
-        replay_checker,
         is_tls,
         preferred_user,
         None,
@@ -73,7 +69,6 @@ pub(crate) async fn handle_mtproto_handshake_for_web_user<R, W>(
     writer: W,
     peer: SocketAddr,
     config: &ProxyConfig,
-    replay_checker: &ReplayChecker,
     exact_user: &str,
     secret_mode: WebSecretMode,
     shared: &ProxySharedState,
@@ -88,7 +83,6 @@ where
         writer,
         peer,
         config,
-        replay_checker,
         false,
         None,
         Some(exact_user),
@@ -104,7 +98,6 @@ async fn handle_mtproto_handshake_impl<R, W>(
     writer: W,
     peer: SocketAddr,
     config: &ProxyConfig,
-    replay_checker: &ReplayChecker,
     is_tls: bool,
     preferred_user: Option<&str>,
     exact_user: Option<&str>,
@@ -325,18 +318,6 @@ where
             return HandshakeResult::BadClient { reader, writer };
         };
 
-        // Apply replay tracking only after successful authentication.
-        //
-        // This ordering prevents an attacker from producing invalid handshakes that
-        // still collide with a valid handshake's replay slot and thus evict a valid
-        // entry from the cache. We accept the cost of performing the full
-        // authentication check first to avoid poisoning the replay cache.
-        if replay_checker.check_and_add_handshake(dec_prekey_iv) {
-            auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-            warn!(peer = %peer, user = %matched_user, "MTProto replay attack detected");
-            return HandshakeResult::BadClient { reader, writer };
-        }
-
         let dec_key = Zeroizing::new(validation.dec_key);
         let enc_key = Zeroizing::new(validation.enc_key);
         let success = HandshakeSuccess {
@@ -410,18 +391,6 @@ where
                 .handshake
                 .auth_expensive_checks_total
                 .fetch_add(validation_checks as u64, Ordering::Relaxed);
-
-            // Apply replay tracking only after successful authentication.
-            //
-            // This ordering prevents an attacker from producing invalid handshakes that
-            // still collide with a valid handshake's replay slot and thus evict a valid
-            // entry from the cache. We accept the cost of performing the full
-            // authentication check first to avoid poisoning the replay cache.
-            if replay_checker.check_and_add_handshake(dec_prekey_iv) {
-                auth_probe_record_failure_in(shared, peer.ip(), Instant::now());
-                warn!(peer = %peer, user = %user, "MTProto replay attack detected");
-                return HandshakeResult::BadClient { reader, writer };
-            }
 
             let dec_key = Zeroizing::new(validation.dec_key);
             let enc_key = Zeroizing::new(validation.enc_key);

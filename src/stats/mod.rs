@@ -1,11 +1,10 @@
-//! Statistics and replay protection
+//! Statistics
 
 #![allow(dead_code)]
 
 mod core_counters;
 mod core_getters;
 mod helpers;
-mod replay;
 pub mod telemetry;
 mod users;
 mod writer_counters;
@@ -15,8 +14,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Instant;
 
-#[allow(unused_imports)]
-pub use self::replay::{ReplayChecker, ReplayStats};
 use self::telemetry::TelemetryPolicy;
 pub(crate) use self::users::UserConnectionObservation;
 
@@ -125,7 +122,3 @@ mod tests;
 #[cfg(test)]
 #[path = "tests/connection_lease_security_tests.rs"]
 mod connection_lease_security_tests;
-
-#[cfg(test)]
-#[path = "tests/replay_checker_security_tests.rs"]
-mod replay_checker_security_tests;

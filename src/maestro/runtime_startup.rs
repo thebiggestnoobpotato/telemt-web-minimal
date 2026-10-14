@@ -1,16 +1,15 @@
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use tokio::sync::watch;
 use tracing::info;
 
 use crate::config::{LogLevel, ProxyConfig};
 use crate::crypto::SecureRandom;
-use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::NetworkDecision;
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, run_direct_buffer_budget_controller};
 use crate::startup::StartupTracker;
-use crate::stats::{ReplayChecker, Stats};
+use crate::stats::Stats;
 use crate::stream::BufferPool;
 use crate::transport::UpstreamManager;
 
@@ -21,7 +20,6 @@ use super::{connectivity, runtime_tasks};
 pub(super) struct RuntimeStartupState {
     pub(super) config: Arc<ProxyConfig>,
     pub(super) rng: Arc<SecureRandom>,
-    pub(super) replay_checker: Arc<ReplayChecker>,
     pub(super) buffer_pool: Arc<BufferPool>,
     pub(super) admission_tx: watch::Sender<bool>,
 }
@@ -34,7 +32,6 @@ pub(super) async fn prepare_runtime(
     startup_tracker: &Arc<StartupTracker>,
     stats: Arc<Stats>,
     upstream_manager: Arc<UpstreamManager>,
-    ip_tracker: Arc<UserIpTracker>,
     direct_buffer_budget: Arc<DirectBufferBudget>,
     runtime_task_scope: RuntimeTaskScope,
     admission_tx: watch::Sender<bool>,
@@ -46,10 +43,6 @@ pub(super) async fn prepare_runtime(
     let rng = Arc::new(SecureRandom::new());
 
     let config = Arc::new(config);
-    let replay_checker = Arc::new(ReplayChecker::new(
-        config.access.replay_check_len,
-        Duration::from_secs(config.access.replay_window_secs),
-    ));
     let buffer_pool = Arc::new(BufferPool::with_config(64 * 1024, 4096));
 
     connectivity::run_startup_connectivity(
@@ -63,15 +56,12 @@ pub(super) async fn prepare_runtime(
     .await;
 
     runtime_tasks::spawn_runtime_tasks(
-        1,
         &config,
         prefer_ipv6,
         decision.ipv4_dc,
         decision.ipv6_dc,
         stats.clone(),
         upstream_manager.clone(),
-        replay_checker.clone(),
-        ip_tracker.clone(),
         runtime_task_scope.clone(),
     )
     .await;
@@ -91,7 +81,6 @@ pub(super) async fn prepare_runtime(
     RuntimeStartupState {
         config,
         rng,
-        replay_checker,
         buffer_pool,
         admission_tx,
     }

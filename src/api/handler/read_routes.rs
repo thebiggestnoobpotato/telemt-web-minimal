@@ -126,21 +126,6 @@ pub(super) async fn handle(
             let data = build_runtime_events_recent_data(shared, cfg, query);
             Ok(success_response(StatusCode::OK, data, revision))
         }
-        ("GET", "/v1/stats/users/active-ips") => {
-            let revision = current_revision(&shared.config_path).await?;
-            let usernames: Vec<_> = cfg.users.keys().cloned().collect();
-            let active_ips_map = shared.ip_tracker.get_active_ips_for_users(&usernames).await;
-            let mut data: Vec<UserActiveIps> = active_ips_map
-                .into_iter()
-                .filter(|(_, ips)| !ips.is_empty())
-                .map(|(username, active_ips)| UserActiveIps {
-                    username,
-                    active_ips,
-                })
-                .collect();
-            data.sort_by(|a, b| a.username.cmp(&b.username));
-            Ok(success_response(StatusCode::OK, data, revision))
-        }
         ("GET", "/v1/stats/users") | ("GET", "/v1/users") => {
             let revision = current_revision(&shared.config_path).await?;
             let disk_cfg = load_config_from_disk(&shared.config_path).await?;
@@ -148,7 +133,6 @@ pub(super) async fn handle(
             let users = users_from_config(
                 &disk_cfg,
                 &shared.stats,
-                &shared.ip_tracker,
                 Some(runtime_cfg.as_ref()),
             )
             .await;

@@ -11,7 +11,6 @@ const DEFAULT_DIRECT_RELAY_COPY_BUF_C2S_BYTES: usize = 64 * 1024;
 const DEFAULT_DIRECT_RELAY_COPY_BUF_S2C_BYTES: usize = 256 * 1024;
 pub(crate) const DIRECT_RELAY_BUFFER_BUDGET_UNIT_BYTES: usize = 4 * 1024;
 const DEFAULT_DIRECT_RELAY_BUFFER_BUDGET_MAX_BYTES: usize = 0;
-const DEFAULT_USER_MAX_UNIQUE_IPS_WINDOW_SECS: u64 = 30;
 
 const DEFAULT_UPSTREAM_CONNECT_RETRY_ATTEMPTS: u32 = 2;
 const DEFAULT_UPSTREAM_UNHEALTHY_FAIL_THRESHOLD: u32 = 5;
@@ -21,16 +20,6 @@ const DEFAULT_ACCESS_SECRET: &str = "00000000000000000000000000000000";
 
 pub(crate) fn default_true() -> bool {
     true
-}
-
-pub(crate) fn default_replay_check_len() -> usize {
-    65_536
-}
-
-pub(crate) fn default_replay_window_secs() -> u64 {
-    // Keep replay cache TTL tight by default to reduce replay surface.
-    // Deployments with higher RTT or longer reconnect jitter can override this in config.
-    120
 }
 
 pub(crate) fn default_upstream_connect_timeout() -> u64 {

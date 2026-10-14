@@ -7,7 +7,7 @@ pub(super) fn load_source_graph(graph: ConfigSourceGraph) -> Result<LoadedConfig
 
 /// Normalizes source while leaving DNS and immutable site acquisition to preparation.
 pub(super) fn parse_source_graph(graph: ConfigSourceGraph) -> Result<ParsedConfigSource> {
-    let (mut config, source_files, source_contents, processed) =
+    let (mut config, _source_files, source_contents, processed) =
         decode::decode_source_graph(graph)?;
     validate_core::validate(&mut config)?;
     validate_runtime::validate(&mut config)?;
@@ -17,7 +17,6 @@ pub(super) fn parse_source_graph(graph: ConfigSourceGraph) -> Result<ParsedConfi
     effective::apply(&mut config)?;
     Ok(ParsedConfigSource {
         config,
-        source_files: source_files.into_iter().collect(),
         source_contents,
         rendered_hash: hash_rendered_snapshot(&processed),
     })
@@ -29,7 +28,6 @@ pub(super) fn finish(mut parsed: ParsedConfigSource) -> Result<LoadedConfig> {
     parsed.config.rebuild_runtime_web()?;
     Ok(LoadedConfig {
         config: parsed.config,
-        source_files: parsed.source_files,
         source_contents: parsed.source_contents,
         rendered_hash: parsed.rendered_hash,
     })

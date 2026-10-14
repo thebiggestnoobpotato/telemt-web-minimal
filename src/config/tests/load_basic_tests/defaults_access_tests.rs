@@ -4,7 +4,6 @@ use super::*;
 fn serde_defaults_remain_unchanged_for_present_sections() {
     let toml = r#"
         [general]
-        [access]
     "#;
     let cfg: ProxyConfig = toml::from_str(toml).unwrap();
 
@@ -60,14 +59,6 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
         default_api_runtime_edge_events_capacity()
     );
     assert_eq!(cfg.users, default_access_users());
-    assert_eq!(
-        cfg.access.user_max_unique_ips_mode,
-        UserMaxUniqueIpsMode::default()
-    );
-    assert_eq!(
-        cfg.access.user_max_unique_ips_window_secs,
-        default_user_max_unique_ips_window_secs()
-    );
 }
 
 #[test]
@@ -529,56 +520,6 @@ fn upstream_socks_keys_load_into_socks_variant() {
 }
 
 #[test]
-fn access_users_table_moves_to_top_level_users() {
-    // strict: the legacy [access.users] location is rejected after the
-    // move to the top-level [users] table.
-    let error = load_config_error_from_temp_toml(
-        "[general]\nconfig_strict = true\n\
-         [access.users]\nuser = \"00000000000000000000000000000000\"\n",
-    );
-    assert!(error.contains("access.users"), "{error}");
-
-    // non-strict: the legacy table is ignored and the top-level [users]
-    // table loads instead.
-    let cfg = load_config_from_temp_toml(
-        "[access.users]\nuser = \"00000000000000000000000000000000\"\n\
-         [users]\nalice = \"11111111111111111111111111111111\"\n",
-    );
-    assert_eq!(cfg.users.len(), 1);
-    assert_eq!(
-        cfg.users.get("alice").map(String::as_str),
-        Some("11111111111111111111111111111111")
-    );
-
-    // strict: [users] is a known top-level table with the same secret
-    // validation as before the move.
-    let cfg = load_config_from_temp_toml(
-        "[general]\nconfig_strict = true\n\
-         [users]\nuser = \"00000000000000000000000000000000\"\n",
-    );
-    assert_eq!(cfg.users.len(), 1);
-}
-
-#[test]
-fn access_user_enabled_key_is_stripped() {
-    // strict: the removed [access.user_enabled] key is rejected; every
-    // configured user is enabled by construction.
-    let error = load_config_error_from_temp_toml(
-        "[general]\nconfig_strict = true\n\
-         [users]\nuser = \"00000000000000000000000000000000\"\n\
-         [access.user_enabled]\nuser = false\n",
-    );
-    assert!(error.contains("access.user_enabled"), "{error}");
-
-    // non-strict: the removed key is ignored and the config loads.
-    let cfg = load_config_from_temp_toml(
-        "[users]\nuser = \"00000000000000000000000000000000\"\n\
-         [access.user_enabled]\nuser = false\n",
-    );
-    assert_eq!(cfg.users.len(), 1);
-}
-
-#[test]
 fn top_level_timeouts_table_is_stripped() {
     // strict: the removed [timeouts] table is rejected.
     let error = load_config_error_from_temp_toml(
@@ -593,79 +534,6 @@ fn top_level_timeouts_table_is_stripped() {
          [timeouts]\nclient_handshake = 30\nclient_ack = 90\n",
     );
     assert_eq!(cfg.users.len(), 1);
-}
-
-#[test]
-fn access_user_source_deny_key_is_stripped() {
-    // strict: the removed key is rejected.
-    let error = load_config_error_from_temp_toml(
-        "[general]\nconfig_strict = true\n\
-         [users]\nuser = \"00000000000000000000000000000000\"\n\
-         [access.user_source_deny]\nuser = [\"203.0.113.0/24\"]\n",
-    );
-    assert!(error.contains("access.user_source_deny"), "{error}");
-
-    // non-strict: the removed key is ignored and the config loads.
-    let cfg = load_config_from_temp_toml(
-        "[users]\nuser = \"00000000000000000000000000000000\"\n\
-         [access.user_source_deny]\nuser = [\"203.0.113.0/24\"]\n",
-    );
-    assert_eq!(cfg.access.global_user_max_unique_ips, 0);
-}
-
-#[test]
-fn access_user_limit_keys_are_stripped() {
-    // strict: the removed per-user TCP/expiration/quota/rate-limit keys are rejected.
-    let error = load_config_error_from_temp_toml(
-        "[general]\nconfig_strict = true\n\
-         [access]\nglobal_user_max_tcp_conns = 200\n\
-         [access.user_max_tcp_conns]\nuser = 10\n\
-         [access.user_expirations]\nuser = \"2030-01-02T03:04:05Z\"\n\
-         [access.user_data_quota]\nuser = 1024\n\
-         [access.user_rate_limits]\nuser = { up_bps = 1024, down_bps = 0 }\n\
-         [access.cidr_rate_limits]\n\"203.0.113.0/24\" = { up_bps = 1024, down_bps = 0 }\n",
-    );
-    assert!(error.contains("access.global_user_max_tcp_conns"), "{error}");
-    assert!(error.contains("access.user_max_tcp_conns"), "{error}");
-    assert!(error.contains("access.user_expirations"), "{error}");
-    assert!(error.contains("access.user_data_quota"), "{error}");
-    assert!(error.contains("access.user_rate_limits"), "{error}");
-    assert!(error.contains("access.cidr_rate_limits"), "{error}");
-
-    // non-strict: the removed keys are ignored and the config loads.
-    let cfg = load_config_from_temp_toml(
-        "[access]\nglobal_user_max_tcp_conns = 200\n\
-         [access.user_max_tcp_conns]\nuser = 10\n\
-         [access.user_expirations]\nuser = \"2030-01-02T03:04:05Z\"\n\
-         [access.user_data_quota]\nuser = 1024\n\
-         [access.user_rate_limits]\nuser = { up_bps = 1024, down_bps = 0 }\n\
-         [access.cidr_rate_limits]\n\"203.0.113.0/24\" = { up_bps = 1024, down_bps = 0 }\n",
-    );
-    assert_eq!(cfg.access.global_user_max_unique_ips, 0);
-}
-
-#[test]
-fn access_global_user_keys_load() {
-    let cfg = load_config_from_temp_toml(
-        "[access]\nglobal_user_max_unique_ips = 8\n",
-    );
-    assert_eq!(cfg.access.global_user_max_unique_ips, 8);
-}
-
-#[test]
-fn legacy_access_global_each_keys_are_stripped() {
-    // strict: the removed global_each keys are rejected.
-    let error = load_config_error_from_temp_toml(
-        "[general]\nconfig_strict = true\n\
-         [access]\nuser_max_unique_ips_global_each = 8\n",
-    );
-    assert!(error.contains("access.user_max_unique_ips_global_each"), "{error}");
-
-    // non-strict: the removed keys are ignored and the config loads.
-    let cfg = load_config_from_temp_toml(
-        "[access]\nuser_max_unique_ips_global_each = 8\n",
-    );
-    assert_eq!(cfg.access.global_user_max_unique_ips, 0);
 }
 
 #[test]

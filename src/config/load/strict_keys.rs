@@ -9,7 +9,6 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "listener",
     "metrics",
     "web",
-    "access",
     "users",
     "upstreams",
     "include",
@@ -186,16 +185,6 @@ const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "max_sessions",
     "max_streams",
     "max_streams_per_session",
-];
-
-const ACCESS_CONFIG_KEYS: &[&str] = &[
-    "user_max_unique_ips",
-    "global_user_max_unique_ips",
-    "user_max_unique_ips_mode",
-    "user_max_unique_ips_window_secs",
-    "replay_check_len",
-    "replay_window_secs",
-    "ignore_time_skew",
 ];
 
 const UPSTREAM_CONFIG_KEYS: &[&str] = &[

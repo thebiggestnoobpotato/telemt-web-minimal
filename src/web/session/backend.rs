@@ -52,7 +52,6 @@ impl WebSession {
             return false;
         }
         let deps = generation.client_runtime_deps();
-        let replay_checker = Arc::clone(&generation.replay_checker);
         let session = Arc::clone(self);
         let cancel = self.cancel.clone();
         let retain_rejected = Arc::clone(&completion.retain_rejected);
@@ -72,7 +71,6 @@ impl WebSession {
                     stream,
                     logical_stream,
                     deps,
-                    replay_checker,
                     peer_port,
                 ) => {}
             }
@@ -227,7 +225,6 @@ async fn run_stream(
     stream_identity: StreamIdentity,
     stream: WebLogicalStream,
     deps: crate::proxy::authenticated::ClientRuntimeDeps,
-    replay_checker: Arc<crate::stats::ReplayChecker>,
     peer_port: u16,
 ) {
     use tokio::io::AsyncReadExt;
@@ -295,7 +292,6 @@ async fn run_stream(
                     writer,
                     peer,
                     &deps.config,
-                    &replay_checker,
                     &session.profile.user,
                     session.profile.secret_mode,
                     &deps.shared,
@@ -353,7 +349,7 @@ async fn run_stream(
         Some(stream_identity.id),
         None,
     );
-    let relay_result = run_authenticated(reader, writer, success, deps, peer).await;
+    let relay_result = run_authenticated(reader, writer, success, deps).await;
     session.trace_lifecycle(
         crate::web::trace::TraceLifecycleEvent::RelayEnded,
         Some(stream_identity.id),

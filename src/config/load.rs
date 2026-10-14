@@ -57,8 +57,6 @@ const MAX_API_REQUEST_BODY_LIMIT_BYTES: usize = 1024 * 1024;
 pub(crate) struct LoadedConfig {
     /// Validated and normalized effective configuration.
     pub(crate) config: ProxyConfig,
-    /// Normalized absolute paths participating in the recursive include graph.
-    pub(crate) source_files: Vec<PathBuf>,
     /// Raw source bytes keyed by normalized absolute source path.
     pub(crate) source_contents: BTreeMap<PathBuf, String>,
     /// Legacy hash of the include-expanded rendered snapshot.
@@ -70,8 +68,6 @@ pub(crate) struct LoadedConfig {
 pub(crate) struct ParsedConfigSource {
     /// Source-only configuration; must be prepared before runtime publication.
     pub(crate) config: ProxyConfig,
-    /// Normalized paths in the captured include graph.
-    pub(crate) source_files: Vec<PathBuf>,
     /// Exact source documents used for revisions and atomic mutation checks.
     pub(crate) source_contents: BTreeMap<PathBuf, String>,
     /// Source-only hash, independent of DNS answers.
@@ -113,10 +109,6 @@ pub struct ProxyConfig {
     /// WEB carrier ingress and public-site fallback configuration.
     #[serde(default)]
     pub web: WebConfig,
-
-    /// User admission policy: per-user enablement, unique-IP limits, replay checks.
-    #[serde(default)]
-    pub access: AccessConfig,
 
     /// Top-level access user credentials: username to 32-hex-character secret.
     #[serde(default = "default_access_users")]

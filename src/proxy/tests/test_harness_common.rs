@@ -196,6 +196,5 @@ pub fn handshake_test_config(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("test-user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
 }

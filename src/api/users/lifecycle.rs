@@ -56,7 +56,7 @@ async fn rotate_secret_to_completion(
     shared.proxy_shared.stage_user_credential(user, credential_id);
     drop(_guard);
 
-    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
+    let users = users_from_config(&cfg, &shared.stats, None).await;
     let user_info = users
         .into_iter()
         .find(|entry| entry.username == user)
@@ -110,11 +110,8 @@ async fn delete_user_to_completion(
         ));
     }
 
-    let mut touched_sections = vec![AccessSection::Users];
+    let touched_sections = vec![AccessSection::Users];
     cfg.users.remove(user);
-    if cfg.access.user_max_unique_ips.remove(user).is_some() {
-        touched_sections.push(AccessSection::UserMaxUniqueIps);
-    }
 
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
@@ -125,12 +122,7 @@ async fn delete_user_to_completion(
         Some(&base_revision),
     )
     .await?;
-    let deleted_incarnation = shared.proxy_shared.delete_user(user).incarnation;
-    shared.ip_tracker.remove_user_limit(user).await;
-    shared
-        .ip_tracker
-        .clear_user_ips_if_not_newer(user, deleted_incarnation)
-        .await;
+    shared.proxy_shared.delete_user(user);
     drop(_guard);
 
     Ok((user.to_string(), revision))

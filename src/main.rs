@@ -8,16 +8,6 @@ mod crypto;
 mod daemon;
 mod error;
 mod healthcheck;
-mod ip_tracker;
-#[cfg(test)]
-#[path = "tests/ip_tracker_encapsulation_adversarial_tests.rs"]
-mod ip_tracker_encapsulation_adversarial_tests;
-#[cfg(test)]
-#[path = "tests/ip_tracker_hotpath_adversarial_tests.rs"]
-mod ip_tracker_hotpath_adversarial_tests;
-#[cfg(test)]
-#[path = "tests/ip_tracker_regression_tests.rs"]
-mod ip_tracker_regression_tests;
 mod logging;
 mod maestro;
 mod metrics;

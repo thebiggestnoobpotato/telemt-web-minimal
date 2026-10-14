@@ -1,5 +1,5 @@
 //! Config-editing API: read managed sections and apply sparse field patches.
-//! `users` and `access.*` are intentionally not editable here (owned by the users API).
+//! `users` is intentionally not editable here (owned by the users API).
 
 use serde_json::Value as Json;
 use toml::Value as Toml;
@@ -110,19 +110,12 @@ async fn prepare_patch_to_path(
         ));
     }
 
-    // 2. convert + reject access / unknown sections
+    // 2. convert + reject unknown sections
     let patch_toml = json_to_toml(patch_json)
         .map_err(|e| ApiFailure::bad_request(format!("invalid patch: {}", e)))?;
     let patch_table = patch_toml
         .as_table()
         .ok_or_else(|| ApiFailure::bad_request("patch must be a JSON object"))?;
-    if patch_table.contains_key("access") {
-        return Err(ApiFailure::new(
-            hyper::StatusCode::BAD_REQUEST,
-            "access_not_editable",
-            "access.* is managed via the users API, not editable here",
-        ));
-    }
     for (key, _value) in patch_table {
         if !is_editable_section(key.as_str()) {
             return Err(ApiFailure::new(

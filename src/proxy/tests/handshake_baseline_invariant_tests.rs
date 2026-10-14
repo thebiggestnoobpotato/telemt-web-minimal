@@ -2,7 +2,6 @@
 use super::*;
 use crate::crypto::sha256_hmac;
 use crate::protocol::constants::{TLS_RECORD_HANDSHAKE, TLS_VERSION};
-use crate::stats::ReplayChecker;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
@@ -12,7 +11,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
 }
 

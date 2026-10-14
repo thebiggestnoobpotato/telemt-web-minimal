@@ -19,8 +19,6 @@ async fn create_user_to_completion(
     expected_revision: Option<String>,
     shared: &ApiShared,
 ) -> Result<(CreateUserResponse, String), ApiFailure> {
-    let touches_user_max_unique_ips = body.max_unique_ips.is_some();
-
     if !is_valid_username(&body.username) {
         return Err(ApiFailure::bad_request(
             "username must match [A-Za-z0-9_.-] and be 1..64 chars",
@@ -56,19 +54,10 @@ async fn create_user_to_completion(
     cfg.users
         .insert(body.username.clone(), secret.clone());
 
-    let updated_limit = body.max_unique_ips;
-    if let Some(limit) = updated_limit {
-        cfg.access
-            .user_max_unique_ips
-            .insert(body.username.clone(), limit);
-    }
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
 
-    let mut touched_sections = vec![AccessSection::Users];
-    if touches_user_max_unique_ips {
-        touched_sections.push(AccessSection::UserMaxUniqueIps);
-    }
+    let touched_sections = vec![AccessSection::Users];
 
     let revision = save_access_sections_to_disk_if_revision(
         &shared.config_path,
@@ -78,28 +67,16 @@ async fn create_user_to_completion(
     )
     .await?;
     shared.proxy_shared.stage_user_credential(&body.username, credential_id);
-
-    if let Some(limit) = updated_limit {
-        shared
-            .ip_tracker
-            .set_user_limit(&body.username, limit)
-            .await;
-    }
     drop(_guard);
 
-    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
+    let users = users_from_config(&cfg, &shared.stats, None).await;
     let user = users
         .into_iter()
         .find(|entry| entry.username == body.username)
         .unwrap_or(UserInfo {
             username: body.username.clone(),
             in_runtime: false,
-            max_unique_ips: updated_limit,
             current_connections: 0,
-            active_unique_ips: 0,
-            active_unique_ips_list: Vec::new(),
-            recent_unique_ips: 0,
-            recent_unique_ips_list: Vec::new(),
             total_octets: 0,
             links: build_user_links(&cfg, &body.username),
         });

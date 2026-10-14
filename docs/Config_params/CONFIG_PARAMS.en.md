@@ -25,7 +25,6 @@ This document lists all configuration keys accepted by `config.toml`.
  - [web.timeouts](#webtimeouts)
  - [web.vhost](#webvhost)
  - [web.vhost.profiles](#webvhostprofiles)
- - [access](#access)
  - [users](#users)
  - [upstreams](#upstreams)
 
@@ -726,86 +725,10 @@ Profile limits must be non-zero and no greater than their corresponding global l
 - WEB listener inventory and trust policy under `[listener]`, and every `web.limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `[web]` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `web.limits` and `[listener]` values apply at the next process restart.
 - `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.
-- Existing access users can be created, changed, rotated, enabled, disabled, and deleted through `/v1/users`. Creating a user does not add a WEB profile. Disabling a user immediately updates admission and cancels that user's active sessions.
+- Users can be created, changed, rotated, and deleted through `/v1/users`. Creating a user does not add a WEB profile. Deleting a user updates admission and cancels that user's active sessions.
 - `PATCH /v1/config` can persist `[listener]`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
 
 
-# [access]
-
-
-| Key | Type | Default |
-| --- | ---- | ------- |
-| [`user_max_unique_ips`](#user_max_unique_ips) | `Map<String, usize>` | `{}` |
-| [`global_user_max_unique_ips`](#global_user_max_unique_ips) | `usize` | `0` |
-| [`user_max_unique_ips_mode`](#user_max_unique_ips_mode) | `"active_window"`, `"time_window"`, or `"combined"` | `"active_window"` |
-| [`user_max_unique_ips_window_secs`](#user_max_unique_ips_window_secs) | `u64` | `30` |
-| [`replay_check_len`](#replay_check_len) | `usize` | `65536` |
-| [`replay_window_secs`](#replay_window_secs) | `u64` | `120` |
-| [`ignore_time_skew`](#ignore_time_skew) | `bool` | `false` |
-
-## user_max_unique_ips
-  - **Constraints / validation**: `Map<String, usize>`.
-  - **Description**: Per-user unique source IP limits.
-  - **Example**:
-
-    ```toml
-    [access.user_max_unique_ips]
-    alice = 16
-    ```
-## global_user_max_unique_ips
-  - **Constraints / validation**: `usize`. `0` disables the inherited limit.
-  - **Description**: Global per-user unique IP limit applied when a user has no individual override in `[access.user_max_unique_ips]`.
-  - **Example**:
-
-    ```toml
-    [access]
-    global_user_max_unique_ips = 8
-    ```
-## user_max_unique_ips_mode
-  - **Constraints / validation**: Must be one of `"active_window"`, `"time_window"`, `"combined"`.
-  - **Description**: Unique source IP limit accounting mode.
-  - **Example**:
-
-    ```toml
-    [access]
-    user_max_unique_ips_mode = "active_window"
-    ```
-## user_max_unique_ips_window_secs
-  - **Constraints / validation**: Must be `> 0`.
-  - **Description**: Window size (seconds) used by unique-IP accounting modes that include a time window (`"time_window"` and `"combined"`).
-  - **Example**:
-
-    ```toml
-    [access]
-    user_max_unique_ips_window_secs = 30
-    ```
-## replay_check_len
-  - **Constraints / validation**: `usize`.
-  - **Description**: Replay-protection storage length (number of entries tracked for duplicate detection).
-  - **Example**:
-
-    ```toml
-    [access]
-    replay_check_len = 65536
-    ```
-## replay_window_secs
-  - **Constraints / validation**: `u64`.
-  - **Description**: Replay-protection time window in seconds.
-  - **Example**:
-
-    ```toml
-    [access]
-    replay_window_secs = 120
-    ```
-## ignore_time_skew
-  - **Constraints / validation**: `bool`.
-  - **Description**: Disables client/server timestamp skew checks in replay validation when enabled.
-  - **Example**:
-
-    ```toml
-    [access]
-    ignore_time_skew = false
-    ```
 # [users]
 
 | Key | Type | Default |
@@ -813,7 +736,7 @@ Profile limits must be non-zero and no greater than their corresponding global l
 | `<username> = "secret"` | `Map<String, String>` | `{"default": "000…000"}` |
 
   - **Constraints / validation**: Must not be empty (at least one user must exist). Keys are user names; each value must be **exactly 32 hex characters**.
-  - **Description**: User credentials map used for client authentication and for `[access]` per-user policy maps and WEB vhost profiles, which reference users by name.
+  - **Description**: User credentials map used for client authentication and for WEB vhost profiles, which reference users by name.
   - **Example**:
 
     ```toml

@@ -26,7 +26,6 @@ use crate::crypto::{AesCtr, SecureRandom, sha256};
 use crate::error::HandshakeResult;
 use crate::protocol::constants::*;
 use crate::proxy::shared_state::ProxySharedState;
-use crate::stats::ReplayChecker;
 use crate::stream::{CryptoReader, CryptoWriter};
 #[cfg(test)]
 use rand::RngExt;

@@ -1,9 +1,6 @@
-use std::net::IpAddr;
-
 use hyper::StatusCode;
 
 use crate::config::ProxyConfig;
-use crate::ip_tracker::UserIpTracker;
 use crate::proxy::user_admission::credential_id_from_hex;
 use crate::stats::Stats;
 
@@ -16,7 +13,6 @@ use super::model::{
     ApiFailure, CreateUserRequest, CreateUserResponse, PatchUserRequest, RotateSecretRequest,
     UserInfo, UserLinks, is_valid_user_secret, is_valid_username, random_user_secret,
 };
-use super::patch::Patch;
 
 mod create;
 mod lifecycle;

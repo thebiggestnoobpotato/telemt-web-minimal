@@ -24,14 +24,12 @@ pub(in crate::api) use persistence::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum AccessSection {
     Users,
-    UserMaxUniqueIps,
 }
 
 impl AccessSection {
     fn table_name(self) -> &'static str {
         match self {
             Self::Users => "users",
-            Self::UserMaxUniqueIps => "access.user_max_unique_ips",
         }
     }
 }

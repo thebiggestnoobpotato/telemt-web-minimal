@@ -4,7 +4,6 @@ use crate::config::ProxyConfig;
 use crate::crypto::AesCtr;
 use crate::crypto::sha256;
 use crate::protocol::constants::ProtoTag;
-use crate::stats::ReplayChecker;
 use std::net::SocketAddr;
 use std::sync::MutexGuard;
 use tokio::time::{Duration as TokioDuration, timeout};
@@ -62,48 +61,7 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
-}
-
-#[tokio::test]
-async fn mtproto_handshake_duplicate_digest_is_replayed_on_second_attempt() {
-    let shared = ProxySharedState::new();
-    clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
-
-    let secret_hex = "11223344556677889900aabbccddeeff";
-    let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 2);
-    let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(128, TokioDuration::from_secs(60));
-    let peer: SocketAddr = "192.0.2.1:12345".parse().unwrap();
-
-    let first = handle_mtproto_handshake(
-        &base,
-        tokio::io::empty(),
-        tokio::io::sink(),
-        peer,
-        &config,
-        &replay_checker,
-        false,
-        None,
-    )
-    .await;
-    assert!(matches!(first, HandshakeResult::Success(_)));
-
-    let second = handle_mtproto_handshake(
-        &base,
-        tokio::io::empty(),
-        tokio::io::sink(),
-        peer,
-        &config,
-        &replay_checker,
-        false,
-        None,
-    )
-    .await;
-    assert!(matches!(second, HandshakeResult::BadClient { .. }));
-
-    clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 }
 
 #[tokio::test]
@@ -114,7 +72,6 @@ async fn mtproto_handshake_fuzz_corpus_never_panics_and_stays_fail_closed() {
     let secret_hex = "00112233445566778899aabbccddeeff";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 1);
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(128, TokioDuration::from_secs(60));
     let peer: SocketAddr = "192.0.2.2:54321".parse().unwrap();
 
     let mut corpus = Vec::<[u8; HANDSHAKE_LEN]>::new();
@@ -157,7 +114,6 @@ async fn mtproto_handshake_fuzz_corpus_never_panics_and_stays_fail_closed() {
                 tokio::io::sink(),
                 peer,
                 &config,
-                &replay_checker,
                 false,
                 None,
             ),
@@ -175,14 +131,13 @@ async fn mtproto_handshake_fuzz_corpus_never_panics_and_stays_fail_closed() {
 }
 
 #[tokio::test]
-async fn mtproto_handshake_mixed_corpus_never_panics_and_exact_duplicates_are_rejected() {
+async fn mtproto_handshake_mixed_corpus_never_panics() {
     let shared = ProxySharedState::new();
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 
     let secret_hex = "99887766554433221100ffeeddccbbaa";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 4);
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(256, TokioDuration::from_secs(60));
     let peer: SocketAddr = "192.0.2.44:45444".parse().unwrap();
 
     let first = timeout(
@@ -193,7 +148,6 @@ async fn mtproto_handshake_mixed_corpus_never_panics_and_exact_duplicates_are_re
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
         ),
@@ -201,23 +155,6 @@ async fn mtproto_handshake_mixed_corpus_never_panics_and_exact_duplicates_are_re
     .await
     .expect("base handshake must not hang");
     assert!(matches!(first, HandshakeResult::Success(_)));
-
-    let replay = timeout(
-        TokioDuration::from_secs(1),
-        handle_mtproto_handshake(
-            &base,
-            tokio::io::empty(),
-            tokio::io::sink(),
-            peer,
-            &config,
-            &replay_checker,
-            false,
-            None,
-        ),
-    )
-    .await
-    .expect("duplicate handshake must not hang");
-    assert!(matches!(replay, HandshakeResult::BadClient { .. }));
 
     let mut corpus = Vec::<[u8; HANDSHAKE_LEN]>::new();
 
@@ -253,7 +190,6 @@ async fn mtproto_handshake_mixed_corpus_never_panics_and_exact_duplicates_are_re
                 tokio::io::sink(),
                 peer,
                 &config,
-                &replay_checker,
                 false,
                 None,
             ),

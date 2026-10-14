@@ -12,7 +12,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
 }
 
@@ -117,7 +116,6 @@ async fn mtproto_invalid_length_secret_is_ignored_and_valid_user_still_auths() {
     clear_warned_secrets_for_testing_in_shared(shared.as_ref());
 
     let mut config = ProxyConfig::default();
-    config.access.ignore_time_skew = true;
 
     config.users.insert(
         "short_user".to_string(),
@@ -129,7 +127,6 @@ async fn mtproto_invalid_length_secret_is_ignored_and_valid_user_still_auths() {
         .users
         .insert("good_user".to_string(), valid_secret_hex.to_string());
 
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.207:12345".parse().unwrap();
     let handshake = make_valid_mtproto_handshake(valid_secret_hex, ProtoTag::Secure, 1);
 
@@ -139,7 +136,6 @@ async fn mtproto_invalid_length_secret_is_ignored_and_valid_user_still_auths() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
     )

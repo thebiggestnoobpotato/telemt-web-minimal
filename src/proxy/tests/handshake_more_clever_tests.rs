@@ -17,7 +17,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
 }
 
@@ -146,7 +145,6 @@ async fn mtproto_multi_user_decryption_isolation() {
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 
     let mut config = ProxyConfig::default();
-    config.access.ignore_time_skew = true;
 
     config.users.insert(
         "user_a".to_string(),
@@ -161,7 +159,6 @@ async fn mtproto_multi_user_decryption_isolation() {
         .users
         .insert("user_c".to_string(), good_secret_hex.to_string());
 
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.104:12345".parse().unwrap();
 
     let valid_handshake = make_valid_mtproto_handshake(good_secret_hex, ProtoTag::Secure, 1);
@@ -172,7 +169,6 @@ async fn mtproto_multi_user_decryption_isolation() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
     )
@@ -235,79 +231,12 @@ async fn invalid_secret_warning_lock_contention_and_bound() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn mtproto_strict_concurrent_replay_race_condition() {
-    let shared = ProxySharedState::new();
-    clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
-
-    let secret_hex = "4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A";
-    let config = Arc::new(test_config_with_secret_hex(secret_hex));
-    let replay_checker = Arc::new(ReplayChecker::new(4096, Duration::from_secs(60)));
-    let valid_handshake = Arc::new(make_valid_mtproto_handshake(
-        secret_hex,
-        ProtoTag::Secure,
-        1,
-    ));
-
-    let tasks = 100;
-    let barrier = Arc::new(Barrier::new(tasks));
-    let mut handles = Vec::new();
-
-    for i in 0..tasks {
-        let b = barrier.clone();
-        let cfg = config.clone();
-        let rc = replay_checker.clone();
-        let hs = valid_handshake.clone();
-
-        handles.push(tokio::spawn(async move {
-            let peer = SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::new(10, 0, 0, (i % 250) as u8)),
-                10000 + i as u16,
-            );
-            b.wait().await;
-            handle_mtproto_handshake(
-                &hs,
-                tokio::io::empty(),
-                tokio::io::sink(),
-                peer,
-                &cfg,
-                &rc,
-                false,
-                None,
-            )
-            .await
-        }));
-    }
-
-    let mut successes = 0;
-    let mut failures = 0;
-
-    for handle in handles {
-        match handle.await.unwrap() {
-            HandshakeResult::Success(_) => successes += 1,
-            HandshakeResult::BadClient { .. } => failures += 1,
-            _ => panic!("Unexpected error result in concurrent MTProto replay test"),
-        }
-    }
-
-    assert_eq!(
-        successes, 1,
-        "Replay cache race condition allowed multiple identical MTProto handshakes to succeed"
-    );
-    assert_eq!(
-        failures,
-        tasks - 1,
-        "Replay cache failed to forcefully reject concurrent duplicates"
-    );
-}
-
 #[tokio::test]
 async fn mtproto_pure_entropy_fuzzing_no_panics() {
     let shared = ProxySharedState::new();
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
 
     let config = test_config_with_secret_hex("8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e");
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.110:12345".parse().unwrap();
 
     let mut seeded = StdRng::seed_from_u64(0xDEADBEEFCAFE);
@@ -322,7 +251,6 @@ async fn mtproto_pure_entropy_fuzzing_no_panics() {
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
         )

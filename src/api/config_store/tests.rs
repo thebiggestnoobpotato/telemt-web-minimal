@@ -344,36 +344,6 @@ async fn config_sidecar_lock_serializes_competing_revision_writers() {
     assert!(persisted.contains("# one") || persisted.contains("# two"));
 }
 
-#[tokio::test]
-async fn access_mutation_rejects_sections_with_different_source_owners() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().join("config.toml");
-    let included = dir.path().join("ip_limits.toml");
-    let root_body = concat!(
-        "include = \"ip_limits.toml\"\n",
-        "[users]\nalice = \"00000000000000000000000000000000\"\n"
-    );
-    let included_body = "[access.user_max_unique_ips]\nalice = 16\n";
-    tokio::fs::write(&root, root_body).await.unwrap();
-    tokio::fs::write(&included, included_body).await.unwrap();
-    let cfg = load_config_from_disk(&root).await.unwrap();
-
-    let error = save_access_sections_to_disk(
-        &root,
-        &cfg,
-        &[AccessSection::Users, AccessSection::UserMaxUniqueIps],
-    )
-    .await
-    .unwrap_err();
-
-    assert_eq!(error.code, "config_patch_not_atomic");
-    assert_eq!(tokio::fs::read_to_string(&root).await.unwrap(), root_body);
-    assert_eq!(
-        tokio::fs::read_to_string(&included).await.unwrap(),
-        included_body
-    );
-}
-
 #[cfg(unix)]
 #[test]
 fn source_owner_normalization_preserves_symlinks() {

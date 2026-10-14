@@ -44,14 +44,9 @@ WEB links use a 16-byte (32 hex chars) MTProxy secret. The vhost profile selects
 `ee` (Fake TLS) secrets are not supported by WEB mode.
 
 ### How many people can use one link
-By default, an unlimited number of people can use a single link.
-However, you can limit the number of unique IP addresses for each user:
-```toml
-[access.user_max_unique_ips]
-hello = 1
-```
-This parameter sets the maximum number of unique IP addresses from which a single link can be used simultaneously. If the first user disconnects, a second one can connect.
-At the same time, multiple users can connect from a single IP address simultaneously (for example, devices on the same Wi-Fi network).
+An unlimited number of people can use a single link. There is no per-user or per-IP connection limit, and multiple users can connect from a single IP address simultaneously (for example, devices on the same Wi-Fi network).
+
+WEB links can additionally be bounded by the per-profile connection limits configured under `[web]` vhost profiles.
 
 ### How to create multiple different links
 1. Generate the required number of secrets using the command: `openssl rand -hex 16`.

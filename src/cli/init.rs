@@ -274,11 +274,6 @@ public_addr = "203.0.113.1:443"
 # Ordinary-site origin what browsers and scanners see.
 upstream = "http://127.0.0.1:80"
 
-[access]
-replay_check_len = 65536
-replay_window_secs = 120
-ignore_time_skew = false
-
 [users]
 {username} = "{secret}"
 

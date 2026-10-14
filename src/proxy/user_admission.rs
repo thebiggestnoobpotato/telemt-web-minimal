@@ -91,8 +91,6 @@ impl UserAdmissionState {
 
 /// Result of one durable user mutation applied to the process admission authority.
 pub(crate) struct UserMutationResult {
-    /// Incarnation invalidated or created by the mutation.
-    pub(crate) incarnation: UserIncarnation,
     /// Number of live owners cancelled by the mutation.
     pub(crate) cancelled: usize,
 }
@@ -264,7 +262,7 @@ impl UserAdmissionAuthority {
         credential_id: UserCredentialId,
     ) -> UserMutationResult {
         let desired = EffectiveUser { credential_id };
-        let (incarnation, tokens) = {
+        let (_, tokens) = {
             let mut state = self.state.lock();
             let previous = state.users.get(user).and_then(UserRecord::effective);
             let identity_changed = previous.map(|entry| entry.credential_id) != Some(credential_id);
@@ -297,15 +295,12 @@ impl UserAdmissionAuthority {
         for token in tokens {
             token.cancel();
         }
-        UserMutationResult {
-            incarnation,
-            cancelled,
-        }
+        UserMutationResult { cancelled }
     }
 
     /// Installs a deletion tombstone and cancels every owner of the old incarnation.
     pub(crate) fn delete_user(&self, user: &str) -> UserMutationResult {
-        let (incarnation, tokens) = {
+        let (_, tokens) = {
             let mut state = self.state.lock();
             let incarnation = state.allocate_incarnation();
             let record = state.users.entry(user.to_string()).or_insert(UserRecord {
@@ -323,10 +318,7 @@ impl UserAdmissionAuthority {
         for token in tokens {
             token.cancel();
         }
-        UserMutationResult {
-            incarnation,
-            cancelled,
-        }
+        UserMutationResult { cancelled }
     }
 
     /// Returns the authenticated incarnation for an exact current credential.

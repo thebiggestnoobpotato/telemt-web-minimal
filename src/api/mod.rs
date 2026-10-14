@@ -21,7 +21,6 @@ use tokio::time::timeout;
 use tracing::{debug, info, warn};
 
 use crate::config::{ApiGrayAction, ProxyConfig};
-use crate::ip_tracker::UserIpTracker;
 use crate::maestro::control_plane::ProcessControlPlane;
 use crate::maestro::generation::RuntimeGeneration;
 use crate::proxy::shared_state::ProxySharedState;
@@ -51,14 +50,14 @@ mod web_runtime;
 mod web_status;
 
 use config_store::{
-    current_revision, load_config_for_mutation, load_config_from_disk, parse_if_match,
+    current_revision, load_config_from_disk, parse_if_match,
 };
 use events::ApiEventStore;
 use handler::handle;
 use http_utils::{error_response, read_json, read_optional_json, success_response};
 use model::{
     ApiFailure, ClassCount, CreateUserRequest, DeleteUserResponse, HealthData, HealthReadyData,
-    PatchUserRequest, RotateSecretRequest, SummaryData, UserActiveIps, is_valid_username,
+    PatchUserRequest, RotateSecretRequest, SummaryData, is_valid_username,
 };
 use runtime_edge::{
     EdgeConnectionsCacheEntry, build_runtime_connections_summary_data,
@@ -91,7 +90,6 @@ pub(super) struct ApiRuntimeState {
 #[derive(Clone)]
 pub(super) struct ApiShared {
     pub(super) stats: Arc<Stats>,
-    pub(super) ip_tracker: Arc<UserIpTracker>,
     pub(super) upstream_manager: Arc<UpstreamManager>,
     pub(super) config_path: PathBuf,
     pub(super) mutation_lock: Arc<Mutex<()>>,
@@ -117,7 +115,6 @@ impl ApiShared {
     fn for_runtime(&self, runtime: &RuntimeGeneration) -> Self {
         Self {
             stats: runtime.stats.clone(),
-            ip_tracker: runtime.ip_tracker.clone(),
             upstream_manager: runtime.upstream_manager.clone(),
             config_path: self.config_path.clone(),
             mutation_lock: self.mutation_lock.clone(),
@@ -199,7 +196,6 @@ fn allowed_methods_for_path(path: &str) -> Option<&'static str> {
         | "/v1/runtime/upstream_quality"
         | "/v1/runtime/connections/summary"
         | "/v1/runtime/events/recent"
-        | "/v1/stats/users/active-ips"
         | "/v1/stats/users"
         | "/web-status" => Some(ALLOW_GET),
         "/v1/users" => Some(ALLOW_GET_POST),
@@ -222,7 +218,6 @@ fn allowed_methods_for_path(path: &str) -> Option<&'static str> {
 pub(crate) async fn serve(
     listener: TcpListener,
     stats: Arc<Stats>,
-    ip_tracker: Arc<UserIpTracker>,
     proxy_shared: Arc<ProxySharedState>,
     upstream_manager: Arc<UpstreamManager>,
     config_path: PathBuf,
@@ -257,7 +252,6 @@ pub(crate) async fn serve(
 
     let shared = Arc::new(ApiShared {
         stats,
-        ip_tracker,
         upstream_manager,
         config_path,
         mutation_lock: Arc::new(Mutex::new(())),

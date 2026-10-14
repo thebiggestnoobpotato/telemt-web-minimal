@@ -79,7 +79,7 @@ async fn patch_rejects_access_section() {
     let (path, _d) = temp_config("[general]\nnetwork_ipv6 = true\n");
     let patch: Json = serde_json::json!({"access": {"users": {"x": "y"}}});
     let err = apply_patch_to_path(&path, &patch, None).await.unwrap_err();
-    assert_eq!(err.code, "access_not_editable");
+    assert_eq!(err.code, "section_not_editable");
 }
 
 #[tokio::test]

@@ -34,8 +34,6 @@ fn load_config_error_from_temp_toml(toml: &str) -> String {
 mod api_tests;
 #[path = "load_basic_tests/defaults_access_tests.rs"]
 mod defaults_access_tests;
-#[path = "load_basic_tests/legacy_policy_tests.rs"]
-mod legacy_policy_tests;
 #[path = "load_basic_tests/source_security_tests.rs"]
 mod source_security_tests;
 #[path = "load_basic_tests/web_tests.rs"]

@@ -39,14 +39,6 @@ pub(crate) fn default_access_users() -> HashMap<String, String> {
     )])
 }
 
-pub(crate) fn default_user_max_unique_ips_window_secs() -> u64 {
-    DEFAULT_USER_MAX_UNIQUE_IPS_WINDOW_SECS
-}
-
-pub(crate) fn default_global_user_max_unique_ips() -> usize {
-    0
-}
-
 // Custom deserializer helpers
 
 #[derive(Deserialize)]

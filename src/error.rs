@@ -236,9 +236,6 @@ pub enum ProxyError {
     #[error("User {user} disabled")]
     UserDisabled { user: String },
 
-    #[error("User {user} exceeded connection limit")]
-    ConnectionLimitExceeded { user: String },
-
     #[error("Unknown user")]
     UnknownUser,
 

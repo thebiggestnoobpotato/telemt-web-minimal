@@ -8,16 +8,11 @@ fn test_web_publication() -> crate::web::control::WebRuntimePublication {
     control.subscribe().borrow().clone()
 }
 
-#[tokio::test]
-async fn test_render_metrics_format() {
+#[test]
+fn test_render_metrics_format() {
     let stats = Arc::new(Stats::new());
     let shared_state = ProxySharedState::new();
-    let tracker = UserIpTracker::new();
-    let mut config = ProxyConfig::default();
-    config
-        .access
-        .user_max_unique_ips
-        .insert("alice".to_string(), 4);
+    let config = ProxyConfig::default();
 
     stats.increment_connects_all();
     stats.increment_connects_all();
@@ -47,19 +42,13 @@ async fn test_render_metrics_format() {
     stats.increment_user_msgs_from("alice");
     stats.increment_user_msgs_to("alice");
     stats.increment_user_msgs_to("alice");
-    tracker
-        .check_and_add("alice", "203.0.113.10".parse().unwrap())
-        .await
-        .unwrap();
 
     let output = render_metrics(
         &stats,
         shared_state.as_ref(),
         &config,
-        &tracker,
         &test_web_publication(),
-    )
-    .await;
+    );
 
     assert!(output.contains(&format!(
         "telemt_build_info{{version=\"{}\"}} 1",
@@ -91,87 +80,35 @@ async fn test_render_metrics_format() {
     assert!(output.contains("telemt_user_octets_to_client_total{user=\"alice\"} 2048"));
     assert!(output.contains("telemt_user_msgs_from_client_total{user=\"alice\"} 1"));
     assert!(output.contains("telemt_user_msgs_to_client_total{user=\"alice\"} 2"));
-    assert!(output.contains("telemt_user_unique_ips_current{user=\"alice\"} 1"));
-    assert!(output.contains("telemt_user_unique_ips_recent_window{user=\"alice\"} 1"));
-    assert!(output.contains("telemt_user_unique_ips_limit{user=\"alice\"} 4"));
-    assert!(output.contains("telemt_user_unique_ips_utilization{user=\"alice\"} 0.250000"));
-    assert!(output.contains("telemt_ip_tracker_users{scope=\"active\"} 1"));
-    assert!(output.contains("telemt_ip_tracker_entries{scope=\"active\"} 1"));
-    assert!(output.contains("telemt_ip_tracker_cleanup_queue_len 0"));
 }
 
-#[tokio::test]
-async fn test_render_empty_stats() {
+#[test]
+fn test_render_empty_stats() {
     let stats = Stats::new();
     let shared_state = ProxySharedState::new();
     stats.apply_telemetry_policy(TelemetryPolicy {
         core_enabled: false,
         ..TelemetryPolicy::default()
     });
-    let tracker = UserIpTracker::new();
     let mut config = ProxyConfig::default();
     config.users.insert(
         "default".to_string(),
         "00000000000000000000000000000000".to_string(),
     );
-    let output = render_metrics(
-        &stats,
-        &shared_state,
-        &config,
-        &tracker,
-        &test_web_publication(),
-    )
-    .await;
+    let output = render_metrics(&stats, &shared_state, &config, &test_web_publication());
     assert!(output.contains("telemt_connections_total 0"));
     assert!(output.contains("telemt_connections_bad_total 0"));
     assert!(output.contains("telemt_handshake_timeouts_total 0"));
     assert!(output.contains("telemt_auth_expensive_checks_total 0"));
     assert!(output.contains("telemt_auth_budget_exhausted_total 0"));
-    assert!(output.contains("telemt_user_unique_ips_current{user="));
-    assert!(output.contains("telemt_user_unique_ips_recent_window{user="));
 }
 
-#[tokio::test]
-async fn test_render_uses_global_unique_ip_limit() {
+#[test]
+fn test_render_has_type_annotations() {
     let stats = Stats::new();
     let shared_state = ProxySharedState::new();
-    stats.increment_user_connects("alice");
-    stats.increment_user_curr_connects("alice");
-    let tracker = UserIpTracker::new();
-    tracker
-        .check_and_add("alice", "203.0.113.10".parse().unwrap())
-        .await
-        .unwrap();
-    let mut config = ProxyConfig::default();
-    config.access.global_user_max_unique_ips = 2;
-
-    let output = render_metrics(
-        &stats,
-        &shared_state,
-        &config,
-        &tracker,
-        &test_web_publication(),
-    )
-    .await;
-
-    assert!(output.contains("telemt_user_unique_ips_limit{user=\"alice\"} 2"));
-    assert!(output.contains("telemt_user_unique_ips_utilization{user=\"alice\"} 0.500000"));
-}
-
-#[tokio::test]
-async fn test_render_has_type_annotations() {
-    let stats = Stats::new();
-    let shared_state = ProxySharedState::new();
-    let tracker = UserIpTracker::new();
     let config = ProxyConfig::default();
-    let output = render_metrics(
-        &stats,
-        &shared_state,
-        &config,
-        &tracker,
-        &test_web_publication(),
-    )
-    .await;
+    let output = render_metrics(&stats, &shared_state, &config, &test_web_publication());
     assert!(output.contains("# TYPE telemt_uptime_seconds gauge"));
     assert!(output.contains("# TYPE telemt_connections_total counter"));
     assert!(output.contains("# TYPE telemt_connections_bad_total counter"));
@@ -181,17 +118,8 @@ async fn test_render_has_type_annotations() {
     assert!(output.contains("# TYPE telemt_auth_expensive_checks_total counter"));
     assert!(output.contains("# TYPE telemt_auth_budget_exhausted_total counter"));
     assert!(output.contains("# TYPE telemt_upstream_connect_attempt_total counter"));
-    assert!(output.contains("# TYPE telemt_user_unique_ips_current gauge"));
-    assert!(output.contains("# TYPE telemt_user_unique_ips_recent_window gauge"));
-    assert!(output.contains("# TYPE telemt_user_unique_ips_limit gauge"));
-    assert!(output.contains("# TYPE telemt_user_unique_ips_utilization gauge"));
     assert!(output.contains("# TYPE telemt_stats_user_entries gauge"));
     assert!(output.contains("# TYPE telemt_telemetry_user_series_users gauge"));
-    assert!(output.contains("# TYPE telemt_ip_tracker_users gauge"));
-    assert!(output.contains("# TYPE telemt_ip_tracker_entries gauge"));
-    assert!(output.contains("# TYPE telemt_ip_tracker_cleanup_queue_len gauge"));
-    assert!(output.contains("# TYPE telemt_ip_tracker_cleanup_total counter"));
-    assert!(output.contains("# TYPE telemt_ip_tracker_cap_rejects_total counter"));
 }
 
 #[tokio::test]

@@ -9,10 +9,9 @@ use tokio_util::task::TaskTracker;
 
 use crate::config::ProxyConfig;
 use crate::crypto::SecureRandom;
-use crate::ip_tracker::UserIpTracker;
 use crate::proxy::authenticated::ClientRuntimeDeps;
 use crate::proxy::shared_state::ProxySharedState;
-use crate::stats::{ReplayChecker, Stats};
+use crate::stats::Stats;
 use crate::stream::BufferPool;
 use crate::transport::UpstreamManager;
 
@@ -158,10 +157,8 @@ pub(crate) struct RuntimeGeneration {
     pub(crate) admission_rx: watch::Receiver<bool>,
     pub(crate) stats: Arc<Stats>,
     pub(crate) upstream_manager: Arc<UpstreamManager>,
-    pub(crate) replay_checker: Arc<ReplayChecker>,
     pub(crate) buffer_pool: Arc<BufferPool>,
     pub(crate) rng: Arc<SecureRandom>,
-    pub(crate) ip_tracker: Arc<UserIpTracker>,
     pub(crate) proxy_shared: Arc<ProxySharedState>,
     background_tasks: RuntimeTaskScope,
     sessions: TaskTracker,
@@ -178,10 +175,8 @@ impl RuntimeGeneration {
         admission_rx: watch::Receiver<bool>,
         stats: Arc<Stats>,
         upstream_manager: Arc<UpstreamManager>,
-        replay_checker: Arc<ReplayChecker>,
         buffer_pool: Arc<BufferPool>,
         rng: Arc<SecureRandom>,
-        ip_tracker: Arc<UserIpTracker>,
         proxy_shared: Arc<ProxySharedState>,
         background_tasks: RuntimeTaskScope,
     ) -> Arc<Self> {
@@ -191,10 +186,8 @@ impl RuntimeGeneration {
             admission_rx,
             stats,
             upstream_manager,
-            replay_checker,
             buffer_pool,
             rng,
-            ip_tracker,
             proxy_shared,
             background_tasks,
             sessions: TaskTracker::new(),
@@ -216,7 +209,6 @@ impl RuntimeGeneration {
             upstream_manager: Arc::clone(&self.upstream_manager),
             buffer_pool: Arc::clone(&self.buffer_pool),
             rng: Arc::clone(&self.rng),
-            ip_tracker: Arc::clone(&self.ip_tracker),
             shared: Arc::clone(&self.proxy_shared),
         }
     }
@@ -330,10 +322,8 @@ pub(crate) fn test_runtime_generation_with_admission(
         admission_rx,
         stats,
         upstream_manager,
-        Arc::new(ReplayChecker::new(128, Duration::from_secs(60))),
         Arc::new(BufferPool::with_config(4096, 16)),
         Arc::new(SecureRandom::new()),
-        Arc::new(UserIpTracker::new()),
         ProxySharedState::new(),
         RuntimeTaskScope::new(),
     )

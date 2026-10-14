@@ -1,5 +1,4 @@
 use super::*;
-use crate::ip_tracker::UserIpTracker;
 use crate::stats::Stats;
 
 #[tokio::test]
@@ -15,8 +14,7 @@ async fn users_from_config_reports_all_configured_users() {
     );
 
     let stats = Stats::new();
-    let tracker = UserIpTracker::new();
-    let users = users_from_config(&cfg, &stats, &tracker, None).await;
+    let users = users_from_config(&cfg, &stats, None).await;
     let alice = users
         .iter()
         .find(|entry| entry.username == "alice")
@@ -49,9 +47,7 @@ async fn users_from_config_marks_runtime_membership_when_snapshot_is_provided() 
     );
 
     let stats = Stats::new();
-    let tracker = UserIpTracker::new();
-    let users =
-        users_from_config(&disk_cfg, &stats, &tracker, Some(&runtime_cfg)).await;
+    let users = users_from_config(&disk_cfg, &stats, Some(&runtime_cfg)).await;
 
     let alice = users
         .iter()

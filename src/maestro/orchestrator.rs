@@ -6,7 +6,6 @@ use tokio::sync::watch;
 use tracing::{error, info};
 
 use crate::api;
-use crate::ip_tracker::UserIpTracker;
 use crate::network::probe::{decide_network_capabilities, log_probe_result, run_probe};
 use crate::proxy::direct_buffer_budget::{DirectBufferBudget, resolve_direct_buffer_hard_limit};
 use crate::proxy::shared_state::ProxySharedState;
@@ -58,25 +57,6 @@ pub(super) async fn run_telemt_core(
             stats.clone(),
         ),
     );
-    let ip_tracker = Arc::new(UserIpTracker::new());
-    let _ = ip_tracker
-        .apply_policy_from_source(
-            1,
-            config.access.global_user_max_unique_ips,
-            &config.access.user_max_unique_ips,
-            config.access.user_max_unique_ips_mode,
-            config.access.user_max_unique_ips_window_secs,
-        )
-        .await;
-    if config.access.global_user_max_unique_ips > 0
-        || !config.access.user_max_unique_ips.is_empty()
-    {
-        info!(
-            global_each_limit = config.access.global_user_max_unique_ips,
-            explicit_user_limits = config.access.user_max_unique_ips.len(),
-            "User unique IP limits configured"
-        );
-    }
     let direct_buffer_hard_limit =
         resolve_direct_buffer_hard_limit(config.general.dc_buffer_budget_max_bytes).await;
     let direct_buffer_budget = DirectBufferBudget::new(direct_buffer_hard_limit);
@@ -134,7 +114,6 @@ pub(super) async fn run_telemt_core(
                 }
             };
             let stats_api = stats.clone();
-            let ip_tracker_api = ip_tracker.clone();
             let upstream_manager_api = upstream_manager.clone();
             let proxy_shared_api = shared_state.clone();
             let config_path_api = config_path.clone();
@@ -149,7 +128,6 @@ pub(super) async fn run_telemt_core(
                 api::serve(
                     api_listener,
                     stats_api,
-                    ip_tracker_api,
                     proxy_shared_api,
                     upstream_manager_api,
                     config_path_api,
@@ -216,7 +194,6 @@ pub(super) async fn run_telemt_core(
         &startup_tracker,
         stats.clone(),
         upstream_manager.clone(),
-        ip_tracker.clone(),
         direct_buffer_budget,
         runtime_task_scope.clone(),
         admission_tx,
@@ -233,10 +210,8 @@ pub(super) async fn run_telemt_core(
         admission_rx,
         stats.clone(),
         upstream_manager.clone(),
-        runtime.replay_checker,
         runtime.buffer_pool,
         runtime.rng,
-        ip_tracker,
         shared_state,
         runtime_task_scope,
     );

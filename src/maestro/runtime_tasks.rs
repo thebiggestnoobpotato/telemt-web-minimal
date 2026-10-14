@@ -6,12 +6,11 @@ use tracing_subscriber::Registry;
 use tracing_subscriber::reload;
 
 use crate::config::{LogLevel, ProxyConfig};
-use crate::ip_tracker::UserIpTracker;
 use crate::metrics;
 use crate::startup::{
     COMPONENT_METRICS_START, COMPONENT_RUNTIME_READY, StartupTracker,
 };
-use crate::stats::{ReplayChecker, Stats};
+use crate::stats::Stats;
 use crate::transport::UpstreamManager;
 
 use super::control_plane::ProcessControlPlane;
@@ -42,15 +41,12 @@ impl RuntimeLogFilter {
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn spawn_runtime_tasks(
-    generation_id: u64,
     config: &Arc<ProxyConfig>,
     prefer_ipv6: bool,
     decision_ipv4_dc: bool,
     decision_ipv6_dc: bool,
     stats: Arc<Stats>,
     upstream_manager: Arc<UpstreamManager>,
-    replay_checker: Arc<ReplayChecker>,
-    ip_tracker: Arc<UserIpTracker>,
     task_scope: RuntimeTaskScope,
 ) {
     let um_clone = upstream_manager.clone();
@@ -66,22 +62,10 @@ pub(crate) async fn spawn_runtime_tasks(
             .await;
     });
 
-    let rc_clone = replay_checker.clone();
-    task_scope.spawn(async move {
-        rc_clone.run_periodic_cleanup().await;
-    });
-
     let stats_maintenance = stats.clone();
     task_scope.spawn(async move {
         stats_maintenance
             .run_periodic_user_stats_maintenance()
-            .await;
-    });
-
-    let ip_tracker_maintenance = ip_tracker.clone();
-    task_scope.spawn(async move {
-        ip_tracker_maintenance
-            .run_periodic_maintenance(generation_id)
             .await;
     });
 

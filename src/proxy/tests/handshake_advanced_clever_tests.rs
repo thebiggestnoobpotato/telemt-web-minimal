@@ -13,7 +13,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
 }
 
@@ -69,7 +68,6 @@ async fn mtproto_extreme_dc_index_serialization() {
     for (idx, extreme_dc) in [i16::MIN, i16::MAX, -1, 0].into_iter().enumerate() {
         // Keep replay state independent per case so we validate dc_idx encoding,
         // not duplicate-handshake rejection behavior.
-        let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
         let peer = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)), 12345 + idx as u16);
         let handshake = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, extreme_dc);
         let res = handle_mtproto_handshake(
@@ -78,7 +76,6 @@ async fn mtproto_extreme_dc_index_serialization() {
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
         )
@@ -128,7 +125,6 @@ async fn mtproto_invalid_ciphertext_does_not_poison_replay_cache() {
 
     let secret_hex = "55555555555555555555555555555555";
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.5:12345".parse().unwrap();
 
     let valid_handshake = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 1);
@@ -141,7 +137,6 @@ async fn mtproto_invalid_ciphertext_does_not_poison_replay_cache() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
     )
@@ -154,7 +149,6 @@ async fn mtproto_invalid_ciphertext_does_not_poison_replay_cache() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
     )
@@ -173,7 +167,6 @@ async fn classic_mode_over_tls_transport_protocol_confusion() {
     let secret_hex = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     let mut config = test_config_with_secret_hex(secret_hex);
 
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.11:12345".parse().unwrap();
 
     let handshake = make_valid_mtproto_handshake(secret_hex, ProtoTag::Intermediate, 1);
@@ -184,7 +177,6 @@ async fn classic_mode_over_tls_transport_protocol_confusion() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         true,
         None,
     )

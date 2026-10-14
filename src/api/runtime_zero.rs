@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-use crate::config::{ProxyConfig, UserMaxUniqueIpsMode};
+use crate::config::ProxyConfig;
 
 use super::ApiShared;
 use super::runtime_init::build_runtime_startup_summary;
@@ -44,16 +44,8 @@ pub(super) struct EffectiveUpstreamLimits {
 }
 
 #[derive(Serialize)]
-pub(super) struct EffectiveUserIpPolicyLimits {
-    pub(super) global_each: usize,
-    pub(super) mode: &'static str,
-    pub(super) window_secs: u64,
-}
-
-#[derive(Serialize)]
 pub(super) struct EffectiveLimitsData {
     pub(super) upstream: EffectiveUpstreamLimits,
-    pub(super) user_ip_policy: EffectiveUserIpPolicyLimits,
 }
 
 #[derive(Serialize)]
@@ -133,11 +125,6 @@ pub(super) fn build_limits_effective_data(cfg: &ProxyConfig) -> EffectiveLimitsD
             unhealthy_fail_threshold: cfg.general.upstream_unhealthy_fail_threshold,
             connect_failfast_hard_errors: cfg.general.upstream_connect_failfast_hard_errors,
         },
-        user_ip_policy: EffectiveUserIpPolicyLimits {
-            global_each: cfg.access.global_user_max_unique_ips,
-            mode: user_max_unique_ips_mode_label(cfg.access.user_max_unique_ips_mode),
-            window_secs: cfg.access.user_max_unique_ips_window_secs,
-        },
     }
 }
 
@@ -153,13 +140,6 @@ pub(super) fn build_security_posture_data(cfg: &ProxyConfig) -> SecurityPostureD
     }
 }
 
-fn user_max_unique_ips_mode_label(mode: UserMaxUniqueIpsMode) -> &'static str {
-    match mode {
-        UserMaxUniqueIpsMode::ActiveWindow => "active_window",
-        UserMaxUniqueIpsMode::TimeWindow => "time_window",
-        UserMaxUniqueIpsMode::Combined => "combined",
-    }
-}
 
 #[cfg(test)]
 mod tests {

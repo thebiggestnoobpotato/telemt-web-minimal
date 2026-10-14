@@ -29,9 +29,15 @@ fn stale_credential_cannot_cross_delete_and_recreate() {
         .unwrap();
 
     authority.delete_user("alice");
-    let recreated = authority.stage_user("alice", new_secret).unwrap();
+    authority.stage_user("alice", new_secret).unwrap();
 
-    assert!(recreated.incarnation > old_incarnation);
+    let new_credential = credential_id_from_hex(new_secret).unwrap();
+    assert!(
+        authority
+            .authenticated_incarnation("alice", new_credential)
+            .unwrap()
+            > old_incarnation
+    );
     assert!(
         authority
             .authenticated_incarnation("alice", old_credential)

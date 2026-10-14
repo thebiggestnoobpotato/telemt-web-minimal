@@ -169,15 +169,6 @@ pub(super) fn render_access_section(
                 .collect();
             serialize_table_body(&rows)?
         }
-        AccessSection::UserMaxUniqueIps => {
-            let rows: BTreeMap<String, usize> = cfg
-                .access
-                .user_max_unique_ips
-                .iter()
-                .map(|(key, value)| (key.clone(), *value))
-                .collect();
-            serialize_table_body(&rows)?
-        }
     };
 
     let mut out = format!("[{}]\n", section.table_name());
@@ -193,7 +184,6 @@ pub(super) fn render_access_section(
 fn access_section_is_empty(cfg: &ProxyConfig, section: AccessSection) -> bool {
     match section {
         AccessSection::Users => cfg.users.is_empty(),
-        AccessSection::UserMaxUniqueIps => cfg.access.user_max_unique_ips.is_empty(),
     }
 }
 

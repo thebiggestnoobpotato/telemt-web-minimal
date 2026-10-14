@@ -50,7 +50,6 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     cfg.users.clear();
     cfg.users
         .insert("user".to_string(), secret_hex.to_string());
-    cfg.access.ignore_time_skew = true;
     cfg
 }
 
@@ -66,7 +65,6 @@ async fn mtproto_handshake_bit_flip_anywhere_rejected() {
     let secret_hex = "11223344556677889900aabbccddeeff";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 2);
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.1:12345".parse().unwrap();
 
     // Baseline check
@@ -76,7 +74,6 @@ async fn mtproto_handshake_bit_flip_anywhere_rejected() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
     )
@@ -86,8 +83,9 @@ async fn mtproto_handshake_bit_flip_anywhere_rejected() {
         _ => panic!("Baseline failed: expected Success"),
     }
 
-    // Flip bits in the encrypted part (beyond the key material)
-    for byte_pos in SKIP_LEN..HANDSHAKE_LEN {
+    // Flip bits in the authenticated region (prekey, IV, and proto tag).
+    // The trailing DC-index/padding bytes are not verified at handshake time.
+    for byte_pos in SKIP_LEN..PROTO_TAG_POS + 4 {
         let mut h = base;
         h[byte_pos] ^= 0x01; // Flip 1 bit
         let res = handle_mtproto_handshake(
@@ -96,7 +94,6 @@ async fn mtproto_handshake_bit_flip_anywhere_rejected() {
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
         )
@@ -117,7 +114,6 @@ async fn mtproto_handshake_timing_neutrality_mocked() {
     let secret_hex = "00112233445566778899aabbccddeeff";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 1);
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.2:54321".parse().unwrap();
 
     const ITER: usize = 50;
@@ -130,7 +126,6 @@ async fn mtproto_handshake_timing_neutrality_mocked() {
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
         )
@@ -148,7 +143,6 @@ async fn mtproto_handshake_timing_neutrality_mocked() {
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
         )
@@ -208,7 +202,6 @@ async fn mtproto_handshake_abridged_prefix_rejected() {
     let mut handshake = [0x5Au8; HANDSHAKE_LEN];
     handshake[0] = 0xef; // Abridged prefix
     let config = ProxyConfig::default();
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.3:12345".parse().unwrap();
 
     let res = handle_mtproto_handshake(
@@ -217,7 +210,6 @@ async fn mtproto_handshake_abridged_prefix_rejected() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         None,
     )
@@ -242,9 +234,7 @@ async fn mtproto_handshake_preferred_user_mismatch_continues() {
     config
         .users
         .insert("user2".to_string(), secret2_hex.to_string());
-    config.access.ignore_time_skew = true;
 
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
     let peer: SocketAddr = "192.0.2.4:12345".parse().unwrap();
 
     // Even if we prefer user1, if user2 matches, it should succeed.
@@ -254,7 +244,6 @@ async fn mtproto_handshake_preferred_user_mismatch_continues() {
         tokio::io::sink(),
         peer,
         &config,
-        &replay_checker,
         false,
         Some("user1"),
     )
@@ -274,15 +263,12 @@ async fn mtproto_handshake_concurrent_flood_stability() {
     let secret_hex = "00112233445566778899aabbccddeeff";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 1);
     let mut config = test_config_with_secret_hex(secret_hex);
-    config.access.ignore_time_skew = true;
-    let replay_checker = Arc::new(ReplayChecker::new(1024, Duration::from_secs(60)));
     let config = Arc::new(config);
 
     let mut tasks = Vec::new();
     for i in 0..50 {
         let base = base;
         let config = Arc::clone(&config);
-        let replay_checker = Arc::clone(&replay_checker);
         let peer: SocketAddr = format!("192.0.2.{}:12345", (i % 254) + 1).parse().unwrap();
 
         tasks.push(tokio::spawn(async move {
@@ -292,7 +278,6 @@ async fn mtproto_handshake_concurrent_flood_stability() {
                 tokio::io::sink(),
                 peer,
                 &config,
-                &replay_checker,
                 false,
                 None,
             )
@@ -309,46 +294,6 @@ async fn mtproto_handshake_concurrent_flood_stability() {
 }
 
 #[tokio::test]
-async fn mtproto_replay_is_rejected_across_distinct_peers() {
-    let shared = ProxySharedState::new();
-    clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
-
-    let secret_hex = "0123456789abcdeffedcba9876543210";
-    let handshake = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 2);
-    let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(128, Duration::from_secs(60));
-
-    let first_peer: SocketAddr = "198.51.100.10:41001".parse().unwrap();
-    let second_peer: SocketAddr = "198.51.100.11:41002".parse().unwrap();
-
-    let first = handle_mtproto_handshake(
-        &handshake,
-        tokio::io::empty(),
-        tokio::io::sink(),
-        first_peer,
-        &config,
-        &replay_checker,
-        false,
-        None,
-    )
-    .await;
-    assert!(matches!(first, HandshakeResult::Success(_)));
-
-    let replay = handle_mtproto_handshake(
-        &handshake,
-        tokio::io::empty(),
-        tokio::io::sink(),
-        second_peer,
-        &config,
-        &replay_checker,
-        false,
-        None,
-    )
-    .await;
-    assert!(matches!(replay, HandshakeResult::BadClient { .. }));
-}
-
-#[tokio::test]
 async fn mtproto_blackhat_mutation_corpus_never_panics_and_stays_fail_closed() {
     let shared = ProxySharedState::new();
     clear_auth_probe_state_for_testing_in_shared(shared.as_ref());
@@ -356,7 +301,6 @@ async fn mtproto_blackhat_mutation_corpus_never_panics_and_stays_fail_closed() {
     let secret_hex = "89abcdef012345670123456789abcdef";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 2);
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(8192, Duration::from_secs(60));
 
     for i in 0..512usize {
         let mut mutated = base;
@@ -375,7 +319,6 @@ async fn mtproto_blackhat_mutation_corpus_never_panics_and_stays_fail_closed() {
                 tokio::io::sink(),
                 peer,
                 &config,
-                &replay_checker,
                 false,
                 None,
             ),
@@ -422,7 +365,6 @@ async fn mtproto_invalid_storm_over_cap_keeps_probe_map_hard_bounded() {
     invalid[SKIP_LEN + 3] ^= 0xff;
 
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(64, Duration::from_secs(60));
 
     for i in 0..(AUTH_PROBE_TRACK_MAX_ENTRIES + 512) {
         let peer: SocketAddr = SocketAddr::new(
@@ -440,7 +382,6 @@ async fn mtproto_invalid_storm_over_cap_keeps_probe_map_hard_bounded() {
             tokio::io::sink(),
             peer,
             &config,
-            &replay_checker,
             false,
             None,
         )
@@ -463,7 +404,6 @@ async fn mtproto_property_style_multi_bit_mutations_fail_closed_or_auth_only() {
     let secret_hex = "f0e1d2c3b4a5968778695a4b3c2d1e0f";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 2);
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(10_000, Duration::from_secs(60));
 
     let mut seed: u64 = 0xC0FF_EE12_3456_789A;
     for i in 0..2_048usize {
@@ -489,7 +429,6 @@ async fn mtproto_property_style_multi_bit_mutations_fail_closed_or_auth_only() {
                 tokio::io::sink(),
                 peer,
                 &config,
-                &replay_checker,
                 false,
                 None,
             ),
@@ -516,7 +455,6 @@ async fn mtproto_blackhat_20k_mutation_soak_never_panics() {
     let secret_hex = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let base = make_valid_mtproto_handshake(secret_hex, ProtoTag::Secure, 2);
     let config = test_config_with_secret_hex(secret_hex);
-    let replay_checker = ReplayChecker::new(50_000, Duration::from_secs(120));
 
     let mut seed: u64 = 0xA5A5_5A5A_DEAD_BEEF;
     for i in 0..20_000usize {
@@ -542,7 +480,6 @@ async fn mtproto_blackhat_20k_mutation_soak_never_panics() {
                 tokio::io::sink(),
                 peer,
                 &config,
-                &replay_checker,
                 false,
                 None,
             ),

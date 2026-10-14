@@ -23,7 +23,6 @@ async fn patch_user_to_completion(
     shared: &ApiShared,
 ) -> Result<(UserInfo, String), ApiFailure> {
     let touches_users = body.secret.is_some();
-    let touches_user_max_unique_ips = !matches!(&body.max_unique_ips, Patch::Unchanged);
 
     if let Some(secret) = body.secret.as_ref()
         && !is_valid_user_secret(secret)
@@ -47,21 +46,6 @@ async fn patch_user_to_completion(
     if let Some(secret) = body.secret {
         cfg.users.insert(user.to_string(), secret);
     }
-    // Capture how the per-user IP limit changed, so the in-memory ip_tracker
-    // can be synced (set or removed) after the config is persisted.
-    let max_unique_ips_change = match body.max_unique_ips {
-        Patch::Unchanged => None,
-        Patch::Remove => {
-            cfg.access.user_max_unique_ips.remove(user);
-            Some(None)
-        }
-        Patch::Set(limit) => {
-            cfg.access
-                .user_max_unique_ips
-                .insert(user.to_string(), limit);
-            Some(Some(limit))
-        }
-    };
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
     let staged_credential = if touches_users {
@@ -80,9 +64,6 @@ async fn patch_user_to_completion(
     if touches_users {
         touched_sections.push(AccessSection::Users);
     }
-    if touches_user_max_unique_ips {
-        touched_sections.push(AccessSection::UserMaxUniqueIps);
-    }
 
     let revision = if touched_sections.is_empty() {
         current_revision(&shared.config_path).await?
@@ -98,14 +79,9 @@ async fn patch_user_to_completion(
     if let Some(credential_id) = staged_credential {
         shared.proxy_shared.stage_user_credential(user, credential_id);
     }
-    match max_unique_ips_change {
-        Some(Some(limit)) => shared.ip_tracker.set_user_limit(user, limit).await,
-        Some(None) => shared.ip_tracker.remove_user_limit(user).await,
-        None => {}
-    }
     drop(_guard);
 
-    let users = users_from_config(&cfg, &shared.stats, &shared.ip_tracker, None).await;
+    let users = users_from_config(&cfg, &shared.stats, None).await;
     let user_info = users
         .into_iter()
         .find(|entry| entry.username == user)

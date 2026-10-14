@@ -1,10 +1,8 @@
-use std::net::IpAddr;
 use std::sync::OnceLock;
 
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 
-use super::patch::{Patch, patch_field};
 use crate::crypto::SecureRandom;
 
 const MAX_USERNAME_LEN: usize = 64;

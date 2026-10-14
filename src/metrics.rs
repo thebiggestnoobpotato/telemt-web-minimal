@@ -1,4 +1,3 @@
-use std::collections::{BTreeSet, HashMap};
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -16,7 +15,6 @@ use tokio::time::timeout;
 use tracing::{debug, info, warn};
 
 use crate::config::ProxyConfig;
-use crate::ip_tracker::UserIpTracker;
 use crate::maestro::control_plane::ProcessControlPlane;
 use crate::maestro::generation::RuntimeGeneration;
 use crate::proxy::shared_state::ProxySharedState;
@@ -203,11 +201,10 @@ async fn handle<B>(
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     let stats = &runtime.stats;
     let shared_state = &runtime.proxy_shared;
-    let ip_tracker = &runtime.ip_tracker;
     let config = runtime.config();
 
     if req.uri().path() == "/metrics" {
-        let body = render_metrics(stats, shared_state, &config, ip_tracker, web_publication).await;
+        let body = render_metrics(stats, shared_state, &config, web_publication);
         let resp = Response::builder()
             .status(StatusCode::OK)
             .header("content-type", "text/plain; version=0.0.4; charset=utf-8")
