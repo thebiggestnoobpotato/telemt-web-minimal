@@ -29,16 +29,17 @@ const USER_LABELED_METRICS_MAX_USERS: usize = 4096;
 const METRICS_MAX_CONTROL_CONNECTIONS: usize = 512;
 const METRICS_HTTP_CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// Bound process-owned metrics listeners ready for supervised serving.
-pub(crate) struct BoundMetricsListeners {
-    listeners: Vec<(TcpListener, SocketAddr)>,
+/// Bound process-owned metrics listener ready for supervised serving.
+pub(crate) struct BoundMetricsListener {
+    listener: TcpListener,
+    addr: SocketAddr,
 }
 
 /// Binds the configured metrics socket before process readiness is published.
 pub(crate) fn bind(
     listen_address: String,
     listen_backlog: u32,
-) -> std::io::Result<BoundMetricsListeners> {
+) -> std::io::Result<BoundMetricsListener> {
     let addr: SocketAddr = listen_address.parse().map_err(|error| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -49,27 +50,24 @@ pub(crate) fn bind(
     // on Linux when `net.ipv6.bindv6only=0`.
     let ipv6_only = addr.is_ipv6() && !addr.ip().is_unspecified();
     let listener = bind_metrics_listener(addr, ipv6_only, listen_backlog)?;
-    Ok(BoundMetricsListeners {
-        listeners: vec![(listener, addr)],
-    })
+    Ok(BoundMetricsListener { listener, addr })
 }
 
-/// Starts supervised accept loops for previously bound metrics sockets.
+/// Starts the supervised accept loop for the previously bound metrics socket.
 pub(crate) fn serve(
-    bound: BoundMetricsListeners,
+    bound: BoundMetricsListener,
     active_runtime: Arc<ArcSwap<RuntimeGeneration>>,
     web_runtime_rx: tokio::sync::watch::Receiver<crate::web::control::WebRuntimePublication>,
     control_plane: ProcessControlPlane,
 ) {
-    for (listener, addr) in bound.listeners {
-        info!("Metrics endpoint: http://{}/metrics", addr);
-        let active_runtime = active_runtime.clone();
-        let web_runtime_rx = web_runtime_rx.clone();
-        let listener_scope = control_plane.clone();
-        let _ = control_plane.spawn(async move {
-            serve_listener(listener, active_runtime, web_runtime_rx, listener_scope).await;
-        });
-    }
+    let BoundMetricsListener { listener, addr } = bound;
+    info!("Metrics endpoint: http://{}/metrics", addr);
+    let active_runtime = active_runtime.clone();
+    let web_runtime_rx = web_runtime_rx.clone();
+    let listener_scope = control_plane.clone();
+    let _ = control_plane.spawn(async move {
+        serve_listener(listener, active_runtime, web_runtime_rx, listener_scope).await;
+    });
 }
 
 fn bind_metrics_listener(
