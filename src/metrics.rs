@@ -34,58 +34,24 @@ pub(crate) struct BoundMetricsListeners {
     listeners: Vec<(TcpListener, SocketAddr)>,
 }
 
-/// Binds every configured metrics socket before process readiness is published.
+/// Binds the configured metrics socket before process readiness is published.
 pub(crate) fn bind(
-    port: u16,
-    listen: Option<String>,
+    listen_address: String,
     listen_backlog: u32,
 ) -> std::io::Result<BoundMetricsListeners> {
-    if let Some(ref listen_addr) = listen {
-        let addr: SocketAddr = listen_addr.parse().map_err(|error| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                format!("invalid metrics.listen address {listen_addr}: {error}"),
-            )
-        })?;
-        // Match `api.listen`: `[::]:port` is a dual-stack wildcard
-        // on Linux when `net.ipv6.bindv6only=0`.
-        let ipv6_only = addr.is_ipv6() && !addr.ip().is_unspecified();
-        let listener = bind_metrics_listener(addr, ipv6_only, listen_backlog)?;
-        return Ok(BoundMetricsListeners {
-            listeners: vec![(listener, addr)],
-        });
-    }
-
-    let mut listeners = Vec::with_capacity(2);
-    let mut last_error = None;
-
-    let addr_v4 = SocketAddr::from(([127, 0, 0, 1], port));
-    match bind_metrics_listener(addr_v4, false, listen_backlog) {
-        Ok(listener) => listeners.push((listener, addr_v4)),
-        Err(e) => {
-            warn!(error = %e, "Failed to bind metrics on {}", addr_v4);
-            last_error = Some(e);
-        }
-    }
-
-    let addr_v6 = SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 1], port));
-    match bind_metrics_listener(addr_v6, true, listen_backlog) {
-        Ok(listener) => listeners.push((listener, addr_v6)),
-        Err(e) => {
-            warn!(error = %e, "Failed to bind metrics on {}", addr_v6);
-            last_error = Some(e);
-        }
-    }
-
-    if listeners.is_empty() {
-        return Err(last_error.unwrap_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::AddrNotAvailable,
-                "metrics listener is unavailable on both IPv4 and IPv6",
-            )
-        }));
-    }
-    Ok(BoundMetricsListeners { listeners })
+    let addr: SocketAddr = listen_address.parse().map_err(|error| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("invalid metrics.listen_address {listen_address}: {error}"),
+        )
+    })?;
+    // Match `api.listen`: `[::]:port` is a dual-stack wildcard
+    // on Linux when `net.ipv6.bindv6only=0`.
+    let ipv6_only = addr.is_ipv6() && !addr.ip().is_unspecified();
+    let listener = bind_metrics_listener(addr, ipv6_only, listen_backlog)?;
+    Ok(BoundMetricsListeners {
+        listeners: vec![(listener, addr)],
+    })
 }
 
 /// Starts supervised accept loops for previously bound metrics sockets.

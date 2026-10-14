@@ -75,7 +75,8 @@ curl -s http://127.0.0.1:9091/v1/users | jq
 2. Add the following parameters:
 ```toml
 [metrics]
-listen = "127.0.0.1:9090"
+enabled = true
+listen_address = "127.0.0.1:9090"
 whitelist = ["127.0.0.1/32", "::1/128"]
 ```
 3. Save the changes (Ctrl+S -> Ctrl+X).

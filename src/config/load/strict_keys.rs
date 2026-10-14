@@ -38,7 +38,7 @@ const GENERAL_CONFIG_KEYS: &[&str] = &[
     "listen_backlog",
 ];
 
-const METRICS_CONFIG_KEYS: &[&str] = &["port", "listen", "whitelist"];
+const METRICS_CONFIG_KEYS: &[&str] = &["enabled", "listen_address", "whitelist"];
 
 const API_CONFIG_KEYS: &[&str] = &[
     "enabled",

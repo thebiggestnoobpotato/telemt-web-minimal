@@ -207,7 +207,7 @@ async fn read_managed_config_returns_only_editable_sections() {
         "[web.vhost]\nhost = \"proxy.example.com\"\npublic_addr = \"203.0.113.1:443\"\n\
          upstream = \"http://127.0.0.1:80\"\n\
          [[web.vhost.profiles]]\nuser = \"bob\"\n",
-        "[metrics]\nport = 9090\n",
+        "[metrics]\nenabled = true\nlisten_address = \"127.0.0.1:9090\"\n",
         "[users]\nbob = \"00000000000000000000000000000000\"\n",
     ));
     let (value, _rev) = read_managed_config(&path).await.unwrap();

@@ -89,70 +89,70 @@ pub(crate) async fn spawn_metrics_if_configured(
     web_runtime_rx: tokio::sync::watch::Receiver<crate::web::control::WebRuntimePublication>,
     control_plane: ProcessControlPlane,
 ) -> std::io::Result<()> {
-    // metrics.listen takes precedence; fall back to metrics.port.
-    let metrics_target: Option<(u16, Option<String>)> =
-        if let Some(ref listen) = config.metrics.listen {
-            match listen.parse::<std::net::SocketAddr>() {
-                Ok(addr) => Some((addr.port(), Some(listen.clone()))),
-                Err(e) => {
-                    startup_tracker
-                        .fail_component(
-                            COMPONENT_METRICS_START,
-                            Some(format!("invalid metrics.listen \"{}\": {}", listen, e)),
-                        )
-                        .await;
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        format!("invalid metrics.listen \"{}\": {}", listen, e),
-                    ));
-                }
-            }
-        } else {
-            config.metrics.port.map(|p| (p, None))
-        };
-
-    if let Some((port, listen)) = metrics_target {
-        let fallback_label = format!("port {}", port);
-        let label = listen.as_deref().unwrap_or(&fallback_label);
-        startup_tracker
-            .start_component(
-                COMPONENT_METRICS_START,
-                Some(format!("spawn metrics endpoint on {}", label)),
-            )
-            .await;
-        let listen_backlog = config.general.listen_backlog;
-        let bound = match metrics::bind(port, listen, listen_backlog) {
-            Ok(bound) => bound,
-            Err(error) => {
-                startup_tracker
-                    .fail_component(
-                        COMPONENT_METRICS_START,
-                        Some(format!("metrics listener bind failed: {error}")),
-                    )
-                    .await;
-                return Err(error);
-            }
-        };
-        metrics::serve(
-            bound,
-            active_runtime,
-            web_runtime_rx,
-            control_plane,
-        );
-        startup_tracker
-            .complete_component(
-                COMPONENT_METRICS_START,
-                Some("metrics listeners bound and supervised".to_string()),
-            )
-            .await;
-    } else if config.metrics.listen.is_none() {
+    if !config.metrics.enabled {
         startup_tracker
             .skip_component(
                 COMPONENT_METRICS_START,
-                Some("metrics.port is not configured".to_string()),
+                Some("metrics.enabled is false".to_string()),
             )
             .await;
+        return Ok(());
     }
+
+    let listen = match config.metrics.listen_address.clone() {
+        Some(address) => address,
+        None => {
+            let message =
+                "metrics.listen_address is required when metrics.enabled is true".to_string();
+            startup_tracker
+                .fail_component(COMPONENT_METRICS_START, Some(message.clone()))
+                .await;
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, message));
+        }
+    };
+
+    match listen.parse::<std::net::SocketAddr>() {
+        Ok(_) => {}
+        Err(e) => {
+            let message = format!("invalid metrics.listen_address \"{}\": {}", listen, e);
+            startup_tracker
+                .fail_component(COMPONENT_METRICS_START, Some(message.clone()))
+                .await;
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, message));
+        }
+    }
+
+    startup_tracker
+        .start_component(
+            COMPONENT_METRICS_START,
+            Some(format!("spawn metrics endpoint on {}", listen)),
+        )
+        .await;
+    let listen_backlog = config.general.listen_backlog;
+    let bound = match metrics::bind(listen, listen_backlog) {
+        Ok(bound) => bound,
+        Err(error) => {
+            startup_tracker
+                .fail_component(
+                    COMPONENT_METRICS_START,
+                    Some(format!("metrics listener bind failed: {error}")),
+                )
+                .await;
+            return Err(error);
+        }
+    };
+    metrics::serve(
+        bound,
+        active_runtime,
+        web_runtime_rx,
+        control_plane,
+    );
+    startup_tracker
+        .complete_component(
+            COMPONENT_METRICS_START,
+            Some("metrics listener bound and supervised".to_string()),
+        )
+        .await;
     Ok(())
 }
 

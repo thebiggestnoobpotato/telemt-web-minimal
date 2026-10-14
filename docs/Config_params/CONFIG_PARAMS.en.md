@@ -526,27 +526,28 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
 
 | Key | Type | Default |
 | --- | ---- | ------- |
-| [`port`](#port-metrics) | `u16` | — |
-| [`listen`](#listen-metrics) | `String` | — |
+| [`enabled`](#enabled-metrics) | `bool` | `false` |
+| [`listen_address`](#listen_address-metrics) | `String` | — |
 | [`whitelist`](#whitelist-metrics) | `IpNetwork[]` | `["127.0.0.1/32", "::1/128"]` |
 
-## port (metrics)
-  - **Constraints / validation**: `u16` (optional).
-  - **Description**: Prometheus-compatible metrics endpoint port. When set, enables the metrics listener (bind behavior can be overridden by `listen`).
+## enabled (metrics)
+  - **Constraints / validation**: `bool`.
+  - **Description**: Enables or disables the Prometheus-compatible metrics endpoint. When `true`, `listen_address` is required.
   - **Example**:
 
     ```toml
     [metrics]
-    port = 9090
+    enabled = true
     ```
-## listen (metrics)
-  - **Constraints / validation**: `String` (optional). When set, must be in `IP:PORT` format.
-  - **Description**: Full metrics bind address (`IP:PORT`), overrides `port` and binds on the specified address only.
+## listen_address (metrics)
+  - **Constraints / validation**: `String`. Must be in `IP:PORT` format. Required when `enabled = true`.
+  - **Description**: Full metrics bind address (`IP:PORT`); binds on the specified address only.
   - **Example**:
 
     ```toml
     [metrics]
-    listen = "127.0.0.1:9090"
+    enabled = true
+    listen_address = "127.0.0.1:9090"
     ```
 ## whitelist (metrics)
   - **Constraints / validation**: `IpNetwork[]`.
@@ -555,7 +556,8 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
 
     ```toml
     [metrics]
-    port = 9090
+    enabled = true
+    listen_address = "127.0.0.1:9090"
     whitelist = ["127.0.0.1/32", "::1/128"]
     ```
 

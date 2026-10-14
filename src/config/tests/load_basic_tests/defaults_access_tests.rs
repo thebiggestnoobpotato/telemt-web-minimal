@@ -235,15 +235,24 @@ fn server_metrics_keys_are_moved_to_metrics() {
         "[server]\nmetrics_port = 9090\n\
          [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert_eq!(cfg.metrics.port, None);
+    assert!(!cfg.metrics.enabled);
+    assert_eq!(cfg.metrics.listen_address, None);
+
+    // strict: the stripped port key is rejected after the move to
+    // enabled/listen_address.
+    let error = load_config_error_from_temp_toml(
+        "[general]\nconfig_strict = true\n[metrics]\nport = 9090\n\
+         [users]\nuser = \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("port"), "{error}");
 
     // the new [metrics] section loads explicit values and defaults.
     let cfg = load_config_from_temp_toml(
-        "[metrics]\nport = 9090\nlisten = \"127.0.0.1:9090\"\n\
+        "[metrics]\nenabled = true\nlisten_address = \"127.0.0.1:9090\"\n\
          [users]\nuser = \"00000000000000000000000000000000\"\n",
     );
-    assert_eq!(cfg.metrics.port, Some(9090));
-    assert_eq!(cfg.metrics.listen.as_deref(), Some("127.0.0.1:9090"));
+    assert!(cfg.metrics.enabled);
+    assert_eq!(cfg.metrics.listen_address.as_deref(), Some("127.0.0.1:9090"));
     assert_eq!(cfg.metrics.whitelist, default_metrics_whitelist());
 }
 
