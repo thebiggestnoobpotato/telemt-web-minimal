@@ -5,9 +5,6 @@
 //! - syslog (Unix only, for traditional init systems)
 //! - file (append-only)
 
-// Infrastructure module used via CLI flags.
-#![allow(dead_code)]
-
 use crate::config::{LoggingConfig, LoggingDestination};
 
 use tracing_subscriber::layer::SubscriberExt;
