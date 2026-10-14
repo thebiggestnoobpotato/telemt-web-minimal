@@ -12,7 +12,7 @@ use crate::config::{LoggingConfig, LoggingDestination};
 
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{EnvFilter, fmt, reload};
+use tracing_subscriber::{EnvFilter, fmt, reload, Registry};
 
 // Submodules:
 // - file: append-only file appender for file logging.
@@ -84,10 +84,7 @@ impl LoggingGuard {
 pub fn init_logging(
     opts: &LoggingOptions,
     initial_filter: &str,
-) -> (
-    reload::Handle<EnvFilter, impl tracing::Subscriber + Send + Sync>,
-    LoggingGuard,
-) {
+) -> (reload::Handle<EnvFilter, Registry>, LoggingGuard) {
     let (filter_layer, filter_handle) = reload::Layer::new(EnvFilter::new(initial_filter));
 
     match &opts.destination {

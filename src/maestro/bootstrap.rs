@@ -247,7 +247,9 @@ pub(super) async fn bootstrap(
                 std::process::exit(1);
             }
         };
-    let (filter_layer, filter_handle) =
+    // The Syslog/File arms install a different reload layer (built inside
+    // init_logging) and replace filter_handle with that layer's handle.
+    let (filter_layer, mut filter_handle) =
         tracing_reload::Layer::new(EnvFilter::new(initial_filter_spec.clone()));
     startup_tracker
         .start_component(
@@ -272,7 +274,9 @@ pub(super) async fn bootstrap(
                 destination: log_destination,
                 strict_runtime_paths,
             };
-            let (_, guard) = crate::logging::init_logging(&logging_opts, &initial_filter_spec);
+            let (installed_filter_handle, guard) =
+                crate::logging::init_logging(&logging_opts, &initial_filter_spec);
+            filter_handle = installed_filter_handle;
             logging_guard = Some(guard);
         }
         crate::logging::LogDestination::File { .. } => {
@@ -280,7 +284,9 @@ pub(super) async fn bootstrap(
                 destination: log_destination,
                 strict_runtime_paths,
             };
-            let (_, guard) = crate::logging::init_logging(&logging_opts, &initial_filter_spec);
+            let (installed_filter_handle, guard) =
+                crate::logging::init_logging(&logging_opts, &initial_filter_spec);
+            filter_handle = installed_filter_handle;
             logging_guard = Some(guard);
         }
     }
