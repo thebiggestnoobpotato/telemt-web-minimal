@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use tracing::info;
-use tracing_subscriber::{EnvFilter, fmt, prelude::*, reload as tracing_reload};
 
 use crate::config::{LogLevel, ProxyConfig};
 use crate::startup::{COMPONENT_CONFIG_LOAD, COMPONENT_TRACING_INIT, StartupTracker};
@@ -247,10 +246,6 @@ pub(super) async fn bootstrap(
                 std::process::exit(1);
             }
         };
-    // The Syslog/File arms install a different reload layer (built inside
-    // init_logging) and replace filter_handle with that layer's handle.
-    let (filter_layer, mut filter_handle) =
-        tracing_reload::Layer::new(EnvFilter::new(initial_filter_spec.clone()));
     startup_tracker
         .start_component(
             COMPONENT_TRACING_INIT,
@@ -258,38 +253,14 @@ pub(super) async fn bootstrap(
         )
         .await;
 
-    let logging_guard: Option<crate::logging::LoggingGuard>;
-    match log_destination {
-        crate::logging::LogDestination::Stderr => {
-            let fmt_layer = fmt::Layer::default().with_ansi(false);
-            tracing_subscriber::registry()
-                .with(filter_layer)
-                .with(fmt_layer)
-                .init();
-            logging_guard = None;
-        }
-        #[cfg(unix)]
-        crate::logging::LogDestination::Syslog => {
-            let logging_opts = crate::logging::LoggingOptions {
-                destination: log_destination,
-                strict_runtime_paths,
-            };
-            let (installed_filter_handle, guard) =
-                crate::logging::init_logging(&logging_opts, &initial_filter_spec);
-            filter_handle = installed_filter_handle;
-            logging_guard = Some(guard);
-        }
-        crate::logging::LogDestination::File { .. } => {
-            let logging_opts = crate::logging::LoggingOptions {
-                destination: log_destination,
-                strict_runtime_paths,
-            };
-            let (installed_filter_handle, guard) =
-                crate::logging::init_logging(&logging_opts, &initial_filter_spec);
-            filter_handle = installed_filter_handle;
-            logging_guard = Some(guard);
-        }
-    }
+    // Every destination is installed through init_logging so the reload
+    // handle and the installed subscriber layer always share one
+    // construction site.
+    let logging_opts = crate::logging::LoggingOptions {
+        destination: log_destination,
+        strict_runtime_paths,
+    };
+    let (filter_handle, guard) = crate::logging::init_logging(&logging_opts, &initial_filter_spec);
     let runtime_log_filter = runtime_tasks::RuntimeLogFilter::new(filter_handle);
 
     startup_tracker
@@ -316,7 +287,7 @@ pub(super) async fn bootstrap(
         has_rust_log,
         effective_log_level,
         runtime_log_filter,
-        logging_guard,
+        logging_guard: Some(guard),
     })
 }
 
