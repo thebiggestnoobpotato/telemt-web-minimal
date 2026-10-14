@@ -30,40 +30,44 @@ listen = "127.0.0.1:9091"
 whitelist = ["127.0.0.1/32", "::1/128"]
 minimal_runtime_enabled = false
 minimal_runtime_cache_ttl_ms = 1000
+# Empty by default, which leaves the API open to the whitelist CIDRs.
+# Set an exact "Bearer <random>" value to require authentication.
+# auth_header = "Bearer <random>"
 
 # WEB listener behind a local L7 reverse proxy; /0 networks are rejected.
 [listener]
 ip = "127.0.0.1"
 port = 443
-transport = "web"
 web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
 
 # === WEB Bridge ===
 [web]
-enabled = true
+# Single secret representation for every profile; explicit
+# [[web.vhost.profiles]] entries require it.
+secret_mode = "plain"
+# Fixed carrier for every session: "https", "https-lanes",
+# "websocket", or "websocket-lanes" (default "https").
+carrier = "https"
 
-[[web.vhosts]]
+[web.vhost]
 host = "proxy.example.com"
+# Exact case-sensitive route prefix without slashes; empty keeps the
+# root v1 capability. A non-empty path uses the v2 host/path capability.
+base_path = "telegram/web"
 public_addr = "203.0.113.1:443"
-
-[web.vhosts.fallback]
-# Ordinary-site fallback for unauthenticated or invalid traffic.
-# The only mode is http_upstream.
-mode = "http_upstream"
-# http_upstream: required. An http:// origin without credentials, path, query,
-# or fragment whose host is a loopback, link-local, or private IP literal, or
-# unix:/absolute/path.sock to connect a local unix socket (no DNS; the vhost
-# host is sent as the request authority).
+# Ordinary-site fallback for unauthenticated or invalid traffic: an
+# http:// origin without credentials, path, query, or fragment whose
+# host is a loopback, link-local, or private IP literal (default
+# resolve = "never"), or unix:/absolute/path.sock to connect a local
+# unix socket (no DNS; the vhost host is sent as the request authority).
 upstream = "http://127.0.0.1:80"
-# http_upstream: optional. "never" = IP literals only, no DNS (default);
-# "startup" = resolve a hostname once during config preparation; every answer
-# must stay inside loopback or a private network and the answers are pinned
-# for the generation. Rejected for unix: origins.
+# Optional hostname fallback: "never" (default, IP literals only) or
+# "startup" (resolve once at config preparation; answers must stay
+# inside loopback or a private network). Rejected for unix: origins.
 # resolve = "never"
 
-[[web.vhosts.profiles]]
+[[web.vhost.profiles]]
 user = "hello"
-secret_mode = "plain"
 
 [users]
 # format: "username" = "32_hex_chars_secret"
