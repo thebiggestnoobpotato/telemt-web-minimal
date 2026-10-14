@@ -8,7 +8,7 @@ pub struct ApiConfig {
     pub enabled: bool,
 
     /// Listen address for API in `IP:PORT` format.
-    #[serde(default = "default_api_listen")]
+    #[serde(default = "default_api_listen_address")]
     pub listen_address: String,
 
     /// CIDR whitelist allowed to access API.
@@ -64,7 +64,7 @@ impl Default for ApiConfig {
     fn default() -> Self {
         Self {
             enabled: default_true(),
-            listen_address: default_api_listen(),
+            listen_address: default_api_listen_address(),
             whitelist: default_api_whitelist(),
             gray_action: ApiGrayAction::default(),
             auth_header: String::new(),

@@ -34,7 +34,7 @@ pub(crate) fn default_metrics_whitelist() -> Vec<IpNetwork> {
     vec!["127.0.0.1/32".parse().unwrap(), "::1/128".parse().unwrap()]
 }
 
-pub(crate) fn default_api_listen() -> String {
+pub(crate) fn default_api_listen_address() -> String {
     "0.0.0.0:9091".to_string()
 }
 
