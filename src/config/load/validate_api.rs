@@ -31,9 +31,9 @@ pub(super) fn validate(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    if config.api.listen.parse::<SocketAddr>().is_err() {
+    if config.api.listen_address.parse::<SocketAddr>().is_err() {
         return Err(ProxyError::Config(
-            "api.listen must be in IP:PORT format".to_string(),
+            "api.listen_address must be in IP:PORT format".to_string(),
         ));
     }
 

@@ -327,7 +327,7 @@ This document lists all configuration keys accepted by `config.toml`.
 | Key | Type | Default |
 | --- | ---- | ------- |
 | [`enabled`](#enabled) | `bool` | `true` |
-| [`listen`](#listen) | `String` | `"0.0.0.0:9091"` |
+| [`listen_address`](#listen_address) | `String` | `"0.0.0.0:9091"` |
 | [`whitelist`](#whitelist) | `IpNetwork[]` | `["127.0.0.0/8"]` |
 | [`auth_header`](#auth_header) | `String` | `""` |
 | [`request_body_limit_bytes`](#request_body_limit_bytes) | `usize` | `65536` |
@@ -358,14 +358,14 @@ This document lists all configuration keys accepted by `config.toml`.
     [api]
     gray_action = "drop"
     ```
-## listen
+## listen_address
   - **Constraints / validation**: `String`. Must be in `IP:PORT` format.
   - **Description**: API bind address in `IP:PORT` format.
   - **Example**:
 
     ```toml
     [api]
-    listen = "0.0.0.0:9091"
+    listen_address = "0.0.0.0:9091"
     ```
 ## whitelist
   - **Constraints / validation**: `IpNetwork[]`.

@@ -10,7 +10,7 @@ API runtime is configured in `[api]`.
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `enabled` | `bool` | `true` | Enables REST API listener. |
-| `listen` | `string` (`IP:PORT`) | `0.0.0.0:9091` | API bind address. |
+| `listen_address` | `string` (`IP:PORT`) | `0.0.0.0:9091` | API bind address. |
 | `whitelist` | `CIDR[]` | `127.0.0.0/8` | Source IP allowlist. Empty list means allow all. |
 | `auth_header` | `string` | `""` | Exact value for `Authorization` header. Empty disables header auth. |
 | `request_body_limit_bytes` | `usize` | `65536` | Maximum request body size. Must be within `[1, 1048576]`. |
@@ -23,7 +23,7 @@ API runtime is configured in `[api]`.
 | `read_only` | `bool` | `false` | Disables mutating endpoints. |
 
 Runtime validation for API config:
-- `api.listen` must be a valid `IP:PORT`.
+- `api.listen_address` must be a valid `IP:PORT`.
 - `api.request_body_limit_bytes` must be within `[1, 1048576]`.
 - `api.minimal_runtime_cache_ttl_ms` must be within `[0, 60000]`.
 - `api.runtime_edge_cache_ttl_ms` must be within `[0, 60000]`.
@@ -819,7 +819,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 ```
 
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
-- `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.enabled`, `metrics.listen_address`, `logging`, `general.runtime_path`, `general.dc_buffer_budget_max_bytes`, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
+- `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen_address`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.enabled`, `metrics.listen_address`, `logging`, `general.runtime_path`, `general.dc_buffer_budget_max_bytes`, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
 
 Example — replace the complete vhost table while changing its `base_path`:
 
@@ -962,7 +962,7 @@ The current runtime exports these additional bounded-cardinality families. All u
 | Topic | Details |
 | --- | --- |
 | API startup | API listener is spawned only when `[api].enabled=true`. |
-| `listen` port `0` | API spawn is skipped when parsed listen port is `0` (treated as disabled bind target). |
+| `listen_address` port `0` | API spawn is skipped when parsed listen port is `0` (treated as disabled bind target). |
 | Bind failure | Failed API bind logs warning and API task exits (no auto-retry loop). |
 | Upstream runtime endpoint | `/v1/stats/upstreams` always returns `zero`, but runtime fields (`summary`, `upstreams`) require `[api].minimal_runtime_enabled=true`. |
 | Restart requirements | `api` changes are restart-required for predictable behavior. |

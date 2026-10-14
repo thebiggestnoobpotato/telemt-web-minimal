@@ -56,9 +56,9 @@ fn run_inner(config_path: &str, mode: HealthcheckMode) -> Result<(), String> {
     }
 
     let listen: SocketAddr = api_cfg
-        .listen
+        .listen_address
         .parse()
-        .map_err(|_| format!("invalid API listen address: {}", api_cfg.listen))?;
+        .map_err(|_| format!("invalid API listen address: {}", api_cfg.listen_address))?;
     if listen.port() == 0 {
         return Err("API listen port is 0".to_string());
     }

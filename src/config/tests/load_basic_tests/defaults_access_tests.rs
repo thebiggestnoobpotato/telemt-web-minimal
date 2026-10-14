@@ -27,7 +27,7 @@ fn serde_defaults_remain_unchanged_for_present_sections() {
     );
     assert_eq!(cfg.general.telemetry_core_enabled, default_true());
     assert_eq!(cfg.general.telemetry_user_enabled, default_true());
-    assert_eq!(cfg.api.listen, default_api_listen());
+    assert_eq!(cfg.api.listen_address, default_api_listen());
     assert_eq!(cfg.api.whitelist, default_api_whitelist());
     assert_eq!(cfg.api.gray_action, ApiGrayAction::Drop);
     assert_eq!(
@@ -380,7 +380,7 @@ fn impl_defaults_are_sourced_from_default_helpers() {
     );
 
     let api = ApiConfig::default();
-    assert_eq!(api.listen, default_api_listen());
+    assert_eq!(api.listen_address, default_api_listen());
     assert_eq!(api.whitelist, default_api_whitelist());
     assert_eq!(api.gray_action, ApiGrayAction::Drop);
     assert_eq!(

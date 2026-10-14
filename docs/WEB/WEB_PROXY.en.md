@@ -386,7 +386,7 @@ Bind the API to loopback, keep its direct-peer whitelist narrow, configure an ex
 ```toml
 [api]
 enabled = true
-listen = "127.0.0.1:9091"
+listen_address = "127.0.0.1:9091"
 whitelist = ["127.0.0.0/8"]
 auth_header = "Bearer replace-with-a-random-control-token"
 read_only = false

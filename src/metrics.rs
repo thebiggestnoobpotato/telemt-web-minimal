@@ -46,7 +46,7 @@ pub(crate) fn bind(
             format!("invalid metrics.listen_address {listen_address}: {error}"),
         )
     })?;
-    // Match `api.listen`: `[::]:port` is a dual-stack wildcard
+    // Match `api.listen_address`: `[::]:port` is a dual-stack wildcard
     // on Linux when `net.ipv6.bindv6only=0`.
     let ipv6_only = addr.is_ipv6() && !addr.ip().is_unspecified();
     let listener = bind_metrics_listener(addr, ipv6_only, listen_backlog)?;

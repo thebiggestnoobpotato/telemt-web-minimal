@@ -5,7 +5,7 @@ fn api_minimal_runtime_cache_ttl_out_of_range_is_rejected() {
     let toml = r#"
         [api]
         enabled = true
-        listen = "127.0.0.1:9091"
+        listen_address = "127.0.0.1:9091"
         minimal_runtime_cache_ttl_ms = 70000
 
         [general]
@@ -27,7 +27,7 @@ fn api_runtime_edge_cache_ttl_out_of_range_is_rejected() {
     let toml = r#"
         [api]
         enabled = true
-        listen = "127.0.0.1:9091"
+        listen_address = "127.0.0.1:9091"
         runtime_edge_cache_ttl_ms = 70000
 
         [general]
@@ -49,7 +49,7 @@ fn api_runtime_edge_top_n_out_of_range_is_rejected() {
     let toml = r#"
         [api]
         enabled = true
-        listen = "127.0.0.1:9091"
+        listen_address = "127.0.0.1:9091"
         runtime_edge_top_n = 0
 
         [general]
@@ -71,7 +71,7 @@ fn api_runtime_edge_events_capacity_out_of_range_is_rejected() {
     let toml = r#"
         [api]
         enabled = true
-        listen = "127.0.0.1:9091"
+        listen_address = "127.0.0.1:9091"
         runtime_edge_events_capacity = 8
 
         [general]

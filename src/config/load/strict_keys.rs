@@ -42,7 +42,7 @@ const METRICS_CONFIG_KEYS: &[&str] = &["enabled", "listen_address", "whitelist"]
 
 const API_CONFIG_KEYS: &[&str] = &[
     "enabled",
-    "listen",
+    "listen_address",
     "whitelist",
     "gray_action",
     "auth_header",

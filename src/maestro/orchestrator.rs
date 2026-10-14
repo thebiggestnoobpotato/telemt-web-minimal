@@ -87,12 +87,12 @@ pub(super) async fn run_telemt_core(
         .await;
 
     if config.api.enabled {
-        let listen = match config.api.listen.parse::<SocketAddr>() {
+        let listen = match config.api.listen_address.parse::<SocketAddr>() {
             Ok(listen) => listen,
             Err(error) => {
                 let message = format!(
-                    "invalid api.listen \"{}\": {}",
-                    config.api.listen, error
+                    "invalid api.listen_address \"{}\": {}",
+                    config.api.listen_address, error
                 );
                 startup_tracker
                     .fail_component(COMPONENT_API_BOOTSTRAP, Some(message.clone()))
@@ -158,7 +158,7 @@ pub(super) async fn run_telemt_core(
             startup_tracker
                 .skip_component(
                     COMPONENT_API_BOOTSTRAP,
-                    Some("api.listen has zero port".to_string()),
+                    Some("api.listen_address has zero port".to_string()),
                 )
                 .await;
         }
