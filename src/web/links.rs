@@ -44,11 +44,15 @@ pub fn web_links_for_user(config: &ProxyConfig, user: &str) -> Vec<String> {
         if profile.user != user {
             continue;
         }
+        // A profile host override still belongs to the single config vhost.
         let Some(vhost) = config
             .web
             .vhost
             .as_ref()
-            .filter(|vhost| vhost.host == profile.host)
+            .filter(|vhost| {
+                vhost.host == profile.host
+                    || vhost.profiles.iter().any(|p| p.user == profile.user)
+            })
         else {
             continue;
         };

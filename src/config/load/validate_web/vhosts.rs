@@ -29,7 +29,7 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     validate_fallback(&vhost.upstream, vhost.resolve)?;
     let mut profile_count = 0usize;
     let mut profiles = HashSet::with_capacity(vhost.profiles.len());
-    for (profile_idx, profile) in vhost.profiles.iter().enumerate() {
+    for (profile_idx, profile) in vhost.profiles.iter_mut().enumerate() {
         if profile.user.is_empty() || profile.user.len() > 64 {
             return config_error(&format!(
                 "web.vhost.profiles[{profile_idx}].user must contain 1..64 bytes"
@@ -46,6 +46,12 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
                 "duplicate WEB profile for user `{}` in vhost `{}`",
                 profile.user, vhost.host
             ));
+        }
+        if let Some(profile_host) = profile.host.as_deref() {
+            profile.host = Some(normalize_web_host(
+                profile_host,
+                &format!("web.vhost.profiles[{profile_idx}].host"),
+            )?);
         }
         validate_profile_limits(
             &profile.max_sessions,

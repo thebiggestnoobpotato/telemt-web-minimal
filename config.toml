@@ -68,6 +68,8 @@ upstream = "http://127.0.0.1:80"
 
 [[web.vhost.profiles]]
 user = "hello"
+# Optional per-profile hostname; defaults to [web.vhost].host.
+# host = "alt.example.com"
 
 [users]
 # format: "username" = "32_hex_chars_secret"

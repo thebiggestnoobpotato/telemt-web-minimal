@@ -12,6 +12,9 @@ mod fallback_dns_tests;
 #[path = "web_tests/global_profiles_tests.rs"]
 mod global_profiles_tests;
 
+#[path = "web_tests/profile_host_tests.rs"]
+mod profile_host_tests;
+
 const WEB_CONFIG: &str = r#"
 [users]
 alice = "000102030405060708090a0b0c0d0e0f"

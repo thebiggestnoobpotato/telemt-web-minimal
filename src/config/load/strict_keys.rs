@@ -182,6 +182,7 @@ const WEB_VHOST_CONFIG_KEYS: &[&str] = &[
 ];
 const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
     "user",
+    "host",
     "max_sessions",
     "max_streams",
     "max_streams_per_session",
