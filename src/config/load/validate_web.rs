@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::Path;
 
 use super::*;
@@ -69,6 +68,7 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
     }
     timeouts::validate(&config.web.timeouts)?;
     websocket::validate(&carriers, &config.web.limits, &config.web.timeouts)?;
+    validate_user_web_fields(config)?;
     validate_vhosts(config)?;
     validate_fallback_listener_separation_inner(config, false)?;
     Ok(())
@@ -409,6 +409,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
 
 // Virtual-host, hostname, and fallback validation.
 mod vhosts;
+pub(crate) use vhosts::validate_user_web_fields;
 use vhosts::*;
 
 #[cfg(test)]

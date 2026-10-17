@@ -46,7 +46,7 @@ WEB links use a 16-byte (32 hex chars) MTProxy secret. The vhost profile selects
 ### How many people can use one link
 An unlimited number of people can use a single link. There is no per-user or per-IP connection limit, and multiple users can connect from a single IP address simultaneously (for example, devices on the same Wi-Fi network).
 
-WEB links can additionally be bounded by the per-profile connection limits configured under the `web.vhost` profiles.
+WEB links can additionally be bounded by the per-user connection limits configured on the `users` entries.
 
 ### How to create multiple different links
 1. Generate the required number of secrets using the command: `openssl rand -hex 16`.
@@ -54,16 +54,19 @@ WEB links can additionally be bounded by the per-profile connection limits confi
 3. Add new users to the `users` section:
 ```yaml
 users:
-  user1: "00000000000000000000000000000001"
-  user2: "00000000000000000000000000000002"
-  user3: "00000000000000000000000000000003"
+  user1:
+    secret: "00000000000000000000000000000001"
+  user2:
+    secret: "00000000000000000000000000000002"
+  user3:
+    secret: "00000000000000000000000000000003"
 ```
-4. `web.secret_mode` applies to every user in the `users` section — a set mode covers new users automatically. To give one user per-user ceilings, add a profile for that user to the vhost:
+4. `web.secret_mode` applies to every user in the `users` section — a set mode covers new users automatically. To give one user per-user ceilings, add overrides to that user's entry:
 ```yaml
-web:
-  vhost:
-    profiles:
-      - user: "user1"
+users:
+  user1:
+    secret: "00000000000000000000000000000001"
+    max_sessions: 8
 ```
 5. Save the configuration (Ctrl+S -> Ctrl+X) and restart the telemt service to apply the changes.
 6. Get the ready-to-use `tg://webproxy` links using the command:

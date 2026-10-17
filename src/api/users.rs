@@ -1,6 +1,6 @@
 use hyper::StatusCode;
 
-use crate::config::ProxyConfig;
+use crate::config::{ProxyConfig, UserEntry};
 use crate::proxy::user_admission::credential_id_from_hex;
 use crate::stats::Stats;
 

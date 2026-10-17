@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 use super::*;
+use crate::config::UserEntry;
 
 pub(crate) fn default_upstream_connect_retry_attempts() -> u32 {
     DEFAULT_UPSTREAM_CONNECT_RETRY_ATTEMPTS
@@ -32,10 +33,10 @@ pub(crate) fn default_max_client_frame() -> usize {
     16 * 1024 * 1024
 }
 
-pub(crate) fn default_access_users() -> HashMap<String, String> {
+pub(crate) fn default_access_users() -> HashMap<String, UserEntry> {
     HashMap::from([(
         DEFAULT_ACCESS_USER.to_string(),
-        DEFAULT_ACCESS_SECRET.to_string(),
+        UserEntry::from(DEFAULT_ACCESS_SECRET.to_string()),
     )])
 }
 

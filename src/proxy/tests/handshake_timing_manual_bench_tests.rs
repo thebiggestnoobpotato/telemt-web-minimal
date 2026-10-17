@@ -69,13 +69,12 @@ async fn mtproto_user_scan_timing_manual_benchmark() {
     for i in 0..DECOY_USERS {
         config.users.insert(
             format!("decoy_{i}"),
-            "00000000000000000000000000000000".to_string(),
-        );
+            "00000000000000000000000000000000".to_string().into(),        );
     }
 
     config
         .users
-        .insert(preferred_user.to_string(), target_secret_hex.to_string());
+        .insert(preferred_user.to_string(), target_secret_hex.to_string().into());
 
     let peer_a: SocketAddr = "192.0.2.241:12345".parse().unwrap();
     let peer_b: SocketAddr = "192.0.2.242:12345".parse().unwrap();

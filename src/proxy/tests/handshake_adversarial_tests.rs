@@ -49,7 +49,7 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
     cfg.users.clear();
     cfg.users
-        .insert("user".to_string(), secret_hex.to_string());
+        .insert("user".to_string(), secret_hex.to_string().into());
     cfg
 }
 
@@ -230,10 +230,10 @@ async fn mtproto_handshake_preferred_user_mismatch_continues() {
     let mut config = ProxyConfig::default();
     config
         .users
-        .insert("user1".to_string(), secret1_hex.to_string());
+        .insert("user1".to_string(), secret1_hex.to_string().into());
     config
         .users
-        .insert("user2".to_string(), secret2_hex.to_string());
+        .insert("user2".to_string(), secret2_hex.to_string().into());
 
     let peer: SocketAddr = "192.0.2.4:12345".parse().unwrap();
 

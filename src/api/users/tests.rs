@@ -6,11 +6,11 @@ async fn users_from_config_reports_all_configured_users() {
     let mut cfg = ProxyConfig::default();
     cfg.users.insert(
         "alice".to_string(),
-        "0123456789abcdef0123456789abcdef".to_string(),
+        "0123456789abcdef0123456789abcdef".to_string().into(),
     );
     cfg.users.insert(
         "bob".to_string(),
-        "fedcba9876543210fedcba9876543210".to_string(),
+        "fedcba9876543210fedcba9876543210".to_string().into(),
     );
 
     let stats = Stats::new();
@@ -33,17 +33,17 @@ async fn users_from_config_marks_runtime_membership_when_snapshot_is_provided() 
     let mut disk_cfg = ProxyConfig::default();
     disk_cfg.users.insert(
         "alice".to_string(),
-        "0123456789abcdef0123456789abcdef".to_string(),
+        "0123456789abcdef0123456789abcdef".to_string().into(),
     );
     disk_cfg.users.insert(
         "bob".to_string(),
-        "fedcba9876543210fedcba9876543210".to_string(),
+        "fedcba9876543210fedcba9876543210".to_string().into(),
     );
 
     let mut runtime_cfg = ProxyConfig::default();
     runtime_cfg.users.insert(
         "alice".to_string(),
-        "0123456789abcdef0123456789abcdef".to_string(),
+        "0123456789abcdef0123456789abcdef".to_string().into(),
     );
 
     let stats = Stats::new();

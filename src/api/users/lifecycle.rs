@@ -43,7 +43,9 @@ async fn rotate_secret_to_completion(
         ));
     }
 
-    cfg.users.insert(user.to_string(), secret.clone());
+    if let Some(entry) = cfg.users.get_mut(user) {
+        entry.secret = secret.clone();
+    }
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
     let revision = save_access_sections_to_disk_if_revision(

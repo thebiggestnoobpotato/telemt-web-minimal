@@ -2,9 +2,7 @@ use super::*;
 
 pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     let limits = &config.web.limits;
-    let global_covers_users =
-        config.web.secret_mode.is_some() && !config.users.is_empty();
-    // The profile requirement follows the WEB-on condition: a configured
+    // The secret-mode requirement follows the WEB-on condition: a configured
     // listener. An earlier check guarantees any listener present here is
     // network-eligible.
     let web_listener_count = usize::from(config.listener.is_some());
@@ -18,69 +16,43 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
             "web.vhost.public_addr must be a concrete socket address on port 443",
         );
     }
-    if web_listener_count > 0 && vhost.profiles.is_empty() && !global_covers_users {
-        return config_error(
-            "web.vhost has no profiles: add a web.vhost.profiles entry or set web.secret_mode",
-        );
-    }
-    if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {
-        return config_error("web.vhost.profiles require web.secret_mode");
+    if web_listener_count > 0 && config.web.secret_mode.is_none() {
+        return config_error("A WEB listener requires web.secret_mode");
     }
     validate_fallback(&vhost.upstream, vhost.resolve)?;
-    let mut profile_count = 0usize;
-    let mut profiles = HashSet::with_capacity(vhost.profiles.len());
-    for (profile_idx, profile) in vhost.profiles.iter_mut().enumerate() {
-        if profile.user.is_empty() || profile.user.len() > 64 {
-            return config_error(&format!(
-                "web.vhost.profiles[{profile_idx}].user must contain 1..64 bytes"
-            ));
-        }
-        if !config.users.contains_key(&profile.user) {
-            return config_error(&format!(
-                "web.vhost.profiles[{profile_idx}].user references unknown access user `{}`",
-                profile.user
-            ));
-        }
-        if !profiles.insert(profile.user.as_str()) {
-            return config_error(&format!(
-                "duplicate WEB profile for user `{}` in vhost `{}`",
-                profile.user, vhost.host
-            ));
-        }
-        if let Some(profile_host) = profile.host.as_deref() {
-            profile.host = Some(normalize_web_host(
-                profile_host,
-                &format!("web.vhost.profiles[{profile_idx}].host"),
-            )?);
-        }
-        validate_profile_limits(
-            &profile.max_sessions,
-            &profile.max_streams,
-            &profile.max_streams_per_session,
-            limits,
-            &format!("web.vhost.profiles[{profile_idx}]"),
-        )?;
-        profile_count = profile_count.checked_add(1).ok_or_else(|| {
-            ProxyError::Config("WEB profile count overflowed usize".to_string())
-        })?;
-    }
-    // A set web.secret_mode instantiates one profile per user not already
-    // covered by an explicit profile in the vhost.
-    if config.web.secret_mode.is_some() {
-        let additions = config.users.len().saturating_sub(vhost.profiles.len());
-        profile_count = profile_count
-            .checked_add(additions)
-            .ok_or_else(|| ProxyError::Config("WEB profile count overflowed usize".to_string()))?;
-    }
-    if profile_count > limits.max_profiles {
-        return config_error("WEB profiles exceed web.limits.max_profiles");
+    // Every access user materializes exactly one WEB profile; the vhost
+    // ceiling bounds the user count.
+    if config.users.len() > limits.max_profiles {
+        return config_error("WEB users exceed web.limits.max_profiles");
     }
     Ok(())
 }
 
-/// Profile ceilings must be non-zero, within the global WEB ceilings, and
+/// Normalizes optional per-user WEB hosts and validates their ceilings.
+pub(crate) fn validate_user_web_fields(config: &mut ProxyConfig) -> Result<()> {
+    let limits = &config.web.limits;
+    for (user, entry) in config.users.iter_mut() {
+        let field = format!("users.{user}");
+        if let Some(user_host) = entry.host.as_deref() {
+            entry.host = Some(normalize_web_host(
+                user_host,
+                &format!("{field}.host"),
+            )?);
+        }
+        validate_user_limits(
+            &entry.max_sessions,
+            &entry.max_streams,
+            &entry.max_streams_per_session,
+            limits,
+            &field,
+        )?;
+    }
+    Ok(())
+}
+
+/// Per-user ceilings must be non-zero, within the global WEB ceilings, and
 /// nested: the per-session stream ceiling cannot exceed the stream ceiling.
-fn validate_profile_limits(
+fn validate_user_limits(
     max_sessions: &Option<usize>,
     max_streams: &Option<usize>,
     max_streams_per_session: &Option<usize>,

@@ -72,7 +72,7 @@ pub(super) async fn run_telemt_core(
         user_admission,
     );
     let _ = shared_state
-        .activate_user_config_source(1, None, &config.users);
+        .activate_user_config_source(1, None, &config.user_secret_map());
     let web_trace = WebTraceStore::new(config.web.debug.clone(), &config.web.limits);
     let web_runtime_control = WebRuntimeControl::new();
 

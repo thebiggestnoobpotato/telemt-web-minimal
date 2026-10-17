@@ -3,7 +3,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::config::ProxyConfig;
+use crate::config::{ProxyConfig, UserEntry};
 
 #[cfg(test)]
 use super::atomic::write_atomic;
@@ -166,7 +166,7 @@ pub(super) fn render_access_section(
 ) -> Result<String, ApiFailure> {
     let body = match section {
         AccessSection::Users => {
-            let rows: BTreeMap<String, String> = cfg
+            let rows: BTreeMap<String, UserEntry> = cfg
                 .users
                 .iter()
                 .map(|(key, value)| (key.clone(), value.clone()))

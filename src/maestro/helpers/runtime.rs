@@ -17,25 +17,17 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
     let Some(runtime) = config.web.runtime.as_ref() else {
         return;
     };
+    // Every runtime profile belongs to the single configured vhost.
+    let Some(vhost) = config.web.vhost.as_ref() else {
+        return;
+    };
     let mut heading_printed = false;
     for profile in &runtime.profiles {
         if !heading_printed {
             tracing::info!(target: WEB_LINKS_LOG_TARGET, "WEB proxy links");
             heading_printed = true;
         }
-        let Some(secret) = config.users.get(&profile.user) else {
-            continue;
-        };
-        // A profile host override still belongs to the single config vhost.
-        let Some(vhost) = config
-            .web
-            .vhost
-            .as_ref()
-            .filter(|vhost| {
-                vhost.host == profile.host
-                    || vhost.profiles.iter().any(|p| p.user == profile.user)
-            })
-        else {
+        let Some(entry) = config.users.get(&profile.user) else {
             continue;
         };
         tracing::info!(
@@ -47,7 +39,7 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
         if let Some(link) = crate::web::links::format_web_proxy_link(
             &profile.host,
             &vhost.base_path,
-            secret,
+            &entry.secret,
             profile.secret_mode,
         ) {
             tracing::info!(target: WEB_LINKS_LOG_TARGET, "WEB: {link}");

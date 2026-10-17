@@ -419,17 +419,17 @@ pub(super) fn decode_user_secrets_in(
     let mut secrets = Vec::with_capacity(config.users.len());
 
     if let Some(preferred) = preferred_user
-        && let Some(secret_hex) = config.users.get(preferred)
-        && let Some(bytes) = decode_user_secret(shared, preferred, secret_hex)
+        && let Some(entry) = config.users.get(preferred)
+        && let Some(bytes) = decode_user_secret(shared, preferred, &entry.secret)
     {
         secrets.push((preferred.to_string(), bytes));
     }
 
-    for (name, secret_hex) in &config.users {
+    for (name, entry) in &config.users {
         if preferred_user.is_some_and(|preferred| preferred == name.as_str()) {
             continue;
         }
-        if let Some(bytes) = decode_user_secret(shared, name, secret_hex) {
+        if let Some(bytes) = decode_user_secret(shared, name, &entry.secret) {
             secrets.push((name.clone(), bytes));
         }
     }

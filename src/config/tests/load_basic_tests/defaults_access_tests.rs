@@ -76,7 +76,8 @@ logging:
   unknown_dc_log_enabled: true
 
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#,
     );
 
@@ -93,7 +94,7 @@ fn general_links_key_is_stripped_from_general() {
     // to logging.show_users_links.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\n  links:\n    show: \"*\"\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("general.links"), "{error}");
 
@@ -101,7 +102,7 @@ fn general_links_key_is_stripped_from_general() {
     // logging.show_users_links keeps its default.
     let cfg = load_config_from_temp_yaml(
         "general:\n  links:\n    show: \"*\"\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.logging.show_users_links);
 }
@@ -113,7 +114,7 @@ fn logging_show_users_key_is_stripped() {
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\n\
          logging:\n  show_users: \"*\"\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("logging.show_users"), "{error}");
 
@@ -122,7 +123,7 @@ fn logging_show_users_key_is_stripped() {
     let cfg = load_config_from_temp_yaml(
         "general:\n\
          logging:\n  show_users: \"*\"\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.logging.show_users_links);
 }
@@ -133,7 +134,7 @@ fn general_telemetry_key_is_stripped_from_general() {
     // move to flat general.telemetry_*_enabled keys.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\n  telemetry:\n    core_enabled: true\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("general.telemetry"), "{error}");
 
@@ -141,7 +142,7 @@ fn general_telemetry_key_is_stripped_from_general() {
     // keep their defaults.
     let cfg = load_config_from_temp_yaml(
         "general:\n  telemetry:\n    core_enabled: false\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.telemetry_core_enabled, default_true());
     assert_eq!(cfg.general.telemetry_user_enabled, default_true());
@@ -153,7 +154,7 @@ fn prefer_ipv6_key_is_stripped_from_general() {
     // preference now lives in network_prefer.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\n  prefer_ipv6: true\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("prefer_ipv6"), "{error}");
 
@@ -161,7 +162,7 @@ fn prefer_ipv6_key_is_stripped_from_general() {
     // affects the family preference.
     let cfg = load_config_from_temp_yaml(
         "general:\n  prefer_ipv6: true\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.network_prefer, default_prefer_4());
 }
@@ -204,7 +205,7 @@ fn network_section_is_stripped_into_general() {
     // in general as network_ipv4 / network_ipv6 / network_prefer.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\nnetwork:\n  ipv4: false\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("network"), "{error}");
 
@@ -212,14 +213,14 @@ fn network_section_is_stripped_into_general() {
     // keeps its defaults.
     let cfg = load_config_from_temp_yaml(
         "network:\n  ipv4: false\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.network_ipv4, default_true());
 
     // the new general location loads explicit values.
     let cfg = load_config_from_temp_yaml(
         "general:\n  network_ipv4: false\n  network_ipv6: true\n  network_prefer: 6\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert_eq!(cfg.general.network_ipv4, false);
     assert_eq!(cfg.general.network_ipv6, Some(true));
@@ -232,7 +233,7 @@ fn server_metrics_keys_are_moved_to_metrics() {
     // metrics section.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\nserver:\n  metrics_port: 9090\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("server"), "{error}");
 
@@ -240,7 +241,7 @@ fn server_metrics_keys_are_moved_to_metrics() {
     // its defaults.
     let cfg = load_config_from_temp_yaml(
         "server:\n  metrics_port: 9090\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(!cfg.metrics.enabled);
     assert_eq!(cfg.metrics.listen_address, None);
@@ -249,14 +250,14 @@ fn server_metrics_keys_are_moved_to_metrics() {
     // enabled/listen_address.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\nmetrics:\n  port: 9090\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("port"), "{error}");
 
     // the new metrics section loads explicit values and defaults.
     let cfg = load_config_from_temp_yaml(
         "metrics:\n  enabled: true\n  listen_address: \"127.0.0.1:9090\"\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.metrics.enabled);
     assert_eq!(cfg.metrics.listen_address.as_deref(), Some("127.0.0.1:9090"));
@@ -269,21 +270,21 @@ fn server_port_is_removed_and_listener_endpoints_are_explicit() {
     // per-listener listener entry.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\nserver:\n  port: 443\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("server"), "{error}");
 
     // non-strict: the legacy section is ignored and no listener is set.
     let cfg = load_config_from_temp_yaml(
         "server:\n  port: 443\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(cfg.listener.is_none());
 
     // a listener entry requires both ip and port, or socket_path.
     let error = load_config_error_from_temp_yaml(
         "listener: {}\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("port"), "{error}");
 
@@ -300,7 +301,8 @@ web:
     public_addr: "203.0.113.10:443"
     upstream: "http://127.0.0.1:18090"
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#,
     );
     let listener = cfg.listener.as_ref().unwrap();
@@ -312,14 +314,14 @@ users:
     // socket_path cannot be combined with ip or port.
     let error = load_config_error_from_temp_yaml(
         "listener:\n  socket_path: \"/run/telemt/listener.sock\"\n  ip: \"127.0.0.1\"\n  port: 443\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("socket_path"), "{error}");
 
     // socket_path must be an absolute path.
     let error = load_config_error_from_temp_yaml(
         "listener:\n  socket_path: \"run/telemt/listener.sock\"\n\
-         users:\n  user: \"00000000000000000000000000000000\"\n",
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
     assert!(error.contains("absolute path"), "{error}");
 }
@@ -342,7 +344,8 @@ web:
     public_addr: "203.0.113.10:443"
     upstream: "http://127.0.0.1:18090"
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#,
     );
     assert!(cfg.listener.is_some());
@@ -364,7 +367,8 @@ web:
     public_addr: "203.0.113.10:443"
     upstream: "http://127.0.0.1:18090"
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#,
     );
     assert!(error.contains("listener.bogus"), "{error}");
@@ -378,7 +382,8 @@ logging:
   destination: "file"
 
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#,
     );
 
@@ -567,7 +572,7 @@ fn top_level_timeouts_table_is_stripped() {
 
     // non-strict: the removed table is ignored and the config loads.
     let cfg = load_config_from_temp_yaml(
-        "users:\n  user: \"00000000000000000000000000000000\"\n\
+        "users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n\
          timeouts:\n  client_handshake: 30\n  client_ack: 90\n",
     );
     assert_eq!(cfg.users.len(), 1);

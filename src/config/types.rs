@@ -11,6 +11,8 @@ use std::net::IpAddr;
 
 use super::defaults::*;
 
+// Per-user access credentials and optional WEB ceilings.
+mod access;
 mod api;
 mod general;
 mod general_impl;
@@ -24,6 +26,7 @@ mod web_carrier;
 // WEB debug capture policy stays independent from the bulky config types.
 mod web_debug;
 
+pub use access::UserEntry;
 pub use api::{ApiConfig, ApiGrayAction};
 pub use general::GeneralConfig;
 pub use logging::{LogLevel, LoggingConfig, LoggingDestination};
@@ -34,8 +37,8 @@ pub use server::{ListenerConfig, ListenerEndpoint, WebClientIpSource};
 #[allow(unused_imports)]
 pub use web::{
     WebCarrierNegotiationAggressiveness, WebConfig, WebFallbackFastTrackMode, WebFallbackResolve,
-    WebHttpConnectionCapacityAction, WebLimitsConfig, WebProfileConfig, WebSecretMode,
-    WebTimeoutsConfig, WebVhostConfig,
+    WebHttpConnectionCapacityAction, WebLimitsConfig, WebSecretMode, WebTimeoutsConfig,
+    WebVhostConfig,
 };
 pub(crate) use web::{
     FallbackEndpoint, WebFallbackDnsSnapshot, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile,

@@ -22,7 +22,12 @@ async fn patch_user_to_completion(
     expected_revision: Option<String>,
     shared: &ApiShared,
 ) -> Result<(UserInfo, String), ApiFailure> {
-    let touches_users = body.secret.is_some();
+    let secret_changed = body.secret.is_some();
+    let touches_users = secret_changed
+        || body.host.is_some()
+        || body.max_sessions.is_some()
+        || body.max_streams.is_some()
+        || body.max_streams_per_session.is_some();
 
     if let Some(secret) = body.secret.as_ref()
         && !is_valid_user_secret(secret)
@@ -43,17 +48,33 @@ async fn patch_user_to_completion(
         ));
     }
 
-    if let Some(secret) = body.secret {
-        cfg.users.insert(user.to_string(), secret);
+    if let Some(entry) = cfg.users.get_mut(user) {
+        if let Some(secret) = body.secret {
+            entry.secret = secret;
+        }
+        if let Some(host) = body.host {
+            entry.host = host;
+        }
+        if let Some(max_sessions) = body.max_sessions {
+            entry.max_sessions = max_sessions;
+        }
+        if let Some(max_streams) = body.max_streams {
+            entry.max_streams = max_streams;
+        }
+        if let Some(max_streams_per_session) = body.max_streams_per_session {
+            entry.max_streams_per_session = max_streams_per_session;
+        }
     }
+    cfg.validate_user_web_fields()
+        .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
-    let staged_credential = if touches_users {
-            let secret = cfg
+    let staged_credential = if secret_changed {
+            let entry = cfg
                 .users
                 .get(user)
                 .ok_or_else(|| ApiFailure::internal("updated user secret is missing"))?;
-            Some(credential_id_from_hex(secret).ok_or_else(|| {
+            Some(credential_id_from_hex(&entry.secret).ok_or_else(|| {
                 ApiFailure::internal("validated user secret could not be decoded")
             })?)
         } else {

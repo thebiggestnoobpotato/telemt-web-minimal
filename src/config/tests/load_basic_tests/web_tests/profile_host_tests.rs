@@ -2,8 +2,11 @@ use super::*;
 
 const PROFILE_HOST_CONFIG: &str = r#"
 users:
-  alice: "000102030405060708090a0b0c0d0e0f"
-  bob: "1112131415161718191a1b1c1d1e1f20"
+  alice:
+    secret: "000102030405060708090a0b0c0d0e0f"
+  bob:
+    secret: "1112131415161718191a1b1c1d1e1f20"
+    host: "Alt.Example.COM"
 
 listener:
   ip: "127.0.0.1"
@@ -21,10 +24,6 @@ web:
     host: "proxy.example.com"
     public_addr: "203.0.113.10:443"
     upstream: "unix:/tmp/site.sock"
-    profiles:
-      - user: "alice"
-      - user: "bob"
-        host: "Alt.Example.COM"
 "#;
 
 fn fallback_authority(vhost: &WebRuntimeVhost) -> &str {
@@ -93,11 +92,11 @@ fn profile_host_link_uses_the_overridden_host() {
 
 #[test]
 fn profile_host_accepts_several_users_on_one_host() {
-    // Both users explicitly point at the same profile host: the vhost host
-    // then has no runtime entry at all.
+    // Both users explicitly point at the same host: the vhost host then
+    // has no runtime entry at all.
     let yaml = PROFILE_HOST_CONFIG.replace(
-        "      - user: \"alice\"\n      - user: \"bob\"\n        host: \"Alt.Example.COM\"",
-        "      - user: \"alice\"\n        host: \"alt.example.com\"\n      - user: \"bob\"\n        host: \"alt.example.com\"",
+        "  alice:\n    secret: \"000102030405060708090a0b0c0d0e0f\"",
+        "  alice:\n    secret: \"000102030405060708090a0b0c0d0e0f\"\n    host: \"alt.example.com\"",
     );
     let config = load_config_from_temp_yaml(&yaml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
@@ -112,13 +111,16 @@ fn profile_host_accepts_several_users_on_one_host() {
 
 #[test]
 fn instantiated_profiles_keep_the_vhost_host() {
-    // bob has no explicit profile: web.secret_mode instantiates him on the
-    // vhost host even when another profile overrides its host.
+    // bob has no host override: web.secret_mode materializes him on the
+    // vhost host even when another user overrides its host.
     let base = PROFILE_HOST_CONFIG
-        .replace("      - user: \"bob\"\n        host: \"Alt.Example.COM\"\n", "")
         .replace(
-            "      - user: \"alice\"\n",
-            "      - user: \"alice\"\n        host: \"Alt.Example.COM\"\n",
+            "  bob:\n    secret: \"1112131415161718191a1b1c1d1e1f20\"\n    host: \"Alt.Example.COM\"",
+            "  bob:\n    secret: \"1112131415161718191a1b1c1d1e1f20\"",
+        )
+        .replace(
+            "  alice:\n    secret: \"000102030405060708090a0b0c0d0e0f\"",
+            "  alice:\n    secret: \"000102030405060708090a0b0c0d0e0f\"\n    host: \"Alt.Example.COM\"",
         );
     let config = load_config_from_temp_yaml(&base);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
@@ -145,7 +147,7 @@ fn profile_host_rejects_ip_literals_with_the_field_path() {
         "host: \"203.0.113.10\"",
     );
     let error = load_config_error_from_temp_yaml(&yaml);
-    assert!(error.contains("web.vhost.profiles[1].host"), "{error}");
+    assert!(error.contains("users.bob.host"), "{error}");
     assert!(
         error.contains("must be a non-IP fully-qualified hostname"),
         "{error}"
@@ -155,10 +157,10 @@ fn profile_host_rejects_ip_literals_with_the_field_path() {
 #[test]
 fn duplicate_secret_on_different_profile_hosts_does_not_collide() {
     // The host is part of the capability derivation, so the same secret on
-    // two different profile hosts yields distinct capabilities.
+    // two different hosts yields distinct capabilities.
     let yaml = PROFILE_HOST_CONFIG.replace(
-        "bob: \"1112131415161718191a1b1c1d1e1f20\"",
-        "bob: \"000102030405060708090a0b0c0d0e0f\"",
+        "secret: \"1112131415161718191a1b1c1d1e1f20\"",
+        "secret: \"000102030405060708090a0b0c0d0e0f\"",
     );
     let config = load_config_from_temp_yaml(&yaml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");

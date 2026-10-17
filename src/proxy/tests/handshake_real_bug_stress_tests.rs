@@ -11,7 +11,7 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
     cfg.users.clear();
     cfg.users
-        .insert("user".to_string(), secret_hex.to_string());
+        .insert("user".to_string(), secret_hex.to_string().into());
     cfg
 }
 
@@ -119,13 +119,13 @@ async fn mtproto_invalid_length_secret_is_ignored_and_valid_user_still_auths() {
 
     config.users.insert(
         "short_user".to_string(),
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string().into(),
     );
 
     let valid_secret_hex = "77777777777777777777777777777777";
     config
         .users
-        .insert("good_user".to_string(), valid_secret_hex.to_string());
+        .insert("good_user".to_string(), valid_secret_hex.to_string().into());
 
     let peer: SocketAddr = "192.0.2.207:12345".parse().unwrap();
     let handshake = make_valid_mtproto_handshake(valid_secret_hex, ProtoTag::Secure, 1);

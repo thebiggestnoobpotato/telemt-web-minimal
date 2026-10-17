@@ -51,9 +51,17 @@ async fn create_user_to_completion(
         ));
     }
 
-    cfg.users
-        .insert(body.username.clone(), secret.clone());
+    let entry = UserEntry {
+        secret: secret.clone(),
+        host: body.host.clone(),
+        max_sessions: body.max_sessions,
+        max_streams: body.max_streams,
+        max_streams_per_session: body.max_streams_per_session,
+    };
+    cfg.users.insert(body.username.clone(), entry.clone());
 
+    cfg.validate_user_web_fields()
+        .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
     cfg.validate()
         .map_err(|e| ApiFailure::bad_request(format!("config validation failed: {}", e)))?;
 
@@ -78,6 +86,10 @@ async fn create_user_to_completion(
             in_runtime: false,
             current_connections: 0,
             total_octets: 0,
+            host: entry.host,
+            max_sessions: entry.max_sessions,
+            max_streams: entry.max_streams,
+            max_streams_per_session: entry.max_streams_per_session,
             links: build_user_links(&cfg, &body.username),
         });
 

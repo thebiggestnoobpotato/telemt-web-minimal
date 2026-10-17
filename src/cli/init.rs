@@ -262,8 +262,8 @@ listener:
   web_trusted_proxy_cidrs: ["127.0.0.1/32", "::1/128"]
 
 web:
-  # The single secret representation for every profile; required for
-  # web.vhost.profiles.
+  # The single secret representation for every access user; required to
+  # materialize the WEB profiles.
   secret_mode: "plain"
   vhost:
     host: "{domain}"
@@ -273,7 +273,8 @@ web:
     upstream: "http://127.0.0.1:80"
 
 users:
-  {username}: "{secret}"
+  {username}:
+    secret: "{secret}"
 
 upstreams:
   - type: direct

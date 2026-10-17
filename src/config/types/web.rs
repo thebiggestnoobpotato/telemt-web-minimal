@@ -33,26 +33,7 @@ pub enum WebSecretMode {
     Dd,
 }
 
-/// One access user explicitly exposed through a WEB virtual host.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WebProfileConfig {
-    /// Existing `users` key authenticated by the inner MTProxy handshake.
-    pub user: String,
-    /// Optional per-profile hostname; the vhost host applies when absent.
-    #[serde(default)]
-    pub host: Option<String>,
-    /// Optional per-profile live session ceiling.
-    #[serde(default)]
-    pub max_sessions: Option<usize>,
-    /// Optional per-profile live logical-stream ceiling.
-    #[serde(default)]
-    pub max_streams: Option<usize>,
-    /// Optional per-profile stream ceiling for one session.
-    #[serde(default)]
-    pub max_streams_per_session: Option<usize>,
-}
-
-/// The externally visible WEB hostname and its explicit access profiles.
+/// The externally visible WEB hostname.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebVhostConfig {
     /// Canonical lowercase ACE hostname used by Telegram Desktop.
@@ -67,9 +48,6 @@ pub struct WebVhostConfig {
     /// Opt-in configuration-time resolution; literal addresses never require DNS.
     #[serde(default)]
     pub resolve: WebFallbackResolve,
-    /// Access users and exact secret modes enabled for this hostname.
-    #[serde(default)]
-    pub profiles: Vec<WebProfileConfig>,
 }
 
 /// Hard process and protocol limits for WEB ingress.
@@ -174,7 +152,7 @@ pub struct WebLimitsConfig {
     /// Live bootstrap credential ceiling for one forwarded client address.
     #[serde(default = "default_web_max_bootstraps_per_ip")]
     pub max_bootstraps_per_ip: usize,
-    /// Maximum configured WEB access-profile count in the vhost.
+    /// Maximum access-user count materialized as WEB profiles.
     #[serde(default = "default_web_max_profiles")]
     pub max_profiles: usize,
     /// Maximum retained WEB debug record count.

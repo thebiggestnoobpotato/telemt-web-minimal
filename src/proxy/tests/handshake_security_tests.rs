@@ -14,7 +14,7 @@ fn test_config_with_secret_hex(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
     cfg.users.clear();
     cfg.users
-        .insert("user".to_string(), secret_hex.to_string());
+        .insert("user".to_string(), secret_hex.to_string().into());
     cfg
 }
 
@@ -232,11 +232,11 @@ fn stress_decode_user_secrets_keeps_preferred_user_first_in_large_set() {
     for i in 0..4096usize {
         config
             .users
-            .insert(format!("fallback-{i:04}.example"), secret_hex.clone());
+            .insert(format!("fallback-{i:04}.example"), secret_hex.clone().into());
     }
     config
         .users
-        .insert(preferred_user.clone(), secret_hex.clone());
+        .insert(preferred_user.clone(), secret_hex.clone().into());
 
     let decoded = decode_user_secrets_in(shared.as_ref(), &config, Some(preferred_user.as_str()));
     assert_eq!(
@@ -265,12 +265,10 @@ async fn mtproto_runtime_snapshot_prefers_preferred_user_hint() {
     config.users.clear();
     config.users.insert(
         "alpha".to_string(),
-        "11111111111111111111111111111111".to_string(),
-    );
+        "11111111111111111111111111111111".to_string().into(),    );
     config.users.insert(
         "beta".to_string(),
-        "22222222222222222222222222222222".to_string(),
-    );
+        "22222222222222222222222222222222".to_string().into(),    );
     config.rebuild_runtime_user_auth().unwrap();
 
     let handshake =

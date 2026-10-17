@@ -8,7 +8,7 @@ async fn save_sections_preserves_other_tables_and_comments() {
     std::fs::write(
         &path,
         "# top comment\ngeneral:\n  listen_backlog: 4096\n\n\
-         users:\n  alice: \"000102030405060708090a0b0c0d0e0f\"\n",
+         users:\n  alice:\n    secret: \"000102030405060708090a0b0c0d0e0f\"\n",
     )
     .unwrap();
 
@@ -155,7 +155,7 @@ fn nested_include_detection_does_not_reject_similar_access_keys() {
         "users:\n  include: \"users.yaml\"\n"
     ));
     assert!(!has_include_inside_section(
-        "users:\n  include_user: \"00000000000000000000000000000000\"\n"
+        "users:\n  include_user:\n    secret: \"00000000000000000000000000000000\"\n"
     ));
 }
 
@@ -232,13 +232,13 @@ async fn access_mutation_writes_only_the_single_included_owner() {
     let root = dir.path().join("config.yaml");
     let included = dir.path().join("users.yaml");
     let root_body = "include: \"users.yaml\"\ngeneral:\n  network_ipv6: true\n";
-    let included_body = "users:\n  alice: \"00000000000000000000000000000000\"\n";
+    let included_body = "users:\n  alice:\n    secret: \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let mut cfg = load_config_from_disk(&root).await.unwrap();
     cfg.users.insert(
         "bob".to_string(),
-        "11111111111111111111111111111111".to_string(),
+        "11111111111111111111111111111111".to_string().into(),
     );
 
     let revision = save_access_sections_to_disk(&root, &cfg, &[AccessSection::Users])
@@ -247,7 +247,7 @@ async fn access_mutation_writes_only_the_single_included_owner() {
 
     assert_eq!(tokio::fs::read_to_string(&root).await.unwrap(), root_body);
     let written = tokio::fs::read_to_string(&included).await.unwrap();
-    assert!(written.contains("bob: '11111111111111111111111111111111'"));
+    assert!(written.contains("bob:\n    secret: '11111111111111111111111111111111'"));
     assert_eq!(revision, current_revision(&root).await.unwrap());
 }
 
@@ -258,13 +258,13 @@ async fn access_mutation_rejects_source_graph_change_after_snapshot() {
     let included = dir.path().join("users.yaml");
     let root_body = "include: \"users.yaml\"\ngeneral:\n  network_ipv6: true\n";
     let external_root = "include: \"users.yaml\"\ngeneral:\n  network_ipv6: false\n";
-    let included_body = "users:\n  alice: \"00000000000000000000000000000000\"\n";
+    let included_body = "users:\n  alice:\n    secret: \"00000000000000000000000000000000\"\n";
     tokio::fs::write(&root, root_body).await.unwrap();
     tokio::fs::write(&included, included_body).await.unwrap();
     let (mut cfg, revision) = load_config_for_mutation(&root, None).await.unwrap();
     cfg.users.insert(
         "bob".to_string(),
-        "11111111111111111111111111111111".to_string(),
+        "11111111111111111111111111111111".to_string().into(),
     );
     tokio::fs::write(&root, external_root).await.unwrap();
 
@@ -296,14 +296,14 @@ fn rendered_users_section_round_trips_numeric_looking_values() {
     let mut cfg = ProxyConfig::default();
     cfg.users.insert(
         "00000000000000000000000000000000".to_string(),
-        "00000000000000000000000000000000".to_string(),
+        "00000000000000000000000000000000".to_string().into(),
     );
     cfg.users.insert(
         "12345678901234567890123456789012".to_string(),
-        "12345678901234567890123456789012".to_string(),
+        "12345678901234567890123456789012".to_string().into(),
     );
-    cfg.users.insert("0x1f".to_string(), "0x1f".to_string());
-    cfg.users.insert("true".to_string(), "plain-secret".to_string());
+    cfg.users.insert("0x1f".to_string(), "0x1f".to_string().into());
+    cfg.users.insert("true".to_string(), "plain-secret".to_string().into());
 
     let rendered = render_access_section(&cfg, AccessSection::Users).unwrap();
     let parsed: serde_yaml::Value = serde_yaml::from_str(&rendered).unwrap();
@@ -312,9 +312,9 @@ fn rendered_users_section_round_trips_numeric_looking_values() {
     for (key, value) in users.iter() {
         let secret = cfg.users.get(key.as_str().unwrap()).unwrap();
         assert_eq!(
-            value.as_str(),
-            Some(secret.as_str()),
-            "scalar must round-trip as a string: {rendered}"
+            value["secret"].as_str(),
+            Some(secret.secret.as_str()),
+            "secret must round-trip as a string: {rendered}"
         );
     }
 }

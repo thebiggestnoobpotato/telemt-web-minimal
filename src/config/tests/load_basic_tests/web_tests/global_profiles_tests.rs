@@ -2,8 +2,10 @@ use super::*;
 
 const GLOBAL_WEB_CONFIG: &str = r#"
 users:
-  alice: "000102030405060708090a0b0c0d0e0f"
-  bob: "1112131415161718191a1b1c1d1e1f20"
+  alice:
+    secret: "000102030405060708090a0b0c0d0e0f"
+  bob:
+    secret: "1112131415161718191a1b1c1d1e1f20"
 
 listener:
   ip: "127.0.0.1"
@@ -46,9 +48,12 @@ fn global_secret_mode_instantiates_every_user_in_the_vhost() {
 }
 
 #[test]
-fn explicit_profile_wins_over_global_for_same_user() {
-    let yaml = format!(
-        "{GLOBAL_WEB_CONFIG}\n    profiles:\n      - user: \"alice\"\n        max_sessions: 4\n"
+fn per_user_ceilings_win_over_global_for_same_user() {
+    // alice carries a per-user ceiling; it wins over the global value while
+    // bob keeps the global one.
+    let yaml = GLOBAL_WEB_CONFIG.replace(
+        "  alice:\n    secret: \"000102030405060708090a0b0c0d0e0f\"",
+        "  alice:\n    secret: \"000102030405060708090a0b0c0d0e0f\"\n    max_sessions: 4",
     );
     let config = load_config_from_temp_yaml(&yaml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
@@ -60,7 +65,7 @@ fn explicit_profile_wins_over_global_for_same_user() {
     for profile in &vhost.profiles {
         assert_eq!(profile.secret_mode, WebSecretMode::Plain);
         if profile.user == "alice" {
-            // The explicit profile keeps its own ceilings.
+            // The per-user entry keeps its own ceilings.
             assert_eq!(profile.max_sessions, 4);
         } else {
             assert_eq!(profile.user, "bob");
@@ -94,11 +99,11 @@ fn global_profile_expansion_counts_against_max_profiles() {
 }
 
 #[test]
-fn web_enabled_requires_explicit_or_global_profiles() {
-    // No explicit profiles and no web.secret_mode: the requirement fires.
+fn web_listener_requires_secret_mode() {
+    // A WEB listener without web.secret_mode: the requirement fires.
     let none = GLOBAL_WEB_CONFIG.replace("  secret_mode: \"plain\"\n", "");
     let error = load_config_error_from_temp_yaml(&none);
-    assert!(error.contains("has no profiles"), "{error}");
+    assert!(error.contains("A WEB listener requires web.secret_mode"), "{error}");
 }
 
 #[test]

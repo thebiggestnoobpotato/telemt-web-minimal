@@ -214,11 +214,19 @@ Notes:
 | --- | --- | --- | --- |
 | `username` | `string` | yes | `[A-Za-z0-9_.-]`, length `1..64`. |
 | `secret` | `string` | no | Exactly 32 hex chars. If missing, generated automatically. |
+| `host` | `string` | no | Per-user WEB hostname; `web.vhost.host` applies when absent. |
+| `max_sessions` | `usize` | no | Per-user live session ceiling; must be non-zero and within `web.limits.max_sessions_global`. |
+| `max_streams` | `usize` | no | Per-user live logical-stream ceiling; must be non-zero and within `web.limits.max_streams_global`. |
+| `max_streams_per_session` | `usize` | no | Per-user per-session stream ceiling; must be non-zero and within `web.limits.max_streams_per_session`, and cannot exceed the effective `max_streams`. |
 
 ### `PatchUserRequest`
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `secret` | `string` | no | Exactly 32 hex chars. |
+| `host` | `string?` | no | `null` clears the per-user host (the vhost host applies); a value sets it. Absent leaves it unchanged. |
+| `max_sessions` | `usize?` | no | `null` clears the per-user ceiling (the global value applies); a value sets it. Absent leaves it unchanged. |
+| `max_streams` | `usize?` | no | `null` clears the per-user ceiling (the global value applies); a value sets it. Absent leaves it unchanged. |
+| `max_streams_per_session` | `usize?` | no | `null` clears the per-user ceiling (the global value applies); a value sets it. Absent leaves it unchanged. |
 
 ### `PatchConfigRequest`
 
@@ -257,7 +265,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `logging` | `object` | Complete normalized `logging` section, including defaults. |
 | `listener` | `object?` | Complete normalized `listener` table when set; omitted when no listener is configured. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile, instantiated for every `users` user in the vhost using the `web.limits` ceilings; `web.vhost` includes `base_path` ((empty string when omitted from the source)). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile and materializes one profile per `users` user in the vhost, where absent per-user ceilings inherit the `web.limits` values; `web.vhost` includes `base_path` ((empty string when omitted from the source)). The derived runtime-only `web.runtime` field is excluded. |
 
 The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `web.limits` are persisted by the patch but take effect only at the next process restart.
 
@@ -726,6 +734,10 @@ Returned by `PATCH /v1/config` on success (`200`).
 | `in_runtime` | `bool` | Whether current runtime config already contains this user. |
 | `current_connections` | `u64` | Live connections for this user from per-user telemetry; reports `0` while user telemetry is disabled. |
 | `total_octets` | `u64` | Total traffic octets for this user. |
+| `host` | `string?` | Per-user WEB hostname; omitted when the vhost host applies. |
+| `max_sessions` | `usize?` | Per-user live session ceiling; omitted when the global value applies. |
+| `max_streams` | `usize?` | Per-user live logical-stream ceiling; omitted when the global value applies. |
+| `max_streams_per_session` | `usize?` | Per-user per-session stream ceiling; omitted when the global value applies. |
 | `links` | `UserLinks` | Active connection links derived from current config. |
 
 #### `UserLinks`

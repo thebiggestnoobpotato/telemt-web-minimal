@@ -2,7 +2,8 @@ use super::*;
 
 const SOURCE: &str = r#"
 users:
-  alice: "000102030405060708090a0b0c0d0e0f"
+  alice:
+    secret: "000102030405060708090a0b0c0d0e0f"
 listener:
   ip: "127.0.0.1"
   port: 18080
@@ -15,8 +16,6 @@ web:
     public_addr: "203.0.113.10:443"
     upstream: "http://localhost:18081"
     resolve: "startup"
-    profiles:
-      - user: "alice"
 "#;
 
 #[tokio::test]

@@ -178,10 +178,9 @@ const WEB_VHOST_CONFIG_KEYS: &[&str] = &[
     "public_addr",
     "upstream",
     "resolve",
-    "profiles",
 ];
-const WEB_PROFILE_CONFIG_KEYS: &[&str] = &[
-    "user",
+const USER_ENTRY_CONFIG_KEYS: &[&str] = &[
+    "secret",
     "host",
     "max_sessions",
     "max_streams",

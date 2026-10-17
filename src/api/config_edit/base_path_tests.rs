@@ -3,7 +3,8 @@ use super::*;
 fn web_config() -> &'static str {
     r#"
 users:
-  alice: "000102030405060708090a0b0c0d0e0f"
+  alice:
+    secret: "000102030405060708090a0b0c0d0e0f"
 
 listener:
   ip: "127.0.0.1"
@@ -18,8 +19,6 @@ web:
     host: "proxy.example.com"
     public_addr: "203.0.113.10:443"
     upstream: "http://127.0.0.1:18081"
-    profiles:
-      - user: "alice"
 "#
 }
 
@@ -30,10 +29,7 @@ fn vhost_patch(base_path: &str) -> Json {
                 "host": "proxy.example.com",
                 "base_path": base_path,
                 "public_addr": "203.0.113.10:443",
-                "upstream": "http://127.0.0.1:18081",
-                "profiles": [{
-                    "user": "alice"
-                }]
+                "upstream": "http://127.0.0.1:18081"
             }
         }
     })

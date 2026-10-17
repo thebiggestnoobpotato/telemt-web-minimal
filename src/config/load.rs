@@ -110,9 +110,9 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub web: WebConfig,
 
-    /// Top-level access user credentials: username to 32-hex-character secret.
+    /// Top-level access users: username to secret and optional per-user WEB ceilings.
     #[serde(default = "default_access_users")]
-    pub users: HashMap<String, String>,
+    pub users: HashMap<String, UserEntry>,
 
     /// Telegram upstream endpoint configuration.
     #[serde(default)]
@@ -234,6 +234,14 @@ impl ProxyConfig {
         Ok(())
     }
 
+    /// Access user names mapped to their 32-hex-character secrets.
+    pub(crate) fn user_secret_map(&self) -> HashMap<String, String> {
+        self.users
+            .iter()
+            .map(|(user, entry)| (user.clone(), entry.secret.clone()))
+            .collect()
+    }
+
     /// Rebuilds validated WEB capabilities and immutable fallback snapshots.
     pub(crate) fn rebuild_runtime_web(&mut self) -> Result<()> {
         runtime_web::rebuild(self)
@@ -242,6 +250,11 @@ impl ProxyConfig {
     /// Validates the WEB mode policy and resource bounds.
     pub(crate) fn validate_effective_web(&mut self) -> Result<()> {
         validate_web::validate(self)
+    }
+
+    /// Normalizes and validates optional per-user WEB host and ceiling fields.
+    pub(crate) fn validate_user_web_fields(&mut self) -> Result<()> {
+        validate_web::validate_user_web_fields(self)
     }
 
     /// Returns authentication data owned by this configuration generation.
@@ -256,7 +269,7 @@ impl ProxyConfig {
             .or_else(|| {
                 self.users
                     .get(user)
-                    .and_then(|secret| hex::decode(secret).ok())
+                    .and_then(|entry| hex::decode(&entry.secret).ok())
                     .and_then(|secret| <[u8; 16]>::try_from(secret).ok())
                     .map(|secret| {
                         let digest = sha256(&secret);

@@ -12,7 +12,8 @@ general:
   network_ipv6: true
 
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#;
     let dir = std::env::temp_dir();
     let path = dir.join("telemt_api_minimal_runtime_cache_ttl_invalid_test.yaml");
@@ -34,7 +35,8 @@ general:
   network_ipv6: true
 
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#;
     let dir = std::env::temp_dir();
     let path = dir.join("telemt_api_runtime_edge_cache_ttl_invalid_test.yaml");
@@ -56,7 +58,8 @@ general:
   network_ipv6: true
 
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#;
     let dir = std::env::temp_dir();
     let path = dir.join("telemt_api_runtime_edge_top_n_invalid_test.yaml");
@@ -78,7 +81,8 @@ general:
   network_ipv6: true
 
 users:
-  user: "00000000000000000000000000000000"
+  user:
+    secret: "00000000000000000000000000000000"
 "#;
     let dir = std::env::temp_dir();
     let path = dir.join("telemt_api_runtime_edge_events_capacity_invalid_test.yaml");

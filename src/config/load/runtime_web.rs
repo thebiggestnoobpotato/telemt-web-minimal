@@ -29,44 +29,28 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     let carrier_candidates: Arc<[WebCarrier]> = config.web.carrier_candidates().into();
     if let Some(vhost) = &config.web.vhost {
         let fallback = build_fallback(config, vhost)?;
-        // Explicit vhost profiles first, then the web.secret_mode profile
-        // instantiated for every user not already covered by an explicit
-        // profile in the vhost. Instantiated profiles use the global WEB
-        // ceilings.
-        let mut specs = Vec::with_capacity(vhost.profiles.len() + auth.entries().len());
-        if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {
-            return Err(ProxyError::Config(
-                "web.vhost.profiles require web.secret_mode".to_string(),
+        // Every access user materializes exactly one WEB profile using its
+        // optional per-user overrides; absent ceilings inherit the global
+        // WEB limits.
+        let secret_mode = config.web.secret_mode.ok_or_else(|| {
+            ProxyError::Config("web.vhost requires web.secret_mode".to_string())
+        })?;
+        let mut specs = Vec::with_capacity(auth.entries().len());
+        for auth_entry in auth.entries() {
+            let user_entry = config.users.get(&auth_entry.user).ok_or_else(|| {
+                ProxyError::Config(format!(
+                    "WEB runtime user `{}` is missing from the access entries",
+                    auth_entry.user
+                ))
+            })?;
+            specs.push((
+                auth_entry.user.as_str(),
+                secret_mode,
+                user_entry.host.as_deref().unwrap_or(vhost.host.as_str()),
+                user_entry.max_sessions,
+                user_entry.max_streams,
+                user_entry.max_streams_per_session,
             ));
-        }
-        if let Some(secret_mode) = config.web.secret_mode {
-            for profile in &vhost.profiles {
-                specs.push((
-                    profile.user.as_str(),
-                    secret_mode,
-                    profile.host.as_deref().unwrap_or(vhost.host.as_str()),
-                    profile.max_sessions,
-                    profile.max_streams,
-                    profile.max_streams_per_session,
-                ));
-            }
-            for entry in auth.entries() {
-                if vhost
-                    .profiles
-                    .iter()
-                    .any(|profile| profile.user == entry.user)
-                {
-                    continue;
-                }
-                specs.push((
-                    entry.user.as_str(),
-                    secret_mode,
-                    vhost.host.as_str(),
-                    None,
-                    None,
-                    None,
-                ));
-            }
         }
         let mut host_groups: BTreeMap<String, HostProfiles> = BTreeMap::new();
         let mut capabilities = HashSet::with_capacity(specs.len());

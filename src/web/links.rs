@@ -36,26 +36,19 @@ pub fn web_links_for_user(config: &ProxyConfig, user: &str) -> Vec<String> {
     let Some(runtime) = config.web.runtime.as_ref() else {
         return Vec::new();
     };
-    let Some(secret) = config.users.get(user) else {
+    // Every runtime profile belongs to the single configured vhost.
+    let Some(vhost) = config.web.vhost.as_ref() else {
         return Vec::new();
     };
+    let Some(entry) = config.users.get(user) else {
+        return Vec::new();
+    };
+    let secret = entry.secret.as_str();
     let mut links = Vec::new();
     for profile in &runtime.profiles {
         if profile.user != user {
             continue;
         }
-        // A profile host override still belongs to the single config vhost.
-        let Some(vhost) = config
-            .web
-            .vhost
-            .as_ref()
-            .filter(|vhost| {
-                vhost.host == profile.host
-                    || vhost.profiles.iter().any(|p| p.user == profile.user)
-            })
-        else {
-            continue;
-        };
         if let Some(link) =
             format_web_proxy_link(&profile.host, &vhost.base_path, secret, profile.secret_mode)
         {

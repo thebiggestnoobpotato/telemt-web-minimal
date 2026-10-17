@@ -74,7 +74,11 @@ logging:
   show_users_links: true
 
 users:
-  web-user: "0123456789abcdef0123456789abcdef"
+  web-user:
+    secret: "0123456789abcdef0123456789abcdef"
+    max_sessions: 8
+    max_streams: 512
+    max_streams_per_session: 64
 
 listener:
   ip: "127.0.0.1"
@@ -92,14 +96,9 @@ web:
     base_path: "telegram/web"
     public_addr: "203.0.113.10:443"
     upstream: "http://127.0.0.1:18081"
-    profiles:
-      - user: "web-user"
-        max_sessions: 8
-        max_streams: 512
-        max_streams_per_session: 64
 ```
 
-`secret_mode` under `web` is the single secret representation for every profile and instantiates a profile for **every user in `users`** in **the vhost**, using the `web.limits` ceilings; explicit `web.vhost.profiles` entries add per-user ceiling overrides for the same users and require `web.secret_mode`. An explicit entry wins for its user, and the expanded total counts toward `web.limits.max_profiles`. An explicit entry may also carry its own `host`; that profile is then routed, capability-derived, and linked under that hostname while the vhost `base_path`, `public_addr`, and `upstream` stay shared across all profile hosts:
+`secret_mode` under `web` is the single secret representation for every profile and materializes **one profile per `users` user** in **the vhost**; an absent per-user ceiling inherits the `web.limits` value and an absent host inherits `web.vhost.host`. The user count counts toward `web.limits.max_profiles`. A per-user `host` routes, capability-derives, and links that profile under that hostname while the vhost `base_path`, `public_addr`, and `upstream` stay shared across all profile hosts:
 
 ```yaml
 web:

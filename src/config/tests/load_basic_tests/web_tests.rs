@@ -17,7 +17,11 @@ mod profile_host_tests;
 
 const WEB_CONFIG: &str = r#"
 users:
-  alice: "000102030405060708090a0b0c0d0e0f"
+  alice:
+    secret: "000102030405060708090a0b0c0d0e0f"
+    max_sessions: 4
+    max_streams: 64
+    max_streams_per_session: 16
 
 listener:
   ip: "127.0.0.1"
@@ -32,11 +36,6 @@ web:
     host: "Proxy.Example.COM"
     public_addr: "203.0.113.10:443"
     upstream: "http://127.0.0.1:18081"
-    profiles:
-      - user: "alice"
-        max_sessions: 4
-        max_streams: 64
-        max_streams_per_session: 16
 "#;
 
 #[test]
@@ -247,10 +246,9 @@ fn web_profile_user_labels_are_bounded_for_runtime_status() {
     let user = "a".repeat(65);
     let invalid = WEB_CONFIG.replace("alice", &user);
 
-    assert!(
-        load_config_error_from_temp_yaml(&invalid)
-            .contains("web.vhost.profiles[0].user must contain 1..64 bytes")
-    );
+    let error = load_config_error_from_temp_yaml(&invalid);
+    assert!(error.contains(&format!("users.{user}")), "{error}");
+    assert!(error.contains("must contain 1..64 bytes"), "{error}");
 }
 
 #[test]

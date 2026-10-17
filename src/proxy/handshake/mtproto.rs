@@ -360,7 +360,7 @@ where
             Some(user) => config
                 .users
                 .get(user)
-                .and_then(|secret| decode_user_secret(shared, user, secret))
+                .and_then(|entry| decode_user_secret(shared, user, &entry.secret))
                 .map(|secret| vec![(user.to_string(), secret)])
                 .unwrap_or_default(),
             None => decode_user_secrets_in(shared, config, preferred_user),

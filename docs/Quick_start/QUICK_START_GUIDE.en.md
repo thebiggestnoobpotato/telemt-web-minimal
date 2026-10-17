@@ -105,8 +105,8 @@ listener:
   web_trusted_proxy_cidrs: ["127.0.0.1/32", "::1/128"]
 
 web:
-  # The single secret representation for every profile; required for
-  # web.vhost.profiles.
+  # The single secret representation for every access user; required to
+  # materialize the WEB profiles.
   secret_mode: "plain"
   vhost:
     host: "proxy.example.com"
@@ -116,8 +116,8 @@ web:
     upstream: "http://127.0.0.1:80"
 
 users:
-  # format: "username": "32_hex_chars_secret"
-  user: "11111111111111111111111111111111"
+  user:
+    secret: "11111111111111111111111111111111"
 
 upstreams:
   - type: direct
@@ -130,10 +130,9 @@ Notes:
 - The listener is a WEB listener and needs a non-empty
   `web_trusted_proxy_cidrs` list (no `/0` networks).
 - A `web.vhost` table is required whenever a listener is configured.
-- The vhost needs an `upstream` (what browsers and scanners see) and at
-  least one profile binding a `users` user to the vhost: `web.secret_mode`
-  covers every user, and explicit `web.vhost.profiles` entries (which
-  require it) add per-user ceilings.
+- The vhost needs an `upstream` (what browsers and scanners see), and a
+  set `web.secret_mode` materializes one profile per `users` user;
+  per-user host and ceiling overrides live on the `users` entries.
 - See [All Config Options](../Config_params/CONFIG_PARAMS.en.md) for the full reference.
 
 # Telemt via Docker

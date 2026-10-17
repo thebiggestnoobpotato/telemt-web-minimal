@@ -195,6 +195,6 @@ pub fn handshake_test_config(secret_hex: &str) -> ProxyConfig {
     let mut cfg = ProxyConfig::default();
     cfg.users.clear();
     cfg.users
-        .insert("test-user".to_string(), secret_hex.to_string());
+        .insert("test-user".to_string(), secret_hex.to_string().into());
     cfg
 }

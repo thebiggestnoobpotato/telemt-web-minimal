@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::config::UserEntry;
 use crate::crypto::sha256;
 use crate::error::{ProxyError, Result};
 
@@ -24,15 +25,15 @@ pub(crate) struct UserAuthEntry {
 }
 
 impl UserAuthSnapshot {
-    pub(super) fn from_users(users: &HashMap<String, String>) -> Result<Self> {
+    pub(super) fn from_users(users: &HashMap<String, UserEntry>) -> Result<Self> {
         let mut entries = Vec::with_capacity(users.len());
         let mut by_name = HashMap::with_capacity(users.len());
         let mut by_hint_key = HashMap::with_capacity(users.len());
 
         let mut ordered_users = users.iter().collect::<Vec<_>>();
         ordered_users.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
-        for (user, secret_hex) in ordered_users {
-            let decoded = hex::decode(secret_hex).map_err(|_| ProxyError::InvalidSecret {
+        for (user, entry) in ordered_users {
+            let decoded = hex::decode(&entry.secret).map_err(|_| ProxyError::InvalidSecret {
                 user: user.clone(),
                 reason: "Must be 32 hex characters".to_string(),
             })?;
@@ -117,11 +118,11 @@ mod tests {
         let mut initial = HashMap::new();
         initial.insert(
             "alice".to_string(),
-            "11111111111111111111111111111111".to_string(),
+            "11111111111111111111111111111111".to_string().into(),
         );
         initial.insert(
             "bob".to_string(),
-            "22222222222222222222222222222222".to_string(),
+            "22222222222222222222222222222222".to_string().into(),
         );
         let initial = UserAuthSnapshot::from_users(&initial).unwrap();
         let initial_id = initial.user_id_by_name("alice").unwrap();
@@ -130,15 +131,15 @@ mod tests {
         let mut reloaded = HashMap::new();
         reloaded.insert(
             "aaron".to_string(),
-            "33333333333333333333333333333333".to_string(),
+            "33333333333333333333333333333333".to_string().into(),
         );
         reloaded.insert(
             "alice".to_string(),
-            "11111111111111111111111111111111".to_string(),
+            "11111111111111111111111111111111".to_string().into(),
         );
         reloaded.insert(
             "bob".to_string(),
-            "22222222222222222222222222222222".to_string(),
+            "22222222222222222222222222222222".to_string().into(),
         );
         let reloaded = UserAuthSnapshot::from_users(&reloaded).unwrap();
         let reloaded_id = reloaded.user_id_by_name("alice").unwrap();

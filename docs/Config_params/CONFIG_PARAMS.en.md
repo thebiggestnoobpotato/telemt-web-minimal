@@ -28,7 +28,6 @@ This document lists all configuration keys accepted by `config.yaml`.
  - [web.limits](#weblimits)
  - [web.timeouts](#webtimeouts)
  - [web.vhost](#webvhost)
- - [web.vhost.profiles](#webvhostprofiles)
  - [users](#users)
  - [upstreams](#upstreams)
 
@@ -585,7 +584,7 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `timeouts` | table | bounded defaults |
 | `vhost` | table | unset |
 
-WEB requires at least one network-eligible `listener` entry, a `web.vhost` table, and at least one profile in it — explicit, or instantiated by a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one instantiates a profile for **every `users` user in the vhost** using the `web.limits` ceilings, and explicit `web.vhost.profiles` entries require it. Per-user ceiling overrides belong in `web.vhost.profiles`. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
+WEB requires at least one network-eligible `listener` entry, a `web.vhost` table, and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `web.limits` values and an absent host inherits `web.vhost.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
 
 When `carriers` is missing or `false`, auto-negotiation and learning are disabled and `carrier` is the only mode. A non-empty `carriers` array enables startup-only negotiation in its configured order; `carrier` is appended exactly once as the final fallback. Empty arrays, duplicates, and `true` are rejected. The client advances candidates only before carrier commit and must create a new session to change carrier after commit. A metadata-free native client, including Telegram iOS, always uses the configured fixed `carrier`, even when negotiation is enabled. Current iOS supports only `https`, so such deployments must configure `carrier = "https"`. CFNetwork and Darwin User-Agent classification does not infer carrier support. Explicit native iOS capabilities are intersected with `{https}`; other explicit client capabilities participate as reported.
 
@@ -658,7 +657,7 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `control_bytes_global` | `usize` | `16777216` | Process-wide byte reserve available only to control frames. |
 | `max_bootstraps_global` | `usize` | `512` | Live bootstrap credentials process-wide. |
 | `max_bootstraps_per_ip` | `usize` | `64` | Live bootstrap credentials per client IP. |
-| `max_profiles` | `usize` | `32` | WEB profiles in the vhost, counted after global-profile expansion. |
+| `max_profiles` | `usize` | `32` | Access users materialized as WEB profiles in the vhost. |
 | `debug_records_capacity` | `usize` | `65536` | Maximum retained WEB debug record count. |
 | `debug_bytes_global` | `usize` | `67108864` | Retained plus in-flight WEB debug byte ceiling; minimum 4096. |
 | `memory_envelope_bytes` | `usize` | `1342177280` | Declared envelope for HTTP heads, bodies, shared queues/WebSocket I/O, capability indexes, lane state, carrier learning, and bounded debug/status buffers; maximum 4 GiB. |
@@ -710,30 +709,17 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `public_addr` | `SocketAddr` | yes | Concrete public IP on port `443`; used in the inner relay destination tuple. |
 | `upstream` | `String` | yes | Ordinary-site fallback origin for unauthenticated or invalid traffic: an `http://` origin without credentials, path, query, or fragment, or a `unix:/absolute/path.sock` socket path that must be absolute without URL control characters. With the default `resolve = "never"` an http host must be a loopback, link-local, or private IP literal. A unix fallback target must not equal any `socket_path` of a WEB listener. |
 | `resolve` | `"never"` or `"startup"` | no | Default `never`. `startup` resolves an http hostname once during config preparation: every answer must remain inside loopback or a private network, the answers are pinned for the running process, and a failed, timed out, or empty lookup fails the load. Rejected for `unix:` origins, where no DNS is performed and the vhost `host` is used as the request authority. |
-| `profiles` | array of mappings | when enabled | Explicit users exposed by this hostname. |
 
 The hostname must be accepted by Telegram Desktop and is normalized during validation. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap is process-local: it remains valid only while the same profile identity is still active and is retired at process restart.
 
-# web.vhost.profiles
-
-| Key | Type | Required | Default | Description |
-| --- | --- | --- | --- | --- |
-| `user` | `String` | yes | — | Existing 1–64-byte key from `users`; the bound keeps runtime status and filters bounded. |
-| `host` | `String` | no | `web.vhost.host` | Optional per-profile hostname, normalized with the vhost hostname rules. Routes, derives the capability, sets the unix fallback request authority, and emits links under this hostname; the vhost `base_path`, `public_addr`, and fallback origin stay shared. |
-| `max_sessions` | `usize` | no | `web.limits.max_sessions_global` | Live sessions for this profile. |
-| `max_streams` | `usize` | no | `web.limits.max_streams_global` | Live logical streams for this profile. |
-| `max_streams_per_session` | `usize` | no | `web.limits.max_streams_per_session` | Live logical streams in one profile session. |
-
-Profile limits must be non-zero and no greater than their corresponding global limits. Duplicate profiles for one user in the vhost are rejected. An explicit entry wins over the profile instantiated by `web.secret_mode` for the same user: the global profile is skipped for that user in that vhost only. A profile-level `host` moves that one profile — its runtime routing entry, capability derivation, and emitted link — to that hostname; profiles without one, and every `web.secret_mode`-instantiated profile, keep the vhost host. A bridge token presented under a host that is not the capability host fails the scan and follows ordinary fallback handling.
-
 ## WEB lifecycle and API management
 
-- The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
+- The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `web.timeouts`, the vhost table, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
 - Changing `base_path` changes the new-request route and derived capability from the next process restart. Reissue links before the restart: after it, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling.
 - WEB listener inventory and trust policy under `listener`, and every `web.limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `web` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `web.limits` and `listener` values apply at the next process restart.
 - `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.
-- Users can be created, changed, rotated, and deleted through `/v1/users`. Creating a user does not add a WEB profile. Deleting a user updates admission and cancels that user's active sessions.
+- Users can be created, changed, rotated, and deleted through `/v1/users`. With `web.secret_mode` set, every user materializes exactly one WEB profile; new, changed, or deleted users apply at the next process restart. Deleting a user updates admission and cancels that user's active sessions.
 - `PATCH /v1/config` can persist `listener`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
 
 
@@ -741,16 +727,25 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 | Key | Type | Default |
 | --- | ---- | ------- |
-| `<username>: "secret"` | `Map<String, String>` | `{"default": "000…000"}` |
+| `<username>` | mapping | — |
+| `<username>.secret` | `String` | — |
+| `<username>.host` | `String` | `web.vhost.host` |
+| `<username>.max_sessions` | `usize` | `web.limits.max_sessions_global` |
+| `<username>.max_streams` | `usize` | `web.limits.max_streams_global` |
+| `<username>.max_streams_per_session` | `usize` | `web.limits.max_streams_per_session` |
 
-  - **Constraints / validation**: Must not be empty (at least one user must exist). Keys are user names; each value must be **exactly 32 hex characters**. Quote values (and keys) that are all digits or resemble a number, boolean, or null, so they are read as strings.
-  - **Description**: User credentials map used for client authentication and for WEB vhost profiles, which reference users by name.
+  - **Constraints / validation**: Must not be empty (at least one user must exist). Keys are 1–64-byte user names; each `secret` must be **exactly 32 hex characters**. Quote values (and keys) that are all digits or resemble a number, boolean, or null, so they are read as strings. Per-user ceilings must be non-zero and no greater than their corresponding global limits, and `max_streams_per_session` cannot exceed `max_streams`.
+  - **Description**: User credentials map used for client authentication. With `web.secret_mode` set, every user materializes exactly one WEB profile in the vhost; the optional per-user `host` moves that one profile — its runtime routing entry, capability derivation, and emitted link — to that hostname (normalized with the vhost hostname rules) while the vhost `base_path`, `public_addr`, and fallback origin stay shared. A bridge token presented under a host that is not the capability host fails the scan and follows ordinary fallback handling.
   - **Example**:
 
     ```yaml
     users:
-      alice: "00112233445566778899aabbccddeeff"
-      bob: "0123456789abcdef0123456789abcdef"
+      alice:
+        secret: "00112233445566778899aabbccddeeff"
+      bob:
+        secret: "0123456789abcdef0123456789abcdef"
+        host: "alt.example.com"
+        max_sessions: 4
     ```
 # upstreams
 

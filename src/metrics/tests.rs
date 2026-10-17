@@ -93,7 +93,7 @@ fn test_render_empty_stats() {
     let mut config = ProxyConfig::default();
     config.users.insert(
         "default".to_string(),
-        "00000000000000000000000000000000".to_string(),
+        "00000000000000000000000000000000".to_string().into(),
     );
     let output = render_metrics(&stats, &shared_state, &config, &test_web_publication());
     assert!(output.contains("telemt_connections_total 0"));

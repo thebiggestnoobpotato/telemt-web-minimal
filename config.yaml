@@ -40,8 +40,8 @@ api:
 
 # === WEB Bridge ===
 web:
-  # Single secret representation for every profile; explicit
-  # web.vhost.profiles entries require it.
+  # Single secret representation for every access user; required to
+  # materialize the WEB profiles.
   secret_mode: "plain"
   # Fixed carrier for every session: "https", "https-lanes",
   # "websocket", or "websocket-lanes" (default "https").
@@ -62,14 +62,14 @@ web:
     # "startup" (resolve once at config preparation; answers must stay
     # inside loopback or a private network). Rejected for unix: origins.
     # resolve: "never"
-    profiles:
-      - user: "hello"
-        # Optional per-profile hostname; defaults to web.vhost.host.
-        # host: "alt.example.com"
 
 users:
-  # format: "username": "32_hex_chars_secret"
-  hello: "00000000000000000000000000000000"
+  # Each entry is "username": {secret: "32_hex_chars_secret"} plus the
+  # optional per-user overrides host (defaults to web.vhost.host) and
+  # max_sessions / max_streams / max_streams_per_session (absent ceilings
+  # inherit web.limits).
+  hello:
+    secret: "00000000000000000000000000000000"
 
 # === Upstream ===
 upstreams:
