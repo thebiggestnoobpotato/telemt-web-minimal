@@ -79,11 +79,11 @@ pub(crate) struct ParsedConfigSource {
 pub(crate) struct ConfigSourceGraph {
     /// Raw source bytes keyed by normalized absolute source path.
     pub(crate) source_contents: BTreeMap<PathBuf, String>,
-    /// Include-expanded TOML used for typed deserialization.
+    /// Include-expanded YAML used for typed deserialization.
     pub(crate) rendered: String,
 }
 
-/// Main runtime configuration loaded from TOML.
+/// Main runtime configuration loaded from YAML.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProxyConfig {
     /// General runtime options shared across proxy subsystems.
@@ -124,7 +124,7 @@ pub struct ProxyConfig {
 }
 
 impl ProxyConfig {
-    /// Loads runtime configuration from a TOML file.
+    /// Loads runtime configuration from a YAML file.
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
         Self::load_with_metadata(path).map(|loaded| loaded.config)
     }

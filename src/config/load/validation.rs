@@ -7,7 +7,7 @@ use super::super::types::{GeneralConfig, LoggingConfig, LoggingDestination};
 pub(super) fn validate_network_cfg(net: &mut GeneralConfig) -> Result<()> {
     if !net.network_ipv4 && matches!(net.network_ipv6, Some(false)) {
         return Err(ProxyError::Config(
-            "Both network_ipv4 and network_ipv6 are disabled in [general]".to_string(),
+            "Both network_ipv4 and network_ipv6 are disabled in general".to_string(),
         ));
     }
 

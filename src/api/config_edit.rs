@@ -2,17 +2,18 @@
 //! `users` is intentionally not editable here (owned by the users API).
 
 use serde_json::Value as Json;
-use toml::Value as Toml;
+use serde_yaml::{Mapping, Value as Yaml};
 
 use super::ApiShared;
 use super::config_store::{
     EDITABLE_SECTIONS, compute_snapshot_revision, is_editable_section, load_candidate_snapshot,
-    load_config_snapshot, render_top_level_section, resolve_single_source_owner, upsert_toml_table,
+    load_config_snapshot, render_top_level_section, resolve_single_source_owner, upsert_yaml_section,
     write_atomic_if_unchanged,
 };
 use super::model::ApiFailure;
 use crate::config::ProxyConfig;
-use serde::Serialize;
+use serde::de::IntoDeserializer;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// Result of one validated managed-config mutation.
@@ -111,23 +112,26 @@ async fn prepare_patch_to_path(
     }
 
     // 2. convert + reject unknown sections
-    let patch_toml = json_to_toml(patch_json)
+    let patch_yaml = json_to_yaml(patch_json)
         .map_err(|e| ApiFailure::bad_request(format!("invalid patch: {}", e)))?;
-    let patch_table = patch_toml
-        .as_table()
+    let patch_table = patch_yaml
+        .as_mapping()
         .ok_or_else(|| ApiFailure::bad_request("patch must be a JSON object"))?;
     for (key, _value) in patch_table {
-        if !is_editable_section(key.as_str()) {
+        let Some(section) = key.as_str() else {
+            return Err(ApiFailure::bad_request("patch keys must be strings"));
+        };
+        if !is_editable_section(section) {
             return Err(ApiFailure::new(
                 hyper::StatusCode::BAD_REQUEST,
                 "section_not_editable",
-                format!("section not editable: {}", key),
+                format!("section not editable: {section}"),
             ));
         }
     }
     let touched: Vec<&str> = patch_table
         .keys()
-        .map(|k| k.as_str())
+        .filter_map(|k| k.as_str())
         .filter(|k| is_editable_section(k))
         .collect();
     if touched.is_empty() {
@@ -138,13 +142,11 @@ async fn prepare_patch_to_path(
     // source owner is resolved separately so included sections stay in their
     // original file and unrelated source files remain byte-identical.
     let old_cfg = loaded.config.clone();
-    let mut merged = Toml::try_from(&old_cfg)
+    let mut merged = serde_yaml::to_value(&old_cfg)
         .map_err(|e| ApiFailure::internal(format!("failed to serialize config: {}", e)))?;
-    deep_merge(&mut merged, &patch_toml);
+    deep_merge(&mut merged, &patch_yaml);
 
-    let requested_cfg: ProxyConfig = merged
-        .clone()
-        .try_into()
+    let requested_cfg: ProxyConfig = ProxyConfig::deserialize(merged.into_deserializer())
         .map_err(|e| ApiFailure::bad_request(format!("config does not deserialize: {}", e)))?;
     requested_cfg
         .validate()
@@ -160,7 +162,7 @@ async fn prepare_patch_to_path(
     let expected_owner_contents = owner_contents.clone();
     for section in &touched {
         let rendered = render_top_level_section(&requested_cfg, section)?;
-        owner_contents = upsert_toml_table(&owner_contents, section, &rendered);
+        owner_contents = upsert_yaml_section(&owner_contents, section, &rendered);
     }
 
     let candidate = load_candidate_snapshot(
@@ -241,73 +243,70 @@ fn changed_sections(old_cfg: &ProxyConfig, new_cfg: &ProxyConfig) -> Vec<String>
 }
 
 /// Returns only the editable config sections and current revision.
-pub(super) async fn read_managed_config(config_path: &Path) -> Result<(Toml, String), ApiFailure> {
+pub(super) async fn read_managed_config(config_path: &Path) -> Result<(Yaml, String), ApiFailure> {
     let loaded = load_config_snapshot(config_path, false).await?;
     let revision = compute_snapshot_revision(&loaded.source_contents);
-    let parsed = Toml::try_from(&loaded.config)
+    let parsed = serde_yaml::to_value(&loaded.config)
         .map_err(|error| ApiFailure::internal(format!("failed to serialize config: {error}")))?;
 
-    let parsed_table = parsed
-        .as_table()
-        .cloned()
-        .unwrap_or_else(toml::value::Table::new);
+    let parsed_table = parsed.as_mapping().cloned().unwrap_or_default();
     // Whitelist: return ONLY the editable sections. A blacklist (just removing
     // `access`) would leak `api` (auth_header) and per-node network
     // addresses. Mirror the PATCH section allowlist.
-    let mut table = toml::value::Table::new();
+    let mut table = Mapping::new();
     for section in EDITABLE_SECTIONS {
         if let Some(value) = parsed_table.get(*section) {
-            table.insert((*section).to_string(), value.clone());
+            table.insert(Yaml::String((*section).to_string()), value.clone());
         }
     }
 
-    Ok((Toml::Table(table), revision))
+    Ok((Yaml::Mapping(table), revision))
 }
 
-/// Convert a serde_json value to a toml value. `null` is dropped from objects
-/// (a patch never sets a key to TOML-null). Numbers become integers when exact,
+/// Convert a serde_json value to a YAML value. `null` is dropped from objects
+/// (a patch never sets a key to null). Numbers become integers when exact,
 /// otherwise floats.
-fn json_to_toml(j: &Json) -> Result<Toml, String> {
+fn json_to_yaml(j: &Json) -> Result<Yaml, String> {
     Ok(match j {
-        Json::Null => return Err("null is not representable in TOML".into()),
-        Json::Bool(b) => Toml::Boolean(*b),
+        Json::Null => return Err("null is not representable in a patch".into()),
+        Json::Bool(b) => Yaml::Bool(*b),
         Json::Number(n) => {
             if let Some(i) = n.as_i64() {
-                Toml::Integer(i)
+                Yaml::from(i)
             } else if let Some(f) = n.as_f64() {
-                Toml::Float(f)
+                Yaml::from(f)
             } else {
                 return Err(format!("unrepresentable number: {}", n));
             }
         }
-        Json::String(s) => Toml::String(s.clone()),
+        Json::String(s) => Yaml::String(s.clone()),
         Json::Array(items) => {
             let mut out = Vec::with_capacity(items.len());
             for item in items {
-                out.push(json_to_toml(item)?);
+                out.push(json_to_yaml(item)?);
             }
-            Toml::Array(out)
+            Yaml::Sequence(out)
         }
         Json::Object(map) => {
-            let mut table = toml::value::Table::new();
+            let mut table = Mapping::new();
             for (k, v) in map {
                 if v.is_null() {
-                    // TOML has no null value, so sparse object nulls are omitted.
+                    // A sparse patch never sets a key to null.
                     continue;
                 }
-                table.insert(k.clone(), json_to_toml(v)?);
+                table.insert(Yaml::String(k.clone()), json_to_yaml(v)?);
             }
-            Toml::Table(table)
+            Yaml::Mapping(table)
         }
     })
 }
 
-/// Recursively overlay `patch` onto `base`. Tables merge key-by-key; every
+/// Recursively overlay `patch` onto `base`. Mappings merge key-by-key; every
 /// other value type (scalars, arrays) replaces wholesale.
-fn deep_merge(base: &mut Toml, patch: &Toml) {
+fn deep_merge(base: &mut Yaml, patch: &Yaml) {
     match (base, patch) {
-        (Toml::Table(b), Toml::Table(p)) => {
-            for (k, pv) in p {
+        (Yaml::Mapping(b), Yaml::Mapping(p)) => {
+            for (k, pv) in p.iter() {
                 match b.get_mut(k) {
                     Some(bv) => deep_merge(bv, pv),
                     None => {

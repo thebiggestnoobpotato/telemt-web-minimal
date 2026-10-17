@@ -1,28 +1,28 @@
 use super::*;
 
 const SOURCE: &str = r#"
-[users]
-alice = "000102030405060708090a0b0c0d0e0f"
-[listener]
-ip = "127.0.0.1"
-port = 18080
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
-[web]
-enabled = true
-secret_mode = "dd"
-[web.vhost]
-host = "proxy.example.com"
-public_addr = "203.0.113.10:443"
-upstream = "http://localhost:18081"
-resolve = "startup"
-[[web.vhost.profiles]]
-user = "alice"
+users:
+  alice: "000102030405060708090a0b0c0d0e0f"
+listener:
+  ip: "127.0.0.1"
+  port: 18080
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
+web:
+  enabled: true
+  secret_mode: "dd"
+  vhost:
+    host: "proxy.example.com"
+    public_addr: "203.0.113.10:443"
+    upstream: "http://localhost:18081"
+    resolve: "startup"
+    profiles:
+      - user: "alice"
 "#;
 
 #[tokio::test]
 async fn fallback_dns_api_get_and_mutation_base_need_no_prepared_runtime() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("config.toml");
+    let path = directory.path().join("config.yaml");
     std::fs::write(
         &path,
         SOURCE.replace("localhost", "unresolvable.example.invalid"),
@@ -45,7 +45,7 @@ async fn fallback_dns_api_get_and_mutation_base_need_no_prepared_runtime() {
 #[tokio::test]
 async fn fallback_dns_api_patch_prepares_before_disk_write() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("config.toml");
+    let path = directory.path().join("config.yaml");
     std::fs::write(&path, SOURCE).unwrap();
     // This current-thread runtime exercises the real Tokio resolver without nested block_on.
     let active = ProxyConfig::load_prepared(path.clone())
@@ -85,10 +85,10 @@ async fn fallback_dns_api_patch_prepares_before_disk_write() {
 
 #[tokio::test]
 async fn fallback_dns_api_patch_drops_removed_fallback_table() {
-    // The [web.vhosts.fallback] table is gone: a patch still carrying it is
-    // dropped by serde and the flattened upstream wins.
+    // The removed web.vhost.fallback table is gone: a patch still carrying it
+    // is dropped by serde and the flattened upstream wins.
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("config.toml");
+    let path = directory.path().join("config.yaml");
     std::fs::write(&path, SOURCE).unwrap();
     let base = ProxyConfig::parse_source(&path).unwrap();
     let mut vhost = serde_json::to_value(&base.config.web.vhost).unwrap();

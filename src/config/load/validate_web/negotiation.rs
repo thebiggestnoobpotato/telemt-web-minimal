@@ -81,9 +81,9 @@ mod tests {
         assert!(!config.carrier_negotiation_enabled());
         assert_eq!(validate(&config).unwrap(), [WebCarrier::Https]);
 
-        let disabled: Wrapper = toml::from_str("value = false").unwrap();
+        let disabled: Wrapper = serde_yaml::from_str("value: false").unwrap();
         assert_eq!(disabled.value, WebCarriers::Disabled);
-        assert!(toml::from_str::<Wrapper>("value = true").is_err());
+        assert!(serde_yaml::from_str::<Wrapper>("value: true").is_err());
     }
 
     #[test]

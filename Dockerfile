@@ -57,10 +57,10 @@ RUN set -eux; \
 
 RUN --mount=type=bind,target=/tmp \
     mkdir -p /app && \
-    if [ -f /tmp/config.toml ]; then \
-        cp /tmp/config.toml /app/config.toml; \
-    elif [ -f /tmp/config/config.toml ]; then \
-        cp /tmp/config/config.toml /app/config.toml; \
+    if [ -f /tmp/config.yaml ]; then \
+        cp /tmp/config.yaml /app/config.yaml; \
+    elif [ -f /tmp/config/config.yaml ]; then \
+        cp /tmp/config/config.yaml /app/config.yaml; \
     else \
         echo "Config file not found" && exit 1; \
     fi
@@ -83,14 +83,14 @@ RUN set -eux; \
 WORKDIR /app
 
 COPY --from=minimal /telemt /app/telemt
-COPY ./config/config.toml /app/config.toml
+COPY ./config/config.yaml /app/config.yaml
 
 EXPOSE 443 9090 9091
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["/app/telemt", "healthcheck", "/app/config.toml", "--mode", "liveness"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["/app/telemt", "healthcheck", "/app/config.yaml", "--mode", "liveness"]
 
 ENTRYPOINT ["/app/telemt"]
-CMD ["config.toml"]
+CMD ["config.yaml"]
 
 # ==========================
 # Production Distroless on MUSL
@@ -100,13 +100,13 @@ FROM gcr.io/distroless/static-debian12 AS prod
 WORKDIR /app
 
 COPY --from=minimal /telemt /app/telemt
-COPY --from=minimal /app/config.toml /app/config.toml
+COPY --from=minimal /app/config.yaml /app/config.yaml
 
 USER nonroot:nonroot
 
 EXPOSE 443 9090 9091
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["/app/telemt", "healthcheck", "/app/config.toml", "--mode", "liveness"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["/app/telemt", "healthcheck", "/app/config.yaml", "--mode", "liveness"]
 
 ENTRYPOINT ["/app/telemt"]
-CMD ["config.toml"]
+CMD ["config.yaml"]

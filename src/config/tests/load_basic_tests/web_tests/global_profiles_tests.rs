@@ -1,30 +1,28 @@
 use super::*;
 
 const GLOBAL_WEB_CONFIG: &str = r#"
-[users]
-alice = "000102030405060708090a0b0c0d0e0f"
-bob = "1112131415161718191a1b1c1d1e1f20"
+users:
+  alice: "000102030405060708090a0b0c0d0e0f"
+  bob: "1112131415161718191a1b1c1d1e1f20"
 
-[listener]
-ip = "127.0.0.1"
-port = 18080
-web_client_ip_source = "x_forwarded_for"
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
+listener:
+  ip: "127.0.0.1"
+  port: 18080
+  web_client_ip_source: "x_forwarded_for"
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 
-[web]
-carrier = "https-lanes"
-secret_mode = "plain"
-
-[web.vhost]
-host = "proxy.example.com"
-public_addr = "203.0.113.10:443"
-
-upstream = "http://127.0.0.1:18081"
+web:
+  carrier: "https-lanes"
+  secret_mode: "plain"
+  vhost:
+    host: "proxy.example.com"
+    public_addr: "203.0.113.10:443"
+    upstream: "http://127.0.0.1:18081"
 "#;
 
 #[test]
 fn global_secret_mode_instantiates_every_user_in_the_vhost() {
-    let config = load_config_from_temp_toml(GLOBAL_WEB_CONFIG);
+    let config = load_config_from_temp_yaml(GLOBAL_WEB_CONFIG);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
         .vhosts
@@ -49,11 +47,10 @@ fn global_secret_mode_instantiates_every_user_in_the_vhost() {
 
 #[test]
 fn explicit_profile_wins_over_global_for_same_user() {
-    let toml = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.vhost.profiles]]\nuser = \"alice\"\nmax_sessions = 4\n"
+    let yaml = format!(
+        "{GLOBAL_WEB_CONFIG}\n    profiles:\n      - user: \"alice\"\n        max_sessions: 4\n"
     );
-    let config = load_config_from_temp_toml(&toml);
+    let config = load_config_from_temp_yaml(&yaml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
         .vhosts
@@ -78,15 +75,15 @@ fn explicit_profile_wins_over_global_for_same_user() {
 #[test]
 fn global_profile_expansion_counts_against_max_profiles() {
     // 2 users x 1 vhost = 2 expanded profiles.
-    let error = load_config_error_from_temp_toml(&format!(
-        "{GLOBAL_WEB_CONFIG}\n[web.limits]\nmax_profiles = 1"
+    let error = load_config_error_from_temp_yaml(&format!(
+        "{GLOBAL_WEB_CONFIG}\n  limits:\n    max_profiles: 1"
     ));
     assert!(
         error.contains("exceed web.limits.max_profiles"),
         "{error}"
     );
-    let config = load_config_from_temp_toml(&format!(
-        "{GLOBAL_WEB_CONFIG}\n[web.limits]\nmax_profiles = 2"
+    let config = load_config_from_temp_yaml(&format!(
+        "{GLOBAL_WEB_CONFIG}\n  limits:\n    max_profiles: 2"
     ));
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
@@ -99,26 +96,25 @@ fn global_profile_expansion_counts_against_max_profiles() {
 #[test]
 fn web_enabled_requires_explicit_or_global_profiles() {
     // No explicit profiles and no web.secret_mode: the requirement fires.
-    let none = GLOBAL_WEB_CONFIG.replace("secret_mode = \"plain\"\n", "");
-    let error = load_config_error_from_temp_toml(&none);
+    let none = GLOBAL_WEB_CONFIG.replace("  secret_mode: \"plain\"\n", "");
+    let error = load_config_error_from_temp_yaml(&none);
     assert!(error.contains("has no profiles"), "{error}");
 }
 
 #[test]
 fn web_profiles_table_is_stripped() {
-    // The [[web.profiles]] table was removed: the mode lives on web.secret_mode
+    // The web.profiles table was removed: the mode lives on web.secret_mode
     // and instantiated profiles use the web.limits ceilings.
     let with_table = format!(
-        "{GLOBAL_WEB_CONFIG}\n\
-         [[web.profiles]]\nmax_sessions = 7\n"
+        "{GLOBAL_WEB_CONFIG}\n  profiles:\n    max_sessions: 7\n"
     );
-    let strict = format!("{with_table}\n[general]\nconfig_strict = true\n");
-    let error = load_config_error_from_temp_toml(&strict);
+    let strict = format!("{with_table}\ngeneral:\n  config_strict: true\n");
+    let error = load_config_error_from_temp_yaml(&strict);
     assert!(error.contains("profiles"), "{error}");
 
     // Non-strict: the removed table is ignored and web.secret_mode still
     // instantiates every user with the global ceilings.
-    let config = load_config_from_temp_toml(&with_table);
+    let config = load_config_from_temp_yaml(&with_table);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
         .vhosts

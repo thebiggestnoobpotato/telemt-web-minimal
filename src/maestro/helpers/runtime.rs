@@ -3,11 +3,11 @@ use tokio::sync::watch;
 use crate::config::ProxyConfig;
 
 // Dedicated log target for startup WEB proxy link lines. `log_filter_spec`
-// pins this target to INFO under every `[logging].log_level`, so links reach
+// pins this target to INFO under every `logging.log_level`, so links reach
 // the configured destination (stderr, syslog, or file) even at Silent level.
 const WEB_LINKS_LOG_TARGET: &str = "telemt::links";
 
-/// Emits WEB proxy links for all users when `[logging].show_users_links` is
+/// Emits WEB proxy links for all users when `logging.show_users_links` is
 /// set, through the tracing subscriber so they follow the configured log
 /// destination.
 pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {

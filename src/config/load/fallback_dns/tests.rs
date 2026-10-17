@@ -3,22 +3,22 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::*;
 
 const SOURCE: &str = r#"
-[users]
-alice = "000102030405060708090a0b0c0d0e0f"
-[listener]
-ip = "127.0.0.1"
-port = 18080
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
-[web]
-enabled = true
-secret_mode = "dd"
-[web.vhost]
-host = "proxy.example.com"
-public_addr = "203.0.113.10:443"
-upstream = "http://Example.COM:18081"
-resolve = "startup"
-[[web.vhost.profiles]]
-user = "alice"
+users:
+  alice: "000102030405060708090a0b0c0d0e0f"
+listener:
+  ip: "127.0.0.1"
+  port: 18080
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
+web:
+  enabled: true
+  secret_mode: "dd"
+  vhost:
+    host: "proxy.example.com"
+    public_addr: "203.0.113.10:443"
+    upstream: "http://Example.COM:18081"
+    resolve: "startup"
+    profiles:
+      - user: "alice"
 "#;
 
 fn source(text: &str) -> ParsedConfigSource {
@@ -330,12 +330,12 @@ fn fallback_unix_origin_rejects_startup_resolve() {
     assert!(parse_origin("unix:/run/telemt.sock", WebFallbackResolve::Startup).is_err());
 }
 
-const UNIX_FALLBACK_SOURCE: &str = "upstream = \"unix:/run/telemt-fallback.sock\"";
+const UNIX_FALLBACK_SOURCE: &str = "    upstream: \"unix:/run/telemt-fallback.sock\"";
 
 #[tokio::test]
 async fn fallback_unix_upstream_uses_vhost_host_authority_without_dns() {
     let mut parsed = source(&SOURCE.replace(
-        "upstream = \"http://Example.COM:18081\"\nresolve = \"startup\"",
+        "    upstream: \"http://Example.COM:18081\"\n    resolve: \"startup\"",
         UNIX_FALLBACK_SOURCE,
     ));
     prepare(&mut parsed.config, |_, _| {
@@ -357,12 +357,12 @@ async fn fallback_unix_upstream_uses_vhost_host_authority_without_dns() {
 fn fallback_unix_upstream_overlapping_unix_listener_is_rejected() {
     let text = SOURCE
         .replace(
-            "upstream = \"http://Example.COM:18081\"\nresolve = \"startup\"",
+            "    upstream: \"http://Example.COM:18081\"\n    resolve: \"startup\"",
             UNIX_FALLBACK_SOURCE,
         )
         .replace(
-            "ip = \"127.0.0.1\"\nport = 18080\nweb_trusted_proxy_cidrs = [\"127.0.0.1/32\"]",
-            "socket_path = \"/run/telemt-fallback.sock\"",
+            "  ip: \"127.0.0.1\"\n  port: 18080\n  web_trusted_proxy_cidrs: [\"127.0.0.1/32\"]",
+            "  socket_path: \"/run/telemt-fallback.sock\"",
         );
     let error = pipeline::parse_source_graph(ConfigSourceGraph {
         rendered: text.to_string(),
@@ -376,7 +376,7 @@ fn fallback_unix_upstream_overlapping_unix_listener_is_rejected() {
 #[tokio::test]
 async fn fallback_unix_upstream_does_not_collide_with_tcp_listener() {
     let mut parsed = source(&SOURCE.replace(
-        "upstream = \"http://Example.COM:18081\"\nresolve = \"startup\"",
+        "    upstream: \"http://Example.COM:18081\"\n    resolve: \"startup\"",
         UNIX_FALLBACK_SOURCE,
     ));
     // A unix fallback endpoint never overlaps the TCP listener on the same host.

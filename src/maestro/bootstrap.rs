@@ -100,17 +100,16 @@ pub(super) async fn bootstrap(
             } else {
                 let default = ProxyConfig::default();
 
-                let serialized =
-                    match toml::to_string_pretty(&default).or_else(|_| toml::to_string(&default)) {
-                        Ok(value) => Some(value),
-                        Err(serialize_error) => {
-                            eprintln!(
-                                "[telemt] Warning: failed to serialize default config: {}",
-                                serialize_error
-                            );
-                            None
-                        }
-                    };
+                let serialized = match serde_yaml::to_string(&default) {
+                    Ok(value) => Some(value),
+                    Err(serialize_error) => {
+                        eprintln!(
+                            "[telemt] Warning: failed to serialize default config: {}",
+                            serialize_error
+                        );
+                        None
+                    }
+                };
 
                 if config_path_explicit {
                     if let Some(serialized) = serialized.as_ref() {
@@ -132,8 +131,8 @@ pub(super) async fn bootstrap(
                         );
                     }
                 } else {
-                    let runtime_config_path = runtime_base_dir.join("telemt.toml");
-                    let fallback_config_path = runtime_base_dir.join("config.toml");
+                    let runtime_config_path = runtime_base_dir.join("telemt.yaml");
+                    let fallback_config_path = runtime_base_dir.join("config.yaml");
                     let mut persisted = false;
 
                     if let Some(serialized) = serialized.as_ref() {

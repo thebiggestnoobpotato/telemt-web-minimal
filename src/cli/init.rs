@@ -114,7 +114,7 @@ pub fn run_init(opts: InitOptions) -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("[+] Port:   {}", opts.port);
     eprintln!("[+] Domain: {}", opts.domain);
 
-    let config_path = opts.config_dir.join("config.toml");
+    let config_path = opts.config_dir.join("config.yaml");
     let config_content = generate_config(&opts.username, &secret, opts.port, &opts.domain);
     write_init_file(&config_path, &config_content, 0o600)?;
     eprintln!("[+] Config written to {}", config_path.display());
@@ -244,43 +244,41 @@ fn generate_config(username: &str, secret: &str, port: u16, domain: &str) -> Str
         r#"# Telemt WEB MTProxy — auto-generated config
 # Re-run `telemt --init` to regenerate
 
-[general]
-upstream_connect_timeout = 10
-network_ipv4 = true
-network_ipv6 = true
-network_prefer = 4
+general:
+  upstream_connect_timeout: 10
+  network_ipv4: true
+  network_ipv6: true
+  network_prefer: 4
 
-[logging]
-log_level = "normal"
-show_users_links = true
+logging:
+  log_level: "normal"
+  show_users_links: true
 
-[listener]
-ip = "0.0.0.0"
-port = {port}
-# Trusted L7 reverse proxies allowed to supply the client IP header.
-# /0 networks are rejected; extend only with your own fronting proxies.
-web_trusted_proxy_cidrs = ["127.0.0.1/32", "::1/128"]
+listener:
+  ip: "0.0.0.0"
+  port: {port}
+  # Trusted L7 reverse proxies allowed to supply the client IP header.
+  # /0 networks are rejected; extend only with your own fronting proxies.
+  web_trusted_proxy_cidrs: ["127.0.0.1/32", "::1/128"]
 
-[web]
-enabled = true
-# The single secret representation for every profile; required for
-# [[web.vhost.profiles]].
-secret_mode = "plain"
+web:
+  # The single secret representation for every profile; required for
+  # web.vhost.profiles.
+  secret_mode: "plain"
+  vhost:
+    host: "{domain}"
+    # Replace with this server's public IP and port.
+    public_addr: "203.0.113.1:443"
+    # Ordinary-site origin what browsers and scanners see.
+    upstream: "http://127.0.0.1:80"
 
-[web.vhost]
-host = "{domain}"
-# Replace with this server's public IP and port.
-public_addr = "203.0.113.1:443"
-# Ordinary-site origin what browsers and scanners see.
-upstream = "http://127.0.0.1:80"
+users:
+  {username}: "{secret}"
 
-[users]
-{username} = "{secret}"
-
-[[upstreams]]
-type = "direct"
-enabled = true
-weight = 10
+upstreams:
+  - type: direct
+    enabled: true
+    weight: 10
 "#,
         username = username,
         secret = secret,

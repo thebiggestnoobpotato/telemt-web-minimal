@@ -9,19 +9,22 @@ pub(super) struct UnknownConfigKey {
     pub(super) suggestion: Option<String>,
 }
 
-fn table_at<'a>(value: &'a toml::Value, path: &[&str]) -> Option<&'a toml::Table> {
+fn table_at<'a>(
+    value: &'a serde_yaml::Value,
+    path: &[&str],
+) -> Option<&'a serde_yaml::Mapping> {
     let mut current = value;
     for segment in path {
-        current = current.get(*segment)?;
+        current = current.get(segment)?;
     }
-    current.as_table()
+    current.as_mapping()
 }
 
 /// Reads strict-key enforcement without deserializing the full configuration.
-pub(super) fn is_strict_config(parsed_toml: &toml::Value) -> bool {
-    table_at(parsed_toml, &["general"])
+pub(super) fn is_strict_config(parsed_yaml: &serde_yaml::Value) -> bool {
+    table_at(parsed_yaml, &["general"])
         .and_then(|table| table.get("config_strict"))
-        .and_then(toml::Value::as_bool)
+        .and_then(serde_yaml::Value::as_bool)
         .unwrap_or(false)
 }
 
@@ -84,32 +87,50 @@ fn push_unknown_keys(
     unknown: &mut Vec<UnknownConfigKey>,
     known_for_suggestion: &[&'static str],
     path: &str,
-    table: &toml::Table,
+    table: &serde_yaml::Mapping,
     allowed: &[&str],
 ) {
     for key in table.keys() {
-        if !allowed.contains(&key.as_str()) {
+        let Some(key_str) = key.as_str() else {
+            // Non-string YAML keys can never match a known config key; render
+            // the scalar itself for the reported path.
+            let key_text = serde_yaml::to_string(key)
+                .unwrap_or_default()
+                .trim()
+                .to_string();
             let full_path = if path.is_empty() {
-                key.clone()
+                key_text
             } else {
-                format!("{path}.{key}")
+                format!("{path}.{key_text}")
             };
             unknown.push(UnknownConfigKey {
                 path: full_path,
-                suggestion: unknown_key_suggestion(key, known_for_suggestion),
+                suggestion: None,
+            });
+            continue;
+        };
+        if !allowed.contains(&key_str) {
+            let full_path = if path.is_empty() {
+                key_str.to_string()
+            } else {
+                format!("{path}.{key_str}")
+            };
+            unknown.push(UnknownConfigKey {
+                path: full_path,
+                suggestion: unknown_key_suggestion(key_str, known_for_suggestion),
             });
         }
     }
 }
 
 fn check_known_table(
-    parsed_toml: &toml::Value,
+    parsed_yaml: &serde_yaml::Value,
     unknown: &mut Vec<UnknownConfigKey>,
     known_for_suggestion: &[&'static str],
     path: &[&str],
     allowed: &[&str],
 ) {
-    if let Some(table) = table_at(parsed_toml, path) {
+    if let Some(table) = table_at(parsed_yaml, path) {
         push_unknown_keys(
             unknown,
             known_for_suggestion,
@@ -124,20 +145,20 @@ fn check_nested_table_value(
     unknown: &mut Vec<UnknownConfigKey>,
     known_for_suggestion: &[&'static str],
     path: String,
-    value: &toml::Value,
+    value: &serde_yaml::Value,
     allowed: &[&str],
 ) {
-    if let Some(table) = value.as_table() {
+    if let Some(table) = value.as_mapping() {
         push_unknown_keys(unknown, known_for_suggestion, &path, table, allowed);
     }
 }
 
 /// Collects unknown keys across every supported nested configuration table.
-pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<UnknownConfigKey> {
+pub(super) fn collect_unknown_config_keys(parsed_yaml: &serde_yaml::Value) -> Vec<UnknownConfigKey> {
     let known_for_suggestion = known_config_keys_for_suggestion();
     let mut unknown = Vec::new();
 
-    if let Some(root) = parsed_toml.as_table() {
+    if let Some(root) = parsed_yaml.as_mapping() {
         push_unknown_keys(
             &mut unknown,
             &known_for_suggestion,
@@ -148,70 +169,70 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
     }
 
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["general"],
         GENERAL_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["logging"],
         LOGGING_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["metrics"],
         METRICS_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["api"],
         API_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["web"],
         WEB_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["web", "limits"],
         WEB_LIMITS_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["web", "debug"],
         WEB_DEBUG_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["web", "timeouts"],
         WEB_TIMEOUTS_CONFIG_KEYS,
     );
     check_known_table(
-        parsed_toml,
+        parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
         &["listener"],
         LISTENER_CONFIG_KEYS,
     );
 
-    if let Some(vhost) = table_at(parsed_toml, &["web"]).and_then(|table| table.get("vhost")) {
+    if let Some(vhost) = table_at(parsed_yaml, &["web"]).and_then(|table| table.get("vhost")) {
         check_nested_table_value(
             &mut unknown,
             &known_for_suggestion,
@@ -219,8 +240,8 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
             vhost,
             WEB_VHOST_CONFIG_KEYS,
         );
-        if let Some(vhost) = vhost.as_table() {
-            if let Some(profiles) = vhost.get("profiles").and_then(toml::Value::as_array) {
+        if let Some(vhost) = vhost.as_mapping() {
+            if let Some(profiles) = vhost.get("profiles").and_then(serde_yaml::Value::as_sequence) {
                 for (profile_idx, profile) in profiles.iter().enumerate() {
                     check_nested_table_value(
                         &mut unknown,
@@ -234,7 +255,7 @@ pub(super) fn collect_unknown_config_keys(parsed_toml: &toml::Value) -> Vec<Unkn
         }
     }
 
-    if let Some(upstreams) = parsed_toml.get("upstreams").and_then(toml::Value::as_array) {
+    if let Some(upstreams) = parsed_yaml.get("upstreams").and_then(serde_yaml::Value::as_sequence) {
         for (idx, upstream) in upstreams.iter().enumerate() {
             check_nested_table_value(
                 &mut unknown,

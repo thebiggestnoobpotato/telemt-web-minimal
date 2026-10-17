@@ -155,7 +155,7 @@ fn revision_conflict() -> ApiFailure {
 fn sibling_lock_path(path: &Path) -> PathBuf {
     let mut name = path
         .file_name()
-        .unwrap_or_else(|| std::ffi::OsStr::new("config.toml"))
+        .unwrap_or_else(|| std::ffi::OsStr::new("config.yaml"))
         .to_os_string();
     name.push(".lock");
     path.parent().unwrap_or_else(|| Path::new(".")).join(name)
@@ -288,7 +288,7 @@ fn write_atomic_sync(
         ".{}.tmp-{}",
         path.file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or("config.toml"),
+            .unwrap_or("config.yaml"),
         rand::random::<u64>()
     );
     let descriptor = openat(

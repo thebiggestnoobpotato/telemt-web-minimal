@@ -53,7 +53,7 @@ tg://webproxy?server=proxy.example.com&secret=dd0123456789abcdef0123456789abcdef
 tg://webproxy?server=proxy.example.com%2Ftelegram%2Fweb&secret=cAABAgMEBQYHCAkKCwwNDg8
 ```
 
-Telemt prints links at process startup for all WEB profiles when `[logging].show_users_links` is `true`, through the `telemt::links` log target, so the link lines follow the configured log destination. Root links keep the legacy hexadecimal secret. A path link percent-encodes `HOST/BASE` in `server` and uses unpadded base64url of `0x70 || client_secret`, where `client_secret` is the raw 16-byte secret in `plain` mode or `0xdd || secret` in `dd` mode. The users API returns only the raw secret, not a WEB link.
+Telemt prints links at process startup for all WEB profiles when `logging.show_users_links` is `true`, through the `telemt::links` log target, so the link lines follow the configured log destination. Root links keep the legacy hexadecimal secret. A path link percent-encodes `HOST/BASE` in `server` and uses unpadded base64url of `0x70 || client_secret`, where `client_secret` is the raw 16-byte secret in `plain` mode or `0xdd || secret` in `dd` mode. The users API returns only the raw secret, not a WEB link.
 
 ## Prerequisites
 
@@ -69,45 +69,41 @@ The forwarded client address may differ in family from `public_addr` and may cha
 
 The example keeps the WEB listener on loopback and uses a private HTTP fallback origin:
 
-```toml
-[logging]
-show_users_links = true
+```yaml
+logging:
+  show_users_links: true
 
-[users]
-web-user = "0123456789abcdef0123456789abcdef"
+users:
+  web-user: "0123456789abcdef0123456789abcdef"
 
-[listener]
-ip = "127.0.0.1"
-port = 18080
-web_client_ip_source = "x_forwarded_for"
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
+listener:
+  ip: "127.0.0.1"
+  port: 18080
+  web_client_ip_source: "x_forwarded_for"
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 
-[web]
-enabled = true
-secret_mode = "dd"
-carrier = "https-lanes"
-fallback_fasttrack_mode = "off"
-http_connection_capacity_action = "drop"
-
-[web.vhost]
-host = "proxy.example.com"
-base_path = "telegram/web"
-public_addr = "203.0.113.10:443"
-upstream = "http://127.0.0.1:18081"
-
-[[web.vhost.profiles]]
-user = "web-user"
-max_sessions = 8
-max_streams = 512
-max_streams_per_session = 64
+web:
+  secret_mode: "dd"
+  carrier: "https-lanes"
+  fallback_fasttrack_mode: "off"
+  http_connection_capacity_action: "drop"
+  vhost:
+    host: "proxy.example.com"
+    base_path: "telegram/web"
+    public_addr: "203.0.113.10:443"
+    upstream: "http://127.0.0.1:18081"
+    profiles:
+      - user: "web-user"
+        max_sessions: 8
+        max_streams: 512
+        max_streams_per_session: 64
 ```
 
-`secret_mode` under `[web]` is the single secret representation for every profile and instantiates a profile for **every user in `[users]`** in **the vhost**, using the `[web.limits]` ceilings; explicit `[[web.vhost.profiles]]` entries add per-user ceiling overrides for the same users and require `web.secret_mode`. An explicit entry wins for its user, and the expanded total counts toward `web.limits.max_profiles`. An explicit entry may also carry its own `host`; that profile is then routed, capability-derived, and linked under that hostname while the vhost `base_path`, `public_addr`, and `upstream` stay shared across all profile hosts:
+`secret_mode` under `web` is the single secret representation for every profile and instantiates a profile for **every user in `users`** in **the vhost**, using the `web.limits` ceilings; explicit `web.vhost.profiles` entries add per-user ceiling overrides for the same users and require `web.secret_mode`. An explicit entry wins for its user, and the expanded total counts toward `web.limits.max_profiles`. An explicit entry may also carry its own `host`; that profile is then routed, capability-derived, and linked under that hostname while the vhost `base_path`, `public_addr`, and `upstream` stay shared across all profile hosts:
 
-```toml
-[web]
-enabled = true
-secret_mode = "dd"
+```yaml
+web:
+  secret_mode: "dd"
 ```
 
 Accepted-socket overload handling is independently configurable. `drop` preserves the legacy close after `accept(2)`. `respond` writes an empty retryable `503` without parsing a request. `wait` waits outside the accept loop for ordinary connection capacity and then enters normal HTTP handling; timeout writes the same `503`. Both waiting and response writing use `web.timeouts.http_overload_timeout_ms` per phase. `web.limits.max_http_overload_connections` bounds sockets outside ordinary capacity; a change to it, the action, or the timeout applies at the next process restart.
@@ -120,22 +116,20 @@ Accepted-socket overload handling is independently configurable. `drop` preserve
 
 Auto-negotiation is optional and disabled unless `carriers` is an explicit non-empty array. The configured `carrier` remains the final fallback and is appended exactly once, even when it also appears in the array:
 
-```toml
-[web]
-enabled = true
-carrier = "https"
-carriers = ["websocket-lanes", "websocket", "https-lanes"]
-carrier_learning = true
-carrier_negotiation_aggressiveness = "conservative"
-
-[web.timeouts]
-carrier_negotiation_deadlines_secs = [3, 5, 8, 12]
-carrier_health_secs = 30
-carrier_learning_secs = 600
-bridge_request_secs = 10
-bridge_retry_secs = 90
-bridge_recovery_secs = 15
-carrier_probe_coalesce_ms = 0
+```yaml
+web:
+  carrier: "https"
+  carriers: ["websocket-lanes", "websocket", "https-lanes"]
+  carrier_learning: true
+  carrier_negotiation_aggressiveness: "conservative"
+  timeouts:
+    carrier_negotiation_deadlines_secs: [3, 5, 8, 12]
+    carrier_health_secs: 30
+    carrier_learning_secs: 600
+    bridge_request_secs: 10
+    bridge_retry_secs: 90
+    bridge_recovery_secs: 15
+    carrier_probe_coalesce_ms: 0
 ```
 
 The generated bridge sends canonical `X-Carrier-Capabilities`, `X-Carrier-Attempt`, and, after the first attempt, `X-Carrier-Failure` headers on `/session`. Every successful automatic response returns `X-Carrier-Mode`, `X-Carrier-Attempt`, `X-Carrier-Candidate-Count`, `X-Carrier-Deadline`, and `X-Carrier-State`. The bridge starts its local cumulative clock immediately before the first `/session` request; the server freezes its separate absolute chain deadline when it accepts the first automatic attempt. Both use the configured offsets, and neither resets across replacement attempts. For one through four effective candidates, the attempt checkpoints are respectively `[d3]`, `[d0, d3]`, `[d0, d1, d3]`, and `[d0, d1, d2, d3]`; the final candidate always owns `d3`. A successor remains admissible until its own checkpoint. The states are `provisional`, `committed`, and `healthy`.
@@ -240,11 +234,11 @@ Use `GET /v1/runtime/web/status` to correlate only Telemt-owned state. `ingress.
 
 When NGINX and Telemt share a host, the private hop can be a unix socket instead of loopback TCP. Configure one Telemt listener for the socket:
 
-```toml
-[listener]
-socket_path = "/run/telemt/web.sock"
-socket_perm = "0660"
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
+```yaml
+listener:
+  socket_path: "/run/telemt/web.sock"
+  socket_perm: "0660"
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 ```
 
 and point the NGINX upstream at it; every other directive from the TLS-termination example above stays the same:
@@ -349,7 +343,7 @@ Set `web_trusted_proxy_cidrs` to the address Caddy uses to connect to Telemt, fo
 | Configuration | Runtime behavior |
 | --- | --- |
 | WEB listener inventory, bind address, and trust policy | Process-owned; restart Telemt. |
-| Any `[web.limits]` value | Process-owned memory/resource contract; restart Telemt. |
+| Any `web.limits` value | Process-owned memory/resource contract; restart Telemt. |
 | Carrier/negotiation policy, `web.debug`, timeouts, vhosts, profiles, and fallbacks | Read at process start; a change applies at the next process restart. |
 | A vhost `base_path` change | Changes new HTTP routing and capability derivation from the next process restart. Reissue the generated link before the restart. After the restart, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling; old bootstraps and session tokens are process-local and no longer valid. |
 | Operator pause/drain state | Process-owned and ephemeral; never writes config, and resets to `running` at process start. |
@@ -370,29 +364,29 @@ WEB configuration, runtime status, and bounded runtime controls share the authen
 
 | Operation | API support |
 | --- | --- |
-| Read or patch `[web]`, vhosts, profiles, fallbacks, timeouts, or limits | Yes, through `GET` or `PATCH /v1/config`. The derived `web.runtime` snapshot is never returned or writable. Nested tables merge field-by-field; arrays replace the previous array wholesale. Changed `[web.limits]` values apply at the next process restart. |
-| Persist `[listener]` | Yes, through `PATCH /v1/config`; a changed WEB listener applies at the next process restart. |
-| Apply an externally edited WEB configuration | Edit the TOML file, then restart the service. |
+| Read or patch `web`, vhosts, profiles, fallbacks, timeouts, or limits | Yes, through `GET` or `PATCH /v1/config`. The derived `web.runtime` snapshot is never returned or writable. Nested tables merge field-by-field; arrays replace the previous array wholesale. Changed `web.limits` values apply at the next process restart. |
+| Persist `listener` | Yes, through `PATCH /v1/config`; a changed WEB listener applies at the next process restart. |
+| Apply an externally edited WEB configuration | Edit the YAML file, then restart the service. |
 | Inspect bounded server-side WEB request and lifecycle details | Yes, through authenticated `GET /web-status`. |
 | Inspect lifecycle, capacity planes, learning/debug state, and live sessions | Yes, through `GET /v1/runtime/web/status` and `/v1/runtime/web/sessions`. |
 | Close selected live WEB sessions | Yes, through the asynchronous `POST /v1/runtime/web/sessions/close` operation. |
 | Pause, deadline-drain, or resume new WEB work | Yes, through `/v1/runtime/web/lifecycle/{pause,drain,resume}`. |
 | Clear debug records or reset carrier learning | Yes, through the corresponding runtime POST endpoints. |
-| Manage `[users]` | Yes, through `/v1/users`. User creation does not create a WEB profile. |
+| Manage `users` | Yes, through `/v1/users`. User creation does not create a WEB profile. |
 | Revoke one user | Yes. `/v1/users/{username}/disable` updates admission immediately and cancels that user's active sessions. |
 
 Bind the API to loopback, keep its direct-peer whitelist narrow, configure an exact authorization header, and leave `read_only = false` only when mutation is required:
 
-```toml
-[api]
-enabled = true
-listen_address = "127.0.0.1:9091"
-whitelist = ["127.0.0.0/8"]
-auth_header = "Bearer replace-with-a-random-control-token"
-read_only = false
+```yaml
+api:
+  enabled: true
+  listen_address: "127.0.0.1:9091"
+  whitelist: ["127.0.0.0/8"]
+  auth_header: "Bearer replace-with-a-random-control-token"
+  read_only: false
 ```
 
-The API whitelist checks the direct TCP peer and does not trust `X-Forwarded-For`. Changes to `[api]` itself require a process restart.
+The API whitelist checks the direct TCP peer and does not trust `X-Forwarded-For`. Changes to `api` itself require a process restart.
 
 ### Runtime status and control
 
@@ -419,30 +413,31 @@ Operator lifecycle is WEB-only and does not change global readiness, liveness, o
 
 Enable bounded collection in the owned configuration file:
 
-```toml
-[web.debug]
-enabled = true
-capture_lifecycle = true
-sideband = true
-capture_headers = true
-capture_timings = true
-capture_frames = true
-body_capture = "metadata"
-body_prefix_bytes = 4096
-fallback_body_prefix_bytes = 4096
-default_window_secs = 180
-max_window_secs = 3600
+```yaml
+web:
+  debug:
+    enabled: true
+    capture_lifecycle: true
+    sideband: true
+    capture_headers: true
+    capture_timings: true
+    capture_frames: true
+    body_capture: "metadata"
+    body_prefix_bytes: 4096
+    fallback_body_prefix_bytes: 4096
+    default_window_secs: 180
+    max_window_secs: 3600
 ```
 
 Open `http://127.0.0.1:9091/web-status` with the same direct-peer whitelist and exact `Authorization` header used by the API. A trailing slash is accepted. Only `GET` is allowed. The page supports `window_secs`, canonical `ip`, numeric `session`, case-insensitive `user_agent`, and `key` filters. Repeat `group_by=ip`, `group_by=session`, `group_by=user_agent`, or `group_by=key` to build grouped summaries; `limit` is restricted to `1..=1000`. HTTP rows expand from request through response with method, path, sanitized headers, body metadata or bytes, timing points, parsed frames, and typed lifecycle events, including carrier attempt, commit, healthy, reported-failure, exact close reason, peer gap, and recovered-session predecessor transitions. WebSocket operation adds the sanitized `GET` to `101` handshake plus bounded per-message direction, message type, payload/body capture, processing time, connection/lane identifiers, and parsed inner frames. Raw subprotocols and session tokens are never retained.
 
 The process-owned ring is cleared at process restart. The ring defaults to 65536 records and 64 MiB retained plus in-flight bytes, the HTML response is capped at 8 MiB, grouping is capped at 1024 groups, and no more than two response bodies retain page permits concurrently. A changed `web.limits.debug_records_capacity` or `web.limits.debug_bytes_global` applies at the next process restart, and a `web.debug` prefix that fits only a larger capacity takes effect only when that capacity is active at process start.
 
-`body_capture = "off"` omits bodies, `metadata` retains lengths and terminal states, `prefix` retains configured prefixes, and `full` retains recognized carrier bodies up to `web.limits.max_body_bytes`. Ordinary fallback bodies remain limited by `fallback_body_prefix_bytes` even in `full` mode. Queries and raw capabilities are never stored; credential header values are omitted; known WEB capabilities and bearer tokens are scrubbed from captured bodies; the displayed key is a non-secret domain-separated fingerprint. Timing ends at Hyper body polling and does not claim kernel flush or TCP acknowledgment.
+`body_capture: "off"` omits bodies, `metadata` retains lengths and terminal states, `prefix` retains configured prefixes, and `full` retains recognized carrier bodies up to `web.limits.max_body_bytes`. Ordinary fallback bodies remain limited by `fallback_body_prefix_bytes` even in `full` mode. Queries and raw capabilities are never stored; credential header values are omitted; known WEB capabilities and bearer tokens are scrubbed from captured bodies; the displayed key is a non-secret domain-separated fingerprint. Timing ends at Hyper body polling and does not claim kernel flush or TCP acknowledgment.
 
 Generated-bridge sideband reporting is effective only when `enabled`, `capture_lifecycle`, and `sideband` are all `true`. The policy is read at process start; only bridge pages generated after it is enabled contain the reporter. Each page can report each of the eight fixed events at most once: `runtime_started`, `status_posted`, `hello_received`, `boundary_timeout`, `hello_timeout`, `client_close_before_hello`, `document_unloaded_before_hello`, and `runtime_error_before_hello`. Reports are exact canonical JSON POSTs to `BASEapi/v1/diagnostic`, use the bootstrap bearer without consuming it, and do not participate in carrier framing. Malformed or unauthenticated reports follow the sanitized fallback path.
 
-After an administrator or configuration system updates the TOML file, restart the service:
+After an administrator or configuration system updates the YAML file, restart the service:
 
 ```bash
 systemctl restart telemt
@@ -501,7 +496,7 @@ See the complete [Control API contract](../Architecture/API/API.md) for request 
 | Long polls disconnect near a fixed interval | Raise NGINX/HAProxy/Caddy client, server, send, and read timeouts above `web.timeouts.long_poll_secs`. |
 | WebSocket Upgrade reaches the fallback instead of returning `101` | Preserve HTTP/1.1 `Connection: Upgrade`, `Upgrade: websocket`, the single exact `Sec-WebSocket-Protocol`, and the canonical bodyless request at the configured base plus `/api/v1/ws`. Also check carrier/session compatibility and the process connection reserve. |
 | One `websocket-lanes` stream closes while siblings stay connected | This is the intended failure boundary. Inspect that lane's message/frame rows in `/web-status`; malformed, cross-lane, write-timeout, and backend-close paths terminate only the affected lane. |
-| `/web-status` is empty | Confirm `[web.debug].enabled = true`, apply the configuration, select a window within `max_window_secs`, and generate new WEB traffic after the policy change. |
+| `/web-status` is empty | Confirm `web.debug.enabled: true`, apply the configuration, select a window within `max_window_secs`, and generate new WEB traffic after the policy change. |
 | `https-lanes` works but streams still block each other | Confirm public HTTP/2 negotiation, preserve `X-Lane-ID`, and provide enough TLS-terminator upstream connections for concurrent private HTTP/1.1 polls. |
 | Telegram Desktop rejects the link | Omit the port, use a valid FQDN, port 443 externally, and only `plain` or `dd` secret mode. |
 | One node works but a load-balanced pool is intermittent | Add complete-vhost affinity; WEB credential registries are process-local. |

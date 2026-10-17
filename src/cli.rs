@@ -1,11 +1,11 @@
 //! CLI commands: --init (fire-and-forget setup), daemon options, subcommands
 //!
 //! Subcommands:
-//! - `start [OPTIONS] [config.toml]` - Start the daemon
+//! - `start [OPTIONS] [config.yaml]` - Start the daemon
 //! - `stop [--pid-file PATH] [--strict-runtime-paths]` - Stop a running daemon
 //! - `status [--pid-file PATH] [--strict-runtime-paths]` - Check daemon status
-//! - `run [OPTIONS] [config.toml]` - Run in foreground (default behavior)
-//! - `healthcheck [OPTIONS] [config.toml]` - Run control-plane health probe
+//! - `run [OPTIONS] [config.yaml]` - Run in foreground (default behavior)
+//! - `healthcheck [OPTIONS] [config.yaml]` - Run control-plane health probe
 
 use std::path::PathBuf;
 
@@ -69,7 +69,7 @@ impl Default for ParsedCommand {
             pid_file: PathBuf::from(DEFAULT_PID_FILE),
             #[cfg(not(unix))]
             pid_file: PathBuf::from("/var/run/telemt.pid"),
-            config_path: "config.toml".to_string(),
+            config_path: "config.yaml".to_string(),
             healthcheck_mode: HealthcheckMode::Liveness,
             healthcheck_mode_invalid: None,
             #[cfg(unix)]

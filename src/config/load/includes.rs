@@ -72,7 +72,7 @@ pub(super) fn preprocess_includes(
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("include") {
             let rest = rest.trim();
-            if let Some(rest) = rest.strip_prefix('=') {
+            if let Some(rest) = rest.strip_prefix(':') {
                 let path_str = rest.trim().trim_matches('"');
                 let resolved = base_dir.join(path_str);
                 let (normalized, disk_contents) = read_config_source(&resolved)?;

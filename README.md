@@ -37,7 +37,7 @@ cargo build --release
 ./target/release/telemt --init --domain proxy.example.com
 
 # Run
-./target/release/telemt config.toml
+./target/release/telemt config.yaml
 ```
 
 `--init` prints the ready-to-use `tg://webproxy` links for the configured user.
@@ -70,7 +70,7 @@ mv ./target/release/telemt /bin
 # Make executable
 chmod +x /bin/telemt
 # Lets go!
-telemt config.toml
+telemt config.yaml
 ```
 
 ## Why Rust?

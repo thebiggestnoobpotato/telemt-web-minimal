@@ -46,22 +46,24 @@ WEB links use a 16-byte (32 hex chars) MTProxy secret. The vhost profile selects
 ### How many people can use one link
 An unlimited number of people can use a single link. There is no per-user or per-IP connection limit, and multiple users can connect from a single IP address simultaneously (for example, devices on the same Wi-Fi network).
 
-WEB links can additionally be bounded by the per-profile connection limits configured under `[web]` vhost profiles.
+WEB links can additionally be bounded by the per-profile connection limits configured under the `web.vhost` profiles.
 
 ### How to create multiple different links
 1. Generate the required number of secrets using the command: `openssl rand -hex 16`.
-2. Open the configuration file: `nano /etc/telemt/config.toml`.
-3. Add new users to the `[users]` section:
-```toml
-[users]
-user1 = "00000000000000000000000000000001"
-user2 = "00000000000000000000000000000002"
-user3 = "00000000000000000000000000000003"
+2. Open the configuration file: `nano /etc/telemt/config.yaml`.
+3. Add new users to the `users` section:
+```yaml
+users:
+  user1: "00000000000000000000000000000001"
+  user2: "00000000000000000000000000000002"
+  user3: "00000000000000000000000000000003"
 ```
-4. `web.secret_mode` under `[web]` applies to every user in `[users]` — a set mode covers new users automatically. To give one user per-user ceilings, add a profile for that user to the vhost:
-```toml
-[[web.vhost.profiles]]
-user = "user1"
+4. `web.secret_mode` applies to every user in the `users` section — a set mode covers new users automatically. To give one user per-user ceilings, add a profile for that user to the vhost:
+```yaml
+web:
+  vhost:
+    profiles:
+      - user: "user1"
 ```
 5. Save the configuration (Ctrl+S -> Ctrl+X) and restart the telemt service to apply the changes.
 6. Get the ready-to-use `tg://webproxy` links using the command:
@@ -71,13 +73,13 @@ curl -s http://127.0.0.1:9091/v1/users | jq
 
 ### How to view metrics
 
-1. Open the configuration file: `nano /etc/telemt/config.toml`.
+1. Open the configuration file: `nano /etc/telemt/config.yaml`.
 2. Add the following parameters:
-```toml
-[metrics]
-enabled = true
-listen_address = "127.0.0.1:9090"
-whitelist = ["127.0.0.1/32", "::1/128"]
+```yaml
+metrics:
+  enabled: true
+  listen_address: "127.0.0.1:9090"
+  whitelist: ["127.0.0.1/32", "::1/128"]
 ```
 3. Save the changes (Ctrl+S -> Ctrl+X).
 4. Metrics will be available locally at `http://127.0.0.1:9090/metrics`.
@@ -100,42 +102,42 @@ root    hard    nofile  1048576
 ## Additional parameters
 
 ### Domain in the link instead of IP
-To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `[web.vhost]` table.
+To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `web.vhost` table.
 
 ### Upstream Manager
-To configure outbound connections (upstreams), add the corresponding parameters to the `[[upstreams]]` section of the configuration file:
+To configure outbound connections (upstreams), add the corresponding parameters to the `upstreams` section of the configuration file:
 
 #### Binding to an outbound IP address
-```toml
-[[upstreams]]
-type = "direct"
-weight = 1
-enabled = true
-# Replace this value with your outbound IP.
-interface = "192.168.1.100"
+```yaml
+upstreams:
+  - type: "direct"
+    weight: 1
+    enabled: true
+    # Replace this value with your outbound IP.
+    interface: "192.168.1.100"
 ```
 
 #### Using SOCKS5 as an Upstream
 - Without authorization:
-```toml
-[[upstreams]]
-# SOCKS server address.
-socks_address = "1.2.3.4:1234"
-# Selection weight.
-weight = 1
-enabled = true
+```yaml
+upstreams:
+  - # SOCKS server address.
+    socks_address: "1.2.3.4:1234"
+    # Selection weight.
+    weight: 1
+    enabled: true
 ```
 
 - With authorization:
-```toml
-[[upstreams]]
-# SOCKS server address.
-socks_address = "1.2.3.4:1234"
-# SOCKS username.
-socks_username = "user"
-# SOCKS password.
-socks_password = "pass"
-# Selection weight.
-weight = 1
-enabled = true
+```yaml
+upstreams:
+  - # SOCKS server address.
+    socks_address: "1.2.3.4:1234"
+    # SOCKS username.
+    socks_username: "user"
+    # SOCKS password.
+    socks_password: "pass"
+    # Selection weight.
+    weight: 1
+    enabled: true
 ```

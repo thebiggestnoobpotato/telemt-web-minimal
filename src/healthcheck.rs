@@ -239,17 +239,18 @@ mod tests {
     #[test]
     fn fallback_dns_healthcheck_reads_source_without_resolution() {
         let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("config.toml");
+        let path = directory.path().join("config.yaml");
         std::fs::write(
             &path,
             r#"
-[api]
-enabled = false
-[web.vhost]
-host = "proxy.example.com"
-public_addr = "203.0.113.10:443"
-upstream = "http://unresolvable.example.invalid:8080"
-resolve = "startup"
+api:
+  enabled: false
+web:
+  vhost:
+    host: "proxy.example.com"
+    public_addr: "203.0.113.10:443"
+    upstream: "http://unresolvable.example.invalid:8080"
+    resolve: "startup"
 "#,
         )
         .unwrap();

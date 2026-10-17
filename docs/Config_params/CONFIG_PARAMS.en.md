@@ -1,6 +1,6 @@
 # Telemt Config Parameters Reference
 
-This document lists all configuration keys accepted by `config.toml`.
+This document lists all configuration keys accepted by `config.yaml`.
 
 > [!NOTE]
 >
@@ -11,6 +11,10 @@ This document lists all configuration keys accepted by `config.toml`.
 > The configuration parameters detailed in this document are intended for advanced users and fine-tuning purposes. Modifying these settings without a clear understanding of their function may lead to application instability or other unexpected behavior. Please proceed with caution and at your own risk.
 
 > The configuration is read once at process start. A changed value applies at the next process restart.
+
+> [!NOTE]
+>
+> The configuration file is YAML. Values that look like numbers, booleans, or null must be double-quoted to stay strings: an unquoted `12345678901234567890123456789012` becomes an integer, `true` and `false` become booleans, `0660` is read as an octal integer, and `~` or `null` becomes a null value. Always quote secrets and user names that are all digits or resemble a number, boolean, or null (the config editor and the API always write such values quoted).
 
 # Table of contents
  - [Top-level keys](#top-level-keys)
@@ -35,14 +39,14 @@ This document lists all configuration keys accepted by `config.toml`.
 | [`include`](#include) | `String` (special directive) | — |
 
 ## include
-  - **Constraints / validation**: Must be a single-line directive in the form `include = "path/to/file.toml"`. Includes are expanded before TOML parsing. Maximum include depth is 10.
-  - **Description**: Includes another TOML file with `include = "relative/or/absolute/path.toml"`; includes are processed recursively before parsing.
+  - **Constraints / validation**: Must be a single-line directive in the form `include: "path/to/file.yaml"`. Includes are expanded before YAML parsing. Maximum include depth is 10.
+  - **Description**: Includes another YAML file with `include: "relative/or/absolute/path.yaml"`; includes are processed recursively before parsing.
   - **Example**:
 
-    ```toml
-    include = "secrets.toml"
+    ```yaml
+    include: "secrets.yaml"
     ```
-# [logging]
+# logging
 
 | Key | Type | Default |
 | --- | ---- | ------- |
@@ -57,52 +61,52 @@ This document lists all configuration keys accepted by `config.toml`.
   - **Description**: Selects the runtime log destination. CLI flags override this value.
   - **Example**:
 
-    ```toml
-    [logging]
-    destination = "file"
-    path = "/var/log/telemt.log"
+    ```yaml
+    logging:
+      destination: "file"
+      path: "/var/log/telemt.log"
     ```
 ## path
   - **Constraints / validation**: Required when `destination = "file"`; must not be empty.
   - **Description**: File path used for file logging.
   - **Example**:
 
-    ```toml
-    [logging]
-    destination = "file"
-    path = "/var/log/telemt.log"
+    ```yaml
+    logging:
+      destination: "file"
+      path: "/var/log/telemt.log"
     ```
 ## log_level
   - **Constraints / validation**: `"debug"`, `"verbose"`, `"normal"`, or `"silent"`.
   - **Description**: Runtime logging verbosity level (used when `RUST_LOG` is not set). If `RUST_LOG` is set in the environment, it takes precedence over this setting.
   - **Example**:
 
-    ```toml
-    [logging]
-    log_level = "normal"
+    ```yaml
+    logging:
+      log_level: "normal"
     ```
 ## show_users_links
   - **Constraints / validation**: `bool`.
   - **Description**: Whether `tg://` proxy links are shown at startup. `true` shows links for all users; `false` suppresses link emission entirely. Link lines are emitted through the `telemt::links` log target, so they follow the configured log destination (`stderr`, `syslog`, or `file`) and stay visible at `log_level = "silent"`.
   - **Example**:
 
-    ```toml
-    [logging]
-    show_users_links = true
-    # or:
-    # show_users_links = false
+    ```yaml
+    logging:
+      show_users_links: true
+      # or:
+      # show_users_links: false
     ```
 ## unknown_dc_log_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables unknown-DC logging: when a client requests a non-standard DC index that has no matching `dc_overrides` entry, each distinct index is recorded once as a `dc_idx=<N>` line in the main log destination. Logging is deduplicated and capped (only the first 1024 distinct unknown DC indices are recorded).
   - **Example**:
 
-    ```toml
-    [logging]
-    unknown_dc_log_enabled = false
+    ```yaml
+    logging:
+      unknown_dc_log_enabled: false
     ```
 
-# [general]
+# general
 
 
 | Key | Type | Default |
@@ -134,194 +138,195 @@ This document lists all configuration keys accepted by `config.toml`.
   - **Description**: Optional runtime base directory the process enters at startup.
   - **Example**:
 
-    ```toml
-    [general]
-    runtime_path = "/var/lib/telemt"
+    ```yaml
+    general:
+      runtime_path: "/var/lib/telemt"
     ```
 ## config_strict
   - **Constraints / validation**: `bool`.
-  - **Description**: Rejects unknown TOML keys during config load. Startup fails fast.
+  - **Description**: Rejects unknown keys during config load. Startup fails fast.
   - **Example**:
 
-    ```toml
-    [general]
-    config_strict = true
+    ```yaml
+    general:
+      config_strict: true
     ```
 ## network_ipv4
   - **Constraints / validation**: `bool`.
   - **Description**: Allow IPv4 Telegram DC targets.
   - **Example**:
 
-    ```toml
-    [general]
-    network_ipv4 = false
+    ```yaml
+    general:
+      network_ipv4: false
     ```
 ## network_ipv6
   - **Constraints / validation**: `bool`.
   - **Description**: Allow IPv6 Telegram DC targets. `None` = auto-detect IPv6 availability.
   - **Example**:
 
-    ```toml
-    [general]
-    network_ipv6 = true
+    ```yaml
+    general:
+      network_ipv6: true
     ```
 ## network_prefer
   - **Constraints / validation**: Must be `4` or `6`. If `network_prefer = 4` while `network_ipv4 = false`, Telemt forces `network_prefer = 6`. If `network_prefer = 6` while `network_ipv6 = false`, Telemt forces `network_prefer = 4`.
   - **Description**: Preferred IP family for Telegram DC targets when both families are available.
   - **Example**:
 
-    ```toml
-    [general]
-    network_prefer = 6
+    ```yaml
+    general:
+      network_prefer: 6
     ```
 ## dc_copy_buf_c2s_bytes
   - **Constraints / validation**: Must be within `4096..=1048576` (bytes).
   - **Description**: Copy buffer size for client->DC direction in direct relay.
   - **Example**:
 
-    ```toml
-    [general]
-    dc_copy_buf_c2s_bytes = 65536
+    ```yaml
+    general:
+      dc_copy_buf_c2s_bytes: 65536
     ```
 ## dc_copy_buf_s2c_bytes
   - **Constraints / validation**: Must be within `8192..=2097152` (bytes).
   - **Description**: Copy buffer size for DC->client direction in direct relay.
   - **Example**:
 
-    ```toml
-    [general]
-    dc_copy_buf_s2c_bytes = 262144
+    ```yaml
+    general:
+      dc_copy_buf_s2c_bytes: 262144
     ```
 ## dc_buffer_budget_max_bytes
   - **Constraints / validation**: `0`, or a multiple of `4096` within `16777216..=2147483648`.
   - **Description**: Process-wide hard ceiling for Direct relay copy buffers. `0` derives the ceiling at process startup from cgroup or host memory limits. Changes apply at the next process restart.
   - **Example**:
 
-    ```toml
-    [general]
-    dc_buffer_budget_max_bytes = 0
+    ```yaml
+    general:
+      dc_buffer_budget_max_bytes: 0
     ```
 ## crypto_pending_buffer
   - **Constraints / validation**: `usize` (bytes).
   - **Description**: Max pending ciphertext buffer per client writer (bytes).
   - **Example**:
 
-    ```toml
-    [general]
-    crypto_pending_buffer = 262144
+    ```yaml
+    general:
+      crypto_pending_buffer: 262144
     ```
 ## max_client_frame
   - **Constraints / validation**: Must be within `4096..=16777216` (bytes).
   - **Description**: Maximum allowed client MTProto frame size (bytes).
   - **Example**:
 
-    ```toml
-    [general]
-    max_client_frame = 16777216
+    ```yaml
+    general:
+      max_client_frame: 16777216
     ```
 ## upstream_connect_retry_attempts
   - **Constraints / validation**: Must be `> 0`.
   - **Description**: Connect attempts for the selected upstream before returning error/fallback.
   - **Example**:
 
-    ```toml
-    [general]
-    upstream_connect_retry_attempts = 2
+    ```yaml
+    general:
+      upstream_connect_retry_attempts: 2
     ```
 ## upstream_connect_retry_backoff_ms
   - **Constraints / validation**: `u64` (milliseconds). `0` disables backoff delay (retries become immediate).
   - **Description**: Delay in milliseconds between upstream connect attempts.
   - **Example**:
 
-    ```toml
-    [general]
-    upstream_connect_retry_backoff_ms = 100
+    ```yaml
+    general:
+      upstream_connect_retry_backoff_ms: 100
     ```
 ## upstream_connect_budget_ms
   - **Constraints / validation**: Must be `> 0` (milliseconds).
   - **Description**: Total wall-clock budget in milliseconds for one upstream connect request across retries.
   - **Example**:
 
-    ```toml
-    [general]
-    upstream_connect_budget_ms = 3000
+    ```yaml
+    general:
+      upstream_connect_budget_ms: 3000
     ```
 ## upstream_connect_timeout
   - **Constraints / validation**: Must be `> 0` (seconds).
-  - **Description**: Per-attempt TCP connect timeout, in seconds, for outbound connections from the proxy to Telegram DC servers — the relay egress leg, whether direct or through an `[upstreams]` entry. Each individual connect attempt must complete within this time or it is aborted as a timeout and retried. The effective per-attempt timeout is capped by the remaining `upstream_connect_budget_ms`, so the overall budget can shorten it; retry behavior is controlled by `upstream_connect_retry_attempts` and `upstream_connect_retry_backoff_ms`. A successful connect also refreshes the per-DC latency estimate used for upstream selection. Lower the value to fail over quickly from blackholed or censored DC routes; raise it when your path to a DC is slow or lossy. Bounds the TCP connect phase only, not the MTProto handshake.
+  - **Description**: Per-attempt TCP connect timeout, in seconds, for outbound connections from the proxy to Telegram DC servers — the relay egress leg, whether direct or through an `upstreams` entry. Each individual connect attempt must complete within this time or it is aborted as a timeout and retried. The effective per-attempt timeout is capped by the remaining `upstream_connect_budget_ms`, so the overall budget can shorten it; retry behavior is controlled by `upstream_connect_retry_attempts` and `upstream_connect_retry_backoff_ms`. A successful connect also refreshes the per-DC latency estimate used for upstream selection. Lower the value to fail over quickly from blackholed or censored DC routes; raise it when your path to a DC is slow or lossy. Bounds the TCP connect phase only, not the MTProto handshake.
   - **Example**:
 
-    ```toml
-    [general]
-    upstream_connect_timeout = 10
+    ```yaml
+    general:
+      upstream_connect_timeout: 10
     ```
 ## upstream_unhealthy_fail_threshold
   - **Constraints / validation**: Must be `> 0`.
   - **Description**: Consecutive failed requests before upstream is marked unhealthy.
   - **Example**:
 
-    ```toml
-    [general]
-    upstream_unhealthy_fail_threshold = 5
+    ```yaml
+    general:
+      upstream_unhealthy_fail_threshold: 5
     ```
 ## upstream_connect_failfast_hard_errors
   - **Constraints / validation**: `bool`.
   - **Description**: When true, skips additional retries for hard non-transient upstream connect errors.
   - **Example**:
 
-    ```toml
-    [general]
-    upstream_connect_failfast_hard_errors = false
+    ```yaml
+    general:
+      upstream_connect_failfast_hard_errors: false
     ```
 ## dc_overrides
   - **Constraints / validation**: Key must be a positive integer DC index encoded as string (e.g. `"203"`). Values must parse as `SocketAddr` (`ip:port`). Empty strings are ignored.
   - **Description**: Overrides DC endpoints for non-standard DCs; key is DC index string, value is one or more `ip:port` addresses.
   - **Example**:
 
-    ```toml
-    [general.dc_overrides]
-    "201" = "149.154.175.50:443"
-    "203" = ["149.154.175.100:443", "91.105.192.100:443"]
+    ```yaml
+    general:
+      dc_overrides:
+        "201": "149.154.175.50:443"
+        "203": ["149.154.175.100:443", "91.105.192.100:443"]
     ```
 ## dc_default
   - **Constraints / validation**: Intended range is `1..=5`. If set out of range, runtime falls back to DC1 behavior in direct relay.
   - **Description**: Default DC index used for unmapped non-standard DCs.
   - **Example**:
 
-    ```toml
-    [general]
-    # When a client requests an unknown/non-standard DC with no override,
-    # route it to this default cluster (1..=5).
-    dc_default = 2
+    ```yaml
+    general:
+      # When a client requests an unknown/non-standard DC with no override,
+      # route it to this default cluster (1..=5).
+      dc_default: 2
     ```
 ## telemetry_core_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables core hot-path telemetry counters.
   - **Example**:
 
-    ```toml
-    [general]
-    telemetry_core_enabled = true
+    ```yaml
+    general:
+      telemetry_core_enabled: true
     ```
 ## telemetry_user_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables per-user telemetry counters.
   - **Example**:
 
-    ```toml
-    [general]
-    telemetry_user_enabled = true
+    ```yaml
+    general:
+      telemetry_user_enabled: true
     ```
 ## listen_backlog
   - **Constraints / validation**: `u32`, within `[1, 2147483647]`. `0` is rejected: the kernel treats a zero backlog as a literal accept-queue limit (connections beyond the first queued one are SYN-dropped), not as a request for the OS default.
   - **Description**: Listen backlog passed to `listen(2)` for every client-facing listener (TCP and unix socket) and for the metrics HTTP listener. The kernel clamps the effective queue to `net.core.somaxconn` at `listen(2)` time; a running process keeps the value captured at bind time, so raising the limit or `somaxconn` takes effect after a process restart.
   - **Example**:
 
-    ```toml
-    [general]
-    listen_backlog = 4096
+    ```yaml
+    general:
+      listen_backlog: 4096
     ```
-# [api]
+# api
 
 
 | Key | Type | Default |
@@ -345,121 +350,121 @@ This document lists all configuration keys accepted by `config.toml`.
   - **Description**: Enables control-plane REST API.
   - **Example**:
 
-    ```toml
-    [api]
-    enabled = true
+    ```yaml
+    api:
+      enabled: true
     ```
 ## gray_action
   - **Constraints / validation**: `"drop"`, `"api"`, or `"200"`.
   - **Description**: API response policy for gray/limited states: drop request, serve normal API response, or force `200 OK`.
   - **Example**:
 
-    ```toml
-    [api]
-    gray_action = "drop"
+    ```yaml
+    api:
+      gray_action: "drop"
     ```
 ## listen_address
   - **Constraints / validation**: `String`. Must be in `IP:PORT` format.
   - **Description**: API bind address in `IP:PORT` format.
   - **Example**:
 
-    ```toml
-    [api]
-    listen_address = "0.0.0.0:9091"
+    ```yaml
+    api:
+      listen_address: "0.0.0.0:9091"
     ```
 ## whitelist
   - **Constraints / validation**: `IpNetwork[]`.
   - **Description**: CIDR whitelist allowed to access API.
   - **Example**:
 
-    ```toml
-    [api]
-    whitelist = ["127.0.0.0/8"]
+    ```yaml
+    api:
+      whitelist: ["127.0.0.0/8"]
     ```
 ## auth_header
   - **Constraints / validation**: `String`. Empty string disables auth-header validation.
   - **Description**: Exact expected `Authorization` header value (static shared secret).
   - **Example**:
 
-    ```toml
-    [api]
-    auth_header = "Bearer MY_TOKEN"
+    ```yaml
+    api:
+      auth_header: "Bearer MY_TOKEN"
     ```
 ## request_body_limit_bytes
   - **Constraints / validation**: Must be `> 0` (bytes).
   - **Description**: Maximum accepted HTTP request body size (bytes).
   - **Example**:
 
-    ```toml
-    [api]
-    request_body_limit_bytes = 65536
+    ```yaml
+    api:
+      request_body_limit_bytes: 65536
     ```
 ## minimal_runtime_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables minimal runtime snapshots endpoint logic.
   - **Example**:
 
-    ```toml
-    [api]
-    minimal_runtime_enabled = true
+    ```yaml
+    api:
+      minimal_runtime_enabled: true
     ```
 ## minimal_runtime_cache_ttl_ms
   - **Constraints / validation**: `0..=60000` (milliseconds). `0` disables cache.
   - **Description**: Cache TTL for minimal runtime snapshots (ms).
   - **Example**:
 
-    ```toml
-    [api]
-    minimal_runtime_cache_ttl_ms = 1000
+    ```yaml
+    api:
+      minimal_runtime_cache_ttl_ms: 1000
     ```
 ## runtime_edge_enabled
   - **Constraints / validation**: `bool`.
   - **Description**: Enables runtime edge endpoints.
   - **Example**:
 
-    ```toml
-    [api]
-    runtime_edge_enabled = false
+    ```yaml
+    api:
+      runtime_edge_enabled: false
     ```
 ## runtime_edge_cache_ttl_ms
   - **Constraints / validation**: `0..=60000` (milliseconds).
   - **Description**: Cache TTL for runtime edge aggregation payloads (ms).
   - **Example**:
 
-    ```toml
-    [api]
-    runtime_edge_cache_ttl_ms = 1000
+    ```yaml
+    api:
+      runtime_edge_cache_ttl_ms: 1000
     ```
 ## runtime_edge_top_n
   - **Constraints / validation**: `1..=1000`.
   - **Description**: Top-N size for edge connection and TLS fingerprint leaderboard snapshots.
   - **Example**:
 
-    ```toml
-    [api]
-    runtime_edge_top_n = 10
+    ```yaml
+    api:
+      runtime_edge_top_n: 10
     ```
 ## runtime_edge_events_capacity
   - **Constraints / validation**: `16..=4096`.
   - **Description**: Ring-buffer capacity for runtime edge events.
   - **Example**:
 
-    ```toml
-    [api]
-    runtime_edge_events_capacity = 256
+    ```yaml
+    api:
+      runtime_edge_events_capacity: 256
     ```
 ## read_only
   - **Constraints / validation**: `bool`.
   - **Description**: Rejects mutating API endpoints when enabled.
   - **Example**:
 
-    ```toml
-    [api]
-    read_only = false
+    ```yaml
+    api:
+      read_only: false
     ```
 
 
-# [listener]
+# listener
 
 
 | Key | Type | Default |
@@ -478,39 +483,39 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
   - **Description**: Listener bind IP.
   - **Example**:
 
-    ```toml
-    [listener]
-    ip = "0.0.0.0"
+    ```yaml
+    listener:
+      ip: "0.0.0.0"
     ```
 ## port (listener)
   - **Constraints / validation**: `u16`. Required for TCP listeners together with `ip`; omitted for unix socket listeners.
   - **Description**: Per-listener TCP port.
   - **Example**:
 
-    ```toml
-    [listener]
-    ip = "0.0.0.0"
-    port = 443
+    ```yaml
+    listener:
+      ip: "0.0.0.0"
+      port: 443
     ```
 ## socket_path (listener)
   - **Constraints / validation**: Absolute unix domain socket path. Cannot be combined with `ip` or `port`. The parent directory must exist and be traversable; an existing path that is not a socket is rejected, a stale socket file is removed, and a live listener is never deleted.
   - **Description**: Binds this listener to a local unix socket instead of a TCP endpoint. A local fronting process such as NGINX connects to the socket, and the socket file permissions are the trust boundary: no remote host can reach this listener, so the TCP-only peer checks are skipped. Each accepted connection is presented as a synthetic `127.0.0.1` peer. To let the fronting process's `X-Forwarded-For` header determine the client identity, keep `127.0.0.1/32` in this listener's `web_trusted_proxy_cidrs`; when the synthetic peer is untrusted, the connection is served as fallback traffic only.
   - **Example**:
 
-    ```toml
-    [listener]
-    socket_path = "/run/telemt/web.sock"
-    socket_perm = "0660"
+    ```yaml
+    listener:
+      socket_path: "/run/telemt/web.sock"
+      socket_perm: "0660"
     ```
 ## socket_perm (listener)
   - **Constraints / validation**: Octal permission string such as `"0660"`. Applied via `chmod` after bind; an invalid value is reported with a warning and the umask-derived mode is kept.
   - **Description**: Permissions of the unix socket file. Only meaningful with `socket_path`.
   - **Example**:
 
-    ```toml
-    [listener]
-    socket_path = "/run/telemt/web.sock"
-    socket_perm = "0660"
+    ```yaml
+    listener:
+      socket_path: "/run/telemt/web.sock"
+      socket_perm: "0660"
     ```
 ## web_client_ip_source (listener)
   - **Constraints / validation**: Only `"x_forwarded_for"` is supported by the initial WEB implementation.
@@ -521,7 +526,7 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
   - **Description**: Trust boundary for the immediate NGINX or HAProxy peer. List only addresses that can connect directly to this listener; never expose the plain listener to an untrusted network.
 
 
-# [metrics]
+# metrics
 
 
 | Key | Type | Default |
@@ -535,34 +540,34 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
   - **Description**: Enables or disables the Prometheus-compatible metrics endpoint. When `true`, `listen_address` is required.
   - **Example**:
 
-    ```toml
-    [metrics]
-    enabled = true
+    ```yaml
+    metrics:
+      enabled: true
     ```
 ## listen_address (metrics)
   - **Constraints / validation**: `String`. Must be in `IP:PORT` format. Required when `enabled = true`.
   - **Description**: Full metrics bind address (`IP:PORT`); binds on the specified address only.
   - **Example**:
 
-    ```toml
-    [metrics]
-    enabled = true
-    listen_address = "127.0.0.1:9090"
+    ```yaml
+    metrics:
+      enabled: true
+      listen_address: "127.0.0.1:9090"
     ```
 ## whitelist (metrics)
   - **Constraints / validation**: `IpNetwork[]`.
   - **Description**: CIDR whitelist for metrics endpoint access.
   - **Example**:
 
-    ```toml
-    [metrics]
-    enabled = true
-    listen_address = "127.0.0.1:9090"
-    whitelist = ["127.0.0.1/32", "::1/128"]
+    ```yaml
+    metrics:
+      enabled: true
+      listen_address: "127.0.0.1:9090"
+      whitelist: ["127.0.0.1/32", "::1/128"]
     ```
 
 
-# [web]
+# web
 
 WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an external NGINX or HAProxy. Telemt receives plain HTTP/1.1 on a private listener. See the [complete WEB deployment guide](../WEB/WEB_PROXY.en.md) before enabling this mode.
 
@@ -580,7 +585,7 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `timeouts` | table | bounded defaults |
 | `vhost` | table | unset |
 
-WEB requires at least one network-eligible `[listener]` entry, a `[web.vhost]` table, and at least one profile in it — explicit, or instantiated by a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one instantiates a profile for **every `[users]` user in the vhost** using the `[web.limits]` ceilings, and explicit `[[web.vhost.profiles]]` entries require it. Per-user ceiling overrides belong in `[[web.vhost.profiles]]`. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
+WEB requires at least one network-eligible `listener` entry, a `web.vhost` table, and at least one profile in it — explicit, or instantiated by a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one instantiates a profile for **every `users` user in the vhost** using the `web.limits` ceilings, and explicit `web.vhost.profiles` entries require it. Per-user ceiling overrides belong in `web.vhost.profiles`. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
 
 When `carriers` is missing or `false`, auto-negotiation and learning are disabled and `carrier` is the only mode. A non-empty `carriers` array enables startup-only negotiation in its configured order; `carrier` is appended exactly once as the final fallback. Empty arrays, duplicates, and `true` are rejected. The client advances candidates only before carrier commit and must create a new session to change carrier after commit. A metadata-free native client, including Telegram iOS, always uses the configured fixed `carrier`, even when negotiation is enabled. Current iOS supports only `https`, so such deployments must configure `carrier = "https"`. CFNetwork and Darwin User-Agent classification does not infer carrier support. Explicit native iOS capabilities are intersected with `{https}`; other explicit client capabilities participate as reported.
 
@@ -588,11 +593,11 @@ When `carriers` is missing or `false`, auto-negotiation and learning are disable
 
 `fallback_fasttrack_mode` is restart-only. `off` preserves legacy root-request scanning and collects no fast-track decisions. `shadow` records eligible requests while preserving the full scan. `enforce` skips scans only for `HEAD` or absent/noncanonical bridge queries. A canonical bridge-shaped `GET`, including an unknown capability, always scans every profile in the selected vhost. The optimization does not bound hostile canonical probes and enforce mode must be validated for request-shape timing distinguishability behind the production TLS terminator.
 
-`carrier_learning` applies only while negotiation is enabled. Learning is process-local, in-memory, bounded, and positive-only: only a carrier that reaches the server-defined healthy state contributes evidence. `conservative` requires the broadest evidence and disables IP ranking, `balanced` admits moderate User-Agent/profile evidence plus eligible public-IP tie breaking, and `aggressive` reacts to the first bounded samples. Reported client failures remain diagnostic and never create negative evidence. Evidence accumulates from process start and resets at the next process restart. Because `[web.limits]` is process-owned, enabling carrier learning requires `max_carrier_learning_entries` of at least 3, otherwise the configuration is rejected. WEB is always on: use the users API to revoke one user's active sessions.
+`carrier_learning` applies only while negotiation is enabled. Learning is process-local, in-memory, bounded, and positive-only: only a carrier that reaches the server-defined healthy state contributes evidence. `conservative` requires the broadest evidence and disables IP ranking, `balanced` admits moderate User-Agent/profile evidence plus eligible public-IP tie breaking, and `aggressive` reacts to the first bounded samples. Reported client failures remain diagnostic and never create negative evidence. Evidence accumulates from process start and resets at the next process restart. Because `web.limits` is process-owned, enabling carrier learning requires `max_carrier_learning_entries` of at least 3, otherwise the configuration is rejected. WEB is always on: use the users API to revoke one user's active sessions.
 
-# [web.debug]
+# web.debug
 
-This table controls the process-owned server-side WEB debug recorder exposed as authenticated HTML at `GET /web-status` on the API listener. Collection is disabled by default. Retained and in-flight records remain bounded by values in `[web.limits]`.
+This table controls the process-owned server-side WEB debug recorder exposed as authenticated HTML at `GET /web-status` on the API listener. Collection is disabled by default. Retained and in-flight records remain bounded by values in `web.limits`.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -614,7 +619,7 @@ When `enabled`, `sideband`, and `capture_lifecycle` are all true, newly generate
 
 Authenticated JSON control may clear the ring explicitly with `POST /v1/runtime/web/debug/clear`; the required process `runtime_instance` fences stale controllers, the returned epoch fences in-flight writers, and `leased_bytes` reports memory still owned by already rendered snapshots.
 
-# [web.limits]
+# web.limits
 
 These process-wide ceilings make every WEB registry, queue, request body, capability index, and admission path bounded. All values are validated together. Per-owner limits cannot exceed global limits, queue reserves must preserve control-frame progress, body reservations must fit their global budget, and all declared byte ceilings must fit `memory_envelope_bytes`. Changing any value in this table requires a process restart.
 
@@ -664,7 +669,7 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `new_streams_per_minute` | `u32` | `6000` | Sustained logical-stream creation rate. |
 | `new_streams_burst` | `u32` | `512` | Process-wide logical-stream creation burst. |
 
-# [web.timeouts]
+# web.timeouts
 
 Unless a row states otherwise, timeouts are measured in seconds and must be within `1..=3600`. Configured server-side HTTP phase deadlines must be lower than `http_idle_secs`; protected phases retain their own deadlines, so the idle timer is not an aggregate request deadline. The bridge retry window is client-side and follows its own bound.
 
@@ -694,9 +699,9 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `http_overload_timeout_ms` | `u64` | `250` | Per-phase deadline in milliseconds for an accepted saturated socket to wait for capacity or write its retryable response; validated within `1..=60000`. A timed-out wait and its response write each receive at most one phase budget. |
 | `shutdown_secs` | `u64` | `15` | One absolute process-shutdown budget shared by all listener acceptors and connections plus WEB session and auxiliary-task drains. The active value is captured once when shutdown starts. |
 | `fallback_header_secs` | `u64` | `30` | Connect and response-head deadline for an HTTP fallback. |
-| `fallback_resolve_secs` | `u64` | `5` | Maximum wait for each unique HTTP fallback hostname during config preparation under `fallback.resolve = "startup"`. |
+| `fallback_resolve_secs` | `u64` | `5` | Maximum wait for each unique HTTP fallback hostname during config preparation under `fallback.resolve: "startup"`. |
 
-# [web.vhost]
+# web.vhost
 
 | Key | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -705,16 +710,16 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `public_addr` | `SocketAddr` | yes | Concrete public IP on port `443`; used in the inner relay destination tuple. |
 | `upstream` | `String` | yes | Ordinary-site fallback origin for unauthenticated or invalid traffic: an `http://` origin without credentials, path, query, or fragment, or a `unix:/absolute/path.sock` socket path that must be absolute without URL control characters. With the default `resolve = "never"` an http host must be a loopback, link-local, or private IP literal. A unix fallback target must not equal any `socket_path` of a WEB listener. |
 | `resolve` | `"never"` or `"startup"` | no | Default `never`. `startup` resolves an http hostname once during config preparation: every answer must remain inside loopback or a private network, the answers are pinned for the running process, and a failed, timed out, or empty lookup fails the load. Rejected for `unix:` origins, where no DNS is performed and the vhost `host` is used as the request authority. |
-| `profiles` | array of tables | when enabled | Explicit users exposed by this hostname. |
+| `profiles` | array of mappings | when enabled | Explicit users exposed by this hostname. |
 
 The hostname must be accepted by Telegram Desktop and is normalized during validation. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap is process-local: it remains valid only while the same profile identity is still active and is retired at process restart.
 
-# [[web.vhost.profiles]]
+# web.vhost.profiles
 
 | Key | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `user` | `String` | yes | — | Existing 1–64-byte key from `[users]`; the bound keeps runtime status and filters bounded. |
-| `host` | `String` | no | `[web.vhost].host` | Optional per-profile hostname, normalized with the vhost hostname rules. Routes, derives the capability, sets the unix fallback request authority, and emits links under this hostname; the vhost `base_path`, `public_addr`, and fallback origin stay shared. |
+| `user` | `String` | yes | — | Existing 1–64-byte key from `users`; the bound keeps runtime status and filters bounded. |
+| `host` | `String` | no | `web.vhost.host` | Optional per-profile hostname, normalized with the vhost hostname rules. Routes, derives the capability, sets the unix fallback request authority, and emits links under this hostname; the vhost `base_path`, `public_addr`, and fallback origin stay shared. |
 | `max_sessions` | `usize` | no | `web.limits.max_sessions_global` | Live sessions for this profile. |
 | `max_streams` | `usize` | no | `web.limits.max_streams_global` | Live logical streams for this profile. |
 | `max_streams_per_session` | `usize` | no | `web.limits.max_streams_per_session` | Live logical streams in one profile session. |
@@ -725,29 +730,29 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 - The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
 - Changing `base_path` changes the new-request route and derived capability from the next process restart. Reissue links before the restart: after it, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling.
-- WEB listener inventory and trust policy under `[listener]`, and every `web.limits` value, are process-owned and restart-required.
-- `GET /v1/config` returns the complete authored `[web]` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `web.limits` and `[listener]` values apply at the next process restart.
+- WEB listener inventory and trust policy under `listener`, and every `web.limits` value, are process-owned and restart-required.
+- `GET /v1/config` returns the complete authored `web` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `web.limits` and `listener` values apply at the next process restart.
 - `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.
 - Users can be created, changed, rotated, and deleted through `/v1/users`. Creating a user does not add a WEB profile. Deleting a user updates admission and cancels that user's active sessions.
-- `PATCH /v1/config` can persist `[listener]`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
+- `PATCH /v1/config` can persist `listener`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
 
 
-# [users]
+# users
 
 | Key | Type | Default |
 | --- | ---- | ------- |
-| `<username> = "secret"` | `Map<String, String>` | `{"default": "000…000"}` |
+| `<username>: "secret"` | `Map<String, String>` | `{"default": "000…000"}` |
 
-  - **Constraints / validation**: Must not be empty (at least one user must exist). Keys are user names; each value must be **exactly 32 hex characters**.
+  - **Constraints / validation**: Must not be empty (at least one user must exist). Keys are user names; each value must be **exactly 32 hex characters**. Quote values (and keys) that are all digits or resemble a number, boolean, or null, so they are read as strings.
   - **Description**: User credentials map used for client authentication and for WEB vhost profiles, which reference users by name.
   - **Example**:
 
-    ```toml
-    [users]
-    alice = "00112233445566778899aabbccddeeff"
-    bob   = "0123456789abcdef0123456789abcdef"
+    ```yaml
+    users:
+      alice: "00112233445566778899aabbccddeeff"
+      bob: "0123456789abcdef0123456789abcdef"
     ```
-# [[upstreams]]
+# upstreams
 
 
 | Key | Type | Default |
@@ -764,37 +769,36 @@ Profile limits must be non-zero and no greater than their corresponding global l
 
 ## type
   - **Constraints / validation**: Required field. Must be one of: `"direct"` or `"socks"`.
-  - **Description**: Selects the upstream transport implementation for this `[[upstreams]]` entry.
+  - **Description**: Selects the upstream transport implementation for this `upstreams` entry.
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "direct"
+    ```yaml
+    upstreams:
+      - type: "direct"
 
-    [[upstreams]]
-    type = "socks"
-    socks_address = "127.0.0.1:9050"
+      - type: "socks"
+        socks_address: "127.0.0.1:9050"
     ```
 ## weight
   - **Constraints / validation**: `u16` (0..=65535).
   - **Description**: Base weight used by weighted-random upstream selection (higher = chosen more often).
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "direct"
-    weight = 10
+    ```yaml
+    upstreams:
+      - type: "direct"
+        weight: 10
     ```
 ## enabled
   - **Constraints / validation**: `bool`.
   - **Description**: When `false`, this entry is ignored and not used for any upstream selection.
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "socks"
-    socks_address = "127.0.0.1:9050"
-    enabled = false
+    ```yaml
+    upstreams:
+      - type: "socks"
+        socks_address: "127.0.0.1:9050"
+        enabled: false
     ```
 ## interface
   - **Constraints / validation**: `String` (optional).
@@ -803,16 +807,15 @@ Profile limits must be non-zero and no greater than their corresponding global l
   - **Description**: Optional outbound interface / local bind hint for the upstream connect socket.
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "direct"
-    interface = "eth0"
+    ```yaml
+    upstreams:
+      - type: "direct"
+        interface: "eth0"
 
-    [[upstreams]]
-    type = "socks"
-    socks_address = "203.0.113.10:1080"
-    # Use an explicit local bind IP.
-    interface = "192.0.2.10"
+      - type: "socks"
+        socks_address: "203.0.113.10:1080"
+        # Use an explicit local bind IP.
+        interface: "192.0.2.10"
     ```
 ## bind_addresses
   - **Constraints / validation**: `String[]` (optional). Applies only to `type = "direct"`.
@@ -821,51 +824,51 @@ Profile limits must be non-zero and no greater than their corresponding global l
   - **Description**: Explicit local source addresses for outgoing direct TCP connects. When multiple addresses are provided, selection is round-robin.
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "direct"
-    bind_addresses = ["192.0.2.10", "192.0.2.11"]
+    ```yaml
+    upstreams:
+      - type: "direct"
+        bind_addresses: ["192.0.2.10", "192.0.2.11"]
     ```
 ## bind_device
   - **Constraints / validation**: `String` (optional). Applies only to `type = "direct"` and is Linux-only.
   - **Description**: Hard interface pinning via `SO_BINDTODEVICE` for outgoing direct TCP connects.
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "direct"
-    bind_device = "eth0"
+    ```yaml
+    upstreams:
+      - type: "direct"
+        bind_device: "eth0"
     ```
 ## socks_address
   - **Constraints / validation**: Required for `type = "socks"`. Must be `host:port` or `ip:port`.
   - **Description**: SOCKS proxy server endpoint used for upstream connects.
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "socks"
-    socks_address = "127.0.0.1:9050"
+    ```yaml
+    upstreams:
+      - type: "socks"
+        socks_address: "127.0.0.1:9050"
     ```
 ## socks_username
   - **Constraints / validation**: `String` (optional). Only for `type = "socks"`.
   - **Description**: SOCKS5 username (for username/password authentication).
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "socks"
-    socks_address = "127.0.0.1:9050"
-    socks_username = "alice"
+    ```yaml
+    upstreams:
+      - type: "socks"
+        socks_address: "127.0.0.1:9050"
+        socks_username: "alice"
     ```
 ## socks_password
   - **Constraints / validation**: `String` (optional). Only for `type = "socks"`.
   - **Description**: SOCKS5 password (for username/password authentication).
   - **Example**:
 
-    ```toml
-    [[upstreams]]
-    type = "socks"
-    socks_address = "127.0.0.1:9050"
-    socks_username = "alice"
-    socks_password = "secret"
+    ```yaml
+    upstreams:
+      - type: "socks"
+        socks_address: "127.0.0.1:9050"
+        socks_username: "alice"
+        socks_password: "secret"
     ```

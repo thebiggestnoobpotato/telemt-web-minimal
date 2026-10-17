@@ -8,17 +8,17 @@ use crate::config::{ConfigSourceGraph, LoadedConfig, ParsedConfigSource, ProxyCo
 
 use super::model::ApiFailure;
 
-// Source-preserving TOML rendering and atomic persistence helpers.
+// Source-preserving YAML rendering and atomic persistence helpers.
 mod persistence;
 // Compare-and-replace file persistence and metadata preservation.
 mod atomic;
 
 pub(in crate::api) use atomic::{write_atomic, write_atomic_if_unchanged};
 #[cfg(test)]
-use persistence::{find_toml_table_bounds, render_access_section, save_sections_to_disk};
+use persistence::{find_yaml_section_bounds, render_access_section, save_sections_to_disk};
 pub(in crate::api) use persistence::{
     render_top_level_section, save_access_sections_to_disk,
-    save_access_sections_to_disk_if_revision, upsert_toml_table,
+    save_access_sections_to_disk_if_revision, top_level_key_of, upsert_yaml_section,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -126,19 +126,19 @@ pub(super) fn resolve_single_source_owner(
     if loaded
         .source_contents
         .values()
-        .any(|content| has_include_inside_table(content))
+        .any(|content| has_include_inside_section(content))
     {
         return Err(ApiFailure::new(
             hyper::StatusCode::CONFLICT,
             "config_patch_not_atomic",
-            "config includes nested inside a TOML table cannot be mutated atomically",
+            "config includes nested inside a YAML section cannot be mutated atomically",
         ));
     }
 
     for target in targets {
         let mut owners = BTreeSet::new();
         for (path, content) in &loaded.source_contents {
-            let parsed: toml::Value = toml::from_str(content).map_err(|error| {
+            let parsed: serde_yaml::Value = serde_yaml::from_str(content).map_err(|error| {
                 ApiFailure::new(
                     hyper::StatusCode::CONFLICT,
                     "config_patch_not_atomic",
@@ -148,7 +148,7 @@ pub(super) fn resolve_single_source_owner(
                     ),
                 )
             })?;
-            if toml_path_exists(&parsed, target) {
+            if yaml_path_exists(&parsed, target) {
                 owners.insert(path.clone());
             }
         }
@@ -182,24 +182,26 @@ pub(super) fn resolve_single_source_owner(
         .ok_or_else(|| ApiFailure::bad_request("empty mutation: no owned config sections"))
 }
 
-fn toml_path_exists(value: &toml::Value, target: &str) -> bool {
+fn yaml_path_exists(value: &serde_yaml::Value, target: &str) -> bool {
     target
         .split('.')
         .try_fold(value, |current, part| current.get(part))
         .is_some()
 }
 
-fn has_include_inside_table(content: &str) -> bool {
-    let mut inside_table = false;
+// An include directive inside a section defeats atomic section replacement:
+// its spliced content lands at column 0 in the middle of the section's block.
+// A top-level `include:` line is legal and ends the section it follows.
+fn has_include_inside_section(content: &str) -> bool {
+    let mut inside_section = false;
     for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') {
-            inside_table = true;
+        if let Some(key) = top_level_key_of(line) {
+            inside_section = key != "include";
+            continue;
         }
-        if inside_table
-            && trimmed
-                .strip_prefix("include")
-                .is_some_and(|rest| rest.trim_start().starts_with('='))
+        if inside_section
+            && line.starts_with(' ')
+            && line.trim_start().starts_with("include:")
         {
             return true;
         }
@@ -262,7 +264,7 @@ pub(super) async fn save_config_to_disk(
     config_path: &Path,
     cfg: &ProxyConfig,
 ) -> Result<String, ApiFailure> {
-    let serialized = toml::to_string_pretty(cfg)
+    let serialized = serde_yaml::to_string(cfg)
         .map_err(|e| ApiFailure::internal(format!("failed to serialize config: {}", e)))?;
     write_atomic(config_path.to_path_buf(), serialized.clone()).await?;
     Ok(compute_revision(&serialized))

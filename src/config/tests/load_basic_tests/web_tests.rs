@@ -16,34 +16,32 @@ mod global_profiles_tests;
 mod profile_host_tests;
 
 const WEB_CONFIG: &str = r#"
-[users]
-alice = "000102030405060708090a0b0c0d0e0f"
+users:
+  alice: "000102030405060708090a0b0c0d0e0f"
 
-[listener]
-ip = "127.0.0.1"
-port = 18080
-web_client_ip_source = "x_forwarded_for"
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
+listener:
+  ip: "127.0.0.1"
+  port: 18080
+  web_client_ip_source: "x_forwarded_for"
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 
-[web]
-carrier = "https-lanes"
-secret_mode = "dd"
-
-[web.vhost]
-host = "Proxy.Example.COM"
-public_addr = "203.0.113.10:443"
-
-upstream = "http://127.0.0.1:18081"
-[[web.vhost.profiles]]
-user = "alice"
-max_sessions = 4
-max_streams = 64
-max_streams_per_session = 16
+web:
+  carrier: "https-lanes"
+  secret_mode: "dd"
+  vhost:
+    host: "Proxy.Example.COM"
+    public_addr: "203.0.113.10:443"
+    upstream: "http://127.0.0.1:18081"
+    profiles:
+      - user: "alice"
+        max_sessions: 4
+        max_streams: 64
+        max_streams_per_session: 16
 "#;
 
 #[test]
 fn web_config_builds_canonical_runtime_snapshot() {
-    let config = load_config_from_temp_toml(WEB_CONFIG);
+    let config = load_config_from_temp_yaml(WEB_CONFIG);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
         .vhosts
@@ -75,10 +73,10 @@ fn web_base_path_is_canonical_and_precomputed() {
     let maximum = "a".repeat(128);
     for base_path in ["a", "a/b/c9_x-y", "Dobry-Cola/super_app", maximum.as_str()] {
         let configured = WEB_CONFIG.replace(
-            "host = \"Proxy.Example.COM\"",
-            &format!("host = \"Proxy.Example.COM\"\nbase_path = \"{base_path}\""),
+            "host: \"Proxy.Example.COM\"",
+            &format!("host: \"Proxy.Example.COM\"\n    base_path: \"{base_path}\""),
         );
-        let config = load_config_from_temp_toml(&configured);
+        let config = load_config_from_temp_yaml(&configured);
         assert_eq!(
             config.web.vhost.as_ref().expect("web vhost").base_path,
             base_path
@@ -90,14 +88,14 @@ fn web_base_path_is_canonical_and_precomputed() {
     }
 
     let strict = format!(
-        "[general]\nconfig_strict = true\n{}",
+        "general:\n  config_strict: true\n{}",
         WEB_CONFIG.replace(
-            "host = \"Proxy.Example.COM\"",
-            "host = \"Proxy.Example.COM\"\nbase_path = \"relay\"",
+            "host: \"Proxy.Example.COM\"",
+            "host: \"Proxy.Example.COM\"\n    base_path: \"relay\"",
         )
     );
     assert_eq!(
-        load_config_from_temp_toml(&strict)
+        load_config_from_temp_yaml(&strict)
             .web
             .vhost
             .as_ref()
@@ -128,11 +126,11 @@ fn web_base_path_rejects_noncanonical_forms() {
         oversized.as_str(),
     ] {
         let invalid = WEB_CONFIG.replace(
-            "host = \"Proxy.Example.COM\"",
-            &format!("host = \"Proxy.Example.COM\"\nbase_path = \"{base_path}\""),
+            "host: \"Proxy.Example.COM\"",
+            &format!("host: \"Proxy.Example.COM\"\n    base_path: \"{base_path}\""),
         );
         assert!(
-            load_config_error_from_temp_toml(&invalid).contains("web.vhost.base_path"),
+            load_config_error_from_temp_yaml(&invalid).contains("web.vhost.base_path"),
             "base path {base_path:?} was accepted"
         );
     }
@@ -151,10 +149,10 @@ fn web_fallback_fasttrack_mode_is_typed_and_defaults_off() {
         ("enforce", WebFallbackFastTrackMode::Enforce),
     ] {
         let configured = WEB_CONFIG.replace(
-            "carrier = \"https-lanes\"",
-            &format!("carrier = \"https-lanes\"\nfallback_fasttrack_mode = \"{token}\""),
+            "carrier: \"https-lanes\"",
+            &format!("carrier: \"https-lanes\"\n  fallback_fasttrack_mode: \"{token}\""),
         );
-        let config = load_config_from_temp_toml(&configured);
+        let config = load_config_from_temp_yaml(&configured);
         assert_eq!(config.web.fallback_fasttrack_mode, expected);
         assert_eq!(
             config.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].fallback_fasttrack_mode,
@@ -163,24 +161,25 @@ fn web_fallback_fasttrack_mode_is_typed_and_defaults_off() {
     }
 
     let invalid = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\nfallback_fasttrack_mode = \"automatic\"",
+        "carrier: \"https-lanes\"",
+        "carrier: \"https-lanes\"\n  fallback_fasttrack_mode: \"automatic\"",
     );
-    assert!(load_config_error_from_temp_toml(&invalid).contains("fallback_fasttrack_mode"));
+    // serde_yaml names the offending variant, not the field path.
+    assert!(load_config_error_from_temp_yaml(&invalid).contains("unknown variant `automatic`"));
 }
 
 #[test]
 fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
     let configured = WEB_CONFIG
         .replace(
-            "carrier = \"https-lanes\"",
-            "carrier = \"https-lanes\"\nhttp_connection_capacity_action = \"wait\"",
+            "carrier: \"https-lanes\"",
+            "carrier: \"https-lanes\"\n  http_connection_capacity_action: \"wait\"",
         )
         .replace(
-            "[web.vhost]",
-            "[web.limits]\nmax_http_overload_connections = 23\n\n[web.timeouts]\nhttp_overload_timeout_ms = 731\n\n[web.vhost]",
+            "  vhost:",
+            "  limits:\n    max_http_overload_connections: 23\n\n  timeouts:\n    http_overload_timeout_ms: 731\n\n  vhost:",
         );
-    let config = load_config_from_temp_toml(&configured);
+    let config = load_config_from_temp_yaml(&configured);
 
     assert_eq!(
         config.web.http_connection_capacity_action,
@@ -201,28 +200,29 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
 #[test]
 fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
     let unknown = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\nhttp_connection_capacity_action = \"queue\"",
+        "carrier: \"https-lanes\"",
+        "carrier: \"https-lanes\"\n  http_connection_capacity_action: \"queue\"",
     );
-    assert!(load_config_error_from_temp_toml(&unknown).contains("http_connection_capacity_action"));
+    // serde_yaml names the offending variant, not the field path.
+    assert!(load_config_error_from_temp_yaml(&unknown).contains("unknown variant `queue`"));
 
     for timeout in [0, 60_001] {
         let invalid = WEB_CONFIG.replace(
-            "[web.vhost]",
-            &format!("[web.timeouts]\nhttp_overload_timeout_ms = {timeout}\n\n[web.vhost]"),
+            "  vhost:",
+            &format!("  timeouts:\n    http_overload_timeout_ms: {timeout}\n\n  vhost:"),
         );
         assert!(
-            load_config_error_from_temp_toml(&invalid)
+            load_config_error_from_temp_yaml(&invalid)
                 .contains("web.timeouts.http_overload_timeout_ms")
         );
     }
 
     let no_overload_slots = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.limits]\nmax_http_overload_connections = 0\n\n[web.vhost]",
+        "  vhost:",
+        "  limits:\n    max_http_overload_connections: 0\n\n  vhost:",
     );
     assert!(
-        load_config_error_from_temp_toml(&no_overload_slots)
+        load_config_error_from_temp_yaml(&no_overload_slots)
             .contains("web.limits.max_http_overload_connections")
     );
 }
@@ -231,13 +231,13 @@ fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
 fn web_fallback_rejects_direct_and_wildcard_listener_loops() {
     let direct = WEB_CONFIG.replace("http://127.0.0.1:18081", "http://127.0.0.1:18080");
     assert!(
-        load_config_error_from_temp_toml(&direct)
+        load_config_error_from_temp_yaml(&direct)
             .contains("web.vhost.upstream overlaps WEB listener")
     );
 
-    let wildcard = direct.replace("ip = \"127.0.0.1\"", "ip = \"0.0.0.0\"");
+    let wildcard = direct.replace("ip: \"127.0.0.1\"", "ip: \"0.0.0.0\"");
     assert!(
-        load_config_error_from_temp_toml(&wildcard)
+        load_config_error_from_temp_yaml(&wildcard)
             .contains("web.vhost.upstream overlaps WEB listener")
     );
 }
@@ -248,22 +248,22 @@ fn web_profile_user_labels_are_bounded_for_runtime_status() {
     let invalid = WEB_CONFIG.replace("alice", &user);
 
     assert!(
-        load_config_error_from_temp_toml(&invalid)
+        load_config_error_from_temp_yaml(&invalid)
             .contains("web.vhost.profiles[0].user must contain 1..64 bytes")
     );
 }
 
 #[test]
 fn web_carriers_missing_or_false_disable_negotiation() {
-    let missing = load_config_from_temp_toml(WEB_CONFIG);
+    let missing = load_config_from_temp_yaml(WEB_CONFIG);
     assert!(!missing.web.carrier_negotiation_enabled());
     assert!(!missing.web.runtime.unwrap().profiles[0].carrier_learning);
 
     let disabled = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\ncarriers = false",
+        "carrier: \"https-lanes\"",
+        "carrier: \"https-lanes\"\n  carriers: false",
     );
-    let disabled = load_config_from_temp_toml(&disabled);
+    let disabled = load_config_from_temp_yaml(&disabled);
     assert!(!disabled.web.carrier_negotiation_enabled());
     assert!(!disabled.web.runtime.as_ref().unwrap().profiles[0].carrier_learning);
     assert_eq!(
@@ -275,10 +275,10 @@ fn web_carriers_missing_or_false_disable_negotiation() {
 #[test]
 fn web_carrier_array_enables_ordered_negotiation_and_appends_fallback() {
     let configured = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\ncarriers = [\"websocket\", \"https\"]\ncarrier_learning = false",
+        "carrier: \"https-lanes\"",
+        "carrier: \"https-lanes\"\n  carriers: [\"websocket\", \"https\"]\n  carrier_learning: false",
     );
-    let config = load_config_from_temp_toml(&configured);
+    let config = load_config_from_temp_yaml(&configured);
     assert!(config.web.carrier_negotiation_enabled());
     assert!(!config.web.carrier_learning);
     let profile = &config.web.runtime.unwrap().profiles[0];
@@ -297,20 +297,20 @@ fn web_carrier_array_enables_ordered_negotiation_and_appends_fallback() {
 fn web_carriers_reject_true_empty_and_duplicates() {
     for value in ["true", "[]", "[\"https\", \"https\"]"] {
         let invalid = WEB_CONFIG.replace(
-            "carrier = \"https-lanes\"",
-            &format!("carrier = \"https-lanes\"\ncarriers = {value}"),
+            "carrier: \"https-lanes\"",
+            &format!("carrier: \"https-lanes\"\n  carriers: {value}"),
         );
-        assert!(load_config_error_from_temp_toml(&invalid).contains("web.carriers"));
+        assert!(load_config_error_from_temp_yaml(&invalid).contains("web.carriers"));
     }
 }
 
 #[test]
 fn web_carrier_and_bridge_deadlines_are_configurable() {
     let configured = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.timeouts]\ncarrier_negotiation_deadlines_secs = [1, 2, 4, 9]\ncarrier_learning_secs = 30\nbridge_request_secs = 7\nbridge_retry_secs = 41\nbridge_recovery_secs = 13\ncarrier_probe_coalesce_ms = 4\n\n[web.vhost]",
+        "  vhost:",
+        "  timeouts:\n    carrier_negotiation_deadlines_secs: [1, 2, 4, 9]\n    carrier_learning_secs: 30\n    bridge_request_secs: 7\n    bridge_retry_secs: 41\n    bridge_recovery_secs: 13\n    carrier_probe_coalesce_ms: 4\n\n  vhost:",
     );
-    let config = load_config_from_temp_toml(&configured);
+    let config = load_config_from_temp_yaml(&configured);
     assert_eq!(
         config.web.timeouts.carrier_negotiation_deadlines_secs,
         [1, 2, 4, 9]
@@ -325,11 +325,11 @@ fn web_carrier_and_bridge_deadlines_are_configurable() {
 #[test]
 fn web_bridge_deadlines_are_known_in_strict_mode() {
     let configured = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.timeouts]\nbridge_request_secs = 7\nbridge_retry_secs = 41\nbridge_recovery_secs = 13\ncarrier_probe_coalesce_ms = 4\n\n[web.vhost]",
+        "  vhost:",
+        "  timeouts:\n    bridge_request_secs: 7\n    bridge_retry_secs: 41\n    bridge_recovery_secs: 13\n    carrier_probe_coalesce_ms: 4\n\n  vhost:",
     );
-    let configured = format!("[general]\nconfig_strict = true\n{configured}");
-    let config = load_config_from_temp_toml(&configured);
+    let configured = format!("general:\n  config_strict: true\n{configured}");
+    let config = load_config_from_temp_yaml(&configured);
 
     assert_eq!(config.web.timeouts.bridge_request_secs, 7);
     assert_eq!(config.web.timeouts.bridge_retry_secs, 41);
@@ -349,20 +349,20 @@ fn web_bridge_deadlines_are_bounded_and_ordered() {
         ("carrier_probe_coalesce_ms", "11"),
     ] {
         let invalid = WEB_CONFIG.replace(
-            "[web.vhost]",
-            &format!("[web.timeouts]\n{field} = {value}\n\n[web.vhost]"),
+            "  vhost:",
+            &format!("  timeouts:\n    {field}: {value}\n\n  vhost:"),
         );
         assert!(
-            load_config_error_from_temp_toml(&invalid).contains(&format!("web.timeouts.{field}"))
+            load_config_error_from_temp_yaml(&invalid).contains(&format!("web.timeouts.{field}"))
         );
     }
 
     let reversed = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.timeouts]\nbridge_request_secs = 20\nbridge_retry_secs = 10\n\n[web.vhost]",
+        "  vhost:",
+        "  timeouts:\n    bridge_request_secs: 20\n    bridge_retry_secs: 10\n\n  vhost:",
     );
     assert!(
-        load_config_error_from_temp_toml(&reversed)
+        load_config_error_from_temp_yaml(&reversed)
             .contains("bridge_request_secs must not exceed bridge_retry_secs")
     );
 }
@@ -370,11 +370,11 @@ fn web_bridge_deadlines_are_bounded_and_ordered() {
 #[test]
 fn web_carrier_learning_capacity_must_remain_nonzero() {
     let invalid = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.limits]\nmax_carrier_learning_entries = 0\n\n[web.vhost]",
+        "  vhost:",
+        "  limits:\n    max_carrier_learning_entries: 0\n\n  vhost:",
     );
     assert!(
-        load_config_error_from_temp_toml(&invalid)
+        load_config_error_from_temp_yaml(&invalid)
             .contains("web.limits.max_carrier_learning_entries")
     );
 }
@@ -391,10 +391,10 @@ fn web_debug_table_uses_debug_name_and_bounded_defaults() {
     assert!(!ineffective.bridge_diagnostics_enabled());
 
     let configured = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.debug]\nenabled = true\nsideband = true\nbody_capture = \"prefix\"\nbody_prefix_bytes = 2048\ndefault_window_secs = 180\nmax_window_secs = 900\n\n[web.vhost]",
+        "  vhost:",
+        "  debug:\n    enabled: true\n    sideband: true\n    body_capture: \"prefix\"\n    body_prefix_bytes: 2048\n    default_window_secs: 180\n    max_window_secs: 900\n\n  vhost:",
     );
-    let config = load_config_from_temp_toml(&configured);
+    let config = load_config_from_temp_yaml(&configured);
     assert!(config.web.debug.enabled);
     assert!(config.web.debug.sideband);
     assert!(config.web.debug.bridge_diagnostics_enabled());
@@ -403,101 +403,101 @@ fn web_debug_table_uses_debug_name_and_bounded_defaults() {
     assert_eq!(config.web.debug.default_window_secs, 180);
     assert_eq!(config.web.debug.max_window_secs, 900);
 
-    let strict = format!("[general]\nconfig_strict = true\n{configured}");
-    assert!(load_config_from_temp_toml(&strict).web.debug.sideband);
+    let strict = format!("general:\n  config_strict: true\n{configured}");
+    assert!(load_config_from_temp_yaml(&strict).web.debug.sideband);
 
     let old_name = format!(
-        "[general]\nconfig_strict = true\n{}",
+        "general:\n  config_strict: true\n{}",
         WEB_CONFIG.replace(
-            "[web.vhost]",
-            "[web.trace]\nenabled = true\n\n[web.vhost]",
+            "  vhost:",
+            "  trace:\n    enabled: true\n\n  vhost:",
         )
     );
-    let error = load_config_error_from_temp_toml(&old_name);
+    let error = load_config_error_from_temp_yaml(&old_name);
     assert!(error.contains("web.trace"));
 
     let old_parameter = format!(
-        "[general]\nconfig_strict = true\n{}",
+        "general:\n  config_strict: true\n{}",
         WEB_CONFIG.replace(
-            "[web.vhost]",
-            "[web.debug]\nbridge_diagnostics = true\n\n[web.vhost]",
+            "  vhost:",
+            "  debug:\n    bridge_diagnostics: true\n\n  vhost:",
         )
     );
-    let error = load_config_error_from_temp_toml(&old_parameter);
+    let error = load_config_error_from_temp_yaml(&old_parameter);
     assert!(error.contains("web.debug.bridge_diagnostics"));
 }
 
 #[test]
 fn web_debug_prefix_and_window_validation_fail_closed() {
     let oversized_prefix = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.debug]\nenabled = true\nbody_prefix_bytes = 2097153\n\n[web.vhost]",
+        "  vhost:",
+        "  debug:\n    enabled: true\n    body_prefix_bytes: 2097153\n\n  vhost:",
     );
-    let error = load_config_error_from_temp_toml(&oversized_prefix);
+    let error = load_config_error_from_temp_yaml(&oversized_prefix);
     assert!(error.contains("web.debug.body_prefix_bytes"));
 
     let reversed_window = WEB_CONFIG.replace(
-        "[web.vhost]",
-        "[web.debug]\nenabled = true\ndefault_window_secs = 181\nmax_window_secs = 180\n\n[web.vhost]",
+        "  vhost:",
+        "  debug:\n    enabled: true\n    default_window_secs: 181\n    max_window_secs: 180\n\n  vhost:",
     );
-    let error = load_config_error_from_temp_toml(&reversed_window);
+    let error = load_config_error_from_temp_yaml(&reversed_window);
     assert!(error.contains("web.debug windows"));
 
     let undersized_store = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\n\n[web.limits]\ndebug_bytes_global = 4095",
+        "carrier: \"https-lanes\"",
+        "carrier: \"https-lanes\"\n  limits:\n    debug_bytes_global: 4095",
     );
-    let error = load_config_error_from_temp_toml(&undersized_store);
+    let error = load_config_error_from_temp_yaml(&undersized_store);
     assert!(error.contains("debug_bytes_global must be at least 4096"));
 }
 
 #[test]
 fn https_lanes_requires_separate_poll_and_control_handler_capacity() {
     let invalid = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\n\n[web.limits]\nmax_http_handlers = 1\nmax_body_readers = 1",
+        "carrier: \"https-lanes\"",
+        "carrier: \"https-lanes\"\n  limits:\n    max_http_handlers: 1\n    max_body_readers: 1",
     );
-    let error = load_config_error_from_temp_toml(&invalid);
+    let error = load_config_error_from_temp_yaml(&invalid);
     assert!(error.contains("WEB https-lanes candidates require"));
 }
 
 #[test]
 fn web_listener_requires_an_explicit_trusted_proxy() {
     let invalid = WEB_CONFIG.replace(
-        "web_trusted_proxy_cidrs = [\"127.0.0.1/32\"]",
-        "web_trusted_proxy_cidrs = []",
+        "web_trusted_proxy_cidrs: [\"127.0.0.1/32\"]",
+        "web_trusted_proxy_cidrs: []",
     );
-    let error = load_config_error_from_temp_toml(&invalid);
+    let error = load_config_error_from_temp_yaml(&invalid);
     assert!(error.contains("web_trusted_proxy_cidrs must be non-empty"));
 }
 
 #[test]
 fn web_queue_limits_preserve_control_and_uplink_progress() {
     let invalid = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"https-lanes\"\n\n[web.limits]\ncontrol_bytes_per_session = 1",
+        "carrier: \"https-lanes\"",
+        "carrier: \"https-lanes\"\n  limits:\n    control_bytes_per_session: 1",
     );
-    let error = load_config_error_from_temp_toml(&invalid);
+    let error = load_config_error_from_temp_yaml(&invalid);
     assert!(error.contains("control reserves must cover bounded control frames"));
 }
 
 #[test]
 fn web_semaphore_limits_are_rejected_before_runtime_construction() {
     let invalid = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
+        "carrier: \"https-lanes\"",
         &format!(
-            "carrier = \"https-lanes\"\n\n[web.limits]\nmax_http_connections = {}",
+            "carrier: \"https-lanes\"\n  limits:\n    max_http_connections: {}",
             tokio::sync::Semaphore::MAX_PERMITS + 1,
         ),
     );
-    let error = load_config_error_from_temp_toml(&invalid);
+    let error = load_config_error_from_temp_yaml(&invalid);
     assert!(error.contains("exceeds Tokio semaphore capacity"));
 }
 
 #[test]
 fn web_ipv6_fallback_uses_a_valid_http_authority() {
     let ipv6 = WEB_CONFIG.replace("http://127.0.0.1:18081", "http://[::1]:18081");
-    let config = load_config_from_temp_toml(&ipv6);
+    let config = load_config_from_temp_yaml(&ipv6);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime.vhosts.get("proxy.example.com").unwrap();
     let WebRuntimeFallback::HttpUpstream { authority, .. } = &vhost.fallback;
@@ -506,18 +506,19 @@ fn web_ipv6_fallback_uses_a_valid_http_authority() {
 
 #[test]
 fn vhost_mode_key_is_stripped() {
-    // The fallback mode tag was removed with the flattened [web.vhost]
+    // The fallback mode tag was removed with the flattened web.vhost
     // upstream: mode is now an unknown key for strict loads.
     let with_mode = WEB_CONFIG.replace(
-        "upstream = \"http://127.0.0.1:18081\"",
-        "mode = \"static_directory\"\nupstream = \"http://127.0.0.1:18081\"",
+        "upstream: \"http://127.0.0.1:18081\"",
+        "mode: \"static_directory\"\n    upstream: \"http://127.0.0.1:18081\"",
     );
-    let strict_error =
-        load_config_error_from_temp_toml(&format!("[general]\nconfig_strict = true\n{with_mode}"));
+    let strict_error = load_config_error_from_temp_yaml(
+        &format!("general:\n  config_strict: true\n{with_mode}"),
+    );
     assert!(strict_error.contains("web.vhost.mode"), "{strict_error}");
 
     // non-strict: the stray key is ignored and the vhost loads untouched.
-    let config = load_config_from_temp_toml(&with_mode);
+    let config = load_config_from_temp_yaml(&with_mode);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime.vhosts.get("proxy.example.com").unwrap();
     let WebRuntimeFallback::HttpUpstream { authority, .. } = &vhost.fallback;
@@ -527,16 +528,16 @@ fn vhost_mode_key_is_stripped() {
 #[test]
 fn vhost_static_keys_are_stripped() {
     let stripped = WEB_CONFIG.replace(
-        "upstream = \"http://127.0.0.1:18081\"",
-        "directory = \"/var/lib/telemt/site\"\nindex = \"index.html\"\nupstream = \"http://127.0.0.1:18081\"",
+        "upstream: \"http://127.0.0.1:18081\"",
+        "directory: \"/var/lib/telemt/site\"\n    index: \"index.html\"\n    upstream: \"http://127.0.0.1:18081\"",
     );
-    // strict: the removed static keys are unknown under [web.vhost].
+    // strict: the removed static keys are unknown under web.vhost.
     let error =
-        load_config_error_from_temp_toml(&format!("[general]\nconfig_strict = true\n{stripped}"));
+        load_config_error_from_temp_yaml(&format!("general:\n  config_strict: true\n{stripped}"));
     assert!(error.contains("web.vhost.directory"), "{error}");
 
     // non-strict: the old keys are ignored and the upstream loads untouched.
-    let config = load_config_from_temp_toml(&stripped);
+    let config = load_config_from_temp_yaml(&stripped);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime.vhosts.get("proxy.example.com").unwrap();
     let WebRuntimeFallback::HttpUpstream { authority, .. } = &vhost.fallback;
@@ -550,7 +551,7 @@ fn websocket_carriers_build_runtime_profiles_with_bounded_defaults() {
         ("websocket-lanes", WebCarrier::WebsocketLanes),
     ] {
         let configured = WEB_CONFIG.replace("https-lanes", name);
-        let config = load_config_from_temp_toml(&configured);
+        let config = load_config_from_temp_yaml(&configured);
         let profile = &config.web.runtime.unwrap().profiles[0];
         assert_eq!(profile.carrier, carrier);
         assert_eq!(config.web.limits.websocket_bytes_global, 256 * 1024 * 1024);
@@ -566,28 +567,28 @@ fn websocket_carriers_build_runtime_profiles_with_bounded_defaults() {
 #[test]
 fn websocket_limits_reject_ambiguous_or_nonprogressing_policy() {
     let reversed_watermarks = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"websocket\"\n\n[web.limits]\nwebsocket_admission_watermark_pct = 90\nwebsocket_eviction_watermark_pct = 75",
+        "carrier: \"https-lanes\"",
+        "carrier: \"websocket\"\n  limits:\n    websocket_admission_watermark_pct: 90\n    websocket_eviction_watermark_pct: 75",
     );
     assert!(
-        load_config_error_from_temp_toml(&reversed_watermarks).contains("WebSocket watermarks")
+        load_config_error_from_temp_yaml(&reversed_watermarks).contains("WebSocket watermarks")
     );
 
     let no_http_reserve = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"websocket\"\n\n[web.limits]\nwebsocket_http_connection_reserve = 0",
+        "carrier: \"https-lanes\"",
+        "carrier: \"websocket\"\n  limits:\n    websocket_http_connection_reserve: 0",
     );
     assert!(
-        load_config_error_from_temp_toml(&no_http_reserve)
+        load_config_error_from_temp_yaml(&no_http_reserve)
             .contains("websocket_http_connection_reserve")
     );
 
     let oversized_batch = WEB_CONFIG.replace(
-        "carrier = \"https-lanes\"",
-        "carrier = \"websocket\"\n\n[web.limits]\nmax_body_bytes = 4194304\ncarrier_batch_bytes = 4194304\nmax_body_readers = 16",
+        "carrier: \"https-lanes\"",
+        "carrier: \"websocket\"\n  limits:\n    max_body_bytes: 4194304\n    carrier_batch_bytes: 4194304\n    max_body_readers: 16",
     );
     assert!(
-        load_config_error_from_temp_toml(&oversized_batch)
+        load_config_error_from_temp_yaml(&oversized_batch)
             .contains("carrier_batch_bytes <= 2097152")
     );
 }

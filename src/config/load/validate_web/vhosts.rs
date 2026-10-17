@@ -20,7 +20,7 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     }
     if web_listener_count > 0 && vhost.profiles.is_empty() && !global_covers_users {
         return config_error(
-            "web.vhost has no profiles: add [[web.vhost.profiles]] or set web.secret_mode",
+            "web.vhost has no profiles: add a web.vhost.profiles entry or set web.secret_mode",
         );
     }
     if !vhost.profiles.is_empty() && config.web.secret_mode.is_none() {

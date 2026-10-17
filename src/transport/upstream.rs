@@ -301,11 +301,11 @@ pub struct UpstreamManager {
     connect_retry_backoff: Duration,
     connect_budget: Duration,
     /// Per-attempt TCP connect timeout to Telegram DC servers
-    /// (`[general] upstream_connect_timeout`, seconds).
+    /// (`(`general.upstream_connect_timeout`, seconds)).
     upstream_connect_timeout_secs: u64,
     unhealthy_fail_threshold: u32,
     connect_failfast_hard_errors: bool,
-    /// Global IP family preference (`[general].network_prefer == 6`), applied to
+    /// Global IP family preference (`(`general.network_prefer == 6`)`), applied to
     /// DC targets when the runtime per-DC state is ambiguous.
     prefer_ipv6: bool,
     no_upstreams_warn_epoch_ms: Arc<AtomicU64>,

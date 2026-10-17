@@ -7,7 +7,7 @@ pub struct GeneralConfig {
     /// Runtime base directory entered at startup; must be absolute when set.
     #[serde(default)]
     pub runtime_path: Option<PathBuf>,
-    /// Reject unknown TOML config keys during load; startup fails fast.
+    /// Reject unknown YAML config keys during load; startup fails fast.
     #[serde(default)]
     pub config_strict: bool,
     /// Allow IPv4 Telegram DC targets.
@@ -63,9 +63,10 @@ pub struct GeneralConfig {
     /// DC address overrides for non-standard DCs (CDN, media, test, etc.)
     /// Keys are DC indices as strings, values are one or more "ip:port" addresses.
     /// Matches the C implementation's `proxy_for <dc_id> <ip>:<port>` config directive.
-    /// Example in config.toml:
-    ///   [general.dc_overrides]
-    ///   "203" = ["149.154.175.100:443", "91.105.192.100:443"]
+    /// Example in config.yaml:
+    ///   general:
+    ///     dc_overrides:
+    ///       "203": ["149.154.175.100:443", "91.105.192.100:443"]
     #[serde(default, deserialize_with = "deserialize_dc_overrides")]
     pub dc_overrides: HashMap<String, Vec<String>>,
     /// Default DC index (1-5) for unmapped non-standard DCs.

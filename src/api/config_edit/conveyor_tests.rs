@@ -3,8 +3,8 @@ use super::*;
 #[tokio::test]
 async fn conveyor_api_is_boolean_and_rejects_invalid_patch_atomically() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("config.toml");
-    std::fs::write(&path, "[web]\nconveyor = true\n").unwrap();
+    let path = directory.path().join("config.yaml");
+    std::fs::write(&path, "web:\n  conveyor: true\n").unwrap();
     for enabled in [false, true] {
         let patch = serde_json::json!({"web": {"conveyor": enabled}});
         let response = apply_patch_to_path(&path, &patch, None).await.unwrap();

@@ -21,10 +21,10 @@ fn resolve_runtime_config_path_anchors_relative_to_startup_cwd() {
         .as_nanos();
     let startup_cwd = std::env::temp_dir().join(format!("telemt_cfg_path_{nonce}"));
     std::fs::create_dir_all(&startup_cwd).unwrap();
-    let target = startup_cwd.join("config.toml");
+    let target = startup_cwd.join("config.yaml");
     std::fs::write(&target, " ").unwrap();
 
-    let resolved = resolve_runtime_config_path("config.toml", &startup_cwd, true);
+    let resolved = resolve_runtime_config_path("config.yaml", &startup_cwd, true);
     assert_eq!(resolved, target.canonicalize().unwrap());
 
     let _ = std::fs::remove_file(&target);
@@ -40,8 +40,8 @@ fn resolve_runtime_config_path_keeps_absolute_for_missing_file() {
     let startup_cwd = std::env::temp_dir().join(format!("telemt_cfg_path_missing_{nonce}"));
     std::fs::create_dir_all(&startup_cwd).unwrap();
 
-    let resolved = resolve_runtime_config_path("missing.toml", &startup_cwd, true);
-    assert_eq!(resolved, startup_cwd.join("missing.toml"));
+    let resolved = resolve_runtime_config_path("missing.yaml", &startup_cwd, true);
+    assert_eq!(resolved, startup_cwd.join("missing.yaml"));
 
     let _ = std::fs::remove_dir(&startup_cwd);
 }
@@ -55,9 +55,9 @@ fn runtime_paths_preserve_symlinks_for_descriptor_validation() {
     let real_dir = dir.path().join("real");
     let linked_dir = dir.path().join("linked");
     std::fs::create_dir(&real_dir).unwrap();
-    std::fs::write(real_dir.join("config.toml"), " ").unwrap();
+    std::fs::write(real_dir.join("config.yaml"), " ").unwrap();
     symlink(&real_dir, &linked_dir).unwrap();
-    let linked_config = linked_dir.join("config.toml");
+    let linked_config = linked_dir.join("config.yaml");
 
     let config = resolve_runtime_config_path(linked_config.to_str().unwrap(), dir.path(), true);
     let runtime = resolve_runtime_base_dir(&linked_config, dir.path(), true, Some(&linked_dir));
@@ -74,10 +74,10 @@ fn resolve_runtime_config_path_uses_startup_candidates_when_not_explicit() {
         .as_nanos();
     let startup_cwd = std::env::temp_dir().join(format!("telemt_cfg_startup_candidates_{nonce}"));
     std::fs::create_dir_all(&startup_cwd).unwrap();
-    let telemt = startup_cwd.join("telemt.toml");
+    let telemt = startup_cwd.join("telemt.yaml");
     std::fs::write(&telemt, " ").unwrap();
 
-    let resolved = resolve_runtime_config_path("config.toml", &startup_cwd, false);
+    let resolved = resolve_runtime_config_path("config.yaml", &startup_cwd, false);
     assert_eq!(resolved, telemt.canonicalize().unwrap());
 
     let _ = std::fs::remove_file(&telemt);
@@ -93,8 +93,8 @@ fn resolve_runtime_config_path_defaults_to_startup_config_when_none_found() {
     let startup_cwd = std::env::temp_dir().join(format!("telemt_cfg_startup_default_{nonce}"));
     std::fs::create_dir_all(&startup_cwd).unwrap();
 
-    let resolved = resolve_runtime_config_path("config.toml", &startup_cwd, false);
-    assert_eq!(resolved, startup_cwd.join("config.toml"));
+    let resolved = resolve_runtime_config_path("config.yaml", &startup_cwd, false);
+    assert_eq!(resolved, startup_cwd.join("config.yaml"));
 
     let _ = std::fs::remove_dir(&startup_cwd);
 }
@@ -111,7 +111,7 @@ fn resolve_runtime_base_dir_prefers_cli_runtime_path() {
     std::fs::create_dir_all(&runtime_path).unwrap();
 
     let resolved = resolve_runtime_base_dir(
-        &startup_cwd.join("config.toml"),
+        &startup_cwd.join("config.yaml"),
         &startup_cwd,
         true,
         Some(&runtime_path),
@@ -134,7 +134,7 @@ fn resolve_runtime_base_dir_uses_working_directory_before_explicit_config_parent
     std::fs::create_dir_all(&config_dir).unwrap();
 
     let resolved =
-        resolve_runtime_base_dir(&config_dir.join("telemt.toml"), &startup_cwd, true, None);
+        resolve_runtime_base_dir(&config_dir.join("telemt.yaml"), &startup_cwd, true, None);
     assert_eq!(resolved, startup_cwd.canonicalize().unwrap());
 
     let _ = std::fs::remove_dir(&config_dir);
@@ -151,7 +151,7 @@ fn resolve_runtime_base_dir_uses_explicit_config_parent_from_root() {
     std::fs::create_dir_all(&config_dir).unwrap();
 
     let resolved =
-        resolve_runtime_base_dir(&config_dir.join("telemt.toml"), Path::new("/"), true, None);
+        resolve_runtime_base_dir(&config_dir.join("telemt.yaml"), Path::new("/"), true, None);
     assert_eq!(resolved, config_dir.canonicalize().unwrap());
 
     let _ = std::fs::remove_dir(&config_dir);
@@ -167,7 +167,7 @@ fn resolve_runtime_base_dir_uses_systemd_working_directory_before_etc() {
     std::fs::create_dir_all(&startup_cwd).unwrap();
 
     let resolved =
-        resolve_runtime_base_dir(&startup_cwd.join("config.toml"), &startup_cwd, false, None);
+        resolve_runtime_base_dir(&startup_cwd.join("config.yaml"), &startup_cwd, false, None);
     assert_eq!(resolved, startup_cwd.canonicalize().unwrap());
 
     let _ = std::fs::remove_dir(&startup_cwd);
@@ -176,7 +176,7 @@ fn resolve_runtime_base_dir_uses_systemd_working_directory_before_etc() {
 #[test]
 fn resolve_runtime_base_dir_falls_back_to_etc_from_root() {
     let resolved = resolve_runtime_base_dir(
-        Path::new("/etc/telemt/config.toml"),
+        Path::new("/etc/telemt/config.yaml"),
         Path::new("/"),
         false,
         None,

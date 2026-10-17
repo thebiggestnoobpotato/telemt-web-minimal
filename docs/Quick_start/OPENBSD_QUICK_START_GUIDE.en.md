@@ -36,7 +36,7 @@ doas install -d -m 0755 /usr/local/bin
 doas install -m 0755 ./target/release/telemt /usr/local/bin/telemt
 
 doas install -d -m 0750 /etc/telemt
-doas install -m 0640 ./config.toml /etc/telemt/config.toml
+doas install -m 0640 ./config.yaml /etc/telemt/config.yaml
 ```
 
 ## 4. Create runtime user
@@ -60,7 +60,7 @@ Write the following to `/etc/rc.d/telemt` (mode `0555`):
 
 daemon="/usr/local/bin/telemt"
 daemon_user="_telemt"
-daemon_flags="/etc/telemt/config.toml"
+daemon_flags="/etc/telemt/config.yaml"
 
 . /etc/rc.d/rc.subr
 
@@ -136,7 +136,7 @@ ps -o user,pid,command -ax | grep telemt | grep -v grep
 4. If startup fails, debug in foreground:
 
 ```sh
-RUST_LOG=debug /usr/local/bin/telemt /etc/telemt/config.toml
+RUST_LOG=debug /usr/local/bin/telemt /etc/telemt/config.yaml
 ```
 
 ## 8. OpenBSD-specific caveats

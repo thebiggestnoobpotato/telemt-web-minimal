@@ -2,26 +2,24 @@ use super::*;
 
 fn web_config() -> &'static str {
     r#"
-[users]
-alice = "000102030405060708090a0b0c0d0e0f"
+users:
+  alice: "000102030405060708090a0b0c0d0e0f"
 
-[listener]
-ip = "127.0.0.1"
-port = 18080
-web_client_ip_source = "x_forwarded_for"
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
+listener:
+  ip: "127.0.0.1"
+  port: 18080
+  web_client_ip_source: "x_forwarded_for"
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 
-[web]
-enabled = true
-secret_mode = "plain"
-
-[web.vhost]
-host = "proxy.example.com"
-public_addr = "203.0.113.10:443"
-
-upstream = "http://127.0.0.1:18081"
-[[web.vhost.profiles]]
-user = "alice"
+web:
+  enabled: true
+  secret_mode: "plain"
+  vhost:
+    host: "proxy.example.com"
+    public_addr: "203.0.113.10:443"
+    upstream: "http://127.0.0.1:18081"
+    profiles:
+      - user: "alice"
 "#
 }
 
@@ -44,7 +42,7 @@ fn vhost_patch(base_path: &str) -> Json {
 #[tokio::test]
 async fn config_api_applies_valid_base_path_and_preserves_source_on_invalid_patch() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("config.toml");
+    let path = directory.path().join("config.yaml");
     std::fs::write(&path, web_config()).unwrap();
 
     let response = apply_patch_to_path(&path, &vhost_patch("MixedCase/path"), None)
@@ -67,10 +65,10 @@ async fn config_api_applies_valid_base_path_and_preserves_source_on_invalid_patc
     );
 
     let (managed, _revision) = read_managed_config(&path).await.unwrap();
-    let vhost = managed["web"]["vhost"].as_table().unwrap();
+    let vhost = managed["web"]["vhost"].as_mapping().unwrap();
     assert_eq!(vhost["base_path"].as_str(), Some("MixedCase/path"));
     assert!(managed["web"].get("runtime").is_none());
-    assert!(!managed.as_table().unwrap().contains_key("access"));
+    assert!(!managed.as_mapping().unwrap().contains_key("access"));
 
     let before_invalid = std::fs::read(&path).unwrap();
     let error = apply_patch_to_path(&path, &vhost_patch("/invalid"), None)

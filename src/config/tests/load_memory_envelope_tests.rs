@@ -8,7 +8,7 @@ fn write_temp_config(contents: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time must be after unix epoch")
         .as_nanos();
-    let path = std::env::temp_dir().join(format!("telemt-load-memory-envelope-{nonce}.toml"));
+    let path = std::env::temp_dir().join(format!("telemt-load-memory-envelope-{nonce}.yaml"));
     fs::write(&path, contents).expect("temp config write must succeed");
     path
 }
@@ -21,8 +21,8 @@ fn remove_temp_config(path: &PathBuf) {
 fn load_rejects_max_client_frame_above_upper_bound() {
     let path = write_temp_config(
         r#"
-[general]
-max_client_frame = 16777217
+general:
+  max_client_frame: 16777217
 "#,
     );
 
@@ -40,8 +40,8 @@ max_client_frame = 16777217
 fn load_rejects_unaligned_dc_buffer_budget() {
     let path = write_temp_config(
         r#"
-[general]
-dc_buffer_budget_max_bytes = 16777217
+general:
+  dc_buffer_budget_max_bytes: 16777217
 "#,
     );
 
@@ -58,8 +58,8 @@ dc_buffer_budget_max_bytes = 16777217
 fn load_rejects_dc_buffer_budget_above_hard_cap() {
     let path = write_temp_config(
         r#"
-[general]
-dc_buffer_budget_max_bytes = 2147487744
+general:
+  dc_buffer_budget_max_bytes: 2147487744
 "#,
     );
 
@@ -75,8 +75,8 @@ dc_buffer_budget_max_bytes = 2147487744
 fn load_rejects_listen_backlog_above_i32_upper_bound() {
     let path = write_temp_config(
         r#"
-[general]
-listen_backlog = 2147483648
+general:
+  listen_backlog: 2147483648
 "#,
     );
 
@@ -94,8 +94,8 @@ listen_backlog = 2147483648
 fn load_rejects_zero_listen_backlog() {
     let path = write_temp_config(
         r#"
-[general]
-listen_backlog = 0
+general:
+  listen_backlog: 0
 "#,
     );
 
@@ -113,9 +113,9 @@ listen_backlog = 0
 fn load_accepts_memory_limits_at_hard_upper_bounds() {
     let path = write_temp_config(
         r#"
-[general]
-dc_buffer_budget_max_bytes = 2147483648
-max_client_frame = 16777216
+general:
+  dc_buffer_budget_max_bytes: 2147483648
+  max_client_frame: 16777216
 "#,
     );
 

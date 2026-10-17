@@ -149,7 +149,7 @@ Notes:
 | `POST /v1/users` | Creates a user and returns the effective user view plus secret. |
 | `GET /v1/users/{username}` | Returns one disk-first user view or `404` when absent. |
 | `PATCH /v1/users/{username}` | Updates selected per-user fields with JSON Merge Patch semantics. |
-| `DELETE /v1/users/{username}` | Deletes one user from the API-managed `[users]` table. |
+| `DELETE /v1/users/{username}` | Deletes one user from the API-managed `users` section. |
 | `POST /v1/users/{username}/rotate-secret` | Rotates one user's secret and returns the effective secret. |
 
 ## Common Error Codes
@@ -222,7 +222,7 @@ Notes:
 
 ### `PatchConfigRequest`
 
-A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `listener`, `upstreams`, `web`). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched TOML table body is reserialized, so comments and formatting inside it can change.
+A sparse JSON object containing only the top-level config sections to modify. Each key must be one of the editable sections (`general`, `logging`, `listener`, `upstreams`, `web`). DC overrides are edited through the `general` section (`general.dc_overrides`). Tables within a section are deep-merged field-by-field into the existing config; arrays and scalar values replace the existing value wholesale. Untouched table bodies and other source files remain byte-identical; a touched YAML section body is reserialized, so comments and formatting inside it can change.
 
 **Rejected keys:**
 - An unknown or non-editable top-level key (e.g. `users`, `network`, `server`, `api`, `metrics`) → `400 section_not_editable`. Users and secrets are managed via `POST/PATCH /v1/users`.
@@ -233,7 +233,7 @@ Example — patch one `logging` field:
 {"logging": {"log_level": "verbose"}}
 ```
 
-Example — replace `[listener]`:
+Example — replace `listener`:
 ```json
 {"listener": {"ip": "0.0.0.0", "port": 443, "web_trusted_proxy_cidrs": ["127.0.0.1/32"]}}
 ```
@@ -249,17 +249,17 @@ An empty request body is accepted and generates a new secret automatically.
 
 ### `ConfigData`
 
-Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the editable TOML sections. The current revision is returned in the envelope `revision` field (same value as `config_hash` in `SystemInfoData`), **not** inside `data`.
+Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the editable sections. The current revision is returned in the envelope `revision` field (same value as `config_hash` in `SystemInfoData`), **not** inside `data`.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `general` | `object` | Complete normalized `[general]` section, including defaults. Contains `dc_overrides` (including the synthesized DC 203 endpoint when it is not authored) and `dc_default`. |
-| `logging` | `object` | Complete normalized `[logging]` section, including defaults. |
-| `listener` | `object?` | Complete normalized `[listener]` table when set; omitted when no listener is configured. |
+| `general` | `object` | Complete normalized `general` section, including defaults. Contains `dc_overrides` (including the synthesized DC 203 endpoint when it is not authored) and `dc_default`. |
+| `logging` | `object` | Complete normalized `logging` section, including defaults. |
+| `listener` | `object?` | Complete normalized `listener` table when set; omitted when no listener is configured. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `[web]` section, including defaults. `web.secret_mode` is the global secret representation for every profile, instantiated for every `[users]` user in the vhost using the `[web.limits]` ceilings; `web.vhost` includes `base_path` (empty string when omitted in TOML). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile, instantiated for every `users` user in the vhost using the `web.limits` ceilings; `web.vhost` includes `base_path` ((empty string when omitted from the source)). The derived runtime-only `web.runtime` field is excluded. |
 
-The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `[web.limits]` are persisted by the patch but take effect only at the next process restart.
+The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `web.limits` are persisted by the patch but take effect only at the next process restart.
 
 ### WEB runtime identity and lifecycle
 
@@ -759,7 +759,7 @@ Link generation:
 
 ### `GET /v1/config`
 
-Returns the current editable config sections as TOML-shaped JSON, plus the current revision. The `users` section (credentials) is always stripped and never appears in the response.
+Returns the current editable config sections as JSON, plus the current revision. The `users` section (credentials) is always stripped and never appears in the response.
 
 **Auth:** requires `Authorization` header when `auth_header` is configured (same as all other endpoints).
 
@@ -802,7 +802,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | An unknown or non-editable top-level key (e.g. `users`, `server`, `api`, `network`) | `400` | `section_not_editable` |
 | Object with no editable key | `400` | `bad_request` |
 
-**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. In particular, `web.vhost` is a single table: changing its `base_path` requires sending the complete vhost table, including each required `host`, `public_addr`, `upstream`, and profile field. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched TOML table bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a TOML table returns `409 config_patch_not_atomic` without writing any file.
+**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. In particular, `web.vhost` is a single table: changing its `base_path` requires sending the complete vhost table, including each required `host`, `public_addr`, `upstream`, and profile field. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched YAML section bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a YAML section returns `409 config_patch_not_atomic` without writing any file.
 
 **Validation:** the merged config is deserialized into the full `ProxyConfig` type and validated before writing. Failures return `400` with a descriptive message; the file is not modified.
 
@@ -871,9 +871,9 @@ The API exposes WEB desired configuration through the common config resource, pr
 
 | Operation | Current contract |
 | --- | --- |
-| Read or patch `[web]`, the vhost table, profiles, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge; changing `web.vhost.base_path` therefore requires the complete vhost table. Changed values apply at the next process restart. |
-| Persist `[listener]` | Supported through `PATCH /v1/config`; the table deep-merges field-by-field. All listener fields are process-bound: any change (including an endpoint move) applies only at the next process restart. |
-| Apply an externally edited WEB config | Update the owning TOML source, then restart the service. |
+| Read or patch `web`, the vhost table, profiles, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge; changing `web.vhost.base_path` therefore requires the complete vhost table. Changed values apply at the next process restart. |
+| Persist `listener` | Supported through `PATCH /v1/config`; the table deep-merges field-by-field. All listener fields are process-bound: any change (including an endpoint move) applies only at the next process restart. |
+| Apply an externally edited WEB config | Update the owning YAML source, then restart the service. |
 | Inspect WEB lifecycle, capacity, sessions, operations, learning, and debug state | Use the authenticated `GET /v1/runtime/web/*` routes documented above. |
 | Pause, drain, or resume new WEB work | Use `POST /v1/runtime/web/lifecycle/pause`, `/drain`, or `/resume` with the current `runtime_instance`. |
 | Close selected or all point-in-time sessions | Use `POST /v1/runtime/web/sessions/close`. For a full stop, use a bounded `POST /v1/runtime/web/lifecycle/drain`. |
@@ -899,10 +899,10 @@ Deployment, TLS-terminator examples, links, and WEB-specific verification are do
 | Endpoint | Notes |
 | --- | --- |
 | `PATCH /v1/config` | Deep-merges and validates the patch, writes touched sections via atomic `tmp + rename`, and reports the new revision plus the changed top-level sections. |
-| `POST /v1/users` | Creates and validates a user, atomically updates the API-managed `[users]` TOML table, then stages the credential in process-wide admission after the durable write. |
+| `POST /v1/users` | Creates and validates a user, atomically updates the API-managed `users` section, then stages the credential in process-wide admission after the durable write. |
 | `PATCH /v1/users/{username}` | Partial update of provided fields only. Missing fields remain unchanged; explicit `null` removes optional entries. Admission is staged only when `secret` changes; an identity change cancels current owners, while a metadata-only patch does not. |
 | `POST /v1/users/{username}/rotate-secret` | Replaces the user's secret with a provided valid 32-hex value or a generated value, stages the new process-wide admission identity, cancels owners of the old identity, then returns the effective secret in `CreateUserResponse`. |
-| `DELETE /v1/users/{username}` | Deletes only the specified user from the API-managed `[users]` table, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates the owning source file. |
+| `DELETE /v1/users/{username}` | Deletes only the specified user from the API-managed `users` section, blocks last-user deletion, stages a deletion tombstone that cancels active owners, and atomically updates the owning source file. |
 
 All accepted durable config and user mutations:
 - Respect `read_only` mode.
@@ -916,10 +916,10 @@ All accepted durable config and user mutations:
 For Unix config and user source writes, Telemt additionally takes an advisory `flock` on the root source's sibling `.lock` file, rechecks the complete source-graph revision and owner contents, and replaces the owning source through a same-directory atomic rename. Every source involved must be a non-symlink regular file with one directory entry, at most 8 MiB, and unchanged while read. The replacement preserves the existing UID, GID, and mode, syncs the temporary file before rename, and attempts to sync the parent directory afterward. Rename is the commit boundary; a later directory-sync failure is logged as a durability warning and does not roll back the already committed mutation. External writers coordinate only if they honor the same sidecar lock.
 
 Docker deployment note:
-- Mutating endpoints require `config.toml` to live inside a writable mounted directory.
-- Do not mount `config.toml` as a single bind-mounted file when API mutations are enabled; atomic `tmp + rename` writes can fail with `Device or resource busy`.
-- Mount the config directory instead, for example `./config:/etc/telemt:rw`, and start Telemt with `/etc/telemt/config.toml`.
-- A read-only single-file mount remains valid only for read-only deployments or when `[api].read_only=true`.
+- Mutating endpoints require `config.yaml` to live inside a writable mounted directory.
+- Do not mount `config.yaml` as a single bind-mounted file when API mutations are enabled; atomic `tmp + rename` writes can fail with `Device or resource busy`.
+- Mount the config directory instead, for example `./config:/etc/telemt:rw`, and start Telemt with `/etc/telemt/config.yaml`.
+- A read-only single-file mount remains valid only for read-only deployments or when `api.read_only: true`.
 
 Delete path cleanup guarantees:
 - Config cleanup removes only the requested username keys.
@@ -968,7 +968,7 @@ The current runtime exports these additional bounded-cardinality families. All u
 | Restart requirements | `api` changes are restart-required for predictable behavior. |
 | Exposure | Built-in TLS/mTLS is not provided. Use loopback bind + reverse proxy if needed. |
 | Pagination | User list currently has no pagination/filtering. |
-| Serialization side effect | Updated TOML table bodies are re-serialized on write. Endpoints that persist full config can still rewrite broader formatting/comments. |
+| Serialization side effect | Updated YAML section bodies are re-serialized on write. Endpoints that persist full config can still rewrite broader formatting/comments. |
 
 ## Known Limitations (Current Release)
 

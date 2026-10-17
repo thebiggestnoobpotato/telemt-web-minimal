@@ -1,6 +1,6 @@
 //! Configuration data model split by serialized responsibility.
 //!
-//! Each private submodule owns one stable group of existing TOML fields while
+//! Each private submodule owns one stable group of existing YAML fields while
 //! this facade preserves the public crate configuration surface.
 
 use ipnetwork::IpNetwork;

@@ -213,8 +213,8 @@ const LOGGING_CONFIG_KEYS: &[&str] = &[
 mod check;
 
 /// Rejects or reports unknown configuration keys according to strict mode.
-pub(super) fn handle_unknown_config_keys(parsed_toml: &toml::Value) -> Result<()> {
-    let unknown = check::collect_unknown_config_keys(parsed_toml);
+pub(super) fn handle_unknown_config_keys(parsed_yaml: &serde_yaml::Value) -> Result<()> {
+    let unknown = check::collect_unknown_config_keys(parsed_yaml);
     if unknown.is_empty() {
         return Ok(());
     }
@@ -231,7 +231,7 @@ pub(super) fn handle_unknown_config_keys(parsed_toml: &toml::Value) -> Result<()
         }
     }
 
-    if check::is_strict_config(parsed_toml) {
+    if check::is_strict_config(parsed_yaml) {
         let mut paths = Vec::with_capacity(unknown.len());
         for item in unknown {
             if let Some(suggestion) = item.suggestion {

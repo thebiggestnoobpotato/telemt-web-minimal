@@ -12,7 +12,7 @@ use super::atomic::write_atomic_if_unchanged;
 use super::compute_revision;
 use super::{
     AccessSection, compute_snapshot_revision, load_candidate_snapshot, load_config_snapshot,
-    resolve_single_source_owner, toml_path_exists,
+    resolve_single_source_owner, yaml_path_exists,
 };
 use crate::api::model::ApiFailure;
 
@@ -30,54 +30,58 @@ pub(super) async fn save_sections_to_disk(
 
     for section in sections {
         let rendered = render_top_level_section(cfg, section)?;
-        content = upsert_toml_table(&content, section, &rendered);
+        content = upsert_yaml_section(&content, section, &rendered);
     }
 
     write_atomic(config_path.to_path_buf(), content.clone()).await?;
     Ok(compute_revision(&content))
 }
 
-/// Render one top-level table as `[section]\n...\n` (or `[[upstreams]]` array
-/// of tables) from the typed `cfg`. Serializes via the `toml` crate so the
-/// output matches the canonical format Telemt parses.
+/// Render one top-level section as `section:\n...\n` (or a sequence for
+/// `upstreams`) from the typed `cfg`. Serializes via `serde_yaml` so the
+/// output matches the canonical format Telemt parses. The libyaml emitter
+/// already quotes any string token that would not round-trip as a string
+/// (numeric-looking secrets, hex usernames, `true`-like values), so the
+/// rendered text is always safe to splice back into a config source.
 pub(in crate::api) fn render_top_level_section(
     cfg: &ProxyConfig,
     section: &str,
 ) -> Result<String, ApiFailure> {
-    let value = toml::Value::try_from(cfg)
+    let value = serde_yaml::to_value(cfg)
         .map_err(|e| ApiFailure::internal(format!("failed to serialize config: {}", e)))?;
     let table = value
         .get(section)
+        .cloned()
         .ok_or_else(|| ApiFailure::internal(format!("unknown section: {}", section)))?;
 
-    // upstreams is an array-of-tables -> render as [[upstreams]] blocks.
-    if let toml::Value::Array(items) = table {
-        let mut out = String::new();
-        for item in items {
-            out.push_str(&format!("[[{}]]\n", section));
-            out.push_str(&toml::to_string(item).map_err(|e| {
-                ApiFailure::internal(format!("failed to serialize {}: {}", section, e))
-            })?);
-            if !out.ends_with('\n') {
-                out.push('\n');
-            }
+    let mut out = format!("{section}:\n");
+    match table {
+        // upstreams is an array; an empty one collapses to the flow form.
+        serde_yaml::Value::Sequence(items) if items.is_empty() => {
+            out.pop();
+            out.push_str(" []\n");
         }
-        return Ok(out);
-    }
-
-    // Serialize the table *inside a wrapper keyed by `section`* so the `toml`
-    // crate emits correctly dotted headers for nested sub-tables, e.g.
-    // `[web]` + `[web.timeouts]`. Serializing the inner table alone
-    // would render a bare `[timeouts]` header, which would leak as a
-    // duplicate top-level table and break config load.
-    let mut wrapper = toml::value::Table::new();
-    wrapper.insert(section.to_string(), table.clone());
-    let mut out = toml::to_string(&toml::Value::Table(wrapper))
-        .map_err(|e| ApiFailure::internal(format!("failed to serialize {}: {}", section, e)))?;
-    if !out.ends_with('\n') {
-        out.push('\n');
+        body => {
+            let rendered = serde_yaml::to_string(&body)
+                .map_err(|e| ApiFailure::internal(format!("failed to serialize {}: {}", section, e)))?;
+            out.push_str(&indent_yaml_lines(&rendered, "  "));
+        }
     }
     Ok(out)
+}
+
+// Prefixes every non-empty line of a standalone YAML document with the given
+// indent so it can be nested under a top-level section key. Empty lines stay
+// empty: a blank line is legal inside a block mapping and keeps the diff clean.
+fn indent_yaml_lines(rendered: &str, prefix: &str) -> String {
+    let mut out = String::with_capacity(rendered.len() + rendered.lines().count() * prefix.len());
+    for line in rendered.split_inclusive('\n') {
+        if !line.trim_end().is_empty() {
+            out.push_str(prefix);
+        }
+        out.push_str(line);
+    }
+    out
 }
 
 /// Validates and atomically writes access tables to their single source owner.
@@ -111,9 +115,9 @@ pub(in crate::api) async fn save_access_sections_to_disk_if_revision(
     applied.retain(|section| {
         !access_section_is_empty(cfg, *section)
             || loaded.source_contents.values().any(|contents| {
-                toml::from_str::<toml::Value>(contents)
+                serde_yaml::from_str::<serde_yaml::Value>(contents)
                     .ok()
-                    .is_some_and(|value| toml_path_exists(&value, section.table_name()))
+                    .is_some_and(|value| yaml_path_exists(&value, section.table_name()))
             })
     });
     if applied.is_empty() {
@@ -133,7 +137,7 @@ pub(in crate::api) async fn save_access_sections_to_disk_if_revision(
     let expected_owner_contents = owner_contents.clone();
     for section in applied {
         let rendered = render_access_section(cfg, section)?;
-        owner_contents = upsert_toml_table(&owner_contents, section.table_name(), &rendered);
+        owner_contents = upsert_yaml_section(&owner_contents, section.table_name(), &rendered);
     }
 
     let candidate = load_candidate_snapshot(
@@ -167,17 +171,16 @@ pub(super) fn render_access_section(
                 .iter()
                 .map(|(key, value)| (key.clone(), value.clone()))
                 .collect();
-            serialize_table_body(&rows)?
+            serialize_mapping_body(&rows)?
         }
     };
 
-    let mut out = format!("[{}]\n", section.table_name());
-    if !body.is_empty() {
-        out.push_str(&body);
+    if body.is_empty() {
+        // A bare `users:` line would deserialize as null, not an empty table.
+        return Ok(format!("{}: {{}}\n", section.table_name()));
     }
-    if !out.ends_with('\n') {
-        out.push('\n');
-    }
+    let mut out = format!("{}:\n", section.table_name());
+    out.push_str(&body);
     Ok(out)
 }
 
@@ -187,23 +190,24 @@ fn access_section_is_empty(cfg: &ProxyConfig, section: AccessSection) -> bool {
     }
 }
 
-fn serialize_table_body<T: Serialize>(value: &T) -> Result<String, ApiFailure> {
-    toml::to_string(value)
-        .map_err(|e| ApiFailure::internal(format!("failed to serialize access section: {}", e)))
+fn serialize_mapping_body<T: Serialize>(value: &T) -> Result<String, ApiFailure> {
+    let rendered = serde_yaml::to_string(value)
+        .map_err(|e| ApiFailure::internal(format!("failed to serialize access section: {}", e)))?;
+    Ok(indent_yaml_lines(&rendered, "  "))
 }
 
-/// Replaces all blocks owned by one semantic TOML table with one rendering.
-pub(in crate::api) fn upsert_toml_table(
+/// Replaces all blocks owned by one top-level YAML section with one rendering.
+pub(in crate::api) fn upsert_yaml_section(
     source: &str,
-    table_name: &str,
+    section: &str,
     replacement: &str,
 ) -> String {
-    let blocks = find_all_table_blocks(source, table_name);
+    let blocks = find_all_section_blocks(source, section);
     if let Some(&(first_start, first_end)) = blocks.first() {
         // Replace the first block in place and delete any further blocks that
-        // also belong to this table. Telemt writes a section's sub-tables
-        // contiguously, but a hand-edited config may scatter them; dropping the
-        // extras here prevents the duplicate-table corruption that would
+        // also belong to this section. Telemt writes a section's content
+        // contiguously, but a hand-edited config may scatter it; dropping the
+        // extras here prevents the duplicate-key corruption that would
         // otherwise break config load.
         let mut out = String::with_capacity(source.len() + replacement.len());
         out.push_str(&source[..first_start]);
@@ -228,55 +232,55 @@ pub(in crate::api) fn upsert_toml_table(
     out
 }
 
-/// Whether a (comment-stripped, trimmed) TOML header line belongs to
-/// `table_name`: the table itself (`[X]` / `[[X]]`) or any of its nested
-/// sub-tables (`[X.…]` / `[[X.…]]`). The trailing dot guards against sibling
-/// prefixes — `users` must not match `access.user_max_unique_ips`.
-fn header_belongs_to(header: &str, table_name: &str) -> bool {
-    let body = match header.strip_prefix("[[").and_then(|h| h.strip_suffix("]]")) {
-        Some(body) => body,
-        None => match header.strip_prefix('[').and_then(|h| h.strip_suffix(']')) {
-            Some(body) => body,
-            None => return false,
-        },
-    };
-    let body = body.trim();
-    body == table_name
-        || body
-            .strip_prefix(table_name)
-            .is_some_and(|rest| rest.starts_with('.'))
+// The top-level section key a line declares, when it is a column-0 mapping
+// entry: a bare identifier followed by a colon and whitespace or end of line,
+// any trailing comment stripped. Indented lines never own a top-level section.
+pub(in crate::api) fn top_level_key_of(line: &str) -> Option<&str> {
+    let without_comment = line.split('#').next().unwrap_or("");
+    let head = without_comment.trim_end();
+    let colon = head.find(':')?;
+    let key = &head[..colon];
+    if key.is_empty()
+        || !key
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+    {
+        return None;
+    }
+    let after_colon = &head[colon + 1..];
+    if !after_colon.is_empty() && !after_colon.starts_with(char::is_whitespace) {
+        return None;
+    }
+    Some(key)
 }
 
-/// Locate the first contiguous byte range covering `table_name` and the nested
-/// sub-tables immediately following it. Used for existence checks; see
-/// [`find_all_table_blocks`] for the full set of (possibly scattered) blocks.
-/// Locates one complete TOML table block in source text.
+/// Locate the first contiguous byte range of one top-level section. Used for
+/// existence checks; see [`find_all_section_blocks`] for the full set of
+/// (possibly scattered) blocks.
 #[cfg(test)]
-pub(super) fn find_toml_table_bounds(source: &str, table_name: &str) -> Option<(usize, usize)> {
-    find_all_table_blocks(source, table_name).into_iter().next()
+pub(super) fn find_yaml_section_bounds(source: &str, section: &str) -> Option<(usize, usize)> {
+    find_all_section_blocks(source, section).into_iter().next()
 }
 
-/// Locate every byte range that belongs to `table_name`: the table header and
-/// its nested sub-tables. Returns one range per contiguous run, so a config
-/// where a section's sub-tables are scattered (e.g. hand-edited) yields several
-/// ranges — letting the caller collapse them into a single rendered block.
-fn find_all_table_blocks(source: &str, table_name: &str) -> Vec<(usize, usize)> {
+/// Locate every byte range that belongs to `section`: from its column-0 key
+/// line to the next top-level key line (or end of file). Returns one range per
+/// contiguous run, so a config where a section's content is scattered (e.g.
+/// hand-edited) yields several ranges — letting the caller collapse them into
+/// a single rendered block.
+fn find_all_section_blocks(source: &str, section: &str) -> Vec<(usize, usize)> {
     let mut blocks = Vec::new();
     let mut offset = 0usize;
     let mut start: Option<usize> = None;
 
     for line in source.split_inclusive('\n') {
-        // Drop any inline comment so a hand-edited header like
-        // `[general] # note` still matches. Section names never contain `#`.
-        let header = line.trim().split('#').next().unwrap_or("").trim();
-        let is_header = header.starts_with('[');
+        let key = top_level_key_of(line);
         if let Some(start_offset) = start {
-            if is_header && !header_belongs_to(header, table_name) {
+            if key.is_some() && key != Some(section) {
                 blocks.push((start_offset, offset));
                 start = None;
             }
         }
-        if start.is_none() && header_belongs_to(header, table_name) {
+        if start.is_none() && key == Some(section) {
             start = Some(offset);
         }
         offset = offset.saturating_add(line.len());

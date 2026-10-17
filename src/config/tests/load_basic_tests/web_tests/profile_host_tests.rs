@@ -1,34 +1,30 @@
 use super::*;
 
 const PROFILE_HOST_CONFIG: &str = r#"
-[users]
-alice = "000102030405060708090a0b0c0d0e0f"
-bob = "1112131415161718191a1b1c1d1e1f20"
+users:
+  alice: "000102030405060708090a0b0c0d0e0f"
+  bob: "1112131415161718191a1b1c1d1e1f20"
 
-[listener]
-ip = "127.0.0.1"
-port = 18080
-web_client_ip_source = "x_forwarded_for"
-web_trusted_proxy_cidrs = ["127.0.0.1/32"]
+listener:
+  ip: "127.0.0.1"
+  port: 18080
+  web_client_ip_source: "x_forwarded_for"
+  web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 
-[general]
-config_strict = true
+general:
+  config_strict: true
 
-[web]
-carrier = "https-lanes"
-secret_mode = "plain"
-
-[web.vhost]
-host = "proxy.example.com"
-public_addr = "203.0.113.10:443"
-upstream = "unix:/tmp/site.sock"
-
-[[web.vhost.profiles]]
-user = "alice"
-
-[[web.vhost.profiles]]
-user = "bob"
-host = "Alt.Example.COM"
+web:
+  carrier: "https-lanes"
+  secret_mode: "plain"
+  vhost:
+    host: "proxy.example.com"
+    public_addr: "203.0.113.10:443"
+    upstream: "unix:/tmp/site.sock"
+    profiles:
+      - user: "alice"
+      - user: "bob"
+        host: "Alt.Example.COM"
 "#;
 
 fn fallback_authority(vhost: &WebRuntimeVhost) -> &str {
@@ -39,7 +35,7 @@ fn fallback_authority(vhost: &WebRuntimeVhost) -> &str {
 
 #[test]
 fn profile_host_override_builds_one_runtime_entry_per_host() {
-    let config = load_config_from_temp_toml(PROFILE_HOST_CONFIG);
+    let config = load_config_from_temp_yaml(PROFILE_HOST_CONFIG);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     assert_eq!(runtime.vhosts.len(), 2, "vhosts: {:?}", runtime.vhosts.keys().collect::<Vec<_>>());
 
@@ -70,7 +66,7 @@ fn profile_host_override_builds_one_runtime_entry_per_host() {
 
 #[test]
 fn unix_fallback_authority_follows_each_profile_host() {
-    let config = load_config_from_temp_toml(PROFILE_HOST_CONFIG);
+    let config = load_config_from_temp_yaml(PROFILE_HOST_CONFIG);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let default = runtime
         .vhosts
@@ -86,7 +82,7 @@ fn unix_fallback_authority_follows_each_profile_host() {
 
 #[test]
 fn profile_host_link_uses_the_overridden_host() {
-    let config = load_config_from_temp_toml(PROFILE_HOST_CONFIG);
+    let config = load_config_from_temp_yaml(PROFILE_HOST_CONFIG);
     let links = crate::web::links::web_links_for_user(&config, "bob");
     assert_eq!(links.len(), 1, "{links:?}");
     assert!(links[0].starts_with("tg://webproxy?server=alt.example.com"), "{links:?}");
@@ -99,12 +95,11 @@ fn profile_host_link_uses_the_overridden_host() {
 fn profile_host_accepts_several_users_on_one_host() {
     // Both users explicitly point at the same profile host: the vhost host
     // then has no runtime entry at all.
-    let toml = PROFILE_HOST_CONFIG.replace(
-        "user = \"alice\"\n\n[[web.vhost.profiles]]\nuser = \"bob\"\nhost = \"Alt.Example.COM\"",
-        "user = \"alice\"\nhost = \"alt.example.com\"\n\n\
-         [[web.vhost.profiles]]\nuser = \"bob\"\nhost = \"alt.example.com\"",
+    let yaml = PROFILE_HOST_CONFIG.replace(
+        "      - user: \"alice\"\n      - user: \"bob\"\n        host: \"Alt.Example.COM\"",
+        "      - user: \"alice\"\n        host: \"alt.example.com\"\n      - user: \"bob\"\n        host: \"alt.example.com\"",
     );
-    let config = load_config_from_temp_toml(&toml);
+    let config = load_config_from_temp_yaml(&yaml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     // Both users live under the shared profile host; the vhost host entry is empty.
     let shared = runtime.vhosts.get("alt.example.com").expect("shared profile host entry");
@@ -120,15 +115,12 @@ fn instantiated_profiles_keep_the_vhost_host() {
     // bob has no explicit profile: web.secret_mode instantiates him on the
     // vhost host even when another profile overrides its host.
     let base = PROFILE_HOST_CONFIG
+        .replace("      - user: \"bob\"\n        host: \"Alt.Example.COM\"\n", "")
         .replace(
-            "[[web.vhost.profiles]]\nuser = \"bob\"\nhost = \"Alt.Example.COM\"\n",
-            "",
-        )
-        .replace(
-            "[[web.vhost.profiles]]\nuser = \"alice\"\n",
-            "[[web.vhost.profiles]]\nuser = \"alice\"\nhost = \"Alt.Example.COM\"\n",
+            "      - user: \"alice\"\n",
+            "      - user: \"alice\"\n        host: \"Alt.Example.COM\"\n",
         );
-    let config = load_config_from_temp_toml(&base);
+    let config = load_config_from_temp_yaml(&base);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     assert_eq!(runtime.vhosts.len(), 2);
     let default = runtime
@@ -148,11 +140,11 @@ fn instantiated_profiles_keep_the_vhost_host() {
 
 #[test]
 fn profile_host_rejects_ip_literals_with_the_field_path() {
-    let toml = PROFILE_HOST_CONFIG.replace(
-        "host = \"Alt.Example.COM\"",
-        "host = \"203.0.113.10\"",
+    let yaml = PROFILE_HOST_CONFIG.replace(
+        "host: \"Alt.Example.COM\"",
+        "host: \"203.0.113.10\"",
     );
-    let error = load_config_error_from_temp_toml(&toml);
+    let error = load_config_error_from_temp_yaml(&yaml);
     assert!(error.contains("web.vhost.profiles[1].host"), "{error}");
     assert!(
         error.contains("must be a non-IP fully-qualified hostname"),
@@ -164,11 +156,11 @@ fn profile_host_rejects_ip_literals_with_the_field_path() {
 fn duplicate_secret_on_different_profile_hosts_does_not_collide() {
     // The host is part of the capability derivation, so the same secret on
     // two different profile hosts yields distinct capabilities.
-    let toml = PROFILE_HOST_CONFIG.replace(
-        "bob = \"1112131415161718191a1b1c1d1e1f20\"",
-        "bob = \"000102030405060708090a0b0c0d0e0f\"",
+    let yaml = PROFILE_HOST_CONFIG.replace(
+        "bob: \"1112131415161718191a1b1c1d1e1f20\"",
+        "bob: \"000102030405060708090a0b0c0d0e0f\"",
     );
-    let config = load_config_from_temp_toml(&toml);
+    let config = load_config_from_temp_yaml(&yaml);
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     assert_eq!(runtime.profiles.len(), 2);
     let capabilities: Vec<[u8; 32]> = runtime.profiles.iter().map(|p| p.capability).collect();

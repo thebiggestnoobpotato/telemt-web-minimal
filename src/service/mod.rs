@@ -88,7 +88,7 @@ impl<'a> Default for ServiceOptions<'a> {
     fn default() -> Self {
         Self {
             exe_path: Path::new("/usr/local/bin/telemt"),
-            config_path: Path::new("/etc/telemt/config.toml"),
+            config_path: Path::new("/etc/telemt/config.yaml"),
             user: Some("telemt"),
             group: Some("telemt"),
             pid_file: "/var/run/telemt.pid",
@@ -228,7 +228,7 @@ fn generate_freebsd_rc_script(opts: &ServiceOptions) -> String {
 #
 # telemt_enable="YES"
 # The configuration path can be overridden in rc.conf.
-# telemt_config="/etc/telemt/config.toml"
+# telemt_config="/etc/telemt/config.yaml"
 # The service user and group can be overridden in rc.conf.
 # telemt_user="telemt"
 # telemt_group="telemt"
@@ -318,7 +318,7 @@ To apply configuration changes:
         InitSystem::Unknown => {
             r#"No supported init system detected.
 You may need to create a service file manually or run telemt directly:
-  telemt start /etc/telemt/config.toml
+  telemt start /etc/telemt/config.yaml
 "#
         }
     }

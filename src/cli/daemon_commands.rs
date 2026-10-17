@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn runtime_path_policy_defaults_to_compatibility_for_all_commands() {
         for command in ["run", "start", "stop", "status"] {
-            let args = vec![command.to_string(), "config.toml".to_string()];
+            let args = vec![command.to_string(), "config.yaml".to_string()];
             assert!(
                 !crate::cli::parse_command(&args)
                     .daemon_opts
@@ -150,17 +150,17 @@ mod tests {
                 let parsed = crate::cli::parse_command(&strict_args);
                 assert!(parsed.daemon_opts.strict_runtime_paths);
                 assert!(parse_daemon_args(&strict_args).strict_runtime_paths);
-                assert_eq!(parsed.config_path, "config.toml");
+                assert_eq!(parsed.config_path, "config.yaml");
             }
         }
         let args = vec![
             "--strict-runtime-paths".to_string(),
-            "config.toml".to_string(),
+            "config.yaml".to_string(),
         ];
         let parsed = crate::cli::parse_command(&args);
         assert_eq!(parsed.subcommand, crate::cli::Subcommand::Run);
         assert!(parsed.daemon_opts.strict_runtime_paths);
-        assert_eq!(parsed.config_path, "config.toml");
+        assert_eq!(parsed.config_path, "config.yaml");
     }
 
     #[tokio::test(flavor = "current_thread")]

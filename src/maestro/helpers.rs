@@ -44,10 +44,10 @@ pub(crate) fn resolve_runtime_config_path(
 
     let etc_telemt = std::path::Path::new("/etc/telemt");
     let candidates = [
-        startup_cwd.join("config.toml"),
-        startup_cwd.join("telemt.toml"),
-        etc_telemt.join("telemt.toml"),
-        etc_telemt.join("config.toml"),
+        startup_cwd.join("config.yaml"),
+        startup_cwd.join("telemt.yaml"),
+        etc_telemt.join("telemt.yaml"),
+        etc_telemt.join("config.yaml"),
     ];
     for candidate in candidates {
         if candidate.is_file() {
@@ -55,7 +55,7 @@ pub(crate) fn resolve_runtime_config_path(
         }
     }
 
-    startup_cwd.join("config.toml")
+    startup_cwd.join("config.yaml")
 }
 
 /// Selects the runtime directory from CLI, startup cwd, and explicit config location.
@@ -120,7 +120,7 @@ pub(crate) struct CliArgs {
 
 /// Parses runtime arguments after early daemon and control-command handling.
 pub(crate) fn parse_cli() -> CliArgs {
-    let mut config_path = "config.toml".to_string();
+    let mut config_path = "config.yaml".to_string();
     let mut config_path_explicit = false;
     let mut runtime_path: Option<PathBuf> = None;
     let mut silent = false;
@@ -231,7 +231,7 @@ pub(crate) fn parse_cli() -> CliArgs {
 }
 
 fn print_help() {
-    eprintln!("Usage: telemt [COMMAND] [OPTIONS] [config.toml]");
+    eprintln!("Usage: telemt [COMMAND] [OPTIONS] [config.yaml]");
     eprintln!();
     eprintln!("Commands:");
     eprintln!("  run                     Run in foreground (default if no command given)");
@@ -287,8 +287,8 @@ fn print_help() {
     {
         eprintln!();
         eprintln!("Examples:");
-        eprintln!("  telemt config.toml                    Run in foreground");
-        eprintln!("  telemt start config.toml              Start as daemon");
+        eprintln!("  telemt config.yaml                    Run in foreground");
+        eprintln!("  telemt start config.yaml              Start as daemon");
         eprintln!("  telemt start --pid-file /tmp/t.pid    Start with custom PID file");
         eprintln!("  telemt stop                           Stop daemon");
         eprintln!("  telemt reload                         Reload configuration");

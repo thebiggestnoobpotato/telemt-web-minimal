@@ -36,7 +36,7 @@ pub enum WebSecretMode {
 /// One access user explicitly exposed through a WEB virtual host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebProfileConfig {
-    /// Existing `[users]` key authenticated by the inner MTProxy handshake.
+    /// Existing `users` key authenticated by the inner MTProxy handshake.
     pub user: String,
     /// Optional per-profile hostname; the vhost host applies when absent.
     #[serde(default)]
@@ -385,7 +385,7 @@ pub enum WebCarrierNegotiationAggressiveness {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebConfig {
     /// Global secret representation; instantiates a profile for every
-    /// `[users]` user in every vhost. Unset leaves instantiation disabled.
+    /// `users` user in every vhost. Unset leaves instantiation disabled.
     #[serde(default)]
     pub secret_mode: Option<WebSecretMode>,
     /// Sole carrier when negotiation is disabled and final fallback when enabled.

@@ -21,24 +21,24 @@ fn fallback_dns_timeout_defaults_to_five_seconds() {
 #[test]
 fn fallback_dns_resolution_is_opt_in() {
     let hostname = WEB_CONFIG.replace("127.0.0.1:18081", "example.com:18081");
-    assert!(load_config_error_from_temp_toml(&hostname).contains("IP literal"));
+    assert!(load_config_error_from_temp_yaml(&hostname).contains("IP literal"));
     let never = hostname.replace(
-        "upstream = \"http://example.com:18081\"",
-        "upstream = \"http://example.com:18081\"\nresolve = \"never\"",
+        "upstream: \"http://example.com:18081\"",
+        "upstream: \"http://example.com:18081\"\n    resolve: \"never\"",
     );
-    assert!(load_config_error_from_temp_toml(&never).contains("IP literal"));
+    assert!(load_config_error_from_temp_yaml(&never).contains("IP literal"));
     let unknown = WEB_CONFIG.replace(
-        "upstream = \"http://127.0.0.1:18081\"",
-        "upstream = \"http://127.0.0.1:18081\"\nresolve = \"always\"",
+        "upstream: \"http://127.0.0.1:18081\"",
+        "upstream: \"http://127.0.0.1:18081\"\n    resolve: \"always\"",
     );
-    assert!(load_config_error_from_temp_toml(&unknown).contains("unknown variant"));
+    assert!(load_config_error_from_temp_yaml(&unknown).contains("unknown variant"));
     // resolve only applies to http origins; unix sockets never need DNS.
     let unix_with_resolve = WEB_CONFIG.replace(
-        "upstream = \"http://127.0.0.1:18081\"",
-        "upstream = \"unix:/tmp/site.sock\"\nresolve = \"startup\"",
+        "upstream: \"http://127.0.0.1:18081\"",
+        "upstream: \"unix:/tmp/site.sock\"\n    resolve: \"startup\"",
     );
     assert!(
-        load_config_error_from_temp_toml(&unix_with_resolve)
+        load_config_error_from_temp_yaml(&unix_with_resolve)
             .contains("web.vhost.resolve is only valid for http origins")
     );
 }
@@ -46,12 +46,18 @@ fn fallback_dns_resolution_is_opt_in() {
 #[test]
 fn fallback_dns_timeout_bounds_are_independent_from_request_deadlines() {
     for seconds in [0, 3601] {
-        let text = format!("{WEB_CONFIG}\n[web.timeouts]\nfallback_resolve_secs = {seconds}\n");
-        assert!(load_config_error_from_temp_toml(&text).contains("fallback_resolve_secs"));
+        let text = WEB_CONFIG.replace(
+            "  vhost:",
+            &format!("  timeouts:\n    fallback_resolve_secs: {seconds}\n\n  vhost:"),
+        );
+        assert!(load_config_error_from_temp_yaml(&text).contains("fallback_resolve_secs"));
     }
-    let text = format!("{WEB_CONFIG}\n[web.timeouts]\nfallback_resolve_secs = 3600\n");
+    let text = WEB_CONFIG.replace(
+        "  vhost:",
+        "  timeouts:\n    fallback_resolve_secs: 3600\n\n  vhost:",
+    );
     assert_eq!(
-        load_config_from_temp_toml(&text)
+        load_config_from_temp_yaml(&text)
             .web
             .timeouts
             .fallback_resolve_secs,
