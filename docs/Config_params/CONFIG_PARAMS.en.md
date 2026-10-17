@@ -714,11 +714,12 @@ The hostname must be accepted by Telegram Desktop and is normalized during valid
 | Key | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `user` | `String` | yes | — | Existing 1–64-byte key from `[users]`; the bound keeps runtime status and filters bounded. |
+| `host` | `String` | no | `[web.vhost].host` | Optional per-profile hostname, normalized with the vhost hostname rules. Routes, derives the capability, sets the unix fallback request authority, and emits links under this hostname; the vhost `base_path`, `public_addr`, and fallback origin stay shared. |
 | `max_sessions` | `usize` | no | `web.limits.max_sessions_global` | Live sessions for this profile. |
 | `max_streams` | `usize` | no | `web.limits.max_streams_global` | Live logical streams for this profile. |
 | `max_streams_per_session` | `usize` | no | `web.limits.max_streams_per_session` | Live logical streams in one profile session. |
 
-Profile limits must be non-zero and no greater than their corresponding global limits. Duplicate profiles for one user in the vhost are rejected. An explicit entry wins over the profile instantiated by `web.secret_mode` for the same user: the global profile is skipped for that user in that vhost only.
+Profile limits must be non-zero and no greater than their corresponding global limits. Duplicate profiles for one user in the vhost are rejected. An explicit entry wins over the profile instantiated by `web.secret_mode` for the same user: the global profile is skipped for that user in that vhost only. A profile-level `host` moves that one profile — its runtime routing entry, capability derivation, and emitted link — to that hostname; profiles without one, and every `web.secret_mode`-instantiated profile, keep the vhost host. A bridge token presented under a host that is not the capability host fails the scan and follows ordinary fallback handling.
 
 ## WEB lifecycle and API management
 

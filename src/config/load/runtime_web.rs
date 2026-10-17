@@ -19,6 +19,13 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     let mut runtime_profiles = Vec::new();
     let mut runtime_capabilities = Vec::new();
 
+    // Per-host profile and capability groups backing one runtime vhost entry.
+    #[derive(Default)]
+    struct HostProfiles {
+        profiles: Vec<Arc<WebRuntimeProfile>>,
+        capabilities: Vec<[u8; 32]>,
+    }
+
     let carrier_candidates: Arc<[WebCarrier]> = config.web.carrier_candidates().into();
     if let Some(vhost) = &config.web.vhost {
         let fallback = build_fallback(config, vhost)?;
@@ -37,6 +44,7 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                 specs.push((
                     profile.user.as_str(),
                     secret_mode,
+                    profile.host.as_deref().unwrap_or(vhost.host.as_str()),
                     profile.max_sessions,
                     profile.max_streams,
                     profile.max_streams_per_session,
@@ -53,16 +61,16 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                 specs.push((
                     entry.user.as_str(),
                     secret_mode,
+                    vhost.host.as_str(),
                     None,
                     None,
                     None,
                 ));
             }
         }
-        let mut profiles = Vec::with_capacity(specs.len());
-        let mut capability_table = Vec::with_capacity(specs.len());
+        let mut host_groups: BTreeMap<String, HostProfiles> = BTreeMap::new();
         let mut capabilities = HashSet::with_capacity(specs.len());
-        for (user, secret_mode, max_sessions, max_streams, max_streams_per_session) in &specs {
+        for (user, secret_mode, host, max_sessions, max_streams, max_streams_per_session) in &specs {
             let user_id = auth.user_id_by_name(user).ok_or_else(|| {
                 ProxyError::Config(format!("WEB profile references unknown access user `{user}`"))
             })?;
@@ -72,18 +80,17 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
             let (client_secret, client_secret_len) = client_secret(auth_entry.secret, *secret_mode);
             let capability = derive_web_capability(
                 &client_secret[..client_secret_len],
-                vhost.host.as_bytes(),
+                host.as_bytes(),
                 vhost.base_path.as_bytes(),
             )?;
             let key_fingerprint = debug_key_fingerprint(&client_secret[..client_secret_len]);
             if !capabilities.insert(capability) {
                 return Err(ProxyError::Config(format!(
-                    "WEB vhost `{}` contains profiles with the same client capability",
-                    vhost.host
+                    "WEB host `{host}` contains profiles with the same client capability"
                 )));
             }
             let runtime_profile = Arc::new(WebRuntimeProfile {
-                host: vhost.host.clone(),
+                host: host.to_string(),
                 public_addr: vhost.public_addr,
                 user: auth_entry.user.clone(),
                 credential_id: auth_entry.credential_id,
@@ -104,27 +111,32 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                 max_streams_per_session: (*max_streams_per_session)
                     .unwrap_or(config.web.limits.max_streams_per_session),
             });
-            capability_table.push(capability);
             runtime_capabilities.push(capability);
-            profiles.push(Arc::clone(&runtime_profile));
+            let group = host_groups.entry(host.to_string()).or_default();
+            group.profiles.push(Arc::clone(&runtime_profile));
+            group.capabilities.push(capability);
             runtime_profiles.push(runtime_profile);
         }
-        runtime_vhosts.insert(
-            vhost.host.clone(),
-            Arc::new(WebRuntimeVhost {
-                host: vhost.host.clone(),
-                base: if vhost.base_path.is_empty() {
-                    "/".to_string()
-                } else {
-                    format!("/{}/", vhost.base_path)
-                },
-                fallback_fasttrack_mode: config.web.fallback_fasttrack_mode,
-                fallback,
-                fallback_header_secs: config.web.timeouts.fallback_header_secs,
-                profiles,
-                capabilities: capability_table.into_boxed_slice(),
-            }),
-        );
+        let base = if vhost.base_path.is_empty() {
+            "/".to_string()
+        } else {
+            format!("/{}/", vhost.base_path)
+        };
+        for (host, group) in host_groups {
+            let fallback = host_fallback(&fallback, &host);
+            runtime_vhosts.insert(
+                host.clone(),
+                Arc::new(WebRuntimeVhost {
+                    host,
+                    base: base.clone(),
+                    fallback_fasttrack_mode: config.web.fallback_fasttrack_mode,
+                    fallback,
+                    fallback_header_secs: config.web.timeouts.fallback_header_secs,
+                    profiles: group.profiles,
+                    capabilities: group.capabilities.into_boxed_slice(),
+                }),
+            );
+        }
     }
 
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {
@@ -179,6 +191,22 @@ fn client_secret(secret: [u8; 16], mode: WebSecretMode) -> ([u8; 17], usize) {
 
 fn build_fallback(config: &ProxyConfig, vhost: &WebVhostConfig) -> Result<WebRuntimeFallback> {
     fallback_dns::build_upstream(config, &vhost.upstream, vhost.resolve)
+}
+
+// A unix origin has no authority of its own: the request host selects the
+// fronting site, so every runtime vhost entry carries its own host as the
+// request authority. http origins keep the configured authority everywhere.
+fn host_fallback(fallback: &WebRuntimeFallback, host: &str) -> WebRuntimeFallback {
+    let WebRuntimeFallback::HttpUpstream { endpoint, authority } = fallback;
+    let authority = if matches!(endpoint, FallbackEndpoint::Unix(_)) {
+        host.to_string()
+    } else {
+        authority.clone()
+    };
+    WebRuntimeFallback::HttpUpstream {
+        endpoint: endpoint.clone(),
+        authority,
+    }
 }
 
 // Runtime WEB construction tests remain separate from the production loader.

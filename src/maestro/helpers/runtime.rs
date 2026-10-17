@@ -26,11 +26,15 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
         let Some(secret) = config.users.get(&profile.user) else {
             continue;
         };
+        // A profile host override still belongs to the single config vhost.
         let Some(vhost) = config
             .web
             .vhost
             .as_ref()
-            .filter(|vhost| vhost.host == profile.host)
+            .filter(|vhost| {
+                vhost.host == profile.host
+                    || vhost.profiles.iter().any(|p| p.user == profile.user)
+            })
         else {
             continue;
         };

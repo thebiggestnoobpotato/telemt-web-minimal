@@ -102,7 +102,7 @@ max_streams = 512
 max_streams_per_session = 64
 ```
 
-`secret_mode` under `[web]` is the single secret representation for every profile and instantiates a profile for **every user in `[users]`** in **the vhost**, using the `[web.limits]` ceilings; explicit `[[web.vhost.profiles]]` entries add per-user ceiling overrides for the same users and require `web.secret_mode`. An explicit entry wins for its user, and the expanded total counts toward `web.limits.max_profiles`:
+`secret_mode` under `[web]` is the single secret representation for every profile and instantiates a profile for **every user in `[users]`** in **the vhost**, using the `[web.limits]` ceilings; explicit `[[web.vhost.profiles]]` entries add per-user ceiling overrides for the same users and require `web.secret_mode`. An explicit entry wins for its user, and the expanded total counts toward `web.limits.max_profiles`. An explicit entry may also carry its own `host`; that profile is then routed, capability-derived, and linked under that hostname while the vhost `base_path`, `public_addr`, and `upstream` stay shared across all profile hosts:
 
 ```toml
 [web]
