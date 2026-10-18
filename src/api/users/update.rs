@@ -24,10 +24,10 @@ async fn patch_user_to_completion(
 ) -> Result<(UserInfo, String), ApiFailure> {
     let secret_changed = body.secret.is_some();
     let touches_users = secret_changed
-        || body.host.is_some()
-        || body.max_sessions.is_some()
-        || body.max_streams.is_some()
-        || body.max_streams_per_session.is_some();
+        || body.host.is_present()
+        || body.max_sessions.is_present()
+        || body.max_streams.is_present()
+        || body.max_streams_per_session.is_present();
 
     if let Some(secret) = body.secret.as_ref()
         && !is_valid_user_secret(secret)
@@ -52,17 +52,17 @@ async fn patch_user_to_completion(
         if let Some(secret) = body.secret {
             entry.secret = secret;
         }
-        if let Some(host) = body.host {
-            entry.host = host;
+        if let Some(replacement) = body.host.replacement() {
+            entry.host = replacement;
         }
-        if let Some(max_sessions) = body.max_sessions {
-            entry.max_sessions = max_sessions;
+        if let Some(replacement) = body.max_sessions.replacement() {
+            entry.max_sessions = replacement;
         }
-        if let Some(max_streams) = body.max_streams {
-            entry.max_streams = max_streams;
+        if let Some(replacement) = body.max_streams.replacement() {
+            entry.max_streams = replacement;
         }
-        if let Some(max_streams_per_session) = body.max_streams_per_session {
-            entry.max_streams_per_session = max_streams_per_session;
+        if let Some(replacement) = body.max_streams_per_session.replacement() {
+            entry.max_streams_per_session = replacement;
         }
     }
     cfg.validate_user_web_fields()
