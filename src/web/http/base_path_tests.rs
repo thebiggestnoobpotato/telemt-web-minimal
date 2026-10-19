@@ -111,7 +111,7 @@ async fn base_path_routes_only_the_exact_prefixed_contract() {
 async fn prefixed_https_carrier_creates_uses_and_closes_a_session() {
     let capability = [22u8; 32];
     let mut config = runtime_config_with_base(capability, WebCarrier::Https, "/relay/nested/");
-    config.web.timeouts.long_poll_secs = 1;
+    config.timeouts.long_poll_secs = 1;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -272,7 +272,7 @@ async fn misplaced_process_token_is_rejected_without_reading_the_body() {
 async fn process_token_provenance_survives_registry_expiry() {
     let capability = [25u8; 32];
     let mut config = runtime_config_with_base(capability, WebCarrier::Https, "/relay/");
-    config.web.timeouts.bootstrap_lifetime_secs = 1;
+    config.timeouts.bootstrap_lifetime_secs = 1;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

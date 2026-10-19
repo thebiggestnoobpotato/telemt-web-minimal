@@ -25,8 +25,8 @@ This document lists all configuration keys accepted by `config.yaml`.
  - [metrics](#metrics)
  - [web](#web)
  - [web.debug](#webdebug)
- - [web.timeouts](#webtimeouts)
  - [web.vhost](#webvhost)
+ - [timeouts](#timeouts)
  - [limits](#limits)
  - [users](#users)
  - [upstreams](#upstreams)
@@ -580,7 +580,6 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `fallback_fasttrack_mode` | `"off"`, `"shadow"`, or `"enforce"` | `"off"` |
 | `http_connection_capacity_action` | `"drop"`, `"wait"`, or `"respond"` | `"drop"` |
 | `debug` | table | disabled, bounded defaults |
-| `timeouts` | table | bounded defaults |
 | `vhost` | table | unset |
 
 WEB requires at least one network-eligible `listener` entry, a `web.vhost` table, and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `limits` values and an absent host inherits `web.vhost.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
@@ -617,7 +616,29 @@ When `enabled`, `sideband`, and `capture_lifecycle` are all true, newly generate
 
 Authenticated JSON control may clear the ring explicitly with `POST /v1/runtime/web/debug/clear`; the required process `runtime_instance` fences stale controllers, the returned epoch fences in-flight writers, and `leased_bytes` reports memory still owned by already rendered snapshots.
 
-# web.timeouts
+# web.vhost
+
+| Key | Type | Required | Description |
+| --- | --- | --- | --- |
+| `host` | `String` | yes | Canonical lowercase ACE FQDN without port, path, credentials, or trailing dot. |
+| `base_path` | `String` | no | Exact case-sensitive WEB prefix without leading or trailing slash; empty by default. At most 128 ASCII bytes in slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments. |
+| `public_addr` | `SocketAddr` | yes | Concrete public IP on port `443`; used in the inner relay destination tuple. |
+| `upstream` | `String` | yes | Ordinary-site fallback origin for unauthenticated or invalid traffic: an `http://` origin without credentials, path, query, or fragment, or a `unix:/absolute/path.sock` socket path that must be absolute without URL control characters. With the default `resolve = "never"` an http host must be a loopback, link-local, or private IP literal. A unix fallback target must not equal any `socket_path` of a WEB listener. |
+| `resolve` | `"never"` or `"startup"` | no | Default `never`. `startup` resolves an http hostname once during config preparation: every answer must remain inside loopback or a private network, the answers are pinned for the running process, and a failed, timed out, or empty lookup fails the load. Rejected for `unix:` origins, where no DNS is performed and the vhost `host` is used as the request authority. |
+
+The hostname must be accepted by Telegram Desktop and is normalized during validation. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap is process-local: it remains valid only while the same profile identity is still active and is retired at process restart.
+
+## WEB lifecycle and API management
+
+- The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `timeouts`, the vhost table, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
+- Changing `base_path` changes the new-request route and derived capability from the next process restart. Reissue links before the restart: after it, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling.
+- WEB listener inventory and trust policy under `listener`, and every `limits` value, are process-owned and restart-required.
+- `GET /v1/config` returns the complete authored `web` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `limits`, `timeouts`, and `listener` values apply at the next process restart.
+- `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.
+- Users can be created, changed, rotated, and deleted through `/v1/users`. With `web.secret_mode` set, every user materializes exactly one WEB profile; new, changed, or deleted users apply at the next process restart. Deleting a user updates admission and cancels that user's active sessions.
+- `PATCH /v1/config` can persist `listener`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
+
+# timeouts
 
 Unless a row states otherwise, timeouts are measured in seconds and must be within `1..=3600`. Configured server-side HTTP phase deadlines must be lower than `http_idle_secs`; protected phases retain their own deadlines, so the idle timer is not an aggregate request deadline. The bridge retry window is client-side and follows its own bound.
 
@@ -648,28 +669,6 @@ Unless a row states otherwise, timeouts are measured in seconds and must be with
 | `shutdown_secs` | `u64` | `15` | One absolute process-shutdown budget shared by all listener acceptors and connections plus WEB session and auxiliary-task drains. The active value is captured once when shutdown starts. |
 | `fallback_header_secs` | `u64` | `30` | Connect and response-head deadline for an HTTP fallback. |
 | `fallback_resolve_secs` | `u64` | `5` | Maximum wait for each unique HTTP fallback hostname during config preparation under `fallback.resolve: "startup"`. |
-
-# web.vhost
-
-| Key | Type | Required | Description |
-| --- | --- | --- | --- |
-| `host` | `String` | yes | Canonical lowercase ACE FQDN without port, path, credentials, or trailing dot. |
-| `base_path` | `String` | no | Exact case-sensitive WEB prefix without leading or trailing slash; empty by default. At most 128 ASCII bytes in slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments. |
-| `public_addr` | `SocketAddr` | yes | Concrete public IP on port `443`; used in the inner relay destination tuple. |
-| `upstream` | `String` | yes | Ordinary-site fallback origin for unauthenticated or invalid traffic: an `http://` origin without credentials, path, query, or fragment, or a `unix:/absolute/path.sock` socket path that must be absolute without URL control characters. With the default `resolve = "never"` an http host must be a loopback, link-local, or private IP literal. A unix fallback target must not equal any `socket_path` of a WEB listener. |
-| `resolve` | `"never"` or `"startup"` | no | Default `never`. `startup` resolves an http hostname once during config preparation: every answer must remain inside loopback or a private network, the answers are pinned for the running process, and a failed, timed out, or empty lookup fails the load. Rejected for `unix:` origins, where no DNS is performed and the vhost `host` is used as the request authority. |
-
-The hostname must be accepted by Telegram Desktop and is normalized during validation. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap is process-local: it remains valid only while the same profile identity is still active and is retired at process restart.
-
-## WEB lifecycle and API management
-
-- The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `web.timeouts`, the vhost table, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
-- Changing `base_path` changes the new-request route and derived capability from the next process restart. Reissue links before the restart: after it, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling.
-- WEB listener inventory and trust policy under `listener`, and every `limits` value, are process-owned and restart-required.
-- `GET /v1/config` returns the complete authored `web` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `limits` and `listener` values apply at the next process restart.
-- `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.
-- Users can be created, changed, rotated, and deleted through `/v1/users`. With `web.secret_mode` set, every user materializes exactly one WEB profile; new, changed, or deleted users apply at the next process restart. Deleting a user updates admission and cancels that user's active sessions.
-- `PATCH /v1/config` can persist `listener`, including WEB listener fields, but a changed WEB listener does not become active until process restart.
 
 # limits
 

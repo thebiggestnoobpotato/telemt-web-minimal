@@ -12,7 +12,7 @@ async fn windows_restricted_webview_empty_cookie_preserves_the_carrier_flow() {
     {
         let capability = [12 + index as u8; 32];
         let mut config = runtime_config(capability, carrier);
-        config.web.timeouts.long_poll_secs = 0;
+        config.timeouts.long_poll_secs = 0;
         let generation = test_runtime_generation(1, config);
         let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
         let runtime = WebProcessRuntime::start(active_runtime);

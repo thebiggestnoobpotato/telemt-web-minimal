@@ -57,3 +57,21 @@ fn nested_web_limits_key_is_stripped() {
     let config = load_config_from_temp_yaml(&nested);
     assert_eq!(config.limits.max_http_handlers, 512);
 }
+
+#[test]
+fn nested_web_timeouts_key_is_stripped() {
+    // timeouts is a top-level directive now: a nested web.timeouts table is
+    // an unknown key for strict loads.
+    let nested = WEB_CONFIG.replace(
+        "web:\n",
+        "web:\n  timeouts:\n    http_overload_timeout_ms: 1\n",
+    );
+    let strict_error = load_config_error_from_temp_yaml(
+        &format!("general:\n  config_strict: true\n{nested}"),
+    );
+    assert!(strict_error.contains("web.timeouts"), "{strict_error}");
+
+    // non-strict: the stray table is ignored and the default applies.
+    let config = load_config_from_temp_yaml(&nested);
+    assert_eq!(config.timeouts.http_overload_timeout_ms, 250);
+}

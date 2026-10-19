@@ -45,8 +45,8 @@ impl WebProcessRuntime {
                 generation.id,
                 config.web.carrier_negotiation_enabled() && config.web.carrier_learning,
                 config.web.carrier_negotiation_aggressiveness,
-                Duration::from_secs(config.web.timeouts.carrier_learning_secs),
-                Duration::from_secs(config.web.timeouts.carrier_health_secs),
+                Duration::from_secs(config.timeouts.carrier_learning_secs),
+                Duration::from_secs(config.timeouts.carrier_health_secs),
             );
             debug_assert!(
                 outcome.applied,
@@ -171,7 +171,6 @@ impl WebProcessRuntime {
             .active_runtime
             .load()
             .config()
-            .web
             .timeouts
             .shutdown_secs;
         let now = TokioInstant::now();
@@ -187,6 +186,7 @@ impl WebProcessRuntime {
         let now = Instant::now();
         let generation = self.active_generation();
         let config = &generation.config().web;
+        let timeouts = &generation.config().timeouts;
         let learning_enabled = config.carrier_negotiation_enabled() && config.carrier_learning;
         let detached = {
             let mut learning = self.learning.lock();
@@ -195,8 +195,8 @@ impl WebProcessRuntime {
                 generation.id,
                 learning_enabled,
                 config.carrier_negotiation_aggressiveness,
-                Duration::from_secs(config.timeouts.carrier_learning_secs),
-                Duration::from_secs(config.timeouts.carrier_health_secs),
+                Duration::from_secs(timeouts.carrier_learning_secs),
+                Duration::from_secs(timeouts.carrier_health_secs),
             );
             learning.prune(now);
             outcome.detached

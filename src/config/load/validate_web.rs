@@ -57,7 +57,7 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
 
     validate_limits(&config.limits)?;
     debug::validate(&config.web.debug, &config.limits)?;
-    let carriers = negotiation::validate(&config.web, &config.limits)?;
+    let carriers = negotiation::validate(&config.web, &config.limits, &config.timeouts)?;
     if carriers.contains(&WebCarrier::Https) && config.limits.max_http_handlers < 2 {
         return config_error("WEB https candidates require limits.max_http_handlers >= 2");
     }
@@ -66,8 +66,8 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
             "WEB https-lanes candidates require limits.max_http_handlers >= 4",
         );
     }
-    timeouts::validate(&config.web.timeouts)?;
-    websocket::validate(&carriers, &config.limits, &config.web.timeouts)?;
+    timeouts::validate(&config.timeouts)?;
+    websocket::validate(&carriers, &config.limits, &config.timeouts)?;
     validate_user_web_fields(config)?;
     validate_vhosts(config)?;
     validate_fallback_listener_separation_inner(config, false)?;

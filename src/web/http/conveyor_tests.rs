@@ -219,7 +219,7 @@ async fn future_http_request_is_not_acked_until_head_applies_for_both_carriers()
 async fn parked_uplink_keeps_its_session_deadline_after_reload() {
     let capability = [75; 32];
     let mut config = runtime_config(capability, WebCarrier::Https);
-    config.web.timeouts.body_secs = 4;
+    config.timeouts.body_secs = 4;
     let generation = test_runtime_generation(1, config.clone());
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -233,8 +233,8 @@ async fn parked_uplink_keeps_its_session_deadline_after_reload() {
     .await;
     let (headers, _) = split_response(&response);
     let token = response_header(headers, "x-session-token");
-    config.web.timeouts.body_secs = 1;
-    config.web.timeouts.http_idle_secs = 2;
+    config.timeouts.body_secs = 1;
+    config.timeouts.http_idle_secs = 2;
     let replacement = test_runtime_generation(2, config);
     runtime.activate_generation(Arc::clone(&replacement));
     let (mut tail, cancellation, task) = open_keepalive(&listener, &runtime).await;

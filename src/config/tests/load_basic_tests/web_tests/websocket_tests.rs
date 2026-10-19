@@ -14,9 +14,9 @@ fn websocket_carriers_build_runtime_profiles_with_bounded_defaults() {
         assert_eq!(config.limits.websocket_admission_watermark_pct, 75);
         assert_eq!(config.limits.websocket_eviction_watermark_pct, 90);
         assert_eq!(config.limits.websocket_http_connection_reserve, 64);
-        assert_eq!(config.web.timeouts.websocket_write_secs, 30);
-        assert_eq!(config.web.timeouts.websocket_backpressure_secs, 30);
-        assert_eq!(config.web.timeouts.websocket_eviction_secs, 1);
+        assert_eq!(config.timeouts.websocket_write_secs, 30);
+        assert_eq!(config.timeouts.websocket_backpressure_secs, 30);
+        assert_eq!(config.timeouts.websocket_eviction_secs, 1);
     }
 }
 

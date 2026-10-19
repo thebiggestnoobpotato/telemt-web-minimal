@@ -65,7 +65,7 @@ fn runtime(admission: bool) -> TestRuntime {
     });
     let mut config = ProxyConfig::default();
     config.web.carrier = WebCarrier::WebsocketLanes;
-    config.web.timeouts.shutdown_secs = 1;
+    config.timeouts.shutdown_secs = 1;
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {
         vhosts: BTreeMap::new(),
         profiles: vec![Arc::clone(&profile)],
@@ -73,7 +73,7 @@ fn runtime(admission: bool) -> TestRuntime {
     }));
     config.rebuild_runtime_user_auth().unwrap();
     let limits = config.limits.clone();
-    let timeouts = config.web.timeouts.clone();
+    let timeouts = config.timeouts.clone();
     let (_admission_tx, admission_rx) = watch::channel(admission);
     let generation = test_runtime_generation_with_admission(1, config, admission_rx);
     let manager = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));

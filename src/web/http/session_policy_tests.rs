@@ -81,9 +81,9 @@ async fn request_with_body_delay(
 async fn issued_bootstrap_timeouts_survive_reload_before_session_creation() {
     let capability = [20u8; 32];
     let mut initial_config = runtime_config(capability, WebCarrier::Https);
-    initial_config.web.timeouts.body_secs = 3;
-    initial_config.web.timeouts.long_poll_secs = 3;
-    initial_config.web.timeouts.bootstrap_lifetime_secs = 5;
+    initial_config.timeouts.body_secs = 3;
+    initial_config.timeouts.long_poll_secs = 3;
+    initial_config.timeouts.bootstrap_lifetime_secs = 5;
     let generation = test_runtime_generation(1, initial_config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active_runtime));
@@ -103,9 +103,9 @@ async fn issued_bootstrap_timeouts_survive_reload_before_session_creation() {
         .unwrap();
 
     let mut replacement_config = runtime_config(capability, WebCarrier::Https);
-    replacement_config.web.timeouts.body_secs = 1;
-    replacement_config.web.timeouts.long_poll_secs = 1;
-    replacement_config.web.timeouts.bootstrap_lifetime_secs = 1;
+    replacement_config.timeouts.body_secs = 1;
+    replacement_config.timeouts.long_poll_secs = 1;
+    replacement_config.timeouts.bootstrap_lifetime_secs = 1;
     let replacement = test_runtime_generation(2, replacement_config);
     active_runtime.store(Arc::clone(&replacement));
 
@@ -136,11 +136,11 @@ async fn issued_bootstrap_timeouts_survive_reload_before_session_creation() {
 async fn live_session_body_and_closed_token_timeouts_survive_reload() {
     let capability = [21u8; 32];
     let mut initial_config = runtime_config(capability, WebCarrier::Https);
-    initial_config.web.timeouts.body_secs = 3;
-    initial_config.web.timeouts.header_secs = 1;
-    initial_config.web.timeouts.http_idle_secs = 4;
-    initial_config.web.timeouts.long_poll_secs = 3;
-    initial_config.web.timeouts.bootstrap_lifetime_secs = 5;
+    initial_config.timeouts.body_secs = 3;
+    initial_config.timeouts.header_secs = 1;
+    initial_config.timeouts.http_idle_secs = 4;
+    initial_config.timeouts.long_poll_secs = 3;
+    initial_config.timeouts.bootstrap_lifetime_secs = 5;
     let generation = test_runtime_generation(1, initial_config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active_runtime));
@@ -172,11 +172,11 @@ async fn live_session_body_and_closed_token_timeouts_survive_reload() {
     let session = response_header(create_headers, "x-session-token").to_string();
 
     let mut replacement_config = runtime_config(capability, WebCarrier::Https);
-    replacement_config.web.timeouts.body_secs = 1;
-    replacement_config.web.timeouts.header_secs = 1;
-    replacement_config.web.timeouts.http_idle_secs = 2;
-    replacement_config.web.timeouts.long_poll_secs = 1;
-    replacement_config.web.timeouts.bootstrap_lifetime_secs = 1;
+    replacement_config.timeouts.body_secs = 1;
+    replacement_config.timeouts.header_secs = 1;
+    replacement_config.timeouts.http_idle_secs = 2;
+    replacement_config.timeouts.long_poll_secs = 1;
+    replacement_config.timeouts.bootstrap_lifetime_secs = 1;
     let replacement = test_runtime_generation(2, replacement_config);
     active_runtime.store(Arc::clone(&replacement));
 
@@ -220,10 +220,10 @@ async fn live_session_body_and_closed_token_timeouts_survive_reload() {
 async fn active_body_deadline_survives_reload_on_old_keepalive_connection() {
     let capability = [22u8; 32];
     let mut initial_config = runtime_config(capability, WebCarrier::Https);
-    initial_config.web.timeouts.header_secs = 1;
-    initial_config.web.timeouts.body_secs = 1;
-    initial_config.web.timeouts.long_poll_secs = 1;
-    initial_config.web.timeouts.http_idle_secs = 2;
+    initial_config.timeouts.header_secs = 1;
+    initial_config.timeouts.body_secs = 1;
+    initial_config.timeouts.long_poll_secs = 1;
+    initial_config.timeouts.http_idle_secs = 2;
     let generation = test_runtime_generation(1, initial_config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active_runtime));
@@ -244,10 +244,10 @@ async fn active_body_deadline_survives_reload_on_old_keepalive_connection() {
     );
 
     let mut replacement_config = runtime_config(capability, WebCarrier::Https);
-    replacement_config.web.timeouts.header_secs = 1;
-    replacement_config.web.timeouts.body_secs = 3;
-    replacement_config.web.timeouts.long_poll_secs = 1;
-    replacement_config.web.timeouts.http_idle_secs = 4;
+    replacement_config.timeouts.header_secs = 1;
+    replacement_config.timeouts.body_secs = 3;
+    replacement_config.timeouts.long_poll_secs = 1;
+    replacement_config.timeouts.http_idle_secs = 4;
     let replacement = test_runtime_generation(2, replacement_config);
     active_runtime.store(Arc::clone(&replacement));
     let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(capability);

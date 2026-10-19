@@ -224,7 +224,7 @@ async fn negotiation_replays_replaces_and_freezes_after_carrier_commit() {
             WebCarrier::Websocket,
         ]),
     );
-    config.web.timeouts.long_poll_secs = 1;
+    config.timeouts.long_poll_secs = 1;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -431,8 +431,8 @@ async fn https_lane_downlink_can_arrive_before_its_uplink_open() {
         false,
         Arc::from([WebCarrier::HttpsLanes]),
     );
-    config.web.timeouts.lane_open_wait_secs = 1;
-    config.web.timeouts.long_poll_secs = 2;
+    config.timeouts.lane_open_wait_secs = 1;
+    config.timeouts.long_poll_secs = 2;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = Arc::new(TcpListener::bind("127.0.0.1:0").await.unwrap());

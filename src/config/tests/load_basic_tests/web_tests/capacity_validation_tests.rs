@@ -9,7 +9,7 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
         )
         .replace(
             "web:\n",
-            "limits:\n  max_http_overload_connections: 23\n\nweb:\n  timeouts:\n    http_overload_timeout_ms: 731\n",
+            "limits:\n  max_http_overload_connections: 23\n\ntimeouts:\n  http_overload_timeout_ms: 731\n\nweb:\n",
         );
     let config = load_config_from_temp_yaml(&configured);
 
@@ -18,7 +18,7 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
         WebHttpConnectionCapacityAction::Wait
     );
     assert_eq!(config.limits.max_http_overload_connections, 23);
-    assert_eq!(config.web.timeouts.http_overload_timeout_ms, 731);
+    assert_eq!(config.timeouts.http_overload_timeout_ms, 731);
 
     let defaults = ProxyConfig::default();
     assert_eq!(
@@ -26,7 +26,7 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
         WebHttpConnectionCapacityAction::Drop
     );
     assert_eq!(defaults.limits.max_http_overload_connections, 64);
-    assert_eq!(defaults.web.timeouts.http_overload_timeout_ms, 250);
+    assert_eq!(defaults.timeouts.http_overload_timeout_ms, 250);
 }
 
 #[test]
@@ -40,12 +40,12 @@ fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
 
     for timeout in [0, 60_001] {
         let invalid = WEB_CONFIG.replace(
-            "  vhost:",
-            &format!("  timeouts:\n    http_overload_timeout_ms: {timeout}\n\n  vhost:"),
+            "web:\n",
+            &format!("timeouts:\n  http_overload_timeout_ms: {timeout}\n\nweb:\n"),
         );
         assert!(
             load_config_error_from_temp_yaml(&invalid)
-                .contains("web.timeouts.http_overload_timeout_ms")
+                .contains("timeouts.http_overload_timeout_ms")
         );
     }
 

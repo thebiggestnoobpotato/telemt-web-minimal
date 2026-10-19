@@ -275,8 +275,8 @@ impl WebProcessRuntime {
             initial_generation.id,
             config.web.carrier_negotiation_enabled() && config.web.carrier_learning,
             config.web.carrier_negotiation_aggressiveness,
-            Duration::from_secs(config.web.timeouts.carrier_learning_secs),
-            Duration::from_secs(config.web.timeouts.carrier_health_secs),
+            Duration::from_secs(config.timeouts.carrier_learning_secs),
+            Duration::from_secs(config.timeouts.carrier_health_secs),
         );
         drop(learning_policy.detached);
         let websocket_connections = limits

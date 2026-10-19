@@ -103,7 +103,6 @@ impl ListenerManager {
             .active_runtime
             .load()
             .config()
-            .web
             .timeouts
             .shutdown_secs;
         let now = tokio::time::Instant::now();

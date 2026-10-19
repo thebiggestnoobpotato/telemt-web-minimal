@@ -3,7 +3,11 @@ use std::collections::HashSet;
 use super::*;
 
 /// Validates bounded carrier selection and learning policy.
-pub(super) fn validate(config: &WebConfig, limits: &WebLimitsConfig) -> Result<Vec<WebCarrier>> {
+pub(super) fn validate(
+    config: &WebConfig,
+    limits: &WebLimitsConfig,
+    timeouts: &WebTimeoutsConfig,
+) -> Result<Vec<WebCarrier>> {
     if let Some(carriers) = config.carriers.enabled() {
         if carriers.is_empty() {
             return config_error("web.carriers must contain at least one carrier");
@@ -27,18 +31,18 @@ pub(super) fn validate(config: &WebConfig, limits: &WebLimitsConfig) -> Result<V
             "web.carriers and the web.carrier fallback must contain at most four carriers",
         );
     }
-    let deadlines = config.timeouts.carrier_negotiation_deadlines_secs;
+    let deadlines = timeouts.carrier_negotiation_deadlines_secs;
     if deadlines[0] == 0 || deadlines.windows(2).any(|pair| pair[0] >= pair[1]) {
         return config_error(
-            "web.timeouts.carrier_negotiation_deadlines_secs must be non-zero and strictly increasing",
+            "timeouts.carrier_negotiation_deadlines_secs must be non-zero and strictly increasing",
         );
     }
     let retained_chain_secs = deadlines[3]
-        .checked_add(config.timeouts.carrier_health_secs)
+        .checked_add(timeouts.carrier_health_secs)
         .and_then(|value| value.checked_add(1));
-    if retained_chain_secs.is_none_or(|value| value >= config.timeouts.bootstrap_lifetime_secs) {
+    if retained_chain_secs.is_none_or(|value| value >= timeouts.bootstrap_lifetime_secs) {
         return config_error(
-            "web.timeouts final carrier deadline plus health and cleanup must be lower than bootstrap_lifetime_secs",
+            "timeouts final carrier deadline plus health and cleanup must be lower than bootstrap_lifetime_secs",
         );
     }
     Ok(candidates)
@@ -56,7 +60,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            validate(&config, &WebLimitsConfig::default()).unwrap(),
+            validate(&config, &WebLimitsConfig::default(), &WebTimeoutsConfig::default()).unwrap(),
             vec![WebCarrier::Websocket, WebCarrier::Https]
         );
     }
@@ -67,7 +71,7 @@ mod tests {
             carriers: WebCarriers::Enabled(vec![WebCarrier::Websocket, WebCarrier::Websocket]),
             ..Default::default()
         };
-        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
+        assert!(validate(&config, &WebLimitsConfig::default(), &WebTimeoutsConfig::default()).is_err());
     }
 
     #[test]
@@ -79,7 +83,7 @@ mod tests {
 
         let config = WebConfig::default();
         assert!(!config.carrier_negotiation_enabled());
-        assert_eq!(validate(&config, &WebLimitsConfig::default()).unwrap(), [WebCarrier::Https]);
+        assert_eq!(validate(&config, &WebLimitsConfig::default(), &WebTimeoutsConfig::default()).unwrap(), [WebCarrier::Https]);
 
         let disabled: Wrapper = serde_yaml::from_str("value: false").unwrap();
         assert_eq!(disabled.value, WebCarriers::Disabled);
@@ -98,26 +102,27 @@ mod tests {
             ]),
             ..Default::default()
         };
-        assert_eq!(validate(&config, &WebLimitsConfig::default()).unwrap().len(), 4);
+        assert_eq!(validate(&config, &WebLimitsConfig::default(), &WebTimeoutsConfig::default()).unwrap().len(), 4);
 
         config.carriers = WebCarriers::Enabled(vec![
             WebCarrier::HttpsLanes,
             WebCarrier::Websocket,
             WebCarrier::WebsocketLanes,
         ]);
-        assert_eq!(validate(&config, &WebLimitsConfig::default()).unwrap().len(), 4);
+        assert_eq!(validate(&config, &WebLimitsConfig::default(), &WebTimeoutsConfig::default()).unwrap().len(), 4);
     }
 
     #[test]
     fn deadlines_are_cumulative_and_bounded_by_bootstrap_lifetime() {
-        let mut config = WebConfig::default();
-        config.timeouts.carrier_negotiation_deadlines_secs = [3, 3, 8, 12];
-        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
-        config.timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 121];
-        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
-        config.timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 89];
-        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
-        config.timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 88];
-        assert!(validate(&config, &WebLimitsConfig::default()).is_ok());
+        let config = WebConfig::default();
+        let mut timeouts = WebTimeoutsConfig::default();
+        timeouts.carrier_negotiation_deadlines_secs = [3, 3, 8, 12];
+        assert!(validate(&config, &WebLimitsConfig::default(), &timeouts).is_err());
+        timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 121];
+        assert!(validate(&config, &WebLimitsConfig::default(), &timeouts).is_err());
+        timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 89];
+        assert!(validate(&config, &WebLimitsConfig::default(), &timeouts).is_err());
+        timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 88];
+        assert!(validate(&config, &WebLimitsConfig::default(), &timeouts).is_ok());
     }
 }

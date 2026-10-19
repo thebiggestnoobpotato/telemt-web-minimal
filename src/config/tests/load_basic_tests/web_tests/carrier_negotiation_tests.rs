@@ -54,34 +54,34 @@ fn web_carriers_reject_true_empty_and_duplicates() {
 #[test]
 fn web_carrier_and_bridge_deadlines_are_configurable() {
     let configured = WEB_CONFIG.replace(
-        "  vhost:",
-        "  timeouts:\n    carrier_negotiation_deadlines_secs: [1, 2, 4, 9]\n    carrier_learning_secs: 30\n    bridge_request_secs: 7\n    bridge_retry_secs: 41\n    bridge_recovery_secs: 13\n    carrier_probe_coalesce_ms: 4\n\n  vhost:",
+        "web:\n",
+        "timeouts:\n  carrier_negotiation_deadlines_secs: [1, 2, 4, 9]\n  carrier_learning_secs: 30\n  bridge_request_secs: 7\n  bridge_retry_secs: 41\n  bridge_recovery_secs: 13\n  carrier_probe_coalesce_ms: 4\n\nweb:\n",
     );
     let config = load_config_from_temp_yaml(&configured);
     assert_eq!(
-        config.web.timeouts.carrier_negotiation_deadlines_secs,
+        config.timeouts.carrier_negotiation_deadlines_secs,
         [1, 2, 4, 9]
     );
-    assert_eq!(config.web.timeouts.carrier_learning_secs, 30);
-    assert_eq!(config.web.timeouts.bridge_request_secs, 7);
-    assert_eq!(config.web.timeouts.bridge_retry_secs, 41);
-    assert_eq!(config.web.timeouts.bridge_recovery_secs, 13);
-    assert_eq!(config.web.timeouts.carrier_probe_coalesce_ms, 4);
+    assert_eq!(config.timeouts.carrier_learning_secs, 30);
+    assert_eq!(config.timeouts.bridge_request_secs, 7);
+    assert_eq!(config.timeouts.bridge_retry_secs, 41);
+    assert_eq!(config.timeouts.bridge_recovery_secs, 13);
+    assert_eq!(config.timeouts.carrier_probe_coalesce_ms, 4);
 }
 
 #[test]
 fn web_bridge_deadlines_are_known_in_strict_mode() {
     let configured = WEB_CONFIG.replace(
-        "  vhost:",
-        "  timeouts:\n    bridge_request_secs: 7\n    bridge_retry_secs: 41\n    bridge_recovery_secs: 13\n    carrier_probe_coalesce_ms: 4\n\n  vhost:",
+        "web:\n",
+        "timeouts:\n  bridge_request_secs: 7\n  bridge_retry_secs: 41\n  bridge_recovery_secs: 13\n  carrier_probe_coalesce_ms: 4\n\nweb:\n",
     );
     let configured = format!("general:\n  config_strict: true\n{configured}");
     let config = load_config_from_temp_yaml(&configured);
 
-    assert_eq!(config.web.timeouts.bridge_request_secs, 7);
-    assert_eq!(config.web.timeouts.bridge_retry_secs, 41);
-    assert_eq!(config.web.timeouts.bridge_recovery_secs, 13);
-    assert_eq!(config.web.timeouts.carrier_probe_coalesce_ms, 4);
+    assert_eq!(config.timeouts.bridge_request_secs, 7);
+    assert_eq!(config.timeouts.bridge_retry_secs, 41);
+    assert_eq!(config.timeouts.bridge_recovery_secs, 13);
+    assert_eq!(config.timeouts.carrier_probe_coalesce_ms, 4);
 }
 
 #[test]
@@ -96,17 +96,17 @@ fn web_bridge_deadlines_are_bounded_and_ordered() {
         ("carrier_probe_coalesce_ms", "11"),
     ] {
         let invalid = WEB_CONFIG.replace(
-            "  vhost:",
-            &format!("  timeouts:\n    {field}: {value}\n\n  vhost:"),
+            "web:\n",
+            &format!("timeouts:\n  {field}: {value}\n\nweb:\n"),
         );
         assert!(
-            load_config_error_from_temp_yaml(&invalid).contains(&format!("web.timeouts.{field}"))
+            load_config_error_from_temp_yaml(&invalid).contains(&format!("timeouts.{field}"))
         );
     }
 
     let reversed = WEB_CONFIG.replace(
-        "  vhost:",
-        "  timeouts:\n    bridge_request_secs: 20\n    bridge_retry_secs: 10\n\n  vhost:",
+        "web:\n",
+        "timeouts:\n  bridge_request_secs: 20\n  bridge_retry_secs: 10\n\nweb:\n",
     );
     assert!(
         load_config_error_from_temp_yaml(&reversed)

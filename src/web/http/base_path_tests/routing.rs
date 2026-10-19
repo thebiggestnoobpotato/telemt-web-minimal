@@ -57,7 +57,7 @@ fn down_request(path: &str, session: &str) -> Vec<u8> {
 async fn session_token_distinguishes_the_exact_route_from_every_path_alias() {
     let capability = [81u8; 32];
     let mut config = runtime_config_with_base(capability, WebCarrier::Https, "/relay/");
-    config.web.timeouts.long_poll_secs = 1;
+    config.timeouts.long_poll_secs = 1;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

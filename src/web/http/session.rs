@@ -47,7 +47,7 @@ pub(super) async fn handle_session(
             trace.bind_identity(session.trace_identity());
         }
         let body_timeout = session.as_ref().map_or_else(
-            || Duration::from_secs(runtime.active_generation().config().web.timeouts.body_secs),
+            || Duration::from_secs(runtime.active_generation().config().timeouts.body_secs),
             |session| Duration::from_secs(session.timeouts().body_secs),
         );
         let CollectedBody {

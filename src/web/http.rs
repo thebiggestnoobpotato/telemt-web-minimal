@@ -97,8 +97,8 @@ pub(crate) async fn serve_connection(
 ) {
     let config = runtime.active_generation().config();
     let max_header_bytes = config.limits.max_header_bytes;
-    let header_timeout = Duration::from_secs(config.web.timeouts.header_secs);
-    let idle_timeout = Duration::from_secs(config.web.timeouts.http_idle_secs);
+    let header_timeout = Duration::from_secs(config.timeouts.header_secs);
+    let idle_timeout = Duration::from_secs(config.timeouts.http_idle_secs);
     let connection_activity = ConnectionActivity::new();
     let service_activity = connection_activity.clone();
     let service = service_fn(move |mut request| {
@@ -352,7 +352,7 @@ async fn handle_root(
             let outcome = session.close(crate::web::session::SessionCloseReason::BridgeRecovery);
             if outcome != crate::web::session::SessionCloseOutcome::Closed
                 && tokio::time::timeout(
-                    Duration::from_secs(config.web.timeouts.bridge_request_secs),
+                    Duration::from_secs(config.timeouts.bridge_request_secs),
                     session.wait_close_complete(),
                 )
                 .await
@@ -367,7 +367,7 @@ async fn handle_root(
             &vhost,
             &profile,
             &config.limits,
-            &config.web.timeouts,
+            &config.timeouts,
         ) else {
             strip_query(&mut request);
             return serve_fallback(request, vhost, true, &runtime).await;
@@ -385,13 +385,13 @@ async fn handle_root(
         profile.carrier_negotiation_enabled,
         profile.carriers.len(),
         profile.carrier_negotiation_deadlines_secs,
-        config.web.timeouts.long_poll_secs,
-        config.web.timeouts.bridge_request_secs,
-        config.web.timeouts.bridge_retry_secs,
-        config.web.timeouts.bridge_recovery_secs,
-        config.web.timeouts.websocket_open_secs,
-        config.web.timeouts.reconnect_grace_secs,
-        config.web.timeouts.carrier_probe_coalesce_ms,
+        config.timeouts.long_poll_secs,
+        config.timeouts.bridge_request_secs,
+        config.timeouts.bridge_retry_secs,
+        config.timeouts.bridge_recovery_secs,
+        config.timeouts.websocket_open_secs,
+        config.timeouts.reconnect_grace_secs,
+        config.timeouts.carrier_probe_coalesce_ms,
         config.web.debug.bridge_diagnostics_enabled(),
         config.web.carrier_method,
         &generation.rng,

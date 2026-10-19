@@ -393,9 +393,6 @@ pub struct WebConfig {
     /// Bounded server-side WEB debug policy.
     #[serde(default)]
     pub debug: WebDebugConfig,
-    /// WEB lifecycle deadlines.
-    #[serde(default)]
-    pub timeouts: WebTimeoutsConfig,
     /// The single public hostname served by WEB listeners.
     #[serde(default)]
     pub vhost: Option<WebVhostConfig>,
@@ -441,7 +438,6 @@ impl Default for WebConfig {
             fallback_fasttrack_mode: WebFallbackFastTrackMode::default(),
             http_connection_capacity_action: WebHttpConnectionCapacityAction::default(),
             debug: WebDebugConfig::default(),
-            timeouts: WebTimeoutsConfig::default(),
             vhost: None,
             runtime: None,
             fallback_dns: Arc::default(),

@@ -60,7 +60,7 @@ async fn generation_swap_preserves_process_tokens_and_replaces_route_identity() 
     let old_capability = [101u8; 32];
     let mut old_config = runtime_config_with_base(old_capability, WebCarrier::Https, "/old/");
     old_config.limits.max_bootstraps_per_ip = 8;
-    old_config.web.timeouts.long_poll_secs = 1;
+    old_config.timeouts.long_poll_secs = 1;
     let old_generation = test_runtime_generation(1, old_config);
     let active = Arc::new(ArcSwap::from(Arc::clone(&old_generation)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active));
@@ -72,7 +72,7 @@ async fn generation_swap_preserves_process_tokens_and_replaces_route_identity() 
     let new_capability = [102u8; 32];
     let mut new_config = runtime_config_with_base(new_capability, WebCarrier::Https, "/new/");
     new_config.limits.max_bootstraps_per_ip = 8;
-    new_config.web.timeouts.long_poll_secs = 1;
+    new_config.timeouts.long_poll_secs = 1;
     let new_generation = test_runtime_generation(2, new_config);
     active.store(Arc::clone(&new_generation));
     let old_encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(old_capability);
@@ -148,7 +148,7 @@ async fn generation_swap_preserves_process_tokens_and_replaces_route_identity() 
 async fn routed_uplink_finishes_under_its_acquisition_generation() {
     let capability = [103u8; 32];
     let mut old_config = runtime_config_with_base(capability, WebCarrier::Https, "/old/");
-    old_config.web.timeouts.long_poll_secs = 1;
+    old_config.timeouts.long_poll_secs = 1;
     let old_generation = test_runtime_generation(1, old_config);
     let active = Arc::new(ArcSwap::from(Arc::clone(&old_generation)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active));
@@ -194,7 +194,7 @@ async fn routed_uplink_finishes_under_its_acquisition_generation() {
     .expect("uplink never entered body collection");
 
     let mut new_config = runtime_config_with_base([104u8; 32], WebCarrier::Https, "/new/");
-    new_config.web.timeouts.long_poll_secs = 1;
+    new_config.timeouts.long_poll_secs = 1;
     let new_generation = test_runtime_generation(2, new_config);
     active.store(Arc::clone(&new_generation));
     client.write_all(&pong).await.unwrap();

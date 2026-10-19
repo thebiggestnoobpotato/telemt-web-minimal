@@ -89,7 +89,7 @@ async fn assert_put_accepted(path: &str) {
         let capability = [60; 32];
         let mut config = runtime_config_with_base(capability, carrier, base);
         config.web.carrier_method = method;
-        config.web.timeouts.long_poll_secs = 0;
+        config.timeouts.long_poll_secs = 0;
         let generation = test_runtime_generation(1, config);
         let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -139,7 +139,7 @@ async fn carrier_method_mixed_retries_share_sequence_and_cursor_state() {
             let capability = [61; 32];
             let mut config = runtime_config(capability, carrier);
             config.web.carrier_method = method;
-            config.web.timeouts.long_poll_secs = 0;
+            config.timeouts.long_poll_secs = 0;
             // Exhausted admission queues a deterministic CLOSE without starting a relay task.
             config.limits.max_streams_global = 0;
             let generation = test_runtime_generation(1, config);
@@ -326,7 +326,7 @@ async fn carrier_method_post_and_put_reuse_one_private_http_connection() {
     for carrier in [WebCarrier::Https, WebCarrier::HttpsLanes] {
         let capability = [64; 32];
         let mut config = runtime_config(capability, carrier);
-        config.web.timeouts.long_poll_secs = 0;
+        config.timeouts.long_poll_secs = 0;
         config.limits.max_streams_global = 0;
         let generation = test_runtime_generation(1, config);
         let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));

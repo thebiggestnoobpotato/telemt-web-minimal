@@ -47,18 +47,17 @@ fn fallback_dns_resolution_is_opt_in() {
 fn fallback_dns_timeout_bounds_are_independent_from_request_deadlines() {
     for seconds in [0, 3601] {
         let text = WEB_CONFIG.replace(
-            "  vhost:",
-            &format!("  timeouts:\n    fallback_resolve_secs: {seconds}\n\n  vhost:"),
+            "web:\n",
+            &format!("timeouts:\n  fallback_resolve_secs: {seconds}\n\nweb:\n"),
         );
         assert!(load_config_error_from_temp_yaml(&text).contains("fallback_resolve_secs"));
     }
     let text = WEB_CONFIG.replace(
-        "  vhost:",
-        "  timeouts:\n    fallback_resolve_secs: 3600\n\n  vhost:",
+        "web:\n",
+        "timeouts:\n  fallback_resolve_secs: 3600\n\nweb:\n",
     );
     assert_eq!(
         load_config_from_temp_yaml(&text)
-            .web
             .timeouts
             .fallback_resolve_secs,
         3600

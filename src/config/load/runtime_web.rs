@@ -85,7 +85,6 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                     && config.web.carrier_learning,
                 carriers: Arc::clone(&carrier_candidates),
                 carrier_negotiation_deadlines_secs: config
-                    .web
                     .timeouts
                     .carrier_negotiation_deadlines_secs,
                 capability,
@@ -115,7 +114,7 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                     base: base.clone(),
                     fallback_fasttrack_mode: config.web.fallback_fasttrack_mode,
                     fallback,
-                    fallback_header_secs: config.web.timeouts.fallback_header_secs,
+                    fallback_header_secs: config.timeouts.fallback_header_secs,
                     profiles: group.profiles,
                     capabilities: group.capabilities.into_boxed_slice(),
                 }),

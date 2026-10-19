@@ -3,7 +3,7 @@ use super::*;
 /// Validates WEB request, learning, and lifecycle timeouts.
 pub(super) fn validate(timeouts: &WebTimeoutsConfig) -> Result<()> {
     if !(1..=60_000).contains(&timeouts.http_overload_timeout_ms) {
-        return config_error("web.timeouts.http_overload_timeout_ms must be within [1, 60000]");
+        return config_error("timeouts.http_overload_timeout_ms must be within [1, 60000]");
     }
     let values = [
         ("header_secs", timeouts.header_secs),
@@ -32,41 +32,41 @@ pub(super) fn validate(timeouts: &WebTimeoutsConfig) -> Result<()> {
         .into_iter()
         .find(|(_, value)| !(1..=3600).contains(value))
     {
-        return config_error(&format!("web.timeouts.{field} must be within [1, 3600]"));
+        return config_error(&format!("timeouts.{field} must be within [1, 3600]"));
     }
     if !(2..=86_400).contains(&timeouts.carrier_learning_secs) {
-        return config_error("web.timeouts.carrier_learning_secs must be within [2, 86400]");
+        return config_error("timeouts.carrier_learning_secs must be within [2, 86400]");
     }
     if !(1..=60).contains(&timeouts.bridge_request_secs) {
-        return config_error("web.timeouts.bridge_request_secs must be within [1, 60]");
+        return config_error("timeouts.bridge_request_secs must be within [1, 60]");
     }
     if !(1..=300).contains(&timeouts.bridge_retry_secs) {
-        return config_error("web.timeouts.bridge_retry_secs must be within [1, 300]");
+        return config_error("timeouts.bridge_retry_secs must be within [1, 300]");
     }
     if !(1..=60).contains(&timeouts.bridge_recovery_secs) {
-        return config_error("web.timeouts.bridge_recovery_secs must be within [1, 60]");
+        return config_error("timeouts.bridge_recovery_secs must be within [1, 60]");
     }
     if timeouts.bridge_request_secs > timeouts.bridge_retry_secs {
-        return config_error("web.timeouts.bridge_request_secs must not exceed bridge_retry_secs");
+        return config_error("timeouts.bridge_request_secs must not exceed bridge_retry_secs");
     }
     if timeouts.carrier_probe_coalesce_ms > 10 {
-        return config_error("web.timeouts.carrier_probe_coalesce_ms must be within [0, 10]");
+        return config_error("timeouts.carrier_probe_coalesce_ms must be within [0, 10]");
     }
     if timeouts.stream_first_byte_secs > 300 {
-        return config_error("web.timeouts.stream_first_byte_secs must be within [1, 300]");
+        return config_error("timeouts.stream_first_byte_secs must be within [1, 300]");
     }
     if timeouts.websocket_upgrade_secs > 60 {
-        return config_error("web.timeouts.websocket_upgrade_secs must be within [1, 60]");
+        return config_error("timeouts.websocket_upgrade_secs must be within [1, 60]");
     }
     if timeouts.websocket_open_secs > 300 {
-        return config_error("web.timeouts.websocket_open_secs must be within [1, 300]");
+        return config_error("timeouts.websocket_open_secs must be within [1, 300]");
     }
     if timeouts.lane_open_wait_secs > timeouts.long_poll_secs {
-        return config_error("web.timeouts.lane_open_wait_secs must not exceed long_poll_secs");
+        return config_error("timeouts.lane_open_wait_secs must not exceed long_poll_secs");
     }
     if timeouts.carrier_health_secs > timeouts.reconnect_grace_secs {
         return config_error(
-            "web.timeouts.carrier_health_secs must not exceed reconnect_grace_secs",
+            "timeouts.carrier_health_secs must not exceed reconnect_grace_secs",
         );
     }
     let request_deadline = timeouts
@@ -75,7 +75,7 @@ pub(super) fn validate(timeouts: &WebTimeoutsConfig) -> Result<()> {
         .max(timeouts.long_poll_secs)
         .max(timeouts.fallback_header_secs);
     if request_deadline >= timeouts.http_idle_secs {
-        return config_error("web.timeouts request deadlines must be lower than http_idle_secs");
+        return config_error("timeouts request deadlines must be lower than http_idle_secs");
     }
     Ok(())
 }

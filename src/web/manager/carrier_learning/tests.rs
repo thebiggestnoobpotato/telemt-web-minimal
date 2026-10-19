@@ -408,8 +408,8 @@ async fn runtime_activation_publishes_matching_policy_and_generation() {
     config.web.carriers = crate::config::WebCarriers::Enabled(vec![WebCarrier::Websocket]);
     config.web.carrier_learning = true;
     config.web.carrier_negotiation_aggressiveness = WebCarrierNegotiationAggressiveness::Aggressive;
-    config.web.timeouts.carrier_learning_secs = 10;
-    config.web.timeouts.carrier_health_secs = 3;
+    config.timeouts.carrier_learning_secs = 10;
+    config.timeouts.carrier_health_secs = 3;
     let first = crate::maestro::generation::test_runtime_generation(1, config.clone());
     let runtime = crate::web::manager::WebProcessRuntime::start(std::sync::Arc::new(
         arc_swap::ArcSwap::from(first.clone()),

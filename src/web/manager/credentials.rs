@@ -164,11 +164,11 @@ impl WebProcessRuntime {
             hash,
             Bootstrap {
                 user_registration,
-                expires_at: now + Duration::from_secs(config.web.timeouts.bootstrap_lifetime_secs),
+                expires_at: now + Duration::from_secs(config.timeouts.bootstrap_lifetime_secs),
                 issued_at: now,
                 issuance_ip: client_ip,
                 profile,
-                timeouts: config.web.timeouts.clone(),
+                timeouts: config.timeouts.clone(),
                 trace_session_id,
                 bridge_diagnostics_enabled,
                 bridge_diagnostic_events: 0,

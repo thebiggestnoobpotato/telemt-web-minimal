@@ -101,7 +101,7 @@ async fn run_accept_loop(
                         let config = web_runtime.active_generation().config();
                         let action = config.web.http_connection_capacity_action;
                         let phase_timeout =
-                            Duration::from_millis(config.web.timeouts.http_overload_timeout_ms);
+                            Duration::from_millis(config.timeouts.http_overload_timeout_ms);
                         drop(config);
                         if action == crate::config::WebHttpConnectionCapacityAction::Drop {
                             web_runtime.telemetry().record_rejection(
@@ -238,7 +238,6 @@ impl ListenerSlot {
             self.active_runtime
                 .load()
                 .config()
-                .web
                 .timeouts
                 .shutdown_secs,
         );

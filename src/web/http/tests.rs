@@ -181,9 +181,9 @@ fn runtime_config_with_carriers_and_deadlines(
         WebCarriers::Disabled
     };
     config.web.carrier_learning = carrier_learning;
-    config.web.timeouts.carrier_negotiation_deadlines_secs = carrier_negotiation_deadlines_secs;
+    config.timeouts.carrier_negotiation_deadlines_secs = carrier_negotiation_deadlines_secs;
     config.limits.max_bootstraps_per_ip = 1;
-    config.web.timeouts.shutdown_secs = 1;
+    config.timeouts.shutdown_secs = 1;
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {
         vhosts,
         profiles: vec![profile],

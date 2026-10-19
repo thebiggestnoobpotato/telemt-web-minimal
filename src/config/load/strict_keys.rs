@@ -9,6 +9,7 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "listener",
     "limits",
     "metrics",
+    "timeouts",
     "web",
     "users",
     "upstreams",
@@ -77,7 +78,6 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "fallback_fasttrack_mode",
     "http_connection_capacity_action",
     "debug",
-    "timeouts",
     "vhost",
 ];
 
@@ -144,7 +144,7 @@ const WEB_DEBUG_CONFIG_KEYS: &[&str] = &[
     "max_window_secs",
 ];
 
-const WEB_TIMEOUTS_CONFIG_KEYS: &[&str] = &[
+const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
     "header_secs",
     "body_secs",
     "stream_handshake_secs",

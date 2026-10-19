@@ -88,8 +88,8 @@ fn test_runtime_with_dc(
     );
     config.web.carrier = carrier;
     config.limits.max_stream_handshakes = max_stream_handshakes;
-    config.web.timeouts.stream_handshake_secs = 1;
-    config.web.timeouts.shutdown_secs = 1;
+    config.timeouts.stream_handshake_secs = 1;
+    config.timeouts.shutdown_secs = 1;
     if let Some(dc_addr) = dc_addr {
         config
             .general.dc_overrides
@@ -111,7 +111,7 @@ fn test_runtime_with_dc(
     }));
     config.rebuild_runtime_user_auth().unwrap();
     let limits = config.limits.clone();
-    let timeouts = config.web.timeouts.clone();
+    let timeouts = config.timeouts.clone();
     let (admission_tx, admission_rx) = watch::channel(true);
     let generation = test_runtime_generation_with_admission(1, config, admission_rx);
     let manager = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));

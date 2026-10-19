@@ -82,7 +82,7 @@ impl WebCapacityStatus {
         Self {
             http_connection_capacity_action: config.web.http_connection_capacity_action,
             max_http_overload_connections: config.limits.max_http_overload_connections,
-            http_overload_timeout_ms: config.web.timeouts.http_overload_timeout_ms,
+            http_overload_timeout_ms: config.timeouts.http_overload_timeout_ms,
             resources: snapshot.resources,
             saturated_resources: snapshot.saturated_resources,
             partial: snapshot.partial,
@@ -171,7 +171,7 @@ impl WebLifecycleCountersStatus {
     /// Builds a complete counter set from process-owned telemetry.
     pub(super) fn new(publication: &WebRuntimePublication, config: &ProxyConfig) -> Self {
         Self {
-            bridge_recovery_secs: config.web.timeouts.bridge_recovery_secs,
+            bridge_recovery_secs: config.timeouts.bridge_recovery_secs,
             session_closures: publication.telemetry.session_close_counters(),
             session_observations: publication.telemetry.session_observation_counters(),
             bridge_recovery_events: publication.telemetry.bridge_recovery_counters(),

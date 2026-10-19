@@ -154,14 +154,14 @@ where
                 if !snapshot.origins.contains_key(&key) {
                     // Dropping this wait does not forcibly cancel a running OS resolver call.
                     let answers = tokio::time::timeout(
-                        Duration::from_secs(config.web.timeouts.fallback_resolve_secs),
+                        Duration::from_secs(config.timeouts.fallback_resolve_secs),
                         lookup(key.0.clone(), port),
                     )
                     .await
                     .map_err(|_| {
                         ProxyError::Config(format!(
                             "web.vhost.upstream DNS resolution timed out after {} seconds",
-                            config.web.timeouts.fallback_resolve_secs
+                            config.timeouts.fallback_resolve_secs
                         ))
                     })?
                     .map_err(|error| {

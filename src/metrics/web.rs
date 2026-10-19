@@ -175,7 +175,7 @@ pub(super) fn render(out: &mut String, publication: &WebRuntimePublication, conf
     let _ = writeln!(
         out,
         "telemt_web_http_overload_timeout_milliseconds {}",
-        config.web.timeouts.http_overload_timeout_ms
+        config.timeouts.http_overload_timeout_ms
     );
 
     if let Some(runtime) = runtime.as_deref() {
@@ -282,8 +282,8 @@ fn render_carrier_negotiation(
             && status.enabled
                 == (config.web.carrier_negotiation_enabled() && config.web.carrier_learning)
             && status.aggressiveness == config.web.carrier_negotiation_aggressiveness
-            && status.lifetime_secs == config.web.timeouts.carrier_learning_secs
-            && status.health_secs == config.web.timeouts.carrier_health_secs
+            && status.lifetime_secs == config.timeouts.carrier_learning_secs
+            && status.health_secs == config.timeouts.carrier_health_secs
     });
     let active_state = if runtime.is_none() {
         "unavailable"

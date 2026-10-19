@@ -59,7 +59,7 @@ async fn save_web_section_keeps_subtables_nested_without_duplicates() {
     let path = dir.path().join("config.yaml");
     tokio::fs::write(
         &path,
-        "web:\n  timeouts:\n    http_overload_timeout_ms: 1\n\n\
+        "web:\n  debug:\n    enabled: true\n\n\
          other:\n  port: 443\n",
     )
     .await
@@ -73,16 +73,16 @@ async fn save_web_section_keeps_subtables_nested_without_duplicates() {
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
 
-    // No bare top-level timeouts key leaked.
+    // No bare top-level debug key leaked.
     for line in written.lines() {
-        assert_ne!(line, "timeouts:", "leaked top-level timeouts:\n{written}");
+        assert_ne!(line, "debug:", "leaked top-level debug:\n{written}");
     }
 
-    // The web timeouts sub-block appears exactly once.
+    // The web debug sub-block appears exactly once.
     assert_eq!(
-        written.matches("  timeouts:").count(),
+        written.matches("  debug:").count(),
         1,
-        "web timeouts block must appear exactly once:\n{written}"
+        "web debug block must appear exactly once:\n{written}"
     );
 
     // Result parses (duplicate sections would error here).
@@ -99,7 +99,7 @@ async fn save_web_section_is_idempotent_across_repeated_saves() {
     let path = dir.path().join("config.yaml");
     tokio::fs::write(
         &path,
-        "web:\n  timeouts:\n    http_overload_timeout_ms: 1\n",
+        "web:\n  debug:\n    enabled: true\n",
     )
     .await
     .unwrap();
@@ -114,7 +114,7 @@ async fn save_web_section_is_idempotent_across_repeated_saves() {
         .unwrap();
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
-    assert_eq!(written.matches("  timeouts:").count(), 1, "{written}");
+    assert_eq!(written.matches("  debug:").count(), 1, "{written}");
     assert_eq!(
         written.lines().filter(|line| *line == "web:").count(),
         1,
@@ -126,7 +126,7 @@ async fn save_web_section_is_idempotent_across_repeated_saves() {
 
 #[test]
 fn find_bounds_spans_nested_subtables() {
-    let src = "web:\n  timeouts:\n    http_overload_timeout_ms: 1\n\n\
+    let src = "web:\n  debug:\n    enabled: true\n\n\
                 other:\n  port: 1\n";
     let bounds = find_yaml_section_bounds(src, "web");
     assert!(bounds.is_some(), "should locate web block");
@@ -134,7 +134,7 @@ fn find_bounds_spans_nested_subtables() {
     let slice = &src[start..end];
     assert!(slice.starts_with("web:"));
     // Nested sub-blocks belong to the parent section bound.
-    assert!(slice.contains("timeouts:"));
+    assert!(slice.contains("debug:"));
     // The bound terminates before an unrelated top-level key.
     assert!(!slice.contains("other:"));
 }
@@ -168,7 +168,7 @@ async fn save_web_collapses_scattered_sections() {
         &path,
         "web:\n  carrier: \"https-lanes\"\n\n\
          other:\n  port: 443\n\n\
-         web:\n  timeouts:\n    http_overload_timeout_ms: 1\n",
+         web:\n  debug:\n    enabled: true\n",
     )
     .await
     .unwrap();

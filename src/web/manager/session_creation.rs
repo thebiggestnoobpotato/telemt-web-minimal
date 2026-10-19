@@ -234,8 +234,8 @@ impl WebProcessRuntime {
         let learning_policy = (
             config.web.carrier_negotiation_enabled() && config.web.carrier_learning,
             config.web.carrier_negotiation_aggressiveness,
-            Duration::from_secs(config.web.timeouts.carrier_learning_secs),
-            Duration::from_secs(config.web.timeouts.carrier_health_secs),
+            Duration::from_secs(config.timeouts.carrier_learning_secs),
+            Duration::from_secs(config.timeouts.carrier_health_secs),
         );
         let (candidates, scores, learning_epoch, learning_disposition) =
             if capability_selection && profile.carrier_learning && learning_policy.0 {

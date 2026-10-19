@@ -121,10 +121,10 @@ fn live_runtime_from_config(
     mut config: crate::config::ProxyConfig,
     long_poll_secs: u64,
 ) -> LiveRuntime {
-    config.web.timeouts.long_poll_secs = long_poll_secs;
-    config.web.timeouts.websocket_write_secs = 2;
-    config.web.timeouts.websocket_backpressure_secs = 2;
-    config.web.timeouts.websocket_eviction_secs = 1;
+    config.timeouts.long_poll_secs = long_poll_secs;
+    config.timeouts.websocket_write_secs = 2;
+    config.timeouts.websocket_backpressure_secs = 2;
+    config.timeouts.websocket_eviction_secs = 1;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     LiveRuntime {

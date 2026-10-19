@@ -562,20 +562,22 @@ fn upstream_socks_keys_load_into_socks_variant() {
 }
 
 #[test]
-fn top_level_timeouts_table_is_stripped() {
-    // strict: the removed timeouts section is rejected.
+fn legacy_timeouts_keys_are_stripped() {
+    // The top-level timeouts table is the WEB lifecycle deadline table now:
+    // the removed telegram timeout keys are unknown keys for strict loads.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\n\
          timeouts:\n  client_handshake: 30\n",
     );
     assert!(error.contains("timeouts"), "{error}");
 
-    // non-strict: the removed table is ignored and the config loads.
+    // non-strict: the legacy keys are ignored and the defaults apply.
     let cfg = load_config_from_temp_yaml(
         "users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n\
          timeouts:\n  client_handshake: 30\n  client_ack: 90\n",
     );
     assert_eq!(cfg.users.len(), 1);
+    assert_eq!(cfg.timeouts.fallback_resolve_secs, 5);
 }
 
 #[test]

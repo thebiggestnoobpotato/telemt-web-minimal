@@ -364,7 +364,7 @@ async fn expired_bridge_bootstrap_cannot_report_diagnostics() {
     let mut config = runtime_config(capability, WebCarrier::Https);
     config.web.debug.enabled = true;
     config.web.debug.sideband = true;
-    config.web.timeouts.bootstrap_lifetime_secs = 0;
+    config.timeouts.bootstrap_lifetime_secs = 0;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(active_runtime);

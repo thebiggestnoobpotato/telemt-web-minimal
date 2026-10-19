@@ -24,7 +24,7 @@ pub(super) fn validate(
     }
     if timeouts.websocket_eviction_secs > timeouts.websocket_write_secs {
         return config_error(
-            "web.timeouts.websocket_eviction_secs must not exceed websocket_write_secs",
+            "timeouts.websocket_eviction_secs must not exceed websocket_write_secs",
         );
     }
     if !carriers.iter().any(|carrier| carrier.uses_websocket()) {

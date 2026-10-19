@@ -70,7 +70,7 @@ pub(super) fn render(out: &mut String, publication: &WebRuntimePublication, conf
     let _ = writeln!(
         out,
         "telemt_web_bridge_recovery_seconds {}",
-        config.web.timeouts.bridge_recovery_secs
+        config.timeouts.bridge_recovery_secs
     );
 
     render_aggregates(out, publication);

@@ -155,7 +155,7 @@ async fn fallback_dns_empty_answers_and_resolver_errors_fail_closed() {
 #[tokio::test]
 async fn fallback_dns_timeout_is_bounded() {
     let mut parsed = source(SOURCE);
-    parsed.config.web.timeouts.fallback_resolve_secs = 1;
+    parsed.config.timeouts.fallback_resolve_secs = 1;
     let error = tokio::time::timeout(
         Duration::from_secs(3),
         prepare(&mut parsed.config, |_, _| {
