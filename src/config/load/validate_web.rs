@@ -56,7 +56,7 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
     }
 
     validate_limits(&config.limits)?;
-    debug::validate(&config.web.debug, &config.limits)?;
+    debug::validate(&config.logging.web_debug, &config.limits)?;
     let carriers = negotiation::validate(&config.web, &config.limits, &config.timeouts)?;
     if carriers.contains(&WebCarrier::Https) && config.limits.max_http_handlers < 2 {
         return config_error("WEB https candidates require limits.max_http_handlers >= 2");

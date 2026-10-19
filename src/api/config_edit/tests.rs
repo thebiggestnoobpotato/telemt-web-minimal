@@ -134,7 +134,8 @@ async fn read_managed_config_strips_access() {
 #[tokio::test]
 async fn read_managed_config_exposes_web_without_runtime_or_access_secrets() {
     let (path, _directory) = temp_config(concat!(
-        "web:\n  carrier: \"https\"\n  debug:\n    enabled: true\n    default_window_secs: 180\n",
+        "web:\n  carrier: \"https\"\n",
+        "logging:\n  web_debug_enable: true\n  web_debug:\n    default_window_secs: 180\n",
         "users:\n  bob:\n    secret: \"00000000000000000000000000000000\"\n",
     ));
 
@@ -142,25 +143,26 @@ async fn read_managed_config_exposes_web_without_runtime_or_access_secrets() {
     let table = value.as_mapping().unwrap();
 
     assert!(table.contains_key("web"));
-    assert!(table["web"].get("debug").is_some());
+    assert!(table["web"].get("debug").is_none());
+    assert!(table["logging"].get("web_debug").is_some());
     assert!(table["web"].get("runtime").is_none());
     assert!(!table.contains_key("access"));
 }
 
 #[tokio::test]
-async fn patch_web_debug_and_limits_are_persisted() {
+async fn patch_logging_web_debug_and_limits_are_persisted() {
     let (path, _directory) = temp_config("web:\n");
     let debug_patch: Json = serde_json::json!({
-        "web": {"debug": {
-            "enabled": true,
+        "logging": {"web_debug_enable": true, "web_debug": {
             "sideband": true,
             "capture_headers": false
         }}
     });
     let debug = apply_patch_to_path(&path, &debug_patch, None).await.unwrap();
-    assert!(debug.changed.iter().any(|section| section == "web"));
+    assert!(debug.changed.iter().any(|section| section == "logging"));
     let desired = ProxyConfig::load(&path).unwrap();
-    assert!(desired.web.debug.sideband);
+    assert!(desired.logging.web_debug_enable);
+    assert!(desired.logging.web_debug.sideband);
 
     let limits_patch: Json = serde_json::json!({
         // Extra HTTP heads must fit alongside the default-on conveyor metadata reservation.
@@ -185,11 +187,11 @@ async fn patch_web_fallback_fasttrack_is_persisted() {
 }
 
 #[tokio::test]
-async fn invalid_web_patch_does_not_modify_the_source() {
+async fn invalid_web_debug_patch_does_not_modify_the_source() {
     let (path, _directory) = temp_config("web:\n");
     let original = tokio::fs::read_to_string(&path).await.unwrap();
     let patch: Json = serde_json::json!({
-        "web": {"debug": {"default_window_secs": 181, "max_window_secs": 180}}
+        "logging": {"web_debug": {"default_window_secs": 181, "max_window_secs": 180}}
     });
 
     let error = apply_patch_to_path(&path, &patch, None).await.unwrap_err();

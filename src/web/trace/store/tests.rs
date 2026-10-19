@@ -1,16 +1,13 @@
 use super::*;
 
 fn store(records_capacity: usize, bytes_capacity: usize) -> Arc<WebTraceStore> {
-    let policy = WebDebugConfig {
-        enabled: true,
-        ..Default::default()
-    };
+    let policy = WebDebugConfig::default();
     let limits = WebLimitsConfig {
         debug_records_capacity: records_capacity,
         debug_bytes_global: bytes_capacity,
         ..Default::default()
     };
-    WebTraceStore::new(policy, &limits)
+    WebTraceStore::new(policy, true, &limits)
 }
 
 #[test]
@@ -39,7 +36,7 @@ fn ring_evicts_oldest_records_and_snapshot_leases_survive_clear() {
     assert_eq!(store.status().used_bytes, 2 * BASE_RECORD_RESERVATION);
 
     let policy = WebDebugConfig::default();
-    store.apply_policy(2, &policy);
+    store.apply_policy(2, &policy, false);
     assert_eq!(store.status().records, 0);
     assert_eq!(store.status().used_bytes, 2 * BASE_RECORD_RESERVATION);
     drop(snapshot);
@@ -55,11 +52,10 @@ fn capture_policy_epoch_rejects_an_inflight_old_policy_record() {
         .unwrap();
 
     let changed = WebDebugConfig {
-        enabled: true,
         capture_headers: false,
         ..Default::default()
     };
-    store.apply_policy(2, &changed);
+    store.apply_policy(2, &changed, true);
     exchange.commit();
 
     assert_eq!(store.status().records, 0);
@@ -70,13 +66,12 @@ fn capture_policy_epoch_rejects_an_inflight_old_policy_record() {
 fn stale_generation_cannot_restore_an_old_policy() {
     let store = store(4, 8 * BASE_RECORD_RESERVATION);
     let current = WebDebugConfig {
-        enabled: true,
         capture_headers: false,
         ..Default::default()
     };
-    store.apply_policy(3, &current);
+    store.apply_policy(3, &current, true);
 
-    store.apply_policy(2, &WebDebugConfig::default());
+    store.apply_policy(2, &WebDebugConfig::default(), false);
 
     let status = store.status();
     assert_eq!(status.policy_generation, 3);
@@ -98,7 +93,7 @@ fn bridge_diagnostic_policy_toggle_preserves_existing_records_and_epoch() {
     let mut policy = before.policy.as_ref().clone();
     policy.sideband = true;
 
-    store.apply_policy(2, &policy);
+    store.apply_policy(2, &policy, before.enabled);
 
     let after = store.status();
     assert!(after.policy.sideband);

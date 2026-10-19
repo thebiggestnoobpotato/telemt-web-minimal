@@ -84,6 +84,13 @@ pub struct LoggingConfig {
     /// `true` = links for all users, `false` = no links at all.
     #[serde(default = "default_true")]
     pub print_users_links: bool,
+    /// Enables process-owned WEB debug collection (the `/web-status`
+    /// recorder); unset keeps the recorder off.
+    #[serde(default)]
+    pub web_debug_enable: bool,
+    /// WEB debug recorder parameters, applied while `web_debug_enable` is set.
+    #[serde(default)]
+    pub web_debug: WebDebugConfig,
 }
 
 impl Default for LoggingConfig {
@@ -94,6 +101,8 @@ impl Default for LoggingConfig {
             log_level: LogLevel::Normal,
             unknown_dc_log_enabled: default_unknown_dc_log_enabled(),
             print_users_links: default_true(),
+            web_debug_enable: false,
+            web_debug: WebDebugConfig::default(),
         }
     }
 }

@@ -61,12 +61,11 @@ impl WebProcessRuntime {
         host: &str,
         event: BridgeDiagnosticEvent,
     ) -> Result<bool, ManagerError> {
-        let active = self
-            .active_generation()
-            .config()
-            .web
-            .debug
-            .bridge_diagnostics_enabled();
+        let config = self.active_generation().config();
+        let active = config
+            .logging
+            .web_debug
+            .bridge_diagnostics_enabled(config.logging.web_debug_enable);
         let now = Instant::now();
         let mut state = self.state.lock();
         let entry = state

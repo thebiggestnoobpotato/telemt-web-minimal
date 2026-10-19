@@ -77,7 +77,6 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "carrier_negotiation_aggressiveness",
     "fallback_fasttrack_mode",
     "http_connection_capacity_action",
-    "debug",
     "host",
     "base_path",
     "public_addr",
@@ -135,7 +134,6 @@ const LIMITS_CONFIG_KEYS: &[&str] = &[
 ];
 
 const WEB_DEBUG_CONFIG_KEYS: &[&str] = &[
-    "enabled",
     "sideband",
     "capture_lifecycle",
     "capture_headers",
@@ -203,6 +201,8 @@ const LOGGING_CONFIG_KEYS: &[&str] = &[
     "log_level",
     "print_users_links",
     "unknown_dc_log_enabled",
+    "web_debug_enable",
+    "web_debug",
 ];
 
 // Recursive table traversal and key suggestion logic.

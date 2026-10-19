@@ -63,9 +63,9 @@ async fn issue_bootstrap(
 async fn bridge_diagnostic_does_not_consume_the_bootstrap() {
     let capability = [31u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Websocket);
-    config.web.debug.enabled = true;
-    config.web.debug.sideband = true;
-    config.web.debug.body_capture = WebDebugBodyCapture::Full;
+    config.logging.web_debug_enable = true;
+    config.logging.web_debug.sideband = true;
+    config.logging.web_debug.body_capture = WebDebugBodyCapture::Full;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(active_runtime);
@@ -188,8 +188,8 @@ async fn bridge_diagnostic_does_not_consume_the_bootstrap() {
 async fn malformed_bridge_diagnostics_follow_the_sanitized_fallback_path() {
     let capability = [33u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Websocket);
-    config.web.debug.enabled = true;
-    config.web.debug.sideband = true;
+    config.logging.web_debug_enable = true;
+    config.logging.web_debug.sideband = true;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(active_runtime);
@@ -362,8 +362,8 @@ async fn malformed_bridge_diagnostics_follow_the_sanitized_fallback_path() {
 async fn expired_bridge_bootstrap_cannot_report_diagnostics() {
     let capability = [38u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Https);
-    config.web.debug.enabled = true;
-    config.web.debug.sideband = true;
+    config.logging.web_debug_enable = true;
+    config.logging.web_debug.sideband = true;
     config.timeouts.bootstrap_lifetime_secs = 0;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
@@ -392,8 +392,8 @@ async fn expired_bridge_bootstrap_cannot_report_diagnostics() {
 async fn diagnostic_body_pressure_does_not_claim_the_event() {
     let capability = [39u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Websocket);
-    config.web.debug.enabled = true;
-    config.web.debug.sideband = true;
+    config.logging.web_debug_enable = true;
+    config.logging.web_debug.sideband = true;
     config.limits.max_body_readers = 1;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
@@ -451,8 +451,8 @@ async fn bridge_diagnostic_sideband_is_carrier_independent() {
     ] {
         let capability = [marker; 32];
         let mut config = runtime_config(capability, carrier);
-        config.web.debug.enabled = true;
-        config.web.debug.sideband = true;
+        config.logging.web_debug_enable = true;
+        config.logging.web_debug.sideband = true;
         let generation = test_runtime_generation(1, config);
         let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
         let runtime = WebProcessRuntime::start(active_runtime);
@@ -481,7 +481,7 @@ async fn bridge_diagnostic_sideband_is_carrier_independent() {
 async fn disabled_bridge_diagnostic_is_acknowledged_without_recording() {
     let capability = [32u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Https);
-    config.web.debug.enabled = true;
+    config.logging.web_debug_enable = true;
     config.limits.max_bootstraps_per_ip = 2;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
@@ -500,8 +500,8 @@ async fn disabled_bridge_diagnostic_is_acknowledged_without_recording() {
     );
     let bootstrap = bootstrap_from_response(&root_response);
     let mut enabled_config = runtime_config(capability, WebCarrier::Https);
-    enabled_config.web.debug.enabled = true;
-    enabled_config.web.debug.sideband = true;
+    enabled_config.logging.web_debug_enable = true;
+    enabled_config.logging.web_debug.sideband = true;
     let enabled_generation = test_runtime_generation(2, enabled_config);
     active_runtime.store(Arc::clone(&enabled_generation));
     let report = diagnostic_request(
@@ -531,7 +531,7 @@ async fn disabled_bridge_diagnostic_is_acknowledged_without_recording() {
 
     let current_gate_bootstrap = issue_bootstrap(&listener, &runtime, capability).await;
     let mut disabled_config = runtime_config(capability, WebCarrier::Https);
-    disabled_config.web.debug.enabled = true;
+    disabled_config.logging.web_debug_enable = true;
     let disabled_generation = test_runtime_generation(3, disabled_config);
     active_runtime.store(Arc::clone(&disabled_generation));
     let current_gate_report = diagnostic_request(

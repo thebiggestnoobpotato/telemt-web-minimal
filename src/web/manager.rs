@@ -253,7 +253,11 @@ impl WebProcessRuntime {
     #[cfg(test)]
     pub(crate) fn start(active_runtime: Arc<ArcSwap<RuntimeGeneration>>) -> Arc<Self> {
         let config = active_runtime.load().config();
-        let trace = WebTraceStore::new(config.web.debug.clone(), &config.limits);
+        let trace = WebTraceStore::new(
+            config.logging.web_debug.clone(),
+            config.logging.web_debug_enable,
+            &config.limits,
+        );
         Self::start_with_trace(active_runtime, trace, WebTelemetry::new())
     }
 
@@ -266,7 +270,11 @@ impl WebProcessRuntime {
         let initial_generation = active_runtime.load_full();
         let config = initial_generation.config();
         let token_authenticator = TokenAuthenticator::new(&initial_generation.rng);
-        trace.apply_policy(initial_generation.id, &config.web.debug);
+        trace.apply_policy(
+            initial_generation.id,
+            &config.logging.web_debug,
+            config.logging.web_debug_enable,
+        );
         let limits = config.limits.clone();
         let learning_capacity = limits.max_carrier_learning_entries;
         let mut carrier_learning = learning::CarrierLearning::new(learning_capacity);
@@ -335,10 +343,12 @@ impl WebProcessRuntime {
                             break;
                         };
                         let generation = runtime.active_generation();
-                        let policy = generation.config().web.debug.clone();
-                        runtime
-                            .trace
-                            .apply_policy(generation.id, &policy);
+                        let policy = generation.config().logging.web_debug.clone();
+                        runtime.trace.apply_policy(
+                            generation.id,
+                            &policy,
+                            generation.config().logging.web_debug_enable,
+                        );
                         runtime.cleanup();
                     }
                 }

@@ -233,8 +233,8 @@ async fn fallback_forwarding_preserves_every_reference_request_target() {
 async fn diagnostic_and_recovery_use_only_the_exact_prefixed_root() {
     let capability = [85u8; 32];
     let mut config = runtime_config_with_base(capability, WebCarrier::Https, "/relay/");
-    config.web.debug.enabled = true;
-    config.web.debug.sideband = true;
+    config.logging.web_debug_enable = true;
+    config.logging.web_debug.sideband = true;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

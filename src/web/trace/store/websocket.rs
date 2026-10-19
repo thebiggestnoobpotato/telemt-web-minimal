@@ -24,7 +24,7 @@ impl WebTraceStore {
     where
         F: FnOnce() -> TraceIdentity,
     {
-        if !self.enabled.load(Ordering::Acquire) || !self.policy.load().enabled {
+        if !self.enabled.load(Ordering::Acquire) {
             return None;
         }
         let user_agent = request
@@ -55,9 +55,6 @@ impl WebTraceStore {
         }
         let epoch = self.epoch.load(Ordering::Acquire);
         let policy = self.policy.load_full();
-        if !policy.enabled {
-            return;
-        }
         let capture_limit = super::super::sanitize::capture_limit(
             &policy,
             super::super::types::TraceRoute::Websocket,
@@ -168,7 +165,6 @@ mod tests {
     #[test]
     fn websocket_message_capture_retains_bounded_identity_body_timing_and_frames() {
         let policy = WebDebugConfig {
-            enabled: true,
             capture_frames: true,
             capture_timings: true,
             body_capture: WebDebugBodyCapture::Full,
@@ -179,7 +175,7 @@ mod tests {
             debug_bytes_global: 64 * 1024,
             ..Default::default()
         };
-        let store = WebTraceStore::new(policy, &limits);
+        let store = WebTraceStore::new(policy, true, &limits);
         let request = hyper::Request::builder()
             .header(hyper::header::USER_AGENT, "trace-client")
             .body(())

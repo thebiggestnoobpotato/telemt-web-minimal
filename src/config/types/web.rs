@@ -7,7 +7,6 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use super::web_carrier::{WebCarrier, WebCarrierMethod, WebCarriers};
-use super::web_debug::WebDebugConfig;
 
 // Serialized WEB defaults remain separate from the runtime data model.
 mod defaults;
@@ -412,9 +411,6 @@ pub struct WebConfig {
     /// Action applied when accepted HTTP connection capacity is exhausted.
     #[serde(default)]
     pub http_connection_capacity_action: WebHttpConnectionCapacityAction,
-    /// Bounded server-side WEB debug policy.
-    #[serde(default)]
-    pub debug: WebDebugConfig,
     /// WEB vhost parameters flattened into the `web` table; a set `host`
     /// is the single public hostname served by WEB listeners.
     #[serde(flatten)]
@@ -460,7 +456,6 @@ impl Default for WebConfig {
             carrier_negotiation_aggressiveness: WebCarrierNegotiationAggressiveness::default(),
             fallback_fasttrack_mode: WebFallbackFastTrackMode::default(),
             http_connection_capacity_action: WebHttpConnectionCapacityAction::default(),
-            debug: WebDebugConfig::default(),
             vhost: WebVhostConfig::default(),
             runtime: None,
             fallback_dns: Arc::default(),

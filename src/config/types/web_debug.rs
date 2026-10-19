@@ -15,12 +15,11 @@ pub enum WebDebugBodyCapture {
     Full,
 }
 
-/// Bounded WEB server-side debugging policy.
+/// Bounded WEB server-side debugging policy parameters. The master switch
+/// lives on `LoggingConfig::web_debug_enable`; these parameters apply only
+/// while that switch is set.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebDebugConfig {
-    /// Enables process-owned WEB debug collection.
-    #[serde(default)]
-    pub enabled: bool,
     /// Enables generated-bridge diagnostic reports over the HTTPS sideband.
     #[serde(default)]
     pub sideband: bool,
@@ -56,7 +55,6 @@ pub struct WebDebugConfig {
 impl Default for WebDebugConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
             sideband: false,
             capture_lifecycle: true,
             capture_headers: true,
@@ -72,9 +70,10 @@ impl Default for WebDebugConfig {
 }
 
 impl WebDebugConfig {
-    /// Returns whether newly issued bridges may report diagnostic lifecycle events.
-    pub(crate) const fn bridge_diagnostics_enabled(&self) -> bool {
-        self.enabled && self.sideband && self.capture_lifecycle
+    /// Returns whether newly issued bridges may report diagnostic lifecycle
+    /// events under the caller-provided `web_debug_enable` master switch.
+    pub(crate) const fn bridge_diagnostics_enabled(&self, enabled: bool) -> bool {
+        enabled && self.sideband && self.capture_lifecycle
     }
 }
 

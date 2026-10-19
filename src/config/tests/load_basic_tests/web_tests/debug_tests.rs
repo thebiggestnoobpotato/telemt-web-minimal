@@ -1,31 +1,36 @@
 use super::*;
 
 #[test]
-fn web_debug_table_uses_debug_name_and_bounded_defaults() {
+fn logging_web_debug_table_uses_web_debug_name_and_bounded_defaults() {
     assert!(!crate::config::WebDebugConfig::default().sideband);
     let mut ineffective = crate::config::WebDebugConfig {
-        enabled: true,
         sideband: true,
         ..Default::default()
     };
     ineffective.capture_lifecycle = false;
-    assert!(!ineffective.bridge_diagnostics_enabled());
+    assert!(!ineffective.bridge_diagnostics_enabled(true));
 
     let configured = WEB_CONFIG.replace(
         "web:\n",
-        "web:\n  debug:\n    enabled: true\n    sideband: true\n    body_capture: \"prefix\"\n    body_prefix_bytes: 2048\n    default_window_secs: 180\n    max_window_secs: 900\n",
+        "logging:\n  web_debug_enable: true\n  web_debug:\n    sideband: true\n    body_capture: \"prefix\"\n    body_prefix_bytes: 2048\n    default_window_secs: 180\n    max_window_secs: 900\n\nweb:\n",
     );
     let config = load_config_from_temp_yaml(&configured);
-    assert!(config.web.debug.enabled);
-    assert!(config.web.debug.sideband);
-    assert!(config.web.debug.bridge_diagnostics_enabled());
-    assert_eq!(config.web.debug.body_capture, WebDebugBodyCapture::Prefix);
-    assert_eq!(config.web.debug.body_prefix_bytes, 2048);
-    assert_eq!(config.web.debug.default_window_secs, 180);
-    assert_eq!(config.web.debug.max_window_secs, 900);
+    assert!(config.logging.web_debug_enable);
+    assert!(config.logging.web_debug.sideband);
+    assert!(config
+        .logging
+        .web_debug
+        .bridge_diagnostics_enabled(config.logging.web_debug_enable));
+    assert_eq!(
+        config.logging.web_debug.body_capture,
+        WebDebugBodyCapture::Prefix
+    );
+    assert_eq!(config.logging.web_debug.body_prefix_bytes, 2048);
+    assert_eq!(config.logging.web_debug.default_window_secs, 180);
+    assert_eq!(config.logging.web_debug.max_window_secs, 900);
 
     let strict = format!("general:\n  config_strict: true\n{configured}");
-    assert!(load_config_from_temp_yaml(&strict).web.debug.sideband);
+    assert!(load_config_from_temp_yaml(&strict).logging.web_debug.sideband);
 
     let old_name = format!(
         "general:\n  config_strict: true\n{}",
@@ -45,24 +50,24 @@ fn web_debug_table_uses_debug_name_and_bounded_defaults() {
         )
     );
     let error = load_config_error_from_temp_yaml(&old_parameter);
-    assert!(error.contains("web.debug.bridge_diagnostics"));
+    assert!(error.contains("web.debug"));
 }
 
 #[test]
-fn web_debug_prefix_and_window_validation_fail_closed() {
+fn logging_web_debug_prefix_and_window_validation_fail_closed() {
     let oversized_prefix = WEB_CONFIG.replace(
         "web:\n",
-        "web:\n  debug:\n    enabled: true\n    body_prefix_bytes: 2097153\n",
+        "logging:\n  web_debug:\n    body_prefix_bytes: 2097153\n\nweb:\n",
     );
     let error = load_config_error_from_temp_yaml(&oversized_prefix);
-    assert!(error.contains("web.debug.body_prefix_bytes"));
+    assert!(error.contains("logging.web_debug.body_prefix_bytes"));
 
     let reversed_window = WEB_CONFIG.replace(
         "web:\n",
-        "web:\n  debug:\n    enabled: true\n    default_window_secs: 181\n    max_window_secs: 180\n",
+        "logging:\n  web_debug:\n    default_window_secs: 181\n    max_window_secs: 180\n\nweb:\n",
     );
     let error = load_config_error_from_temp_yaml(&reversed_window);
-    assert!(error.contains("web.debug windows"));
+    assert!(error.contains("logging.web_debug windows"));
 
     let undersized_store = WEB_CONFIG.replace(
         "web:\n",

@@ -66,11 +66,11 @@ pub(super) async fn render(
     html.push_str("<h1>WEB status</h1>");
     push_filter_form(&mut html, &query);
     html.push_str("<section><h2>Store</h2><table><tbody>");
-    summary_row(&mut html, "debug enabled", yes_no(status.policy.enabled));
+    summary_row(&mut html, "debug enabled", yes_no(status.enabled));
     summary_row(
         &mut html,
         "sideband",
-        yes_no(status.policy.bridge_diagnostics_enabled()),
+        yes_no(status.policy.bridge_diagnostics_enabled(status.enabled)),
     );
     summary_row(&mut html, "body capture", body_mode(&status.policy));
     summary_row(&mut html, "window seconds", &query.window_secs.to_string());

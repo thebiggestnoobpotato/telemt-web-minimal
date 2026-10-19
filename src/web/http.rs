@@ -392,7 +392,10 @@ async fn handle_root(
         config.timeouts.websocket_open_secs,
         config.timeouts.reconnect_grace_secs,
         config.timeouts.carrier_probe_coalesce_ms,
-        config.web.debug.bridge_diagnostics_enabled(),
+        config
+            .logging
+            .web_debug
+            .bridge_diagnostics_enabled(config.logging.web_debug_enable),
         config.web.carrier_method,
         &generation.rng,
     );

@@ -192,7 +192,8 @@ mod tests {
             listeners: vec![first_listener, second_listener],
         };
         let trace = WebTraceStore::new(
-            runtime.config().web.debug.clone(),
+            runtime.config().logging.web_debug.clone(),
+            runtime.config().logging.web_debug_enable,
             &runtime.config().limits,
         );
         let control = WebRuntimeControl::new();

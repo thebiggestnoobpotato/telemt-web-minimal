@@ -2,7 +2,6 @@ use super::*;
 
 fn trace_store() -> Arc<WebTraceStore> {
     let policy = WebDebugConfig {
-        enabled: true,
         body_capture: WebDebugBodyCapture::Prefix,
         body_prefix_bytes: 256,
         ..Default::default()
@@ -12,7 +11,7 @@ fn trace_store() -> Arc<WebTraceStore> {
         debug_bytes_global: 16 * 1024,
         ..Default::default()
     };
-    WebTraceStore::new(policy, &limits)
+    WebTraceStore::new(policy, true, &limits)
 }
 
 #[test]

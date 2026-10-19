@@ -46,14 +46,14 @@ pub(super) fn validate(limits: &WebLimitsConfig) -> Result<()> {
         .ok_or_else(|| ProxyError::Config("limits debug index overflowed usize".to_string()))?;
     let status_pages = WEB_DEBUG_RENDERERS
         .checked_mul(WEB_DEBUG_STATUS_PAGE_BYTES)
-        .ok_or_else(|| ProxyError::Config("web.debug status pages overflowed usize".to_string()))?;
+        .ok_or_else(|| ProxyError::Config("logging.web_debug status pages overflowed usize".to_string()))?;
     let debug_reservation = limits
         .debug_bytes_global
         .checked_add(
             debug_ring_index
                 .checked_mul(WEB_DEBUG_RENDERERS)
                 .ok_or_else(|| {
-                    ProxyError::Config("web.debug snapshot indexes overflowed usize".to_string())
+                    ProxyError::Config("logging.web_debug snapshot indexes overflowed usize".to_string())
                 })?,
         )
         .and_then(|value| {
@@ -61,7 +61,7 @@ pub(super) fn validate(limits: &WebLimitsConfig) -> Result<()> {
                 .checked_mul(WEB_DEBUG_GROUP_SCRATCH_BYTES)
                 .and_then(|scratch| value.checked_add(scratch))
         })
-        .ok_or_else(|| ProxyError::Config("web.debug reservations overflowed usize".to_string()))?;
+        .ok_or_else(|| ProxyError::Config("logging.web_debug reservations overflowed usize".to_string()))?;
     let carrier_learning_reservation = limits
         .max_carrier_learning_entries
         .checked_mul(WEB_CARRIER_LEARNING_ENTRY_BYTES)

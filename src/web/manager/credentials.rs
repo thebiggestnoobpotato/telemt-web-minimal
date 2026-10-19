@@ -157,7 +157,10 @@ impl WebProcessRuntime {
             return Err(ManagerError::Limit);
         }
         let trace_session_id = self.trace.next_session_id();
-        let bridge_diagnostics_enabled = config.web.debug.bridge_diagnostics_enabled();
+        let bridge_diagnostics_enabled = config
+            .logging
+            .web_debug
+            .bridge_diagnostics_enabled(config.logging.web_debug_enable);
         let (user_agent, user_agent_id) = bounded_user_agent(user_agent);
         let issued_profile = Arc::clone(&profile);
         state.bootstraps.insert(

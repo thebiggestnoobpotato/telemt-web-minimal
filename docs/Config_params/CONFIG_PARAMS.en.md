@@ -24,7 +24,6 @@ This document lists all configuration keys accepted by `config.yaml`.
  - [listener](#listener)
  - [metrics](#metrics)
  - [web](#web)
- - [web.debug](#webdebug)
  - [vhost parameters](#vhost-parameters)
  - [timeouts](#timeouts)
  - [limits](#limits)
@@ -54,6 +53,8 @@ This document lists all configuration keys accepted by `config.yaml`.
 | [`log_level`](#log_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` |
 | [`print_users_links`](#print_users_links) | `bool` | `true` |
 | [`unknown_dc_log_enabled`](#unknown_dc_log_enabled) | `bool` | `false` |
+| [`web_debug_enable`](#web_debug_enable) | `bool` | `false` |
+| [`web_debug`](#web_debug) | table | bounded defaults |
 
 ## destination
   - **Constraints / validation**: Must be `stderr`, `syslog`, or `file`. `syslog` is supported only on Unix platforms. `file` requires `path`.
@@ -103,6 +104,47 @@ This document lists all configuration keys accepted by `config.yaml`.
     ```yaml
     logging:
       unknown_dc_log_enabled: false
+    ```
+## web_debug_enable
+  - **Constraints / validation**: `bool`.
+  - **Description**: Master switch for the process-owned server-side WEB debug recorder exposed as authenticated HTML at `GET /web-status` on the API listener. Collection is disabled by default. The `web_debug` table is always accepted and validated; its parameters apply only while this switch is set. Retained and in-flight records remain bounded by values in `limits`.
+  - **Example**:
+
+    ```yaml
+    logging:
+      web_debug_enable: true
+      # or:
+      # web_debug_enable: false
+    ```
+## web_debug
+  - **Constraints / validation**: Table applied only while `web_debug_enable` is true. Window bounds and body-prefix ceilings are always validated.
+  - **Description**: Parameters for the process-owned server-side WEB debug recorder. Retained records are process-local and cleared at process restart. `full` retains a complete recognized carrier body only up to `limits.max_body_bytes`; fallback bodies always remain prefix-bounded. A prefix that depends on a larger `limits` capacity takes effect only when the larger value is active at process start. URI queries are never retained, credential header values are omitted, body copies are scrubbed for known WEB capabilities and bearer tokens, and profile keys are represented only by a domain-separated 16-hex fingerprint.
+
+    | Key | Type | Default | Description |
+    | --- | --- | --- | --- |
+    | `sideband` | `bool` | `false` | Enables generated-bridge lifecycle diagnostics; effective only when `web_debug_enable` and `capture_lifecycle` are also true. |
+    | `capture_lifecycle` | `bool` | `true` | Records typed bridge, session, stream, handshake, relay, and close events. |
+    | `capture_headers` | `bool` | `true` | Retains header names and only allowlisted non-credential values. |
+    | `capture_timings` | `bool` | `true` | Retains request-body, response-ready, response-body, and WebSocket message-processing timing points. |
+    | `capture_frames` | `bool` | `true` | Parses bounded carrier bodies into frame type, stream ID, length, WINDOW, and error metadata without retaining frame payload separately. |
+    | `body_capture` | `"off"`, `"metadata"`, `"prefix"`, or `"full"` | `"metadata"` | Controls request and response body byte retention. |
+    | `body_prefix_bytes` | `usize` | `4096` | Prefix retained for recognized WEB bodies in `prefix` mode. |
+    | `fallback_body_prefix_bytes` | `usize` | `4096` | Maximum retained prefix for ordinary fallback traffic in both `prefix` and `full` modes. |
+    | `default_window_secs` | `u64` | `180` | Default observation window rendered by `/web-status`. |
+    | `max_window_secs` | `u64` | `3600` | Largest observation window accepted by `/web-status`; validated at no more than 86400. |
+
+    When `web_debug_enable`, `sideband`, and `capture_lifecycle` are all true, newly generated bridge pages send bounded one-shot lifecycle events to the exact configured base plus `api/v1/diagnostic`. The route is internal to Telemt and does not expose a public control API. Sideband behavior applies only to bridge pages generated after it is enabled.
+
+    Authenticated JSON control may clear the ring explicitly with `POST /v1/runtime/web/debug/clear`; the required process `runtime_instance` fences stale controllers, the returned epoch fences in-flight writers, and `leased_bytes` reports memory still owned by already rendered snapshots.
+  - **Example**:
+
+    ```yaml
+    logging:
+      web_debug_enable: true
+      web_debug:
+        sideband: true
+        body_capture: "prefix"
+        body_prefix_bytes: 2048
     ```
 
 # general
@@ -579,7 +621,6 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `carrier_negotiation_aggressiveness` | `"conservative"`, `"balanced"`, or `"aggressive"` | `"conservative"` |
 | `fallback_fasttrack_mode` | `"off"`, `"shadow"`, or `"enforce"` | `"off"` |
 | `http_connection_capacity_action` | `"drop"`, `"wait"`, or `"respond"` | `"drop"` |
-| `debug` | table | disabled, bounded defaults |
 | `host` | `String` | unset |
 | `base_path` | `String` | `""` |
 | `public_addr` | `SocketAddr` | unset |
@@ -595,30 +636,6 @@ When `carriers` is missing or `false`, auto-negotiation and learning are disable
 `fallback_fasttrack_mode` is restart-only. `off` preserves legacy root-request scanning and collects no fast-track decisions. `shadow` records eligible requests while preserving the full scan. `enforce` skips scans only for `HEAD` or absent/noncanonical bridge queries. A canonical bridge-shaped `GET`, including an unknown capability, always scans every profile in the selected vhost. The optimization does not bound hostile canonical probes and enforce mode must be validated for request-shape timing distinguishability behind the production TLS terminator.
 
 `carrier_learning` applies only while negotiation is enabled. Learning is process-local, in-memory, bounded, and positive-only: only a carrier that reaches the server-defined healthy state contributes evidence. `conservative` requires the broadest evidence and disables IP ranking, `balanced` admits moderate User-Agent/profile evidence plus eligible public-IP tie breaking, and `aggressive` reacts to the first bounded samples. Reported client failures remain diagnostic and never create negative evidence. Evidence accumulates from process start and resets at the next process restart. Because `limits` is process-owned, enabling carrier learning requires `max_carrier_learning_entries` of at least 3, otherwise the configuration is rejected. WEB is always on: use the users API to revoke one user's active sessions.
-
-# web.debug
-
-This table controls the process-owned server-side WEB debug recorder exposed as authenticated HTML at `GET /web-status` on the API listener. Collection is disabled by default. Retained and in-flight records remain bounded by values in `limits`.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `enabled` | `bool` | `false` | Enables WEB HTTP, WebSocket-message, frame, and lifecycle debug records. |
-| `capture_lifecycle` | `bool` | `true` | Records typed bridge, session, stream, handshake, relay, and close events. |
-| `sideband` | `bool` | `false` | Enables generated-bridge lifecycle diagnostics; effective only when `enabled` and `capture_lifecycle` are also true. |
-| `capture_headers` | `bool` | `true` | Retains header names and only allowlisted non-credential values. |
-| `capture_timings` | `bool` | `true` | Retains request-body, response-ready, response-body, and WebSocket message-processing timing points. |
-| `capture_frames` | `bool` | `true` | Parses bounded carrier bodies into frame type, stream ID, length, WINDOW, and error metadata without retaining frame payload separately. |
-| `body_capture` | `"off"`, `"metadata"`, `"prefix"`, or `"full"` | `"metadata"` | Controls request and response body byte retention. |
-| `body_prefix_bytes` | `usize` | `4096` | Prefix retained for recognized WEB bodies in `prefix` mode. |
-| `fallback_body_prefix_bytes` | `usize` | `4096` | Maximum retained prefix for ordinary fallback traffic in both `prefix` and `full` modes. |
-| `default_window_secs` | `u64` | `180` | Default observation window rendered by `/web-status`. |
-| `max_window_secs` | `u64` | `3600` | Largest observation window accepted by `/web-status`; validated at no more than 86400. |
-
-Retained records are process-local and cleared at process restart. `full` retains a complete recognized carrier body only up to `limits.max_body_bytes`; fallback bodies always remain prefix-bounded. A prefix that depends on a larger `limits` capacity takes effect only when the larger value is active at process start. URI queries are never retained, credential header values are omitted, body copies are scrubbed for known WEB capabilities and bearer tokens, and profile keys are represented only by a domain-separated 16-hex fingerprint.
-
-When `enabled`, `sideband`, and `capture_lifecycle` are all true, newly generated bridge pages send bounded one-shot lifecycle events to the exact configured base plus `api/v1/diagnostic`. The route is internal to Telemt and does not expose a public control API. Sideband behavior applies only to bridge pages generated after it is enabled.
-
-Authenticated JSON control may clear the ring explicitly with `POST /v1/runtime/web/debug/clear`; the required process `runtime_instance` fences stale controllers, the returned epoch fences in-flight writers, and `leased_bytes` reports memory still owned by already rendered snapshots.
 
 # vhost parameters
 
@@ -636,7 +653,7 @@ The hostname must be accepted by Telegram Desktop and is normalized during valid
 
 ## WEB lifecycle and API management
 
-- The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `timeouts`, the vhost parameters, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
+- The configuration active at process start supplies carrier and negotiation policy, `logging.web_debug`, `timeouts`, the vhost parameters, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
 - Changing `base_path` changes the new-request route and derived capability from the next process restart. Reissue links before the restart: after it, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling.
 - WEB listener inventory and trust policy under `listener`, and every `limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `web` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `limits`, `timeouts`, and `listener` values apply at the next process restart.

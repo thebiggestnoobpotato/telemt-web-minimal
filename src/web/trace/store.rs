@@ -39,6 +39,8 @@ impl Drop for StoredTraceRecord {
 
 /// Point-in-time process-owned trace counters and ring bounds.
 pub(crate) struct TraceStoreStatus {
+    /// Whether process-owned WEB debug collection is enabled.
+    pub(crate) enabled: bool,
     /// Current debug policy.
     pub(crate) policy: Arc<WebDebugConfig>,
     /// Runtime generation that last authored the effective policy.
@@ -98,9 +100,9 @@ pub(crate) struct WebTraceStore {
 
 impl WebTraceStore {
     /// Creates a process-owned store from restart-only capacity and initial policy.
-    pub(crate) fn new(policy: WebDebugConfig, limits: &WebLimitsConfig) -> Arc<Self> {
+    pub(crate) fn new(policy: WebDebugConfig, enabled: bool, limits: &WebLimitsConfig) -> Arc<Self> {
         Arc::new(Self {
-            enabled: AtomicBool::new(policy.enabled),
+            enabled: AtomicBool::new(enabled),
             policy: ArcSwap::from_pointee(policy),
             policy_update: Mutex::new(()),
             policy_generation: AtomicU64::new(0),
@@ -123,18 +125,18 @@ impl WebTraceStore {
     }
 
     /// Applies one generation-authored policy and rejects stale generation writers.
-    pub(crate) fn apply_policy(&self, generation: u64, policy: &WebDebugConfig) {
+    pub(crate) fn apply_policy(&self, generation: u64, policy: &WebDebugConfig, enabled: bool) {
         let _policy_update = self.policy_update.lock();
         let current_generation = self.policy_generation.load(Ordering::Acquire);
         if generation < current_generation {
             return;
         }
         let current = self.policy.load_full();
-        if current.as_ref() == policy {
+        if current.as_ref() == policy && self.enabled.load(Ordering::Acquire) == enabled {
             self.policy_generation.store(generation, Ordering::Release);
             return;
         }
-        let capture_changed = current.enabled != policy.enabled
+        let capture_changed = self.enabled.load(Ordering::Acquire) != enabled
             || current.capture_lifecycle != policy.capture_lifecycle
             || current.capture_headers != policy.capture_headers
             || current.capture_timings != policy.capture_timings
@@ -144,7 +146,7 @@ impl WebTraceStore {
             || current.fallback_body_prefix_bytes != policy.fallback_body_prefix_bytes;
         self.policy.store(Arc::new(policy.clone()));
         self.policy_generation.store(generation, Ordering::Release);
-        self.enabled.store(policy.enabled, Ordering::Release);
+        self.enabled.store(enabled, Ordering::Release);
         if capture_changed {
             self.epoch.fetch_add(1, Ordering::AcqRel);
             let detached = {
@@ -196,7 +198,7 @@ impl WebTraceStore {
         }
         let epoch = self.epoch.load(Ordering::Acquire);
         let policy = self.policy.load_full();
-        if !policy.enabled || !self.try_reserve_record(BASE_RECORD_RESERVATION) {
+        if !self.try_reserve_record(BASE_RECORD_RESERVATION) {
             return None;
         }
         Some(HttpTraceExchange::new(
@@ -313,7 +315,7 @@ impl WebTraceStore {
             self.record_truncation();
             return;
         };
-        if !policy.enabled || !policy.capture_lifecycle || !self.try_reserve_record(reservation) {
+        if !policy.capture_lifecycle || !self.try_reserve_record(reservation) {
             return;
         }
         let record = TraceRecord {
@@ -380,6 +382,7 @@ impl WebTraceStore {
         let _policy_update = self.policy_update.lock();
         let ring = self.ring.lock();
         TraceStoreStatus {
+            enabled: self.enabled.load(Ordering::Acquire),
             policy: self.policy.load_full(),
             policy_generation: self.policy_generation.load(Ordering::Acquire),
             epoch: self.epoch.load(Ordering::Acquire),
@@ -400,6 +403,7 @@ impl WebTraceStore {
         let _policy_update = self.policy_update.try_lock()?;
         let ring = self.ring.try_lock()?;
         Some(TraceStoreStatus {
+            enabled: self.enabled.load(Ordering::Acquire),
             policy: self.policy.load_full(),
             policy_generation: self.policy_generation.load(Ordering::Acquire),
             epoch: self.epoch.load(Ordering::Acquire),

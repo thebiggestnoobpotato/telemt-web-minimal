@@ -77,6 +77,25 @@ fn nested_web_timeouts_key_is_stripped() {
 }
 
 #[test]
+fn nested_web_debug_key_is_stripped() {
+    // web.debug is a logging directive now (the logging.web_debug_enable
+    // switch plus the logging.web_debug table): a nested web.debug table is
+    // an unknown key for strict loads.
+    let nested = WEB_CONFIG.replace(
+        "web:\n",
+        "web:\n  debug:\n    enabled: true\n",
+    );
+    let strict_error = load_config_error_from_temp_yaml(
+        &format!("general:\n  config_strict: true\n{nested}"),
+    );
+    assert!(strict_error.contains("web.debug"), "{strict_error}");
+
+    // non-strict: the stray table is ignored and the recorder stays off.
+    let config = load_config_from_temp_yaml(&nested);
+    assert!(!config.logging.web_debug_enable);
+}
+
+#[test]
 fn nested_web_vhost_key_is_stripped() {
     // vhost is a flattened parameter group under web now: a nested
     // web.vhost table is an unknown key for strict loads.

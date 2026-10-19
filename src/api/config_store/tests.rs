@@ -54,12 +54,12 @@ fn find_bounds_matches_header_with_inline_comment() {
 }
 
 #[tokio::test]
-async fn save_web_section_keeps_subtables_nested_without_duplicates() {
+async fn save_logging_section_keeps_subtables_nested_without_duplicates() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.yaml");
     tokio::fs::write(
         &path,
-        "web:\n  debug:\n    enabled: true\n\n\
+        "logging:\n  web_debug:\n    sideband: true\n\n\
          other:\n  port: 443\n",
     )
     .await
@@ -67,22 +67,22 @@ async fn save_web_section_keeps_subtables_nested_without_duplicates() {
 
     let cfg = ProxyConfig::default();
 
-    save_sections_to_disk(&path, &cfg, &["web"])
+    save_sections_to_disk(&path, &cfg, &["logging"])
         .await
         .unwrap();
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
 
-    // No bare top-level debug key leaked.
+    // No bare top-level web_debug key leaked.
     for line in written.lines() {
-        assert_ne!(line, "debug:", "leaked top-level debug:\n{written}");
+        assert_ne!(line, "web_debug:", "leaked top-level web_debug:\n{written}");
     }
 
-    // The web debug sub-block appears exactly once.
+    // The logging web_debug sub-block appears exactly once.
     assert_eq!(
-        written.matches("  debug:").count(),
+        written.matches("  web_debug:").count(),
         1,
-        "web debug block must appear exactly once:\n{written}"
+        "logging web_debug block must appear exactly once:\n{written}"
     );
 
     // Result parses (duplicate sections would error here).
@@ -94,29 +94,29 @@ async fn save_web_section_keeps_subtables_nested_without_duplicates() {
 }
 
 #[tokio::test]
-async fn save_web_section_is_idempotent_across_repeated_saves() {
+async fn save_logging_section_is_idempotent_across_repeated_saves() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.yaml");
     tokio::fs::write(
         &path,
-        "web:\n  debug:\n    enabled: true\n",
+        "logging:\n  web_debug:\n    sideband: true\n",
     )
     .await
     .unwrap();
 
     let cfg = ProxyConfig::default();
 
-    save_sections_to_disk(&path, &cfg, &["web"])
+    save_sections_to_disk(&path, &cfg, &["logging"])
         .await
         .unwrap();
-    save_sections_to_disk(&path, &cfg, &["web"])
+    save_sections_to_disk(&path, &cfg, &["logging"])
         .await
         .unwrap();
 
     let written = tokio::fs::read_to_string(&path).await.unwrap();
-    assert_eq!(written.matches("  debug:").count(), 1, "{written}");
+    assert_eq!(written.matches("  web_debug:").count(), 1, "{written}");
     assert_eq!(
-        written.lines().filter(|line| *line == "web:").count(),
+        written.lines().filter(|line| *line == "logging:").count(),
         1,
         "{written}"
     );
@@ -126,15 +126,15 @@ async fn save_web_section_is_idempotent_across_repeated_saves() {
 
 #[test]
 fn find_bounds_spans_nested_subtables() {
-    let src = "web:\n  debug:\n    enabled: true\n\n\
+    let src = "logging:\n  web_debug:\n    sideband: true\n\n\
                 other:\n  port: 1\n";
-    let bounds = find_yaml_section_bounds(src, "web");
-    assert!(bounds.is_some(), "should locate web block");
+    let bounds = find_yaml_section_bounds(src, "logging");
+    assert!(bounds.is_some(), "should locate logging block");
     let (start, end) = bounds.unwrap();
     let slice = &src[start..end];
-    assert!(slice.starts_with("web:"));
+    assert!(slice.starts_with("logging:"));
     // Nested sub-blocks belong to the parent section bound.
-    assert!(slice.contains("debug:"));
+    assert!(slice.contains("web_debug:"));
     // The bound terminates before an unrelated top-level key.
     assert!(!slice.contains("other:"));
 }
@@ -168,7 +168,7 @@ async fn save_web_collapses_scattered_sections() {
         &path,
         "web:\n  carrier: \"https-lanes\"\n\n\
          other:\n  port: 443\n\n\
-         web:\n  debug:\n    enabled: true\n",
+         web:\n  host: \"legacy.example.com\"\n",
     )
     .await
     .unwrap();

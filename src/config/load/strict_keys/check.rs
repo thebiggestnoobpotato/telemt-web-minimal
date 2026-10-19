@@ -213,7 +213,7 @@ pub(super) fn collect_unknown_config_keys(parsed_yaml: &serde_yaml::Value) -> Ve
         parsed_yaml,
         &mut unknown,
         &known_for_suggestion,
-        &["web", "debug"],
+        &["logging", "web_debug"],
         WEB_DEBUG_CONFIG_KEYS,
     );
     check_known_table(

@@ -150,6 +150,27 @@ fn logging_show_users_links_key_is_stripped() {
 }
 
 #[test]
+fn logging_web_debug_enabled_key_is_stripped() {
+    // strict: the old enabled key inside the web debug table is rejected
+    // after the move to the logging.web_debug_enable switch.
+    let error = load_config_error_from_temp_yaml(
+        "general:\n  config_strict: true\n\
+         logging:\n  web_debug:\n    enabled: true\n\
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("logging.web_debug.enabled"), "{error}");
+
+    // non-strict: the old key is ignored and logging.web_debug_enable
+    // keeps its default.
+    let cfg = load_config_from_temp_yaml(
+        "general:\n\
+         logging:\n  web_debug:\n    enabled: true\n\
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
+    );
+    assert!(!cfg.logging.web_debug_enable);
+}
+
+#[test]
 fn general_telemetry_key_is_stripped_from_general() {
     // strict: the old general.telemetry location is rejected after the
     // move to flat general.telemetry_*_enabled keys.

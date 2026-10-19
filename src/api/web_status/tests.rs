@@ -21,7 +21,6 @@ fn html_escaping_covers_active_markup_characters() {
 #[tokio::test]
 async fn renderer_filters_groups_and_sets_control_plane_security_headers() {
     let policy = WebDebugConfig {
-        enabled: true,
         sideband: true,
         ..Default::default()
     };
@@ -30,7 +29,7 @@ async fn renderer_filters_groups_and_sets_control_plane_security_headers() {
         debug_bytes_global: 16 * 1024,
         ..Default::default()
     };
-    let store = WebTraceStore::new(policy.clone(), &limits);
+    let store = WebTraceStore::new(policy.clone(), true, &limits);
     store.record_lifecycle(
         None,
         Some("192.0.2.40".parse().unwrap()),
@@ -68,7 +67,7 @@ async fn renderer_filters_groups_and_sets_control_plane_security_headers() {
 async fn render_permits_remain_owned_by_inflight_response_bodies() {
     let policy = WebDebugConfig::default();
     let limits = crate::config::WebLimitsConfig::default();
-    let store = WebTraceStore::new(policy.clone(), &limits);
+    let store = WebTraceStore::new(policy.clone(), false, &limits);
 
     let first = render(None, &store).await;
     let second = render(None, &store).await;
@@ -86,13 +85,12 @@ async fn render_permits_remain_owned_by_inflight_response_bodies() {
 async fn stale_renderer_cannot_restore_an_old_debug_policy() {
     let stale_policy = WebDebugConfig::default();
     let active_policy = WebDebugConfig {
-        enabled: true,
         capture_headers: false,
         ..Default::default()
     };
     let limits = crate::config::WebLimitsConfig::default();
-    let store = WebTraceStore::new(stale_policy.clone(), &limits);
-    store.apply_policy(2, &active_policy);
+    let store = WebTraceStore::new(stale_policy.clone(), false, &limits);
+    store.apply_policy(2, &active_policy, true);
 
     let response = render(None, &store).await;
 
