@@ -72,7 +72,7 @@ logging:
   destination: "file"
   path: "/tmp/telemt.log"
   log_level: "verbose"
-  show_users_links: true
+  print_users_links: true
   unknown_dc_log_enabled: true
 
 users:
@@ -84,14 +84,14 @@ users:
     assert_eq!(cfg.logging.destination, LoggingDestination::File);
     assert_eq!(cfg.logging.path.as_deref(), Some("/tmp/telemt.log"));
     assert_eq!(cfg.logging.log_level, LogLevel::Verbose);
-    assert!(cfg.logging.show_users_links);
+    assert!(cfg.logging.print_users_links);
     assert!(cfg.logging.unknown_dc_log_enabled);
 }
 
 #[test]
 fn general_links_key_is_stripped_from_general() {
     // strict: the old general.links location is rejected after the move
-    // to logging.show_users_links.
+    // to logging.print_users_links.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\n  links:\n    show: \"*\"\n\
          users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
@@ -99,18 +99,18 @@ fn general_links_key_is_stripped_from_general() {
     assert!(error.contains("general.links"), "{error}");
 
     // non-strict: the old key is silently ignored and
-    // logging.show_users_links keeps its default.
+    // logging.print_users_links keeps its default.
     let cfg = load_config_from_temp_yaml(
         "general:\n  links:\n    show: \"*\"\n\
          users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
-    assert!(cfg.logging.show_users_links);
+    assert!(cfg.logging.print_users_links);
 }
 
 #[test]
 fn logging_show_users_key_is_stripped() {
     // strict: the renamed logging.show_users key is rejected after the
-    // move to the boolean logging.show_users_links.
+    // move to the boolean logging.print_users_links.
     let error = load_config_error_from_temp_yaml(
         "general:\n  config_strict: true\n\
          logging:\n  show_users: \"*\"\n\
@@ -118,14 +118,35 @@ fn logging_show_users_key_is_stripped() {
     );
     assert!(error.contains("logging.show_users"), "{error}");
 
-    // non-strict: the old key is ignored and logging.show_users_links
+    // non-strict: the old key is ignored and logging.print_users_links
     // keeps its default.
     let cfg = load_config_from_temp_yaml(
         "general:\n\
          logging:\n  show_users: \"*\"\n\
          users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
     );
-    assert!(cfg.logging.show_users_links);
+    assert!(cfg.logging.print_users_links);
+}
+
+#[test]
+fn logging_show_users_links_key_is_stripped() {
+    // strict: the old logging.show_users_links key is rejected after the
+    // rename to the boolean logging.print_users_links.
+    let error = load_config_error_from_temp_yaml(
+        "general:\n  config_strict: true\n\
+         logging:\n  show_users_links: true\n\
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
+    );
+    assert!(error.contains("logging.show_users_links"), "{error}");
+
+    // non-strict: the old key is ignored and logging.print_users_links
+    // keeps its default.
+    let cfg = load_config_from_temp_yaml(
+        "general:\n\
+         logging:\n  show_users_links: true\n\
+         users:\n  user:\n    secret: \"00000000000000000000000000000000\"\n",
+    );
+    assert!(cfg.logging.print_users_links);
 }
 
 #[test]

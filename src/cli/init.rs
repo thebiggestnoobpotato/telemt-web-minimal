@@ -252,7 +252,7 @@ general:
 
 logging:
   log_level: "normal"
-  show_users_links: true
+  print_users_links: true
 
 listener:
   ip: "0.0.0.0"

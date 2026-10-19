@@ -95,15 +95,15 @@ async fn patch_revision_conflict() {
 }
 
 #[tokio::test]
-async fn patch_logging_show_users_links_is_persisted() {
-    // logging.show_users_links is process-owned: links are emitted once at
+async fn patch_logging_print_users_links_is_persisted() {
+    // logging.print_users_links is process-owned: links are emitted once at
     // listener bind time, so the change applies at the next process start.
     let (path, _d) = temp_config("general:\n  network_ipv6: true\n");
-    let patch: Json = serde_json::json!({"logging": {"show_users_links": false}});
+    let patch: Json = serde_json::json!({"logging": {"print_users_links": false}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.changed.iter().any(|c| c == "logging"));
     let written = std::fs::read_to_string(&path).unwrap();
-    assert!(written.contains("show_users_links: false"));
+    assert!(written.contains("print_users_links: false"));
     assert_eq!(
         resp.revision,
         crate::api::config_store::current_revision(&path)
@@ -304,19 +304,19 @@ async fn patch_rejects_non_editable_top_level_section() {
 }
 
 #[tokio::test]
-async fn patch_logging_show_users_links_is_editable() {
-    // The supported path: edit show_users_links via the logging section.
+async fn patch_logging_print_users_links_is_editable() {
+    // The supported path: edit print_users_links via the logging section.
     let (path, _d) = temp_config(
         "general:\n  network_ipv6: true\n\
-         logging:\n  show_users_links: true\n",
+         logging:\n  print_users_links: true\n",
     );
-    let patch: Json = serde_json::json!({"logging": {"show_users_links": false}});
+    let patch: Json = serde_json::json!({"logging": {"print_users_links": false}});
     let resp = apply_patch_to_path(&path, &patch, None).await.unwrap();
     assert!(resp.changed.iter().any(|c| c == "logging"));
     let written = tokio::fs::read_to_string(&path).await.unwrap();
     let parsed: serde_yaml::Value = serde_yaml::from_str(&written).unwrap();
     assert_eq!(
-        parsed["logging"]["show_users_links"].as_bool(),
+        parsed["logging"]["print_users_links"].as_bool(),
         Some(false),
         "{written}"
     );

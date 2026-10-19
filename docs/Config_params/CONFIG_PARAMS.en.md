@@ -52,7 +52,7 @@ This document lists all configuration keys accepted by `config.yaml`.
 | [`destination`](#destination) | `"stderr"` / `"syslog"` / `"file"` | `"stderr"` |
 | [`path`](#path) | `String` | — |
 | [`log_level`](#log_level) | `"debug"` / `"verbose"` / `"normal"` / `"silent"` | `"normal"` |
-| [`show_users_links`](#show_users_links) | `bool` | `true` |
+| [`print_users_links`](#print_users_links) | `bool` | `true` |
 | [`unknown_dc_log_enabled`](#unknown_dc_log_enabled) | `bool` | `false` |
 
 ## destination
@@ -84,16 +84,16 @@ This document lists all configuration keys accepted by `config.yaml`.
     logging:
       log_level: "normal"
     ```
-## show_users_links
+## print_users_links
   - **Constraints / validation**: `bool`.
   - **Description**: Whether `tg://` proxy links are shown at startup. `true` shows links for all users; `false` suppresses link emission entirely. Link lines are emitted through the `telemt::links` log target, so they follow the configured log destination (`stderr`, `syslog`, or `file`) and stay visible at `log_level = "silent"`.
   - **Example**:
 
     ```yaml
     logging:
-      show_users_links: true
+      print_users_links: true
       # or:
-      # show_users_links: false
+      # print_users_links: false
     ```
 ## unknown_dc_log_enabled
   - **Constraints / validation**: `bool`.

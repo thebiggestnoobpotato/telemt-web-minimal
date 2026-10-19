@@ -83,7 +83,7 @@ pub struct LoggingConfig {
     /// `telemt::links` log target, so they follow the configured destination.
     /// `true` = links for all users, `false` = no links at all.
     #[serde(default = "default_true")]
-    pub show_users_links: bool,
+    pub print_users_links: bool,
 }
 
 impl Default for LoggingConfig {
@@ -93,7 +93,7 @@ impl Default for LoggingConfig {
             path: None,
             log_level: LogLevel::Normal,
             unknown_dc_log_enabled: default_unknown_dc_log_enabled(),
-            show_users_links: default_true(),
+            print_users_links: default_true(),
         }
     }
 }

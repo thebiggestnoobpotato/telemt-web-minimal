@@ -13,7 +13,6 @@ listener:
   web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 
 web:
-  enabled: true
   secret_mode: "plain"
   host: "proxy.example.com"
   public_addr: "203.0.113.10:443"
