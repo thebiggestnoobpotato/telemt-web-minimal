@@ -24,7 +24,6 @@ This document lists all configuration keys accepted by `config.yaml`.
  - [listener](#listener)
  - [metrics](#metrics)
  - [web](#web)
- - [vhost parameters](#vhost-parameters)
  - [timeouts](#timeouts)
  - [limits](#limits)
  - [users](#users)
@@ -627,7 +626,7 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `upstream` | `String` | unset |
 | `resolve` | `"never"` or `"startup"` | `"never"` |
 
-WEB requires at least one network-eligible `listener` entry, a set `web.host`, and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `limits` values and an absent host inherits `web.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
+WEB requires at least one network-eligible `listener` entry, a set `web.host` (with `web.public_addr` and `web.upstream`), and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `limits` values and an absent host inherits `web.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
 
 When `carriers` is missing or `false`, auto-negotiation and learning are disabled and `carrier` is the only mode. A non-empty `carriers` array enables startup-only negotiation in its configured order; `carrier` is appended exactly once as the final fallback. Empty arrays, duplicates, and `true` are rejected. The client advances candidates only before carrier commit and must create a new session to change carrier after commit. A metadata-free native client, including Telegram iOS, always uses the configured fixed `carrier`, even when negotiation is enabled. Current iOS supports only `https`, so such deployments must configure `carrier = "https"`. CFNetwork and Darwin User-Agent classification does not infer carrier support. Explicit native iOS capabilities are intersected with `{https}`; other explicit client capabilities participate as reported.
 
@@ -637,9 +636,9 @@ When `carriers` is missing or `false`, auto-negotiation and learning are disable
 
 `carrier_learning` applies only while negotiation is enabled. Learning is process-local, in-memory, bounded, and positive-only: only a carrier that reaches the server-defined healthy state contributes evidence. `conservative` requires the broadest evidence and disables IP ranking, `balanced` admits moderate User-Agent/profile evidence plus eligible public-IP tie breaking, and `aggressive` reacts to the first bounded samples. Reported client failures remain diagnostic and never create negative evidence. Evidence accumulates from process start and resets at the next process restart. Because `limits` is process-owned, enabling carrier learning requires `max_carrier_learning_entries` of at least 3, otherwise the configuration is rejected. WEB is always on: use the users API to revoke one user's active sessions.
 
-# vhost parameters
+## vhost parameters
 
-The vhost parameters are direct keys under `web` (the former nested `web.vhost` table was removed): a set `host` enables vhost materialization, and `public_addr` plus `upstream` are required whenever it is set.
+The vhost parameters are direct keys under `web`: a set `host` enables vhost materialization, and `public_addr` plus `upstream` are required whenever it is set.
 
 | Key | Type | Required | Description |
 | --- | --- | --- | --- |
