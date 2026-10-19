@@ -16,11 +16,11 @@ pub(super) fn validate(
         || limits.websocket_admission_watermark_pct >= limits.websocket_eviction_watermark_pct
     {
         return config_error(
-            "web.limits WebSocket watermarks must satisfy 1 <= admission < eviction < 100",
+            "limits WebSocket watermarks must satisfy 1 <= admission < eviction < 100",
         );
     }
     if limits.websocket_bytes_global == 0 {
-        return config_error("web.limits.websocket_bytes_global must be > 0");
+        return config_error("limits.websocket_bytes_global must be > 0");
     }
     if timeouts.websocket_eviction_secs > timeouts.websocket_write_secs {
         return config_error(
@@ -32,7 +32,7 @@ pub(super) fn validate(
     }
     if limits.carrier_batch_bytes > MAX_WEBSOCKET_BATCH_BYTES {
         return config_error(
-            "WebSocket carriers require web.limits.carrier_batch_bytes <= 2097152",
+            "WebSocket carriers require limits.carrier_batch_bytes <= 2097152",
         );
     }
     if limits.websocket_http_connection_reserve == 0
@@ -47,7 +47,7 @@ pub(super) fn validate(
         .saturating_sub(limits.websocket_http_connection_reserve);
     if limits.max_websocket_evictions_in_flight > websocket_capacity {
         return config_error(
-            "web.limits.max_websocket_evictions_in_flight must not exceed WebSocket connection capacity",
+            "limits.max_websocket_evictions_in_flight must not exceed WebSocket connection capacity",
         );
     }
     let socket_base = WEBSOCKET_IO_BUFFER_BYTES
@@ -64,7 +64,7 @@ pub(super) fn validate(
         })?;
     if limits.websocket_bytes_global < minimum_websocket_progress {
         return config_error(
-            "web.limits.websocket_bytes_global must preserve one socket read and write",
+            "limits.websocket_bytes_global must preserve one socket read and write",
         );
     }
     let data_bytes = limits
@@ -85,7 +85,7 @@ pub(super) fn validate(
             ProxyError::Config("WEB queue progress reservation overflowed usize".into())
         })?;
     if limits.websocket_bytes_global > data_bytes.saturating_sub(queue_progress) {
-        return config_error("web.limits.websocket_bytes_global must leave bounded queue progress");
+        return config_error("limits.websocket_bytes_global must leave bounded queue progress");
     }
     Ok(())
 }

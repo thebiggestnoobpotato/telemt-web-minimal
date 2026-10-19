@@ -76,8 +76,8 @@ async fn recover(
 async fn recovery_retires_current_bearer_before_single_slot_recreation() {
     let capability = [40u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Https);
-    config.web.limits.max_sessions_global = 1;
-    config.web.limits.max_sessions_per_ip = 1;
+    config.limits.max_sessions_global = 1;
+    config.limits.max_sessions_per_ip = 1;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(active_runtime);

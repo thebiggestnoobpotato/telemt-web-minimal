@@ -271,9 +271,9 @@ async fn parked_uplink_keeps_its_session_deadline_after_reload() {
 async fn empty_long_poll_cannot_steal_the_reserved_head_body_capacity() {
     let capability = [76; 32];
     let mut config = runtime_config(capability, WebCarrier::Https);
-    config.web.limits.max_body_readers = 3;
-    config.web.limits.max_body_bytes = 32;
-    config.web.limits.max_body_bytes_global = 96;
+    config.limits.max_body_readers = 3;
+    config.limits.max_body_bytes = 32;
+    config.limits.max_body_bytes_global = 96;
     let generation = test_runtime_generation(1, config);
     let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
-    let limits = &config.web.limits;
+    let limits = &config.limits;
     // The secret-mode requirement follows the WEB-on condition: a configured
     // listener. An earlier check guarantees any listener present here is
     // network-eligible.
@@ -23,14 +23,14 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     // Every access user materializes exactly one WEB profile; the vhost
     // ceiling bounds the user count.
     if config.users.len() > limits.max_profiles {
-        return config_error("WEB users exceed web.limits.max_profiles");
+        return config_error("WEB users exceed limits.max_profiles");
     }
     Ok(())
 }
 
 /// Normalizes optional per-user WEB hosts and validates their ceilings.
 pub(crate) fn validate_user_web_fields(config: &mut ProxyConfig) -> Result<()> {
-    let limits = &config.web.limits;
+    let limits = &config.limits;
     for (user, entry) in config.users.iter_mut() {
         let field = format!("users.{user}");
         if let Some(user_host) = entry.host.as_deref() {

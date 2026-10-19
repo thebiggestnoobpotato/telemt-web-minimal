@@ -73,7 +73,7 @@ pub(super) async fn run_telemt_core(
     );
     let _ = shared_state
         .activate_user_config_source(1, None, &config.user_secret_map());
-    let web_trace = WebTraceStore::new(config.web.debug.clone(), &config.web.limits);
+    let web_trace = WebTraceStore::new(config.web.debug.clone(), &config.limits);
     let web_runtime_control = WebRuntimeControl::new();
 
     let (admission_tx, admission_rx) = watch::channel(true);

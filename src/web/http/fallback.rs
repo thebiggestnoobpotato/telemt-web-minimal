@@ -88,7 +88,6 @@ async fn proxy_to_upstream(
     let max_header_bytes = runtime
         .active_generation()
         .config()
-        .web
         .limits
         .max_header_bytes;
     let mut builder = hyper::client::conn::http1::Builder::new();

@@ -317,7 +317,7 @@ async fn process_token_provenance_survives_registry_expiry() {
 async fn generation_swap_switches_base_path_and_capability_together() {
     let initial_capability = [26u8; 32];
     let mut initial = runtime_config_with_base(initial_capability, WebCarrier::Https, "/old-path/");
-    initial.web.limits.max_bootstraps_per_ip = 2;
+    initial.limits.max_bootstraps_per_ip = 2;
     let generation = test_runtime_generation(1, initial);
     let active = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active));

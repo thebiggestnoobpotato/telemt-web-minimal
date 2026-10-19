@@ -87,7 +87,7 @@ fn test_runtime_with_dc(
         "00000000000000000000000000000000".to_string().into(),
     );
     config.web.carrier = carrier;
-    config.web.limits.max_stream_handshakes = max_stream_handshakes;
+    config.limits.max_stream_handshakes = max_stream_handshakes;
     config.web.timeouts.stream_handshake_secs = 1;
     config.web.timeouts.shutdown_secs = 1;
     if let Some(dc_addr) = dc_addr {
@@ -110,7 +110,7 @@ fn test_runtime_with_dc(
         capabilities: vec![[7; 32]].into_boxed_slice(),
     }));
     config.rebuild_runtime_user_auth().unwrap();
-    let limits = config.web.limits.clone();
+    let limits = config.limits.clone();
     let timeouts = config.web.timeouts.clone();
     let (admission_tx, admission_rx) = watch::channel(true);
     let generation = test_runtime_generation_with_admission(1, config, admission_rx);

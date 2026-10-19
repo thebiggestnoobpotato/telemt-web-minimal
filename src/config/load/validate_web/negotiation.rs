@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::*;
 
 /// Validates bounded carrier selection and learning policy.
-pub(super) fn validate(config: &WebConfig) -> Result<Vec<WebCarrier>> {
+pub(super) fn validate(config: &WebConfig, limits: &WebLimitsConfig) -> Result<Vec<WebCarrier>> {
     if let Some(carriers) = config.carriers.enabled() {
         if carriers.is_empty() {
             return config_error("web.carriers must contain at least one carrier");
@@ -16,10 +16,10 @@ pub(super) fn validate(config: &WebConfig) -> Result<Vec<WebCarrier>> {
     let candidates = config.carrier_candidates();
     if config.carrier_negotiation_enabled()
         && config.carrier_learning
-        && config.limits.max_carrier_learning_entries < WEB_CARRIER_LEARNING_MIN_ENTRIES
+        && limits.max_carrier_learning_entries < WEB_CARRIER_LEARNING_MIN_ENTRIES
     {
         return config_error(
-            "web.limits.max_carrier_learning_entries must be >= 3 when carrier learning is enabled",
+            "limits.max_carrier_learning_entries must be >= 3 when carrier learning is enabled",
         );
     }
     if candidates.len() > WebCarrier::ALL.len() {
@@ -56,7 +56,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            validate(&config).unwrap(),
+            validate(&config, &WebLimitsConfig::default()).unwrap(),
             vec![WebCarrier::Websocket, WebCarrier::Https]
         );
     }
@@ -67,7 +67,7 @@ mod tests {
             carriers: WebCarriers::Enabled(vec![WebCarrier::Websocket, WebCarrier::Websocket]),
             ..Default::default()
         };
-        assert!(validate(&config).is_err());
+        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
     }
 
     #[test]
@@ -79,7 +79,7 @@ mod tests {
 
         let config = WebConfig::default();
         assert!(!config.carrier_negotiation_enabled());
-        assert_eq!(validate(&config).unwrap(), [WebCarrier::Https]);
+        assert_eq!(validate(&config, &WebLimitsConfig::default()).unwrap(), [WebCarrier::Https]);
 
         let disabled: Wrapper = serde_yaml::from_str("value: false").unwrap();
         assert_eq!(disabled.value, WebCarriers::Disabled);
@@ -98,26 +98,26 @@ mod tests {
             ]),
             ..Default::default()
         };
-        assert_eq!(validate(&config).unwrap().len(), 4);
+        assert_eq!(validate(&config, &WebLimitsConfig::default()).unwrap().len(), 4);
 
         config.carriers = WebCarriers::Enabled(vec![
             WebCarrier::HttpsLanes,
             WebCarrier::Websocket,
             WebCarrier::WebsocketLanes,
         ]);
-        assert_eq!(validate(&config).unwrap().len(), 4);
+        assert_eq!(validate(&config, &WebLimitsConfig::default()).unwrap().len(), 4);
     }
 
     #[test]
     fn deadlines_are_cumulative_and_bounded_by_bootstrap_lifetime() {
         let mut config = WebConfig::default();
         config.timeouts.carrier_negotiation_deadlines_secs = [3, 3, 8, 12];
-        assert!(validate(&config).is_err());
+        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
         config.timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 121];
-        assert!(validate(&config).is_err());
+        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
         config.timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 89];
-        assert!(validate(&config).is_err());
+        assert!(validate(&config, &WebLimitsConfig::default()).is_err());
         config.timeouts.carrier_negotiation_deadlines_secs = [3, 5, 8, 88];
-        assert!(validate(&config).is_ok());
+        assert!(validate(&config, &WebLimitsConfig::default()).is_ok());
     }
 }

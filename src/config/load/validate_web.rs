@@ -55,19 +55,19 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
-    validate_limits(&config.web.limits)?;
-    debug::validate(&config.web.debug, &config.web.limits)?;
-    let carriers = negotiation::validate(&config.web)?;
-    if carriers.contains(&WebCarrier::Https) && config.web.limits.max_http_handlers < 2 {
-        return config_error("WEB https candidates require web.limits.max_http_handlers >= 2");
+    validate_limits(&config.limits)?;
+    debug::validate(&config.web.debug, &config.limits)?;
+    let carriers = negotiation::validate(&config.web, &config.limits)?;
+    if carriers.contains(&WebCarrier::Https) && config.limits.max_http_handlers < 2 {
+        return config_error("WEB https candidates require limits.max_http_handlers >= 2");
     }
-    if carriers.contains(&WebCarrier::HttpsLanes) && config.web.limits.max_http_handlers < 4 {
+    if carriers.contains(&WebCarrier::HttpsLanes) && config.limits.max_http_handlers < 4 {
         return config_error(
-            "WEB https-lanes candidates require web.limits.max_http_handlers >= 4",
+            "WEB https-lanes candidates require limits.max_http_handlers >= 4",
         );
     }
     timeouts::validate(&config.web.timeouts)?;
-    websocket::validate(&carriers, &config.web.limits, &config.web.timeouts)?;
+    websocket::validate(&carriers, &config.limits, &config.web.timeouts)?;
     validate_user_web_fields(config)?;
     validate_vhosts(config)?;
     validate_fallback_listener_separation_inner(config, false)?;
@@ -180,23 +180,23 @@ fn validate_web_listener(
 
 fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
     if !(8192..=MAX_WEB_HEADER_BYTES).contains(&limits.max_header_bytes) {
-        return config_error("web.limits.max_header_bytes must be within [8192, 65536]");
+        return config_error("limits.max_header_bytes must be within [8192, 65536]");
     }
     if !(WEB_FRAME_HEADER_BYTES..=MAX_WEB_BODY_BYTES).contains(&limits.max_body_bytes) {
-        return config_error("web.limits.max_body_bytes must be within [8, 16777216]");
+        return config_error("limits.max_body_bytes must be within [8, 16777216]");
     }
     if !(1..=MAX_WEB_FRAME_BYTES).contains(&limits.max_frame_payload_bytes) {
-        return config_error("web.limits.max_frame_payload_bytes must be within [1, 1048576]");
+        return config_error("limits.max_frame_payload_bytes must be within [1, 1048576]");
     }
     if !(1..=MAX_WEB_FRAMES_PER_BODY).contains(&limits.max_frames_per_body) {
-        return config_error("web.limits.max_frames_per_body must be within [1, 4096]");
+        return config_error("limits.max_frames_per_body must be within [1, 4096]");
     }
     if !(1..=MAX_WEB_TOMBSTONES_PER_SESSION).contains(&limits.max_tombstones_per_session) {
-        return config_error("web.limits.max_tombstones_per_session must be within [1, 4096]");
+        return config_error("limits.max_tombstones_per_session must be within [1, 4096]");
     }
     if limits.pending_bytes_per_lane <= WEB_FRAME_HEADER_BYTES + WEB_QUEUE_ITEM_COST {
         return config_error(
-            "web.limits.pending_bytes_per_lane must preserve one non-empty DATA frame",
+            "limits.pending_bytes_per_lane must preserve one non-empty DATA frame",
         );
     }
     if limits.carrier_batch_bytes > limits.max_body_bytes
@@ -206,12 +206,12 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
                 .saturating_add(WEB_FRAME_HEADER_BYTES)
     {
         return config_error(
-            "web.limits.carrier_batch_bytes must fit max_body_bytes and one maximum frame",
+            "limits.carrier_batch_bytes must fit max_body_bytes and one maximum frame",
         );
     }
     if limits.max_frame_payload_bytes > WEB_INITIAL_STREAM_WINDOW {
         return config_error(
-            "web.limits.max_frame_payload_bytes must not exceed the initial stream window",
+            "limits.max_frame_payload_bytes must not exceed the initial stream window",
         );
     }
 
@@ -266,7 +266,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         ("memory_envelope_bytes", limits.memory_envelope_bytes),
     ];
     if let Some((field, _)) = positive.into_iter().find(|(_, value)| *value == 0) {
-        return config_error(&format!("web.limits.{field} must be > 0"));
+        return config_error(&format!("limits.{field} must be > 0"));
     }
     for (field, value) in [
         ("max_http_connections", limits.max_http_connections),
@@ -281,7 +281,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
     ] {
         if value > tokio::sync::Semaphore::MAX_PERMITS {
             return config_error(&format!(
-                "web.limits.{field} exceeds Tokio semaphore capacity"
+                "limits.{field} exceeds Tokio semaphore capacity"
             ));
         }
     }
@@ -297,10 +297,10 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         ("new_streams_burst", limits.new_streams_burst),
     ];
     if let Some((field, _)) = rates.into_iter().find(|(_, value)| *value == 0) {
-        return config_error(&format!("web.limits.{field} must be > 0"));
+        return config_error(&format!("limits.{field} must be > 0"));
     }
     if limits.max_streams_per_session > u16::MAX as usize {
-        return config_error("web.limits.max_streams_per_session must fit synthetic source ports");
+        return config_error("limits.max_streams_per_session must fit synthetic source ports");
     }
     if limits.max_sessions_per_ip > limits.max_sessions_global
         || limits.max_streams_per_session > limits.max_streams_global
@@ -317,7 +317,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         || limits.control_bytes_per_session > limits.pending_bytes_per_session
         || limits.control_bytes_global > limits.pending_bytes_global
     {
-        return config_error("web.limits per-owner ceilings must not exceed global ceilings");
+        return config_error("limits per-owner ceilings must not exceed global ceilings");
     }
     let control_items_per_session = WEB_CONTROL_EXTRA_ITEMS
         .checked_add(
@@ -326,29 +326,29 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
                 .checked_mul(WEB_CONTROL_ITEMS_PER_STREAM)
                 .ok_or_else(|| {
                     ProxyError::Config(
-                        "web.limits control item reservation overflowed usize".to_string(),
+                        "limits control item reservation overflowed usize".to_string(),
                     )
                 })?,
         )
         .ok_or_else(|| {
-            ProxyError::Config("web.limits control item reservation overflowed usize".to_string())
+            ProxyError::Config("limits control item reservation overflowed usize".to_string())
         })?;
     let control_items_global = control_items_per_session
         .checked_mul(limits.max_sessions_global)
         .ok_or_else(|| {
-            ProxyError::Config("web.limits global control reservation overflowed usize".to_string())
+            ProxyError::Config("limits global control reservation overflowed usize".to_string())
         })?;
     let control_frame_cost = WEB_FRAME_HEADER_BYTES + 4 + WEB_QUEUE_ITEM_COST;
     let required_control_bytes_per_session = control_items_per_session
         .checked_mul(control_frame_cost)
         .ok_or_else(|| {
-            ProxyError::Config("web.limits control byte reservation overflowed usize".to_string())
+            ProxyError::Config("limits control byte reservation overflowed usize".to_string())
         })?;
     let required_control_bytes_global = control_items_global
         .checked_mul(control_frame_cost)
         .ok_or_else(|| {
             ProxyError::Config(
-                "web.limits global control byte reservation overflowed usize".to_string(),
+                "limits global control byte reservation overflowed usize".to_string(),
             )
         })?;
     if control_items_per_session >= limits.pending_items_per_session
@@ -357,7 +357,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         || required_control_bytes_global > limits.control_bytes_global
     {
         return config_error(
-            "web.limits control reserves must cover bounded control frames and leave data capacity",
+            "limits control reserves must cover bounded control frames and leave data capacity",
         );
     }
     let uplink_bytes = limits
@@ -365,7 +365,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         .checked_mul(WEB_QUEUE_ITEM_COST)
         .and_then(|value| value.checked_add(limits.max_body_bytes))
         .ok_or_else(|| {
-            ProxyError::Config("web.limits uplink reservation overflowed usize".to_string())
+            ProxyError::Config("limits uplink reservation overflowed usize".to_string())
         })?;
     let minimum_downlink_frame_bytes = WEB_FRAME_HEADER_BYTES + 1 + WEB_QUEUE_ITEM_COST;
     let session_required_bytes = limits
@@ -373,26 +373,26 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         .checked_add(uplink_bytes)
         .and_then(|value| value.checked_add(minimum_downlink_frame_bytes))
         .ok_or_else(|| {
-            ProxyError::Config("web.limits session reservation overflowed usize".to_string())
+            ProxyError::Config("limits session reservation overflowed usize".to_string())
         })?;
     let session_required_items = control_items_per_session
         .checked_add(limits.max_frames_per_body)
         .and_then(|value| value.checked_add(1))
         .ok_or_else(|| {
-            ProxyError::Config("web.limits session item reservation overflowed usize".to_string())
+            ProxyError::Config("limits session item reservation overflowed usize".to_string())
         })?;
     let global_required_bytes = limits
         .control_bytes_global
         .checked_add(uplink_bytes)
         .and_then(|value| value.checked_add(minimum_downlink_frame_bytes))
         .ok_or_else(|| {
-            ProxyError::Config("web.limits global reservation overflowed usize".to_string())
+            ProxyError::Config("limits global reservation overflowed usize".to_string())
         })?;
     let global_required_items = control_items_global
         .checked_add(limits.max_frames_per_body)
         .and_then(|value| value.checked_add(1))
         .ok_or_else(|| {
-            ProxyError::Config("web.limits global item reservation overflowed usize".to_string())
+            ProxyError::Config("limits global item reservation overflowed usize".to_string())
         })?;
     if session_required_bytes > limits.pending_bytes_per_session
         || session_required_items > limits.pending_items_per_session
@@ -400,7 +400,7 @@ fn validate_limits(limits: &WebLimitsConfig) -> Result<()> {
         || global_required_items > limits.pending_items_global
     {
         return config_error(
-            "web.limits pending ceilings must preserve one uplink batch and downlink progress",
+            "limits pending ceilings must preserve one uplink batch and downlink progress",
         );
     }
     memory::validate(limits)?;

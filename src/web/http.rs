@@ -96,7 +96,7 @@ pub(crate) async fn serve_connection(
     connection_permit: tokio::sync::OwnedSemaphorePermit,
 ) {
     let config = runtime.active_generation().config();
-    let max_header_bytes = config.web.limits.max_header_bytes;
+    let max_header_bytes = config.limits.max_header_bytes;
     let header_timeout = Duration::from_secs(config.web.timeouts.header_secs);
     let idle_timeout = Duration::from_secs(config.web.timeouts.http_idle_secs);
     let connection_activity = ConnectionActivity::new();
@@ -366,7 +366,7 @@ async fn handle_root(
             &bootstrap,
             &vhost,
             &profile,
-            &config.web.limits,
+            &config.limits,
             &config.web.timeouts,
         ) else {
             strip_query(&mut request);
@@ -378,9 +378,9 @@ async fn handle_root(
         &vhost.host,
         &vhost.base,
         &bootstrap.token,
-        config.web.limits.carrier_batch_bytes,
-        config.web.limits.pending_bytes_per_session,
-        config.web.limits.pending_items_per_session,
+        config.limits.carrier_batch_bytes,
+        config.limits.pending_bytes_per_session,
+        config.limits.pending_items_per_session,
         profile.max_streams_per_session,
         profile.carrier_negotiation_enabled,
         profile.carriers.len(),

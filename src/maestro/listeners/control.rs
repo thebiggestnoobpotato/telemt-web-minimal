@@ -194,7 +194,7 @@ mod tests {
         };
         let trace = WebTraceStore::new(
             runtime.config().web.debug.clone(),
-            &runtime.config().web.limits,
+            &runtime.config().limits,
         );
         let control = WebRuntimeControl::new();
         let receiver = control.subscribe();

@@ -81,7 +81,7 @@ impl WebCapacityStatus {
             .unwrap_or_else(runtime_unavailable_snapshot);
         Self {
             http_connection_capacity_action: config.web.http_connection_capacity_action,
-            max_http_overload_connections: config.web.limits.max_http_overload_connections,
+            max_http_overload_connections: config.limits.max_http_overload_connections,
             http_overload_timeout_ms: config.web.timeouts.http_overload_timeout_ms,
             resources: snapshot.resources,
             saturated_resources: snapshot.saturated_resources,

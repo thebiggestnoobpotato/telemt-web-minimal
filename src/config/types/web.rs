@@ -390,9 +390,6 @@ pub struct WebConfig {
     /// Action applied when accepted HTTP connection capacity is exhausted.
     #[serde(default)]
     pub http_connection_capacity_action: WebHttpConnectionCapacityAction,
-    /// Hard process and protocol limits.
-    #[serde(default)]
-    pub limits: WebLimitsConfig,
     /// Bounded server-side WEB debug policy.
     #[serde(default)]
     pub debug: WebDebugConfig,
@@ -443,7 +440,6 @@ impl Default for WebConfig {
             carrier_negotiation_aggressiveness: WebCarrierNegotiationAggressiveness::default(),
             fallback_fasttrack_mode: WebFallbackFastTrackMode::default(),
             http_connection_capacity_action: WebHttpConnectionCapacityAction::default(),
-            limits: WebLimitsConfig::default(),
             debug: WebDebugConfig::default(),
             timeouts: WebTimeoutsConfig::default(),
             vhost: None,

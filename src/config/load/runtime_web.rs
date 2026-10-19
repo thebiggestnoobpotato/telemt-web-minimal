@@ -90,10 +90,10 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                     .carrier_negotiation_deadlines_secs,
                 capability,
                 key_fingerprint,
-                max_sessions: (*max_sessions).unwrap_or(config.web.limits.max_sessions_global),
-                max_streams: (*max_streams).unwrap_or(config.web.limits.max_streams_global),
+                max_sessions: (*max_sessions).unwrap_or(config.limits.max_sessions_global),
+                max_streams: (*max_streams).unwrap_or(config.limits.max_streams_global),
                 max_streams_per_session: (*max_streams_per_session)
-                    .unwrap_or(config.web.limits.max_streams_per_session),
+                    .unwrap_or(config.limits.max_streams_per_session),
             });
             runtime_capabilities.push(capability);
             let group = host_groups.entry(host.to_string()).or_default();

@@ -215,9 +215,9 @@ Notes:
 | `username` | `string` | yes | `[A-Za-z0-9_.-]`, length `1..64`. |
 | `secret` | `string` | no | Exactly 32 hex chars. If missing, generated automatically. |
 | `host` | `string` | no | Per-user WEB hostname; `web.vhost.host` applies when absent. |
-| `max_sessions` | `usize` | no | Per-user live session ceiling; must be non-zero and within `web.limits.max_sessions_global`. |
-| `max_streams` | `usize` | no | Per-user live logical-stream ceiling; must be non-zero and within `web.limits.max_streams_global`. |
-| `max_streams_per_session` | `usize` | no | Per-user per-session stream ceiling; must be non-zero and within `web.limits.max_streams_per_session`, and cannot exceed the effective `max_streams`. |
+| `max_sessions` | `usize` | no | Per-user live session ceiling; must be non-zero and within `limits.max_sessions_global`. |
+| `max_streams` | `usize` | no | Per-user live logical-stream ceiling; must be non-zero and within `limits.max_streams_global`. |
+| `max_streams_per_session` | `usize` | no | Per-user per-session stream ceiling; must be non-zero and within `limits.max_streams_per_session`, and cannot exceed the effective `max_streams`. |
 
 ### `PatchUserRequest`
 | Field | Type | Required | Description |
@@ -264,10 +264,11 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `general` | `object` | Complete normalized `general` section, including defaults. Contains `dc_overrides` (including the synthesized DC 203 endpoint when it is not authored) and `dc_default`. |
 | `logging` | `object` | Complete normalized `logging` section, including defaults. |
 | `listener` | `object?` | Complete normalized `listener` table when set; omitted when no listener is configured. |
+| `limits` | `object` | Complete normalized `limits` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile and materializes one profile per `users` user in the vhost, where absent per-user ceilings inherit the `web.limits` values; `web.vhost` includes `base_path` ((empty string when omitted from the source)). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile and materializes one profile per `users` user in the vhost, where absent per-user ceilings inherit the `limits` values; `web.vhost` includes `base_path` ((empty string when omitted from the source)). The derived runtime-only `web.runtime` field is excluded. |
 
-The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `web.limits` are persisted by the patch but take effect only at the next process restart.
+The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `limits` are persisted by the patch but take effect only at the next process restart.
 
 ### WEB runtime identity and lifecycle
 
@@ -831,7 +832,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 ```
 
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
-- `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen_address`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.enabled`, `metrics.listen_address`, `logging`, `general.runtime_path`, `general.dc_buffer_budget_max_bytes`, `web.limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
+- `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen_address`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.enabled`, `metrics.listen_address`, `logging`, `general.runtime_path`, `general.dc_buffer_budget_max_bytes`, `limits`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
 
 Example — replace the complete vhost table while changing its `base_path`:
 
@@ -894,7 +895,7 @@ The API exposes WEB desired configuration through the common config resource, pr
 | Rotate a profiled user's secret | Use `/v1/users/{username}/rotate-secret`; the durable credential identity is staged immediately and active owners for the old identity are cancelled. The API returns the raw secret, not a `tg://webproxy` link. |
 | Read WEB-specific runtime diagnostics | Use authenticated `GET /web-status`; filters cover client IP, process session ID, User-Agent, and non-secret key fingerprint, with optional grouping, expandable HTTP request-to-response details, and WebSocket handshake/message/frame rows. |
 
-`web.carrier`, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots are read at process start and stay in effect for the lifetime of the process; a carrier change applies to bridge sessions issued after the next restart, and live sessions retain their issuance-time policy. WEB listener inventory and trust policy, plus all `[web.limits]`, are process-owned.
+`web.carrier`, `web.debug`, `web.timeouts`, the vhost table, profiles, and fallback snapshots are read at process start and stay in effect for the lifetime of the process; a carrier change applies to bridge sessions issued after the next restart, and live sessions retain their issuance-time policy. WEB listener inventory and trust policy, plus every `limits` value, are process-owned.
 
 `base_path` scopes only the WEB data listener. It never prefixes Control API `/v1/*`, `/web-status`, or `/metrics`. `GET /v1/config` shows the desired path but does not prove runtime activation because WEB status intentionally exposes no host, path, or capability. Confirm the process restart and probe the new exact route externally. Paths and base paths are never Prometheus labels.
 

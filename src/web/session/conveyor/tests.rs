@@ -16,7 +16,7 @@ fn fixture(
     automatic: bool,
 ) -> (Arc<WebSession>, Arc<WebProcessRuntime>) {
     let mut config = ProxyConfig::default();
-    config.web.limits = limits.clone();
+    config.limits = limits.clone();
     let manager =
         WebProcessRuntime::start(Arc::new(ArcSwap::from(test_runtime_generation(1, config))));
     let profile = Arc::new(WebRuntimeProfile {

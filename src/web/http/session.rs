@@ -112,7 +112,7 @@ pub(super) async fn handle_session(
         trace.record_frames(
             TraceDirection::Request,
             &body,
-            &runtime.active_generation().config().web.limits,
+            &runtime.active_generation().config().limits,
         );
     }
     match runtime.create_session(
@@ -130,7 +130,7 @@ pub(super) async fn handle_session(
                 trace.record_frames(
                     TraceDirection::Response,
                     &welcome,
-                    &runtime.active_generation().config().web.limits,
+                    &runtime.active_generation().config().limits,
                 );
             }
             let mut response = full_response(StatusCode::OK, welcome);

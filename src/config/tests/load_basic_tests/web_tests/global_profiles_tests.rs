@@ -37,11 +37,11 @@ fn global_secret_mode_instantiates_every_user_in_the_vhost() {
     for profile in &vhost.profiles {
         assert_eq!(profile.secret_mode, WebSecretMode::Plain);
         // Instantiated profiles use the global WEB ceilings.
-        assert_eq!(profile.max_sessions, config.web.limits.max_sessions_global);
-        assert_eq!(profile.max_streams, config.web.limits.max_streams_global);
+        assert_eq!(profile.max_sessions, config.limits.max_sessions_global);
+        assert_eq!(profile.max_streams, config.limits.max_streams_global);
         assert_eq!(
             profile.max_streams_per_session,
-            config.web.limits.max_streams_per_session
+            config.limits.max_streams_per_session
         );
     }
     assert_eq!(runtime.profiles.len(), 2);
@@ -71,7 +71,7 @@ fn per_user_ceilings_win_over_global_for_same_user() {
             assert_eq!(profile.user, "bob");
             assert_eq!(
                 profile.max_sessions,
-                config.web.limits.max_sessions_global
+                config.limits.max_sessions_global
             );
         }
     }
@@ -81,14 +81,14 @@ fn per_user_ceilings_win_over_global_for_same_user() {
 fn global_profile_expansion_counts_against_max_profiles() {
     // 2 users x 1 vhost = 2 expanded profiles.
     let error = load_config_error_from_temp_yaml(&format!(
-        "{GLOBAL_WEB_CONFIG}\n  limits:\n    max_profiles: 1"
+        "{GLOBAL_WEB_CONFIG}\nlimits:\n  max_profiles: 1"
     ));
     assert!(
-        error.contains("exceed web.limits.max_profiles"),
+        error.contains("exceed limits.max_profiles"),
         "{error}"
     );
     let config = load_config_from_temp_yaml(&format!(
-        "{GLOBAL_WEB_CONFIG}\n  limits:\n    max_profiles: 2"
+        "{GLOBAL_WEB_CONFIG}\nlimits:\n  max_profiles: 2"
     ));
     let runtime = config.web.runtime.expect("WEB runtime snapshot");
     let vhost = runtime
@@ -109,7 +109,7 @@ fn web_listener_requires_secret_mode() {
 #[test]
 fn web_profiles_table_is_stripped() {
     // The web.profiles table was removed: the mode lives on web.secret_mode
-    // and instantiated profiles use the web.limits ceilings.
+    // and instantiated profiles use the limits ceilings.
     let with_table = format!(
         "{GLOBAL_WEB_CONFIG}\n  profiles:\n    max_sessions: 7\n"
     );
@@ -127,6 +127,6 @@ fn web_profiles_table_is_stripped() {
         .expect("canonical WEB vhost");
     assert_eq!(vhost.profiles.len(), 2);
     for profile in &vhost.profiles {
-        assert_eq!(profile.max_sessions, config.web.limits.max_sessions_global);
+        assert_eq!(profile.max_sessions, config.limits.max_sessions_global);
     }
 }

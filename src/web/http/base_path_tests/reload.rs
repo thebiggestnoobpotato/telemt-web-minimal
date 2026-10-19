@@ -59,7 +59,7 @@ fn assert_fallback(response: &[u8]) {
 async fn generation_swap_preserves_process_tokens_and_replaces_route_identity() {
     let old_capability = [101u8; 32];
     let mut old_config = runtime_config_with_base(old_capability, WebCarrier::Https, "/old/");
-    old_config.web.limits.max_bootstraps_per_ip = 8;
+    old_config.limits.max_bootstraps_per_ip = 8;
     old_config.web.timeouts.long_poll_secs = 1;
     let old_generation = test_runtime_generation(1, old_config);
     let active = Arc::new(ArcSwap::from(Arc::clone(&old_generation)));
@@ -71,7 +71,7 @@ async fn generation_swap_preserves_process_tokens_and_replaces_route_identity() 
 
     let new_capability = [102u8; 32];
     let mut new_config = runtime_config_with_base(new_capability, WebCarrier::Https, "/new/");
-    new_config.web.limits.max_bootstraps_per_ip = 8;
+    new_config.limits.max_bootstraps_per_ip = 8;
     new_config.web.timeouts.long_poll_secs = 1;
     let new_generation = test_runtime_generation(2, new_config);
     active.store(Arc::clone(&new_generation));

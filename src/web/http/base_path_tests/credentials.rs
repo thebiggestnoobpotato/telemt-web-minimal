@@ -56,7 +56,7 @@ async fn every_authentic_credential_placement_stays_out_of_the_upstream() {
     let site_addr = site.local_addr().unwrap();
     let capability = [91u8; 32];
     let mut config = runtime_config_with_base(capability, WebCarrier::Https, "/relay/");
-    config.web.limits.max_bootstraps_per_ip = 2;
+    config.limits.max_bootstraps_per_ip = 2;
     let runtime_config = config.web.runtime.as_ref().unwrap();
     let profile = runtime_config.profiles[0].clone();
     let mut vhosts = BTreeMap::new();

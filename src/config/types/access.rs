@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// One access user: the shared secret plus optional per-user WEB ceilings.
 ///
 /// Every field except `secret` is optional; an absent ceiling inherits the
-/// corresponding global `web.limits` value and an absent host inherits
+/// corresponding global `limits` value and an absent host inherits
 /// `web.vhost.host`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserEntry {

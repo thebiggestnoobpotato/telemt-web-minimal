@@ -72,7 +72,7 @@ fn runtime(admission: bool) -> TestRuntime {
         capabilities: vec![[7; 32]].into_boxed_slice(),
     }));
     config.rebuild_runtime_user_auth().unwrap();
-    let limits = config.web.limits.clone();
+    let limits = config.limits.clone();
     let timeouts = config.web.timeouts.clone();
     let (_admission_tx, admission_rx) = watch::channel(admission);
     let generation = test_runtime_generation_with_admission(1, config, admission_rx);

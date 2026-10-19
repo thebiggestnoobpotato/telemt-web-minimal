@@ -7,6 +7,7 @@ const TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
     "general",
     "logging",
     "listener",
+    "limits",
     "metrics",
     "web",
     "users",
@@ -76,12 +77,11 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "fallback_fasttrack_mode",
     "http_connection_capacity_action",
     "debug",
-    "limits",
     "timeouts",
     "vhost",
 ];
 
-const WEB_LIMITS_CONFIG_KEYS: &[&str] = &[
+const LIMITS_CONFIG_KEYS: &[&str] = &[
     "max_header_bytes",
     "max_body_bytes",
     "max_frame_payload_bytes",

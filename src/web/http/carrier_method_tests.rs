@@ -141,7 +141,7 @@ async fn carrier_method_mixed_retries_share_sequence_and_cursor_state() {
             config.web.carrier_method = method;
             config.web.timeouts.long_poll_secs = 0;
             // Exhausted admission queues a deterministic CLOSE without starting a relay task.
-            config.web.limits.max_streams_global = 0;
+            config.limits.max_streams_global = 0;
             let generation = test_runtime_generation(1, config);
             let runtime =
                 WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
@@ -327,7 +327,7 @@ async fn carrier_method_post_and_put_reuse_one_private_http_connection() {
         let capability = [64; 32];
         let mut config = runtime_config(capability, carrier);
         config.web.timeouts.long_poll_secs = 0;
-        config.web.limits.max_streams_global = 0;
+        config.limits.max_streams_global = 0;
         let generation = test_runtime_generation(1, config);
         let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -401,7 +401,7 @@ async fn carrier_method_reload_preserves_old_pages_bootstraps_sessions_and_recov
     for carrier in [WebCarrier::Https, WebCarrier::HttpsLanes] {
         let capability = [65; 32];
         let mut config = runtime_config(capability, carrier);
-        config.web.limits.max_bootstraps_per_ip = 6;
+        config.limits.max_bootstraps_per_ip = 6;
         let generation = test_runtime_generation(1, config.clone());
         let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
         let runtime = WebProcessRuntime::start(Arc::clone(&active_runtime));

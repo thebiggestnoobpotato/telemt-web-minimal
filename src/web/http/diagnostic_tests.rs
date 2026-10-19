@@ -394,7 +394,7 @@ async fn diagnostic_body_pressure_does_not_claim_the_event() {
     let mut config = runtime_config(capability, WebCarrier::Websocket);
     config.web.debug.enabled = true;
     config.web.debug.sideband = true;
-    config.web.limits.max_body_readers = 1;
+    config.limits.max_body_readers = 1;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(active_runtime);
@@ -482,7 +482,7 @@ async fn disabled_bridge_diagnostic_is_acknowledged_without_recording() {
     let capability = [32u8; 32];
     let mut config = runtime_config(capability, WebCarrier::Https);
     config.web.debug.enabled = true;
-    config.web.limits.max_bootstraps_per_ip = 2;
+    config.limits.max_bootstraps_per_ip = 2;
     let generation = test_runtime_generation(1, config);
     let active_runtime = Arc::new(ArcSwap::from(Arc::clone(&generation)));
     let runtime = WebProcessRuntime::start(Arc::clone(&active_runtime));

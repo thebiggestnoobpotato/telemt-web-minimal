@@ -175,8 +175,8 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
             "carrier: \"https-lanes\"\n  http_connection_capacity_action: \"wait\"",
         )
         .replace(
-            "  vhost:",
-            "  limits:\n    max_http_overload_connections: 23\n\n  timeouts:\n    http_overload_timeout_ms: 731\n\n  vhost:",
+            "web:\n",
+            "limits:\n  max_http_overload_connections: 23\n\nweb:\n  timeouts:\n    http_overload_timeout_ms: 731\n",
         );
     let config = load_config_from_temp_yaml(&configured);
 
@@ -184,7 +184,7 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
         config.web.http_connection_capacity_action,
         WebHttpConnectionCapacityAction::Wait
     );
-    assert_eq!(config.web.limits.max_http_overload_connections, 23);
+    assert_eq!(config.limits.max_http_overload_connections, 23);
     assert_eq!(config.web.timeouts.http_overload_timeout_ms, 731);
 
     let defaults = ProxyConfig::default();
@@ -192,7 +192,7 @@ fn web_http_connection_capacity_policy_is_bounded_and_configurable() {
         defaults.web.http_connection_capacity_action,
         WebHttpConnectionCapacityAction::Drop
     );
-    assert_eq!(defaults.web.limits.max_http_overload_connections, 64);
+    assert_eq!(defaults.limits.max_http_overload_connections, 64);
     assert_eq!(defaults.web.timeouts.http_overload_timeout_ms, 250);
 }
 
@@ -217,12 +217,12 @@ fn web_http_connection_capacity_policy_rejects_unknown_or_unbounded_values() {
     }
 
     let no_overload_slots = WEB_CONFIG.replace(
-        "  vhost:",
-        "  limits:\n    max_http_overload_connections: 0\n\n  vhost:",
+        "web:\n",
+        "limits:\n  max_http_overload_connections: 0\n\nweb:\n",
     );
     assert!(
         load_config_error_from_temp_yaml(&no_overload_slots)
-            .contains("web.limits.max_http_overload_connections")
+            .contains("limits.max_http_overload_connections")
     );
 }
 
@@ -368,12 +368,12 @@ fn web_bridge_deadlines_are_bounded_and_ordered() {
 #[test]
 fn web_carrier_learning_capacity_must_remain_nonzero() {
     let invalid = WEB_CONFIG.replace(
-        "  vhost:",
-        "  limits:\n    max_carrier_learning_entries: 0\n\n  vhost:",
+        "web:\n",
+        "limits:\n  max_carrier_learning_entries: 0\n\nweb:\n",
     );
     assert!(
         load_config_error_from_temp_yaml(&invalid)
-            .contains("web.limits.max_carrier_learning_entries")
+            .contains("limits.max_carrier_learning_entries")
     );
 }
 
@@ -442,8 +442,8 @@ fn web_debug_prefix_and_window_validation_fail_closed() {
     assert!(error.contains("web.debug windows"));
 
     let undersized_store = WEB_CONFIG.replace(
-        "carrier: \"https-lanes\"",
-        "carrier: \"https-lanes\"\n  limits:\n    debug_bytes_global: 4095",
+        "web:\n",
+        "limits:\n  debug_bytes_global: 4095\n\nweb:\n",
     );
     let error = load_config_error_from_temp_yaml(&undersized_store);
     assert!(error.contains("debug_bytes_global must be at least 4096"));
@@ -452,8 +452,8 @@ fn web_debug_prefix_and_window_validation_fail_closed() {
 #[test]
 fn https_lanes_requires_separate_poll_and_control_handler_capacity() {
     let invalid = WEB_CONFIG.replace(
-        "carrier: \"https-lanes\"",
-        "carrier: \"https-lanes\"\n  limits:\n    max_http_handlers: 1\n    max_body_readers: 1",
+        "web:\n",
+        "limits:\n  max_http_handlers: 1\n  max_body_readers: 1\n\nweb:\n",
     );
     let error = load_config_error_from_temp_yaml(&invalid);
     assert!(error.contains("WEB https-lanes candidates require"));
@@ -472,8 +472,8 @@ fn web_listener_requires_an_explicit_trusted_proxy() {
 #[test]
 fn web_queue_limits_preserve_control_and_uplink_progress() {
     let invalid = WEB_CONFIG.replace(
-        "carrier: \"https-lanes\"",
-        "carrier: \"https-lanes\"\n  limits:\n    control_bytes_per_session: 1",
+        "web:\n",
+        "limits:\n  control_bytes_per_session: 1\n\nweb:\n",
     );
     let error = load_config_error_from_temp_yaml(&invalid);
     assert!(error.contains("control reserves must cover bounded control frames"));
@@ -482,9 +482,9 @@ fn web_queue_limits_preserve_control_and_uplink_progress() {
 #[test]
 fn web_semaphore_limits_are_rejected_before_runtime_construction() {
     let invalid = WEB_CONFIG.replace(
-        "carrier: \"https-lanes\"",
+        "web:\n",
         &format!(
-            "carrier: \"https-lanes\"\n  limits:\n    max_http_connections: {}",
+            "limits:\n  max_http_connections: {}\n\nweb:\n",
             tokio::sync::Semaphore::MAX_PERMITS + 1,
         ),
     );
@@ -543,6 +543,24 @@ fn vhost_static_keys_are_stripped() {
 }
 
 #[test]
+fn nested_web_limits_key_is_stripped() {
+    // limits is a top-level directive now: a nested web.limits table is
+    // an unknown key for strict loads.
+    let nested = WEB_CONFIG.replace(
+        "web:\n",
+        "web:\n  limits:\n    max_http_handlers: 96\n",
+    );
+    let strict_error = load_config_error_from_temp_yaml(
+        &format!("general:\n  config_strict: true\n{nested}"),
+    );
+    assert!(strict_error.contains("web.limits"), "{strict_error}");
+
+    // non-strict: the stray table is ignored and the default applies.
+    let config = load_config_from_temp_yaml(&nested);
+    assert_eq!(config.limits.max_http_handlers, 512);
+}
+
+#[test]
 fn websocket_carriers_build_runtime_profiles_with_bounded_defaults() {
     for (name, carrier) in [
         ("websocket", WebCarrier::Websocket),
@@ -552,10 +570,10 @@ fn websocket_carriers_build_runtime_profiles_with_bounded_defaults() {
         let config = load_config_from_temp_yaml(&configured);
         let profile = &config.web.runtime.unwrap().profiles[0];
         assert_eq!(profile.carrier, carrier);
-        assert_eq!(config.web.limits.websocket_bytes_global, 256 * 1024 * 1024);
-        assert_eq!(config.web.limits.websocket_admission_watermark_pct, 75);
-        assert_eq!(config.web.limits.websocket_eviction_watermark_pct, 90);
-        assert_eq!(config.web.limits.websocket_http_connection_reserve, 64);
+        assert_eq!(config.limits.websocket_bytes_global, 256 * 1024 * 1024);
+        assert_eq!(config.limits.websocket_admission_watermark_pct, 75);
+        assert_eq!(config.limits.websocket_eviction_watermark_pct, 90);
+        assert_eq!(config.limits.websocket_http_connection_reserve, 64);
         assert_eq!(config.web.timeouts.websocket_write_secs, 30);
         assert_eq!(config.web.timeouts.websocket_backpressure_secs, 30);
         assert_eq!(config.web.timeouts.websocket_eviction_secs, 1);
@@ -565,16 +583,16 @@ fn websocket_carriers_build_runtime_profiles_with_bounded_defaults() {
 #[test]
 fn websocket_limits_reject_ambiguous_or_nonprogressing_policy() {
     let reversed_watermarks = WEB_CONFIG.replace(
-        "carrier: \"https-lanes\"",
-        "carrier: \"websocket\"\n  limits:\n    websocket_admission_watermark_pct: 90\n    websocket_eviction_watermark_pct: 75",
+        "web:\n  carrier: \"https-lanes\"",
+        "limits:\n  websocket_admission_watermark_pct: 90\n  websocket_eviction_watermark_pct: 75\n\nweb:\n  carrier: \"websocket\"",
     );
     assert!(
         load_config_error_from_temp_yaml(&reversed_watermarks).contains("WebSocket watermarks")
     );
 
     let no_http_reserve = WEB_CONFIG.replace(
-        "carrier: \"https-lanes\"",
-        "carrier: \"websocket\"\n  limits:\n    websocket_http_connection_reserve: 0",
+        "web:\n  carrier: \"https-lanes\"",
+        "limits:\n  websocket_http_connection_reserve: 0\n\nweb:\n  carrier: \"websocket\"",
     );
     assert!(
         load_config_error_from_temp_yaml(&no_http_reserve)
@@ -582,8 +600,8 @@ fn websocket_limits_reject_ambiguous_or_nonprogressing_policy() {
     );
 
     let oversized_batch = WEB_CONFIG.replace(
-        "carrier: \"https-lanes\"",
-        "carrier: \"websocket\"\n  limits:\n    max_body_bytes: 4194304\n    carrier_batch_bytes: 4194304\n    max_body_readers: 16",
+        "web:\n  carrier: \"https-lanes\"",
+        "limits:\n  max_body_bytes: 4194304\n  carrier_batch_bytes: 4194304\n  max_body_readers: 16\n\nweb:\n  carrier: \"websocket\"",
     );
     assert!(
         load_config_error_from_temp_yaml(&oversized_batch)

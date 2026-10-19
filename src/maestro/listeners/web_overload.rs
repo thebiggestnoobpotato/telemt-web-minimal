@@ -268,7 +268,7 @@ mod tests {
         Arc<crate::maestro::generation::RuntimeGeneration>,
     ) {
         let mut config = ProxyConfig::default();
-        config.web.limits.max_http_connections = 1;
+        config.limits.max_http_connections = 1;
         let generation = test_runtime_generation(1, config);
         let runtime = WebProcessRuntime::start(Arc::new(ArcSwap::from(Arc::clone(&generation))));
         (runtime, generation)

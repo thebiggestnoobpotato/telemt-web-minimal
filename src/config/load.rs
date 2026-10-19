@@ -110,6 +110,10 @@ pub struct ProxyConfig {
     #[serde(default)]
     pub web: WebConfig,
 
+    /// Hard process and protocol limits for WEB ingress.
+    #[serde(default)]
+    pub limits: WebLimitsConfig,
+
     /// Top-level access users: username to secret and optional per-user WEB ceilings.
     #[serde(default = "default_access_users")]
     pub users: HashMap<String, UserEntry>,
