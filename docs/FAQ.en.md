@@ -127,7 +127,8 @@ upstreams:
 - Without authorization:
 ```yaml
 upstreams:
-  - # SOCKS server address.
+  - type: "socks"
+    # SOCKS server address.
     socks_address: "1.2.3.4:1234"
     # Selection weight.
     weight: 1
@@ -137,7 +138,8 @@ upstreams:
 - With authorization:
 ```yaml
 upstreams:
-  - # SOCKS server address.
+  - type: "socks"
+    # SOCKS server address.
     socks_address: "1.2.3.4:1234"
     # SOCKS username.
     socks_username: "user"
