@@ -2,16 +2,16 @@ use super::*;
 
 #[test]
 fn vhost_mode_key_is_stripped() {
-    // The fallback mode tag was removed with the flattened web.vhost
-    // upstream: mode is now an unknown key for strict loads.
+    // The fallback mode tag was removed with the flattened vhost
+    // parameters: mode is now an unknown key under web for strict loads.
     let with_mode = WEB_CONFIG.replace(
         "upstream: \"http://127.0.0.1:18081\"",
-        "mode: \"static_directory\"\n    upstream: \"http://127.0.0.1:18081\"",
+        "mode: \"static_directory\"\n  upstream: \"http://127.0.0.1:18081\"",
     );
     let strict_error = load_config_error_from_temp_yaml(
         &format!("general:\n  config_strict: true\n{with_mode}"),
     );
-    assert!(strict_error.contains("web.vhost.mode"), "{strict_error}");
+    assert!(strict_error.contains("web.mode"), "{strict_error}");
 
     // non-strict: the stray key is ignored and the vhost loads untouched.
     let config = load_config_from_temp_yaml(&with_mode);
@@ -25,12 +25,12 @@ fn vhost_mode_key_is_stripped() {
 fn vhost_static_keys_are_stripped() {
     let stripped = WEB_CONFIG.replace(
         "upstream: \"http://127.0.0.1:18081\"",
-        "directory: \"/var/lib/telemt/site\"\n    index: \"index.html\"\n    upstream: \"http://127.0.0.1:18081\"",
+        "directory: \"/var/lib/telemt/site\"\n  index: \"index.html\"\n  upstream: \"http://127.0.0.1:18081\"",
     );
-    // strict: the removed static keys are unknown under web.vhost.
+    // strict: the removed static keys are unknown under web.
     let error =
         load_config_error_from_temp_yaml(&format!("general:\n  config_strict: true\n{stripped}"));
-    assert!(error.contains("web.vhost.directory"), "{error}");
+    assert!(error.contains("web.directory"), "{error}");
 
     // non-strict: the old keys are ignored and the upstream loads untouched.
     let config = load_config_from_temp_yaml(&stripped);
@@ -74,4 +74,22 @@ fn nested_web_timeouts_key_is_stripped() {
     // non-strict: the stray table is ignored and the default applies.
     let config = load_config_from_temp_yaml(&nested);
     assert_eq!(config.timeouts.http_overload_timeout_ms, 250);
+}
+
+#[test]
+fn nested_web_vhost_key_is_stripped() {
+    // vhost is a flattened parameter group under web now: a nested
+    // web.vhost table is an unknown key for strict loads.
+    let nested = WEB_CONFIG.replace(
+        "web:\n",
+        "web:\n  vhost:\n    host: \"legacy.example.com\"\n",
+    );
+    let strict_error = load_config_error_from_temp_yaml(
+        &format!("general:\n  config_strict: true\n{nested}"),
+    );
+    assert!(strict_error.contains("web.vhost"), "{strict_error}");
+
+    // non-strict: the stray table is ignored and the direct keys win.
+    let config = load_config_from_temp_yaml(&nested);
+    assert_eq!(config.web.vhost.host, "proxy.example.com");
 }

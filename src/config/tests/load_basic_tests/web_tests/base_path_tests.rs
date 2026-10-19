@@ -6,13 +6,10 @@ fn web_base_path_is_canonical_and_precomputed() {
     for base_path in ["a", "a/b/c9_x-y", "Dobry-Cola/super_app", maximum.as_str()] {
         let configured = WEB_CONFIG.replace(
             "host: \"Proxy.Example.COM\"",
-            &format!("host: \"Proxy.Example.COM\"\n    base_path: \"{base_path}\""),
+            &format!("host: \"Proxy.Example.COM\"\n  base_path: \"{base_path}\""),
         );
         let config = load_config_from_temp_yaml(&configured);
-        assert_eq!(
-            config.web.vhost.as_ref().expect("web vhost").base_path,
-            base_path
-        );
+        assert_eq!(config.web.vhost.base_path, base_path);
         assert_eq!(
             config.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].base,
             format!("/{base_path}/")
@@ -23,16 +20,11 @@ fn web_base_path_is_canonical_and_precomputed() {
         "general:\n  config_strict: true\n{}",
         WEB_CONFIG.replace(
             "host: \"Proxy.Example.COM\"",
-            "host: \"Proxy.Example.COM\"\n    base_path: \"relay\"",
+            "host: \"Proxy.Example.COM\"\n  base_path: \"relay\"",
         )
     );
     assert_eq!(
-        load_config_from_temp_yaml(&strict)
-            .web
-            .vhost
-            .as_ref()
-            .expect("web vhost")
-            .base_path,
+        load_config_from_temp_yaml(&strict).web.vhost.base_path,
         "relay"
     );
 }
@@ -59,10 +51,10 @@ fn web_base_path_rejects_noncanonical_forms() {
     ] {
         let invalid = WEB_CONFIG.replace(
             "host: \"Proxy.Example.COM\"",
-            &format!("host: \"Proxy.Example.COM\"\n    base_path: \"{base_path}\""),
+            &format!("host: \"Proxy.Example.COM\"\n  base_path: \"{base_path}\""),
         );
         assert!(
-            load_config_error_from_temp_yaml(&invalid).contains("web.vhost.base_path"),
+            load_config_error_from_temp_yaml(&invalid).contains("web.base_path"),
             "base path {base_path:?} was accepted"
         );
     }

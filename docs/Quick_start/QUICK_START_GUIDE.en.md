@@ -29,8 +29,8 @@ Options: `--port` (default `443`), `--user` (default `user`), `--secret`
 `/etc/telemt`), `--no-start` (write files without starting the service).
 
 The command writes `/etc/telemt/config.yaml` and a service file, starts the
-service, and prints the `tg://webproxy` links. Adjust `public_addr` in
-`web.vhost` to this server's public IP and port, then restart the service:
+service, and prints the `tg://webproxy` links. Adjust `web.public_addr` to
+this server's public IP and port, then restart the service:
 
 ```bash
 systemctl restart telemt   # or `./target/release/telemt config.yaml` to run in the foreground
@@ -108,12 +108,12 @@ web:
   # The single secret representation for every access user; required to
   # materialize the WEB profiles.
   secret_mode: "plain"
-  vhost:
-    host: "proxy.example.com"
-    # Replace with this server's public IP and port.
-    public_addr: "203.0.113.1:443"
-    # Ordinary-site origin what browsers and scanners see.
-    upstream: "http://127.0.0.1:80"
+  # The single public hostname served by the WEB listeners.
+  host: "proxy.example.com"
+  # Replace with this server's public IP and port.
+  public_addr: "203.0.113.1:443"
+  # Ordinary-site origin what browsers and scanners see.
+  upstream: "http://127.0.0.1:80"
 
 users:
   user:
@@ -129,7 +129,7 @@ Notes:
 
 - The listener is a WEB listener and needs a non-empty
   `web_trusted_proxy_cidrs` list (no `/0` networks).
-- A `web.vhost` table is required whenever a listener is configured.
+- A set `web.host` is required whenever a listener is configured.
 - The vhost needs an `upstream` (what browsers and scanners see), and a
   set `web.secret_mode` materializes one profile per `users` user;
   per-user host and ceiling overrides live on the `users` entries.

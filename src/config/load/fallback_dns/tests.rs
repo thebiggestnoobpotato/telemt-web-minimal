@@ -13,11 +13,10 @@ listener:
 web:
   enabled: true
   secret_mode: "dd"
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://Example.COM:18081"
-    resolve: "startup"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://Example.COM:18081"
+  resolve: "startup"
 "#;
 
 fn source(text: &str) -> ParsedConfigSource {
@@ -204,12 +203,7 @@ async fn fallback_dns_evidence_is_bound_to_origin_and_port() {
     let loaded = prepared(&["10.0.0.2:18081"]).await;
     for changed in ["http://telekom.com:18081", "http://example.com:18082"] {
         let mut config = loaded.config.clone();
-        config
-            .web
-            .vhost
-            .as_mut()
-            .expect("web vhost")
-            .upstream = changed.to_string();
+        config.web.vhost.upstream = changed.to_string();
         assert!(
             config
                 .validate_effective_web()
@@ -329,12 +323,12 @@ fn fallback_unix_origin_rejects_startup_resolve() {
     assert!(parse_origin("unix:/run/telemt.sock", WebFallbackResolve::Startup).is_err());
 }
 
-const UNIX_FALLBACK_SOURCE: &str = "    upstream: \"unix:/run/telemt-fallback.sock\"";
+const UNIX_FALLBACK_SOURCE: &str = "  upstream: \"unix:/run/telemt-fallback.sock\"";
 
 #[tokio::test]
 async fn fallback_unix_upstream_uses_vhost_host_authority_without_dns() {
     let mut parsed = source(&SOURCE.replace(
-        "    upstream: \"http://Example.COM:18081\"\n    resolve: \"startup\"",
+        "  upstream: \"http://Example.COM:18081\"\n  resolve: \"startup\"",
         UNIX_FALLBACK_SOURCE,
     ));
     prepare(&mut parsed.config, |_, _| {
@@ -356,7 +350,7 @@ async fn fallback_unix_upstream_uses_vhost_host_authority_without_dns() {
 fn fallback_unix_upstream_overlapping_unix_listener_is_rejected() {
     let text = SOURCE
         .replace(
-            "    upstream: \"http://Example.COM:18081\"\n    resolve: \"startup\"",
+            "  upstream: \"http://Example.COM:18081\"\n  resolve: \"startup\"",
             UNIX_FALLBACK_SOURCE,
         )
         .replace(
@@ -375,7 +369,7 @@ fn fallback_unix_upstream_overlapping_unix_listener_is_rejected() {
 #[tokio::test]
 async fn fallback_unix_upstream_does_not_collide_with_tcp_listener() {
     let mut parsed = source(&SOURCE.replace(
-        "    upstream: \"http://Example.COM:18081\"\n    resolve: \"startup\"",
+        "  upstream: \"http://Example.COM:18081\"\n  resolve: \"startup\"",
         UNIX_FALLBACK_SOURCE,
     ));
     // A unix fallback endpoint never overlaps the TCP listener on the same host.

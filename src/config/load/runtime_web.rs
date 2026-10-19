@@ -27,13 +27,14 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     }
 
     let carrier_candidates: Arc<[WebCarrier]> = config.web.carrier_candidates().into();
-    if let Some(vhost) = &config.web.vhost {
+    let vhost = &config.web.vhost;
+    if !vhost.host.is_empty() {
         let fallback = build_fallback(config, vhost)?;
         // Every access user materializes exactly one WEB profile using its
         // optional per-user overrides; absent ceilings inherit the global
         // WEB limits.
         let secret_mode = config.web.secret_mode.ok_or_else(|| {
-            ProxyError::Config("web.vhost requires web.secret_mode".to_string())
+            ProxyError::Config("web requires web.secret_mode".to_string())
         })?;
         let mut specs = Vec::with_capacity(auth.entries().len());
         for auth_entry in auth.entries() {

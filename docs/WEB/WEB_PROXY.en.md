@@ -91,14 +91,13 @@ web:
   carrier: "https-lanes"
   fallback_fasttrack_mode: "off"
   http_connection_capacity_action: "drop"
-  vhost:
-    host: "proxy.example.com"
-    base_path: "telegram/web"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://127.0.0.1:18081"
+  host: "proxy.example.com"
+  base_path: "telegram/web"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:18081"
 ```
 
-`secret_mode` under `web` is the single secret representation for every profile and materializes **one profile per `users` user** in **the vhost**; an absent per-user ceiling inherits the `limits` value and an absent host inherits `web.vhost.host`. The user count counts toward `limits.max_profiles`. A per-user `host` routes, capability-derives, and links that profile under that hostname while the vhost `base_path`, `public_addr`, and `upstream` stay shared across all profile hosts:
+`secret_mode` under `web` is the single secret representation for every profile and materializes **one profile per `users` user** in **the vhost**; an absent per-user ceiling inherits the `limits` value and an absent host inherits `web.host`. The user count counts toward `limits.max_profiles`. A per-user `host` routes, capability-derives, and links that profile under that hostname while the vhost `base_path`, `public_addr`, and `upstream` stay shared across all profile hosts:
 
 ```yaml
 web:
@@ -121,14 +120,15 @@ web:
   carriers: ["websocket-lanes", "websocket", "https-lanes"]
   carrier_learning: true
   carrier_negotiation_aggressiveness: "conservative"
-  timeouts:
-    carrier_negotiation_deadlines_secs: [3, 5, 8, 12]
-    carrier_health_secs: 30
-    carrier_learning_secs: 600
-    bridge_request_secs: 10
-    bridge_retry_secs: 90
-    bridge_recovery_secs: 15
-    carrier_probe_coalesce_ms: 0
+
+timeouts:
+  carrier_negotiation_deadlines_secs: [3, 5, 8, 12]
+  carrier_health_secs: 30
+  carrier_learning_secs: 600
+  bridge_request_secs: 10
+  bridge_retry_secs: 90
+  bridge_recovery_secs: 15
+  carrier_probe_coalesce_ms: 0
 ```
 
 The generated bridge sends canonical `X-Carrier-Capabilities`, `X-Carrier-Attempt`, and, after the first attempt, `X-Carrier-Failure` headers on `/session`. Every successful automatic response returns `X-Carrier-Mode`, `X-Carrier-Attempt`, `X-Carrier-Candidate-Count`, `X-Carrier-Deadline`, and `X-Carrier-State`. The bridge starts its local cumulative clock immediately before the first `/session` request; the server freezes its separate absolute chain deadline when it accepts the first automatic attempt. Both use the configured offsets, and neither resets across replacement attempts. For one through four effective candidates, the attempt checkpoints are respectively `[d3]`, `[d0, d3]`, `[d0, d1, d3]`, and `[d0, d1, d2, d3]`; the final candidate always owns `d3`. A successor remains admissible until its own checkpoint. The states are `provisional`, `committed`, and `healthy`.

@@ -37,13 +37,13 @@ fn web_fallback_rejects_direct_and_wildcard_listener_loops() {
     let direct = WEB_CONFIG.replace("http://127.0.0.1:18081", "http://127.0.0.1:18080");
     assert!(
         load_config_error_from_temp_yaml(&direct)
-            .contains("web.vhost.upstream overlaps WEB listener")
+            .contains("web.upstream overlaps WEB listener")
     );
 
     let wildcard = direct.replace("ip: \"127.0.0.1\"", "ip: \"0.0.0.0\"");
     assert!(
         load_config_error_from_temp_yaml(&wildcard)
-            .contains("web.vhost.upstream overlaps WEB listener")
+            .contains("web.upstream overlaps WEB listener")
     );
 }
 

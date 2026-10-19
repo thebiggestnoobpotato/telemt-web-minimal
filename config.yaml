@@ -46,18 +46,18 @@ web:
   # Fixed carrier for every session: "https", "https-lanes",
   # "websocket", or "websocket-lanes" (default "https").
   carrier: "https"
-  vhost:
-    host: "proxy.example.com"
-    # Exact case-sensitive route prefix without slashes; empty keeps the
-    # root v1 capability. A non-empty path uses the v2 host/path capability.
-    base_path: "telegram/web"
-    public_addr: "203.0.113.1:443"
-    # Ordinary-site fallback for unauthenticated or invalid traffic: an
-    # http:// origin without credentials, path, query, or fragment whose
-    # host is a loopback, link-local, or private IP literal (default
-    # resolve: "never"), or unix:/absolute/path.sock to connect a local
-    # unix socket (no DNS; the vhost host is sent as the request authority).
-    upstream: "http://127.0.0.1:80"
+  # The single public hostname served by the WEB listeners.
+  host: "proxy.example.com"
+  # Exact case-sensitive route prefix without slashes; empty keeps the
+  # root v1 capability. A non-empty path uses the v2 host/path capability.
+  base_path: "telegram/web"
+  public_addr: "203.0.113.1:443"
+  # Ordinary-site fallback for unauthenticated or invalid traffic: an
+  # http:// origin without credentials, path, query, or fragment whose
+  # host is a loopback, link-local, or private IP literal (default
+  # resolve: "never"), or unix:/absolute/path.sock to connect a local
+  # unix socket (no DNS; the vhost host is sent as the request authority).
+  upstream: "http://127.0.0.1:80"
     # Optional hostname fallback: "never" (default, IP literals only) or
     # "startup" (resolve once at config preparation; answers must stay
     # inside loopback or a private network). Rejected for unix: origins.
@@ -65,7 +65,7 @@ web:
 
 users:
   # Each entry is "username": {secret: "32_hex_chars_secret"} plus the
-  # optional per-user overrides host (defaults to web.vhost.host) and
+  # optional per-user overrides host (defaults to web.host) and
   # max_sessions / max_streams / max_streams_per_session (absent ceilings
   # inherit limits).
   hello:

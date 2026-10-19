@@ -265,12 +265,12 @@ web:
   # The single secret representation for every access user; required to
   # materialize the WEB profiles.
   secret_mode: "plain"
-  vhost:
-    host: "{domain}"
-    # Replace with this server's public IP and port.
-    public_addr: "203.0.113.1:443"
-    # Ordinary-site origin what browsers and scanners see.
-    upstream: "http://127.0.0.1:80"
+  # The single public hostname served by the WEB listeners.
+  host: "{domain}"
+  # Replace with this server's public IP and port.
+  public_addr: "203.0.113.1:443"
+  # Ordinary-site origin what browsers and scanners see.
+  upstream: "http://127.0.0.1:80"
 
 users:
   {username}:

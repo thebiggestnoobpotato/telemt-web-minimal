@@ -6,14 +6,15 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     // listener. An earlier check guarantees any listener present here is
     // network-eligible.
     let web_listener_count = usize::from(config.listener.is_some());
-    let Some(vhost) = config.web.vhost.as_mut() else {
+    let vhost = &mut config.web.vhost;
+    if vhost.host.is_empty() {
         return Ok(());
-    };
-    vhost.host = normalize_web_host(&vhost.host, "web.vhost.host")?;
-    validate_web_base_path(&vhost.base_path, "web.vhost.base_path")?;
+    }
+    vhost.host = normalize_web_host(&vhost.host, "web.host")?;
+    validate_web_base_path(&vhost.base_path, "web.base_path")?;
     if vhost.public_addr.port() != 443 || vhost.public_addr.ip().is_unspecified() {
         return config_error(
-            "web.vhost.public_addr must be a concrete socket address on port 443",
+            "web.public_addr must be a concrete socket address on port 443",
         );
     }
     if web_listener_count > 0 && config.web.secret_mode.is_none() {

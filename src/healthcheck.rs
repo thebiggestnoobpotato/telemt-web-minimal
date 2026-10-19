@@ -246,11 +246,10 @@ mod tests {
 api:
   enabled: false
 web:
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://unresolvable.example.invalid:8080"
-    resolve: "startup"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://unresolvable.example.invalid:8080"
+  resolve: "startup"
 "#,
         )
         .unwrap();

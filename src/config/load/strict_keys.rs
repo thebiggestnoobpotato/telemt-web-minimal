@@ -78,7 +78,11 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "fallback_fasttrack_mode",
     "http_connection_capacity_action",
     "debug",
-    "vhost",
+    "host",
+    "base_path",
+    "public_addr",
+    "upstream",
+    "resolve",
 ];
 
 const LIMITS_CONFIG_KEYS: &[&str] = &[
@@ -172,13 +176,6 @@ const TIMEOUTS_CONFIG_KEYS: &[&str] = &[
     "fallback_resolve_secs",
 ];
 
-const WEB_VHOST_CONFIG_KEYS: &[&str] = &[
-    "host",
-    "base_path",
-    "public_addr",
-    "upstream",
-    "resolve",
-];
 const USER_ENTRY_CONFIG_KEYS: &[&str] = &[
     "secret",
     "host",

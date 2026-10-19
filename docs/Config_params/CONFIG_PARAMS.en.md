@@ -25,7 +25,7 @@ This document lists all configuration keys accepted by `config.yaml`.
  - [metrics](#metrics)
  - [web](#web)
  - [web.debug](#webdebug)
- - [web.vhost](#webvhost)
+ - [vhost parameters](#vhost-parameters)
  - [timeouts](#timeouts)
  - [limits](#limits)
  - [users](#users)
@@ -580,9 +580,13 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `fallback_fasttrack_mode` | `"off"`, `"shadow"`, or `"enforce"` | `"off"` |
 | `http_connection_capacity_action` | `"drop"`, `"wait"`, or `"respond"` | `"drop"` |
 | `debug` | table | disabled, bounded defaults |
-| `vhost` | table | unset |
+| `host` | `String` | unset |
+| `base_path` | `String` | `""` |
+| `public_addr` | `SocketAddr` | unset |
+| `upstream` | `String` | unset |
+| `resolve` | `"never"` or `"startup"` | `"never"` |
 
-WEB requires at least one network-eligible `listener` entry, a `web.vhost` table, and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `limits` values and an absent host inherits `web.vhost.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
+WEB requires at least one network-eligible `listener` entry, a set `web.host`, and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `limits` values and an absent host inherits `web.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
 
 When `carriers` is missing or `false`, auto-negotiation and learning are disabled and `carrier` is the only mode. A non-empty `carriers` array enables startup-only negotiation in its configured order; `carrier` is appended exactly once as the final fallback. Empty arrays, duplicates, and `true` are rejected. The client advances candidates only before carrier commit and must create a new session to change carrier after commit. A metadata-free native client, including Telegram iOS, always uses the configured fixed `carrier`, even when negotiation is enabled. Current iOS supports only `https`, so such deployments must configure `carrier = "https"`. CFNetwork and Darwin User-Agent classification does not infer carrier support. Explicit native iOS capabilities are intersected with `{https}`; other explicit client capabilities participate as reported.
 
@@ -616,7 +620,9 @@ When `enabled`, `sideband`, and `capture_lifecycle` are all true, newly generate
 
 Authenticated JSON control may clear the ring explicitly with `POST /v1/runtime/web/debug/clear`; the required process `runtime_instance` fences stale controllers, the returned epoch fences in-flight writers, and `leased_bytes` reports memory still owned by already rendered snapshots.
 
-# web.vhost
+# vhost parameters
+
+The vhost parameters are direct keys under `web` (the former nested `web.vhost` table was removed): a set `host` enables vhost materialization, and `public_addr` plus `upstream` are required whenever it is set.
 
 | Key | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -630,7 +636,7 @@ The hostname must be accepted by Telegram Desktop and is normalized during valid
 
 ## WEB lifecycle and API management
 
-- The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `timeouts`, the vhost table, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
+- The configuration active at process start supplies carrier and negotiation policy, `web.debug`, `timeouts`, the vhost parameters, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
 - Changing `base_path` changes the new-request route and derived capability from the next process restart. Reissue links before the restart: after it, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling.
 - WEB listener inventory and trust policy under `listener`, and every `limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `web` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `limits`, `timeouts`, and `listener` values apply at the next process restart.
@@ -726,7 +732,7 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | --- | ---- | ------- |
 | `<username>` | mapping | — |
 | `<username>.secret` | `String` | — |
-| `<username>.host` | `String` | `web.vhost.host` |
+| `<username>.host` | `String` | `web.host` |
 | `<username>.max_sessions` | `usize` | `limits.max_sessions_global` |
 | `<username>.max_streams` | `usize` | `limits.max_streams_global` |
 | `<username>.max_streams_per_session` | `usize` | `limits.max_streams_per_session` |

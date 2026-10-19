@@ -15,22 +15,19 @@ listener:
 web:
   enabled: true
   secret_mode: "plain"
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://127.0.0.1:18081"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:18081"
 "#
 }
 
 fn vhost_patch(base_path: &str) -> Json {
     serde_json::json!({
         "web": {
-            "vhost": {
-                "host": "proxy.example.com",
-                "base_path": base_path,
-                "public_addr": "203.0.113.10:443",
-                "upstream": "http://127.0.0.1:18081"
-            }
+            "host": "proxy.example.com",
+            "base_path": base_path,
+            "public_addr": "203.0.113.10:443",
+            "upstream": "http://127.0.0.1:18081"
         }
     })
 }
@@ -46,23 +43,14 @@ async fn config_api_applies_valid_base_path_and_preserves_source_on_invalid_patc
         .unwrap();
     assert!(response.changed.iter().any(|section| section == "web"));
     let desired = ProxyConfig::load(&path).unwrap();
-    assert_eq!(
-        desired
-            .web
-            .vhost
-            .as_ref()
-            .expect("web vhost")
-            .base_path,
-        "MixedCase/path"
-    );
+    assert_eq!(desired.web.vhost.base_path, "MixedCase/path");
     assert_eq!(
         desired.web.runtime.as_ref().unwrap().vhosts["proxy.example.com"].base,
         "/MixedCase/path/"
     );
 
     let (managed, _revision) = read_managed_config(&path).await.unwrap();
-    let vhost = managed["web"]["vhost"].as_mapping().unwrap();
-    assert_eq!(vhost["base_path"].as_str(), Some("MixedCase/path"));
+    assert_eq!(managed["web"]["base_path"].as_str(), Some("MixedCase/path"));
     assert!(managed["web"].get("runtime").is_none());
     assert!(!managed.as_mapping().unwrap().contains_key("access"));
 

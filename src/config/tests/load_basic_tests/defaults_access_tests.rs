@@ -296,10 +296,9 @@ listener:
   socket_path: "/run/telemt/listener.sock"
 web:
   secret_mode: "plain"
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://127.0.0.1:18090"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:18090"
 users:
   user:
     secret: "00000000000000000000000000000000"
@@ -339,10 +338,9 @@ listener:
   web_trusted_proxy_cidrs: ["127.0.0.1/32"]
 web:
   secret_mode: "plain"
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://127.0.0.1:18090"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:18090"
 users:
   user:
     secret: "00000000000000000000000000000000"
@@ -362,10 +360,9 @@ listener:
   bogus: 1
 web:
   secret_mode: "plain"
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://127.0.0.1:18090"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:18090"
 users:
   user:
     secret: "00000000000000000000000000000000"

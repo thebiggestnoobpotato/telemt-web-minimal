@@ -83,10 +83,9 @@ general:
 web:
   carrier: "https-lanes"
   secret_mode: "plain"
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "unix:/tmp/site.sock"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "unix:/tmp/site.sock"
 "#;
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

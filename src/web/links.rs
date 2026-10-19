@@ -37,9 +37,10 @@ pub fn web_links_for_user(config: &ProxyConfig, user: &str) -> Vec<String> {
         return Vec::new();
     };
     // Every runtime profile belongs to the single configured vhost.
-    let Some(vhost) = config.web.vhost.as_ref() else {
+    let vhost = &config.web.vhost;
+    if vhost.host.is_empty() {
         return Vec::new();
-    };
+    }
     let Some(entry) = config.users.get(user) else {
         return Vec::new();
     };

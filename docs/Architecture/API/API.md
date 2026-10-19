@@ -214,7 +214,7 @@ Notes:
 | --- | --- | --- | --- |
 | `username` | `string` | yes | `[A-Za-z0-9_.-]`, length `1..64`. |
 | `secret` | `string` | no | Exactly 32 hex chars. If missing, generated automatically. |
-| `host` | `string` | no | Per-user WEB hostname; `web.vhost.host` applies when absent. |
+| `host` | `string` | no | Per-user WEB hostname; `web.host` applies when absent. |
 | `max_sessions` | `usize` | no | Per-user live session ceiling; must be non-zero and within `limits.max_sessions_global`. |
 | `max_streams` | `usize` | no | Per-user live logical-stream ceiling; must be non-zero and within `limits.max_streams_global`. |
 | `max_streams_per_session` | `usize` | no | Per-user per-session stream ceiling; must be non-zero and within `limits.max_streams_per_session`, and cannot exceed the effective `max_streams`. |
@@ -267,7 +267,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `limits` | `object` | Complete normalized `limits` section, including defaults. |
 | `timeouts` | `object` | Complete normalized `timeouts` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile and materializes one profile per `users` user in the vhost, where absent per-user ceilings inherit the `limits` values; `web.vhost` includes `base_path` ((empty string when omitted from the source)). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile and materializes one profile per `users` user in the vhost, where absent per-user ceilings inherit the `limits` values; the vhost parameters are direct keys of the section (`web.host`, `web.base_path` — empty string when omitted from the source —, `web.public_addr`, `web.upstream`, `web.resolve`). The derived runtime-only `web.runtime` field is excluded. |
 
 The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `limits` or `timeouts` are persisted by the patch but take effect only at the next process restart.
 
@@ -816,7 +816,7 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | An unknown or non-editable top-level key (e.g. `users`, `server`, `api`, `network`) | `400` | `section_not_editable` |
 | Object with no editable key | `400` | `bad_request` |
 
-**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. In particular, `web.vhost` is a single table: changing its `base_path` requires sending the complete vhost table, including each required `host`, `public_addr`, `upstream`, and profile field. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched YAML section bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a YAML section returns `409 config_patch_not_atomic` without writing any file.
+**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. The vhost parameters (`web.host`, `web.base_path`, `web.public_addr`, `web.upstream`, `web.resolve`) are scalar keys of `web`: a partial patch such as `base_path` alone deep-merges into the normalized section. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched YAML section bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a YAML section returns `409 config_patch_not_atomic` without writing any file.
 
 **Validation:** the merged config is deserialized into the full `ProxyConfig` type and validated before writing. Failures return `400` with a descriptive message; the file is not modified.
 
@@ -835,18 +835,15 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 - `revision` — SHA-256 hex of the canonical source manifest after the write, including every recursive include path and its raw bytes.
 - `changed` — list of top-level section names that differed. The written configuration becomes effective at the next process restart; process-owned values in particular (any `listener` change including endpoint moves, `api.listen_address`, `api.enabled`, `api.runtime_edge_events_capacity`, `metrics.enabled`, `metrics.listen_address`, `logging`, `general.runtime_path`, `general.dc_buffer_budget_max_bytes`, `limits`, `timeouts`, `web.fallback_fasttrack_mode`, and carrier-learning settings) never apply to the running process.
 
-Example — replace the complete vhost table while changing its `base_path`:
+Example — change the vhost `base_path`:
 
 ```json
 {
   "web": {
-    "vhost": {
-      "host": "proxy.example.com",
-      "base_path": "telegram/web",
-      "public_addr": "203.0.113.10:443",
-      "upstream": "http://127.0.0.1:18081",
-      "profiles": [{"user": "web-user"}]
-    }
+    "host": "proxy.example.com",
+    "base_path": "telegram/web",
+    "public_addr": "203.0.113.10:443",
+    "upstream": "http://127.0.0.1:18081"
   }
 }
 ```
@@ -885,7 +882,7 @@ The API exposes WEB desired configuration through the common config resource, pr
 
 | Operation | Current contract |
 | --- | --- |
-| Read or patch `web`, the vhost table, profiles, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge; changing `web.vhost.base_path` therefore requires the complete vhost table. Changed values apply at the next process restart. |
+| Read or patch `web`, the vhost table, profiles, timeouts, or limits | Supported through `GET` and `PATCH /v1/config`; `web.runtime` is derived and excluded. Tables deep-merge; changing `web.base_path` therefore requires the complete vhost table. Changed values apply at the next process restart. |
 | Persist `listener` | Supported through `PATCH /v1/config`; the table deep-merges field-by-field. All listener fields are process-bound: any change (including an endpoint move) applies only at the next process restart. |
 | Apply an externally edited WEB config | Update the owning YAML source, then restart the service. |
 | Inspect WEB lifecycle, capacity, sessions, operations, learning, and debug state | Use the authenticated `GET /v1/runtime/web/*` routes documented above. |

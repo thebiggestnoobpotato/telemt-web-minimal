@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -33,21 +33,43 @@ pub enum WebSecretMode {
     Dd,
 }
 
-/// The externally visible WEB hostname.
+/// WEB vhost parameters, flattened directly into the `web` table as
+/// `host`, `base_path`, `public_addr`, `upstream`, and `resolve`. A set
+/// `host` enables vhost materialization; an empty one keeps WEB off.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebVhostConfig {
     /// Canonical lowercase ACE hostname used by Telegram Desktop.
+    #[serde(default)]
     pub host: String,
     /// Optional canonical WEB endpoint prefix without surrounding slashes.
     #[serde(default)]
     pub base_path: String,
     /// Stable public destination tuple used by inner relay routing and KDF metadata.
+    #[serde(default = "default_web_vhost_public_addr")]
     pub public_addr: SocketAddr,
     /// Ordinary-site fallback origin: an `http://` origin or a `unix:` socket path.
+    #[serde(default)]
     pub upstream: String,
     /// Opt-in configuration-time resolution; literal addresses never require DNS.
     #[serde(default)]
     pub resolve: WebFallbackResolve,
+}
+
+/// Unspecified placeholder; a set `host` requires a concrete port-443 address.
+fn default_web_vhost_public_addr() -> SocketAddr {
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)
+}
+
+impl Default for WebVhostConfig {
+    fn default() -> Self {
+        Self {
+            host: String::new(),
+            base_path: String::new(),
+            public_addr: default_web_vhost_public_addr(),
+            upstream: String::new(),
+            resolve: WebFallbackResolve::default(),
+        }
+    }
 }
 
 /// Hard process and protocol limits for WEB ingress.
@@ -393,9 +415,10 @@ pub struct WebConfig {
     /// Bounded server-side WEB debug policy.
     #[serde(default)]
     pub debug: WebDebugConfig,
-    /// The single public hostname served by WEB listeners.
-    #[serde(default)]
-    pub vhost: Option<WebVhostConfig>,
+    /// WEB vhost parameters flattened into the `web` table; a set `host`
+    /// is the single public hostname served by WEB listeners.
+    #[serde(flatten)]
+    pub vhost: WebVhostConfig,
     /// Validated immutable runtime snapshot built during configuration loading.
     #[serde(skip)]
     pub(crate) runtime: Option<Arc<WebRuntimeConfig>>,
@@ -438,7 +461,7 @@ impl Default for WebConfig {
             fallback_fasttrack_mode: WebFallbackFastTrackMode::default(),
             http_connection_capacity_action: WebHttpConnectionCapacityAction::default(),
             debug: WebDebugConfig::default(),
-            vhost: None,
+            vhost: WebVhostConfig::default(),
             runtime: None,
             fallback_dns: Arc::default(),
         }

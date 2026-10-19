@@ -11,7 +11,7 @@ pub(in crate::api) struct UserInfo {
     pub(in crate::api) in_runtime: bool,
     pub(in crate::api) current_connections: u64,
     pub(in crate::api) total_octets: u64,
-    /// Optional per-user WEB hostname; `web.vhost.host` applies when absent.
+    /// Optional per-user WEB hostname; `web.host` applies when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(in crate::api) host: Option<String>,
     /// Optional per-user live session ceiling; `limits.max_sessions_global` applies when absent.
@@ -42,7 +42,7 @@ pub(in crate::api) struct DeleteUserResponse {
 pub(in crate::api) struct CreateUserRequest {
     pub(in crate::api) username: String,
     pub(in crate::api) secret: Option<String>,
-    /// Optional per-user WEB hostname; `web.vhost.host` applies when absent.
+    /// Optional per-user WEB hostname; `web.host` applies when absent.
     pub(in crate::api) host: Option<String>,
     /// Optional per-user live session ceiling.
     pub(in crate::api) max_sessions: Option<usize>,
@@ -128,7 +128,7 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for MergeValue<T> {
 #[derive(Deserialize)]
 pub(in crate::api) struct PatchUserRequest {
     pub(in crate::api) secret: Option<String>,
-    /// Optional per-user WEB hostname; `web.vhost.host` applies when cleared.
+    /// Optional per-user WEB hostname; `web.host` applies when cleared.
     #[serde(default)]
     pub(in crate::api) host: MergeValue<String>,
     /// Optional per-user live session ceiling.

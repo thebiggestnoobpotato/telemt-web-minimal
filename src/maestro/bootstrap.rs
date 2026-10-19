@@ -273,7 +273,7 @@ pub(super) async fn bootstrap(
     info!("Log level: {}", effective_log_level);
     info!(
         "WEB: enabled ({} vhost(s), carrier={:?})",
-        usize::from(config.web.vhost.is_some()),
+        usize::from(!config.web.vhost.host.is_empty()),
         config.web.carrier
     );
 

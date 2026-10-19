@@ -49,9 +49,9 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
             "the listener section requires a network-eligible entry".to_string(),
         ));
     }
-    if web_listener_count > 0 && config.web.vhost.is_none() {
+    if web_listener_count > 0 && config.web.vhost.host.is_empty() {
         return Err(ProxyError::Config(
-            "A WEB listener requires a web.vhost section".to_string(),
+            "A WEB listener requires web.host".to_string(),
         ));
     }
 
@@ -89,7 +89,8 @@ fn validate_fallback_listener_separation_inner(
         .filter(|listener| listener_is_network_eligible(listener, config))
         .filter_map(ListenerEndpoint::from_listener)
         .collect::<Vec<_>>();
-    if let Some(vhost) = &config.web.vhost {
+    let vhost = &config.web.vhost;
+    if !vhost.host.is_empty() {
         let origin = fallback_dns::parse_origin(&vhost.upstream, vhost.resolve)?;
         for endpoint in fallback_dns::addresses(config, &origin, require_resolved)? {
             if web_endpoints
@@ -97,7 +98,7 @@ fn validate_fallback_listener_separation_inner(
                 .any(|listener| fallback_endpoint_overlaps(listener, &endpoint))
             {
                 return config_error(&format!(
-                    "web.vhost.upstream overlaps WEB listener {endpoint}"
+                    "web.upstream overlaps WEB listener {endpoint}"
                 ));
             }
         }

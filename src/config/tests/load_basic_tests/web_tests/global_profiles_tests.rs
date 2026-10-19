@@ -16,10 +16,9 @@ listener:
 web:
   carrier: "https-lanes"
   secret_mode: "plain"
-  vhost:
-    host: "proxy.example.com"
-    public_addr: "203.0.113.10:443"
-    upstream: "http://127.0.0.1:18081"
+  host: "proxy.example.com"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:18081"
 "#;
 
 #[test]

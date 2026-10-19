@@ -18,9 +18,10 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
         return;
     };
     // Every runtime profile belongs to the single configured vhost.
-    let Some(vhost) = config.web.vhost.as_ref() else {
+    let vhost = &config.web.vhost;
+    if vhost.host.is_empty() {
         return;
-    };
+    }
     let mut heading_printed = false;
     for profile in &runtime.profiles {
         if !heading_printed {

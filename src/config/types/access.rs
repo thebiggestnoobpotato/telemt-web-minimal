@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 ///
 /// Every field except `secret` is optional; an absent ceiling inherits the
 /// corresponding global `limits` value and an absent host inherits
-/// `web.vhost.host`.
+/// `web.host`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserEntry {
     /// 32-hex-character secret authenticated by the inner MTProxy handshake.
     pub secret: String,
-    /// Optional per-user hostname; `web.vhost.host` applies when absent.
+    /// Optional per-user hostname; `web.host` applies when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
     /// Optional per-user live session ceiling.

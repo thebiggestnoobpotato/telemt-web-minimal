@@ -205,7 +205,7 @@ async fn read_managed_config_returns_only_editable_sections() {
         "general:\n  network_ipv6: true\n",
         "api:\n  auth_header: \"SECRET\"\n",
         "listener:\n  ip: \"0.0.0.0\"\n  port: 443\n  web_trusted_proxy_cidrs: [\"127.0.0.1/32\"]\n",
-        "web:\n  secret_mode: \"plain\"\n  vhost:\n    host: \"proxy.example.com\"\n    public_addr: \"203.0.113.1:443\"\n    upstream: \"http://127.0.0.1:80\"\n",
+        "web:\n  secret_mode: \"plain\"\n  host: \"proxy.example.com\"\n  public_addr: \"203.0.113.1:443\"\n  upstream: \"http://127.0.0.1:80\"\n",
         "metrics:\n  enabled: true\n  listen_address: \"127.0.0.1:9090\"\n",
         "users:\n  bob:\n    secret: \"00000000000000000000000000000000\"\n",
     ));
@@ -224,7 +224,7 @@ async fn read_managed_config_returns_full_listener_table() {
         "general:\n  network_ipv6: true\n",
         "api:\n  auth_header: \"SECRET\"\n",
         "listener:\n  ip: \"0.0.0.0\"\n  port: 443\n  web_trusted_proxy_cidrs: [\"127.0.0.1/32\"]\n",
-        "web:\n  secret_mode: \"plain\"\n  vhost:\n    host: \"proxy.example.com\"\n    public_addr: \"203.0.113.1:443\"\n    upstream: \"http://127.0.0.1:80\"\n",
+        "web:\n  secret_mode: \"plain\"\n  host: \"proxy.example.com\"\n  public_addr: \"203.0.113.1:443\"\n  upstream: \"http://127.0.0.1:80\"\n",
         "users:\n  bob:\n    secret: \"00000000000000000000000000000000\"\n",
     ));
     let (value, _rev) = read_managed_config(&path).await.unwrap();
@@ -265,7 +265,7 @@ async fn patch_listener_preserves_api() {
         "general:\n  network_ipv6: true\n",
         "api:\n  enabled: true\n  auth_header: \"SECRET\"\n",
         "listener:\n  ip: \"0.0.0.0\"\n  port: 443\n  web_trusted_proxy_cidrs: [\"127.0.0.1/32\"]\n",
-        "web:\n  secret_mode: \"plain\"\n  vhost:\n    host: \"proxy.example.com\"\n    public_addr: \"203.0.113.1:443\"\n    upstream: \"http://127.0.0.1:80\"\n",
+        "web:\n  secret_mode: \"plain\"\n  host: \"proxy.example.com\"\n  public_addr: \"203.0.113.1:443\"\n  upstream: \"http://127.0.0.1:80\"\n",
         "users:\n  bob:\n    secret: \"00000000000000000000000000000000\"\n",
     ));
     let patch: Json = serde_json::json!({

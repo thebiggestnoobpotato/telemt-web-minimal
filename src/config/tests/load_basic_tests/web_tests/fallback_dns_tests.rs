@@ -24,22 +24,22 @@ fn fallback_dns_resolution_is_opt_in() {
     assert!(load_config_error_from_temp_yaml(&hostname).contains("IP literal"));
     let never = hostname.replace(
         "upstream: \"http://example.com:18081\"",
-        "upstream: \"http://example.com:18081\"\n    resolve: \"never\"",
+        "upstream: \"http://example.com:18081\"\n  resolve: \"never\"",
     );
     assert!(load_config_error_from_temp_yaml(&never).contains("IP literal"));
     let unknown = WEB_CONFIG.replace(
         "upstream: \"http://127.0.0.1:18081\"",
-        "upstream: \"http://127.0.0.1:18081\"\n    resolve: \"always\"",
+        "upstream: \"http://127.0.0.1:18081\"\n  resolve: \"always\"",
     );
     assert!(load_config_error_from_temp_yaml(&unknown).contains("unknown variant"));
     // resolve only applies to http origins; unix sockets never need DNS.
     let unix_with_resolve = WEB_CONFIG.replace(
         "upstream: \"http://127.0.0.1:18081\"",
-        "upstream: \"unix:/tmp/site.sock\"\n    resolve: \"startup\"",
+        "upstream: \"unix:/tmp/site.sock\"\n  resolve: \"startup\"",
     );
     assert!(
         load_config_error_from_temp_yaml(&unix_with_resolve)
-            .contains("web.vhost.resolve is only valid for http origins")
+            .contains("web.resolve is only valid for http origins")
     );
 }
 

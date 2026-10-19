@@ -40,7 +40,6 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         LIMITS_CONFIG_KEYS,
         WEB_DEBUG_CONFIG_KEYS,
         TIMEOUTS_CONFIG_KEYS,
-        WEB_VHOST_CONFIG_KEYS,
         USER_ENTRY_CONFIG_KEYS,
         UPSTREAM_CONFIG_KEYS,
         LOGGING_CONFIG_KEYS,
@@ -231,16 +230,6 @@ pub(super) fn collect_unknown_config_keys(parsed_yaml: &serde_yaml::Value) -> Ve
         &["listener"],
         LISTENER_CONFIG_KEYS,
     );
-
-    if let Some(vhost) = table_at(parsed_yaml, &["web"]).and_then(|table| table.get("vhost")) {
-        check_nested_table_value(
-            &mut unknown,
-            &known_for_suggestion,
-            "web.vhost".to_string(),
-            vhost,
-            WEB_VHOST_CONFIG_KEYS,
-        );
-    }
 
     if let Some(users) = parsed_yaml.get("users").and_then(serde_yaml::Value::as_mapping) {
         for (key, entry) in users {

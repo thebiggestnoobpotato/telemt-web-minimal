@@ -108,7 +108,7 @@ root    hard    nofile  1048576
 ## Additional parameters
 
 ### Domain in the link instead of IP
-To display a domain instead of an IP address in `tg://webproxy` links, use the `host` of the `web.vhost` table.
+To display a domain instead of an IP address in `tg://webproxy` links, use the `web.host` key.
 
 ### Upstream Manager
 To configure outbound connections (upstreams), add the corresponding parameters to the `upstreams` section of the configuration file:
