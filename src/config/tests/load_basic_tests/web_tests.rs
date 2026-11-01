@@ -40,6 +40,10 @@ mod carrier_negotiation_tests;
 #[path = "web_tests/debug_tests.rs"]
 mod debug_tests;
 
+// WEB retry jitter table parsing, strict keys, and fail-closed validation.
+#[path = "web_tests/retry_jitter_tests.rs"]
+mod retry_jitter_tests;
+
 // Removed config keys rejected in strict mode and ignored otherwise.
 #[path = "web_tests/stripped_keys_tests.rs"]
 mod stripped_keys_tests;
