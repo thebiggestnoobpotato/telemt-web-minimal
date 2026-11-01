@@ -38,6 +38,7 @@ fn known_config_keys_for_suggestion() -> Vec<&'static str> {
         LISTENER_CONFIG_KEYS,
         WEB_CONFIG_KEYS,
         LIMITS_CONFIG_KEYS,
+        WILDCARD_LIMITS_CONFIG_KEYS,
         WEB_DEBUG_CONFIG_KEYS,
         TIMEOUTS_CONFIG_KEYS,
         USER_ENTRY_CONFIG_KEYS,
@@ -208,6 +209,13 @@ pub(super) fn collect_unknown_config_keys(parsed_yaml: &serde_yaml::Value) -> Ve
         &known_for_suggestion,
         &["limits"],
         LIMITS_CONFIG_KEYS,
+    );
+    check_known_table(
+        parsed_yaml,
+        &mut unknown,
+        &known_for_suggestion,
+        &["limits", "wildcard"],
+        WILDCARD_LIMITS_CONFIG_KEYS,
     );
     check_known_table(
         parsed_yaml,

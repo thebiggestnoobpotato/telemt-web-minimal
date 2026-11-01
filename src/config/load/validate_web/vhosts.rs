@@ -16,26 +16,49 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     if vhost.hosts.as_ref().is_some_and(Vec::is_empty) {
         return config_error("web.hosts must be a non-empty hostname list");
     }
+    // Opted-in selectors stay patterns until a request authenticates a host.
+    let selectors: &[String] = if single_host {
+        std::slice::from_ref(&vhost.host)
+    } else {
+        vhost.hosts.as_deref().unwrap_or_default()
+    };
+    let patterns = selectors.iter().filter(|host| host.trim().starts_with('*')).count();
+    if patterns > 0
+        && (!config.web.allow_wildcard_hosts
+            || patterns > limits.wildcard.max_rules
+            || config.users.len() > limits.wildcard.max_profiles_per_request)
+    {
+        return config_error(
+            "web wildcard selectors require allow_wildcard_hosts and must fit limits.wildcard bounds",
+        );
+    }
+    let exact_count = selectors.len() - patterns;
     if !single_host && vhost.hosts.is_none() {
         return Ok(());
     }
-    let host_count = vhost.hosts.as_ref().map_or(1, Vec::len);
     // A user without an explicit host binding materializes one profile per
-    // group host; an override binds exactly one. The ceiling bounds the
-    // expanded count before any origin or path preparation.
-    let profile_count = config.users.values().fold(0usize, |count, entry| {
-        count.saturating_add(if entry.host.is_some() { 1 } else { host_count })
-    });
+    // exact group host; an override binds exactly one. Wildcard patterns add
+    // one shared profile set per user. The ceiling bounds the expanded count
+    // before any origin or path preparation.
+    let profile_count = config
+        .users
+        .values()
+        .fold(0usize, |count, entry| {
+            count.saturating_add(if entry.host.is_some() { 1 } else { exact_count })
+        })
+        .saturating_add(config.users.len() * usize::from(patterns > 0));
     if profile_count > limits.max_profiles {
         return config_error("WEB profiles exceed limits.max_profiles");
     }
     if single_host {
-        vhost.host = normalize_web_host(&vhost.host, "web.host")?;
+        vhost.host =
+            normalize_wildcard_selector(&vhost.host, config.web.allow_wildcard_hosts, "web.host")?;
     } else {
-        let mut hosts = HashSet::with_capacity(host_count);
+        let mut hosts = HashSet::with_capacity(exact_count);
         for (host_idx, host) in vhost.hosts.iter_mut().flatten().enumerate() {
             let field = format!("web.hosts[{host_idx}]");
-            let normalized = normalize_web_host(host, &field)?;
+            let normalized =
+                normalize_wildcard_selector(host, config.web.allow_wildcard_hosts, &field)?;
             if !hosts.insert(normalized.clone()) {
                 return config_error(&format!(
                     "duplicate WEB host `{normalized}` in {field}"
@@ -124,6 +147,21 @@ fn validate_web_base_path(value: &str, field: &str) -> Result<()> {
     config_error(&format!(
         "{field} must be empty or contain at most 128 ASCII bytes in slash-separated [A-Za-z0-9][A-Za-z0-9_-]* segments"
     ))
+}
+
+// Opted-in wildcard selectors normalize their suffix only; exact selectors
+// keep the full lowercase ACE hostname grammar.
+fn normalize_wildcard_selector(value: &str, allow_wildcard: bool, field: &str) -> Result<String> {
+    if allow_wildcard && value.trim() == "*" {
+        return Ok("*".to_string());
+    }
+    if allow_wildcard
+        && let Some(suffix) = value.trim().strip_prefix("*.")
+    {
+        let normalized = normalize_web_host(&format!("x.{suffix}"), field)?;
+        return Ok(format!("*.{}", &normalized[2..]));
+    }
+    normalize_web_host(value, field)
 }
 
 pub(super) fn normalize_web_host(value: &str, field: &str) -> Result<String> {

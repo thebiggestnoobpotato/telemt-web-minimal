@@ -38,11 +38,11 @@ pub use server::{ListenerConfig, ListenerEndpoint, WebClientIpSource};
 pub use web::{
     WebCarrierNegotiationAggressiveness, WebConfig, WebFallbackFastTrackMode, WebFallbackResolve,
     WebHttpConnectionCapacityAction, WebLimitsConfig, WebSecretMode, WebTimeoutsConfig,
-    WebVhostConfig,
+    WebVhostConfig, WebWildcardLimitsConfig,
 };
 pub(crate) use web::{
     FallbackEndpoint, WebFallbackDnsSnapshot, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile,
-    WebRuntimeProfileShared, WebRuntimeVhost,
+    WebRuntimeProfileShared, WebRuntimeVhost, WebRuntimeWildcard,
 };
 pub(crate) use web_carrier::WEB_CARRIER_LEARNING_MIN_ENTRIES;
 #[allow(unused_imports)]

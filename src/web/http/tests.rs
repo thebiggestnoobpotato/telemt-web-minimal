@@ -131,6 +131,7 @@ fn runtime_config_with_carriers_and_deadlines(
         host: "proxy.example.com".to_string(),
         capability,
         shared: Arc::new(crate::config::WebRuntimeProfileShared {
+            derivation_context: [0; 32],
             public_addr: "203.0.113.10:443".parse().unwrap(),
             user: "alice".to_string(),
             secret_mode: WebSecretMode::Plain,
@@ -147,6 +148,7 @@ fn runtime_config_with_carriers_and_deadlines(
         }),
     });
     let vhost = Arc::new(WebRuntimeVhost {
+        wildcard: None,
         host: "proxy.example.com".to_string(),
         base: base.to_string(),
         fallback_fasttrack_mode: WebFallbackFastTrackMode::Off,
@@ -163,6 +165,7 @@ fn runtime_config_with_carriers_and_deadlines(
     vhosts.insert(
         "other.example.com".to_string(),
         Arc::new(WebRuntimeVhost {
+            wildcard: None,
             host: "other.example.com".to_string(),
             base: "/".to_string(),
             fallback_fasttrack_mode: WebFallbackFastTrackMode::Off,
@@ -187,6 +190,9 @@ fn runtime_config_with_carriers_and_deadlines(
     config.limits.max_bootstraps_per_ip = 1;
     config.timeouts.shutdown_secs = 1;
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {
+        snapshot_id: 0,
+        wildcards: Default::default(),
+        catch_all: None,
         vhosts,
         profiles: vec![profile],
         capabilities: vec![capability].into_boxed_slice(),

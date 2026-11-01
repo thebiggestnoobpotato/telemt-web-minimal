@@ -1,8 +1,14 @@
 use super::*;
 
 /// Precomputed WEB configuration consumed by listener hot paths.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct WebRuntimeConfig {
+    /// Process-unique immutable WEB snapshot identity, including same-generation reloads.
+    pub(crate) snapshot_id: u64,
+    /// Suffix index without the leading wildcard and dot.
+    pub(crate) wildcards: BTreeMap<String, Arc<WebRuntimeVhost>>,
+    /// Lowest-priority whole-group fallback.
+    pub(crate) catch_all: Option<Arc<WebRuntimeVhost>>,
     /// Canonical host lookup used by HTTP request routing.
     pub(crate) vhosts: BTreeMap<String, Arc<WebRuntimeVhost>>,
     /// Flat profile inventory used by startup link emission.
@@ -14,7 +20,12 @@ pub(crate) struct WebRuntimeConfig {
 /// Precomputed immutable virtual-host data.
 #[derive(Debug)]
 pub(crate) struct WebRuntimeVhost {
-    /// Canonical lowercase ACE hostname.
+    /// Shared automatic-host policy; exact hosts keep their precomputed bindings.
+    pub(crate) wildcard: Option<WebRuntimeWildcard>,
+    /// Canonical lowercase ACE hostname; empty for a wildcard template.
+    // Retained for upstream parity; request routing resolves the authoritative
+    // host per request, so production code never reads this field.
+    #[allow(dead_code)]
     pub(crate) host: String,
     /// Exact slash-delimited endpoint base, including the trailing slash.
     pub(crate) base: String,
@@ -45,6 +56,8 @@ pub(crate) struct WebRuntimeProfile {
 /// Limits still apply to each binding's exact host/user/mode quota owner.
 #[derive(Debug)]
 pub(crate) struct WebRuntimeProfileShared {
+    /// Full domain-separated secret, protocol-version, and endpoint identity.
+    pub(crate) derivation_context: [u8; 32],
     /// Stable public destination tuple supplied to relay routing.
     pub(crate) public_addr: SocketAddr,
     /// Exact access user authenticated by logical streams.
@@ -98,4 +111,28 @@ pub(crate) enum WebRuntimeFallback {
         endpoint: FallbackEndpoint,
         authority: String,
     },
+}
+
+/// Host-independent wildcard group, never a session or quota owner.
+#[derive(Debug)]
+pub(crate) struct WebRuntimeWildcard {
+    /// Source-group identity local to the immutable WEB snapshot.
+    pub(crate) group_id: usize,
+    /// Ordered shared policies aligned with cold capability derivation.
+    pub(crate) profiles: Vec<Arc<WebRuntimeProfileShared>>,
+}
+
+impl WebRuntimeConfig {
+    /// Selects exactly one group: exact, longest suffix, then catch-all.
+    pub(crate) fn route(&self, host: &str) -> Option<&Arc<WebRuntimeVhost>> {
+        if let Some(vhost) = self.vhosts.get(host) {
+            return Some(vhost);
+        }
+        for (offset, _) in host.match_indices('.') {
+            if let Some(vhost) = self.wildcards.get(&host[offset + 1..]) {
+                return Some(vhost);
+            }
+        }
+        self.catch_all.as_ref()
+    }
 }

@@ -68,6 +68,7 @@ const LISTENER_CONFIG_KEYS: &[&str] = &[
 ];
 
 const WEB_CONFIG_KEYS: &[&str] = &[
+    "allow_wildcard_hosts",
     "secret_mode",
     "carrier",
     "carrier_method",
@@ -86,6 +87,7 @@ const WEB_CONFIG_KEYS: &[&str] = &[
 ];
 
 const LIMITS_CONFIG_KEYS: &[&str] = &[
+    "wildcard",
     "max_header_bytes",
     "max_body_bytes",
     "max_frame_payload_bytes",
@@ -132,6 +134,15 @@ const LIMITS_CONFIG_KEYS: &[&str] = &[
     "new_sessions_burst",
     "new_streams_per_minute",
     "new_streams_burst",
+];
+
+const WILDCARD_LIMITS_CONFIG_KEYS: &[&str] = &[
+    "max_rules",
+    "max_profiles_per_request",
+    "cache_hosts",
+    "cache_bytes",
+    "cold_hmac_per_minute",
+    "cold_hmac_burst",
 ];
 
 const WEB_DEBUG_CONFIG_KEYS: &[&str] = &[

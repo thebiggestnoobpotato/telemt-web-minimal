@@ -52,6 +52,10 @@ mod vhost_fallback_tests;
 #[path = "web_tests/websocket_tests.rs"]
 mod websocket_tests;
 
+// Opt-in wildcard selectors stay restart-frozen and independently bounded.
+#[path = "web_tests/wildcard_tests.rs"]
+mod wildcard_tests;
+
 const WEB_CONFIG: &str = r#"
 users:
   alice:

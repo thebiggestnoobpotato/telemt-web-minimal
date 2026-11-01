@@ -8,6 +8,9 @@ mod sanitize;
 mod store;
 // Closed record types define the status-page data contract.
 mod types;
+// Shape-based sanitization is exclusively for diagnostic copies, never public routing.
+mod wildcard;
+pub(crate) use wildcard::scrub_text;
 
 pub(crate) use exchange::HttpTraceExchange;
 pub(crate) use store::{

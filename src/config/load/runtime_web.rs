@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
@@ -10,11 +11,20 @@ const WEB_CAPABILITY_CONTEXT_V1: &[u8] = b"tdesktop-web-proxy-bridge-v1\n";
 const WEB_CAPABILITY_CONTEXT_V2: &[u8] = b"tdesktop-web-proxy-bridge-v2\n";
 const WEB_DEBUG_FINGERPRINT_CONTEXT: &[u8] = b"telemt-web-debug-key-fingerprint-v1\0";
 
+static NEXT_SNAPSHOT: AtomicU64 = AtomicU64::new(1);
+
 /// Builds the immutable WEB routing and fallback snapshot for one generation.
 pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     let auth = config.runtime_user_auth().ok_or_else(|| {
         ProxyError::Config("WEB runtime requires the user authentication snapshot".to_string())
     })?;
+    let snapshot_id = NEXT_SNAPSHOT
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+            value.checked_add(1)
+        })
+        .map_err(|_| ProxyError::Config("WEB snapshot identity exhausted".to_string()))?;
+    let mut wildcards = BTreeMap::new();
+    let mut catch_all = None;
     let mut runtime_vhosts = BTreeMap::new();
     let mut runtime_profiles = Vec::new();
     let mut runtime_capabilities = Vec::new();
@@ -37,11 +47,21 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
         let secret_mode = config.web.secret_mode.ok_or_else(|| {
             ProxyError::Config("web requires web.secret_mode".to_string())
         })?;
-        let group_hosts: Vec<String> = if single_host {
-            vec![vhost.host.clone()]
+        // Wildcard selectors never materialize exact bindings; they share the
+        // group template vhost and derive capabilities on demand.
+        let selectors: &[String] = if single_host {
+            std::slice::from_ref(&vhost.host)
         } else {
-            vhost.hosts.clone().unwrap_or_default()
+            vhost.hosts.as_deref().unwrap_or_default()
         };
+        let has_wildcards = selectors.iter().any(|host| host.starts_with('*'));
+        let group_hosts: Vec<String> = selectors
+            .iter()
+            .filter(|host| !host.starts_with('*'))
+            .cloned()
+            .collect();
+        let mut shared_profiles = Vec::new();
+        let mut contexts = HashSet::new();
         let mut host_groups: BTreeMap<String, HostProfiles> = BTreeMap::new();
         // Capability uniqueness is per exact host: different hosts derive
         // different capabilities from the same secret.
@@ -55,6 +75,10 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
             })?;
             let (client_secret, client_secret_len) = client_secret(auth_entry.secret, secret_mode);
             let shared = Arc::new(WebRuntimeProfileShared {
+                derivation_context: derivation_context(
+                    &client_secret[..client_secret_len],
+                    vhost.base_path.as_bytes(),
+                ),
                 public_addr: vhost.public_addr,
                 user: auth_entry.user.clone(),
                 credential_id: auth_entry.credential_id,
@@ -78,6 +102,14 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                     .max_streams_per_session
                     .unwrap_or(config.limits.max_streams_per_session),
             });
+            if has_wildcards {
+                if !contexts.insert(shared.derivation_context) {
+                    return Err(ProxyError::Config(
+                        "WEB wildcard group contains duplicate client capabilities".to_string(),
+                    ));
+                }
+                shared_profiles.push(Arc::clone(&shared));
+            }
             // An explicit user binding pins one host; otherwise every group
             // host receives its own host-bound capability entry.
             let binding_hosts: Vec<String> = match user_entry.host.as_deref() {
@@ -116,11 +148,36 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
         } else {
             format!("/{}/", vhost.base_path)
         };
+        if has_wildcards {
+            // The template carries an empty unix fallback authority so each
+            // matched request forwards its own original Host header.
+            let template = Arc::new(WebRuntimeVhost {
+                wildcard: Some(WebRuntimeWildcard {
+                    group_id: 0,
+                    profiles: shared_profiles,
+                }),
+                host: String::new(),
+                base: base.clone(),
+                fallback_fasttrack_mode: config.web.fallback_fasttrack_mode,
+                fallback: host_fallback(&fallback, ""),
+                fallback_header_secs: config.timeouts.fallback_header_secs,
+                profiles: Vec::new(),
+                capabilities: Box::new([]),
+            });
+            for selector in selectors {
+                if selector == "*" {
+                    catch_all = Some(Arc::clone(&template));
+                } else if let Some(suffix) = selector.strip_prefix("*.") {
+                    wildcards.insert(suffix.to_string(), Arc::clone(&template));
+                }
+            }
+        }
         for (host, group) in host_groups {
             let fallback = host_fallback(&fallback, &host);
             runtime_vhosts.insert(
                 host.clone(),
                 Arc::new(WebRuntimeVhost {
+                    wildcard: None,
                     host,
                     base: base.clone(),
                     fallback_fasttrack_mode: config.web.fallback_fasttrack_mode,
@@ -134,11 +191,62 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
     }
 
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {
+        snapshot_id,
+        wildcards,
+        catch_all,
         vhosts: runtime_vhosts,
         profiles: runtime_profiles,
         capabilities: runtime_capabilities.into_boxed_slice(),
     }));
     Ok(())
+}
+
+// A length-delimited full digest fences secret, mode and endpoint changes without
+// performing HMAC while a process session registry is locked.
+pub(super) fn derivation_context(secret: &[u8], base: &[u8]) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    digest.update(b"telemt-web-derivation-context-v1\0");
+    digest.update([if base.is_empty() { 1 } else { 2 }]);
+    digest.update((secret.len() as u64).to_be_bytes());
+    digest.update(secret);
+    digest.update((base.len() as u64).to_be_bytes());
+    digest.update(base);
+    digest.finalize().into()
+}
+
+impl ProxyConfig {
+    /// Derives one complete bounded table after the process HMAC budget is reserved.
+    pub(crate) fn wildcard_capabilities(
+        &self,
+        vhost: &WebRuntimeVhost,
+        host: &str,
+    ) -> Result<Box<[[u8; 32]]>> {
+        let group = vhost
+            .wildcard
+            .as_ref()
+            .ok_or_else(|| ProxyError::Config("WEB wildcard template is missing".to_string()))?;
+        let auth = self.runtime_user_auth().ok_or_else(|| {
+            ProxyError::Config("WEB authentication snapshot is missing".to_string())
+        })?;
+        let mut capabilities = Vec::with_capacity(group.profiles.len());
+        for profile in &group.profiles {
+            let entry = auth
+                .user_id_by_name(&profile.user)
+                .and_then(|id| auth.entry_by_id(id))
+                .ok_or_else(|| {
+                    ProxyError::Config(
+                        "WEB wildcard authentication snapshot is inconsistent".to_string(),
+                    )
+                })?;
+            let (secret, len) = client_secret(entry.secret, profile.secret_mode);
+            capabilities.push(derive_web_capability(
+                &secret[..len],
+                host.as_bytes(),
+                vhost.base.trim_matches('/').as_bytes(),
+            )?);
+        }
+        Ok(capabilities.into_boxed_slice())
+    }
 }
 
 fn debug_key_fingerprint(secret: &[u8]) -> String {

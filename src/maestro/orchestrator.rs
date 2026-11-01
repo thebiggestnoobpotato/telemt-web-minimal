@@ -73,10 +73,11 @@ pub(super) async fn run_telemt_core(
     );
     let _ = shared_state
         .activate_user_config_source(1, None, &config.user_secret_map());
-    let web_trace = WebTraceStore::new(
+    let web_trace = WebTraceStore::new_with_wildcards(
         config.logging.web_debug.clone(),
         config.logging.web_debug_enable,
         &config.limits,
+        config.web.allow_wildcard_hosts,
     );
     let web_runtime_control = WebRuntimeControl::new();
 

@@ -192,6 +192,7 @@ async fn fallback_forwarding_preserves_every_reference_request_target() {
     vhosts.insert(
         "proxy.example.com".to_string(),
         Arc::new(WebRuntimeVhost {
+            wildcard: None,
             host: previous.host.clone(),
             base: previous.base.clone(),
             fallback_fasttrack_mode: previous.fallback_fasttrack_mode,
@@ -205,6 +206,9 @@ async fn fallback_forwarding_preserves_every_reference_request_target() {
         }),
     );
     config.web.runtime = Some(Arc::new(WebRuntimeConfig {
+        snapshot_id: 0,
+        wildcards: Default::default(),
+        catch_all: None,
         vhosts,
         profiles: runtime_config.profiles.clone(),
         capabilities: runtime_config.capabilities.clone(),
