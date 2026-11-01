@@ -10,6 +10,7 @@ pub(super) fn run(page: &super::BridgePage) {
         return;
     }
     let mut child = Command::new("node")
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/bridge"))
         .args(["-e", include_str!("behavior_tests.js"), "--", "--stdin"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

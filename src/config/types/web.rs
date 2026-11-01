@@ -13,6 +13,9 @@ mod wildcard;
 pub use wildcard::WebWildcardLimitsConfig;
 
 // Serialized WEB defaults remain separate from the runtime data model.
+mod retry;
+pub use retry::{WebRetryJitterConfig, WebRetryJitterDistribution};
+
 mod defaults;
 use defaults::*;
 // Fallback fast-track policy remains isolated from the bulky WEB data model.
@@ -427,6 +430,9 @@ pub struct WebConfig {
     /// Action applied when accepted HTTP connection capacity is exhausted.
     #[serde(default)]
     pub http_connection_capacity_action: WebHttpConnectionCapacityAction,
+    /// Additive HTTP retry jitter frozen into each generated bridge page.
+    #[serde(default)]
+    pub retry_jitter: WebRetryJitterConfig,
     /// WEB vhost parameters flattened into the `web` table; a set `host`
     /// is the single public hostname selector served by WEB listeners.
     #[serde(flatten)]
@@ -473,6 +479,7 @@ impl Default for WebConfig {
             carrier_negotiation_aggressiveness: WebCarrierNegotiationAggressiveness::default(),
             fallback_fasttrack_mode: WebFallbackFastTrackMode::default(),
             http_connection_capacity_action: WebHttpConnectionCapacityAction::default(),
+            retry_jitter: WebRetryJitterConfig::default(),
             vhost: WebVhostConfig::default(),
             runtime: None,
             fallback_dns: Arc::default(),

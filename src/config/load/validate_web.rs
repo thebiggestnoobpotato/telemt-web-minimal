@@ -59,6 +59,11 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
         ));
     }
 
+    config
+        .web
+        .retry_jitter
+        .validate()
+        .map_err(|message| ProxyError::Config(message.into()))?;
     validate_limits(&config.limits, config.web.allow_wildcard_hosts)?;
     debug::validate(&config.logging.web_debug, &config.limits)?;
     let carriers = negotiation::validate(&config.web, &config.limits, &config.timeouts)?;

@@ -436,6 +436,7 @@ async fn handle_root(
             .web_debug
             .bridge_diagnostics_enabled(config.logging.web_debug_enable),
         config.web.carrier_method,
+        &config.web.retry_jitter,
         &generation.rng,
     );
     let mut response = full_response(StatusCode::OK, Bytes::from(page.body));
