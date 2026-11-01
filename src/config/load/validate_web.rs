@@ -49,9 +49,13 @@ pub(super) fn validate_source(config: &mut ProxyConfig) -> Result<()> {
             "the listener section requires a network-eligible entry".to_string(),
         ));
     }
-    if web_listener_count > 0 && config.web.vhost.host.is_empty() {
+    // A present selector satisfies the listener even when malformed; the
+    // specific rejection is emitted by the vhost validation.
+    let web_vhost_selected =
+        !config.web.vhost.host.is_empty() || config.web.vhost.hosts.is_some();
+    if web_listener_count > 0 && !web_vhost_selected {
         return Err(ProxyError::Config(
-            "A WEB listener requires web.host".to_string(),
+            "A WEB listener requires web.host or web.hosts".to_string(),
         ));
     }
 

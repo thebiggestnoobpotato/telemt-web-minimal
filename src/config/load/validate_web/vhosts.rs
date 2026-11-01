@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::*;
 
 pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
@@ -7,10 +9,41 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
     // network-eligible.
     let web_listener_count = usize::from(config.listener.is_some());
     let vhost = &mut config.web.vhost;
-    if vhost.host.is_empty() {
+    let single_host = !vhost.host.is_empty();
+    if single_host && vhost.hosts.is_some() {
+        return config_error("web requires exactly one of web.host or web.hosts");
+    }
+    if vhost.hosts.as_ref().is_some_and(Vec::is_empty) {
+        return config_error("web.hosts must be a non-empty hostname list");
+    }
+    if !single_host && vhost.hosts.is_none() {
         return Ok(());
     }
-    vhost.host = normalize_web_host(&vhost.host, "web.host")?;
+    let host_count = vhost.hosts.as_ref().map_or(1, Vec::len);
+    // A user without an explicit host binding materializes one profile per
+    // group host; an override binds exactly one. The ceiling bounds the
+    // expanded count before any origin or path preparation.
+    let profile_count = config.users.values().fold(0usize, |count, entry| {
+        count.saturating_add(if entry.host.is_some() { 1 } else { host_count })
+    });
+    if profile_count > limits.max_profiles {
+        return config_error("WEB profiles exceed limits.max_profiles");
+    }
+    if single_host {
+        vhost.host = normalize_web_host(&vhost.host, "web.host")?;
+    } else {
+        let mut hosts = HashSet::with_capacity(host_count);
+        for (host_idx, host) in vhost.hosts.iter_mut().flatten().enumerate() {
+            let field = format!("web.hosts[{host_idx}]");
+            let normalized = normalize_web_host(host, &field)?;
+            if !hosts.insert(normalized.clone()) {
+                return config_error(&format!(
+                    "duplicate WEB host `{normalized}` in {field}"
+                ));
+            }
+            *host = normalized;
+        }
+    }
     validate_web_base_path(&vhost.base_path, "web.base_path")?;
     if vhost.public_addr.port() != 443 || vhost.public_addr.ip().is_unspecified() {
         return config_error(
@@ -21,11 +54,6 @@ pub(super) fn validate_vhosts(config: &mut ProxyConfig) -> Result<()> {
         return config_error("A WEB listener requires web.secret_mode");
     }
     validate_fallback(&vhost.upstream, vhost.resolve)?;
-    // Every access user materializes exactly one WEB profile; the vhost
-    // ceiling bounds the user count.
-    if config.users.len() > limits.max_profiles {
-        return config_error("WEB users exceed limits.max_profiles");
-    }
     Ok(())
 }
 

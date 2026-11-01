@@ -45,7 +45,7 @@ impl WebProcessRuntime {
         }
         let Some(mut user_publication) = generation
             .proxy_shared
-            .claim_authenticated_user(&replacement.profile.user, replacement.profile.credential_id)
+            .claim_authenticated_user(&replacement.profile.shared.user, replacement.profile.shared.credential_id)
         else {
             drop(state);
             self.cancel_replacement(bootstrap_hash, &replacement.old_session);
@@ -73,7 +73,7 @@ impl WebProcessRuntime {
             self.cancel_replacement(bootstrap_hash, &replacement.old_session);
             return Err(ManagerError::Limit);
         };
-        let learning_context = (replacement.profile.carrier_learning
+        let learning_context = (replacement.profile.shared.carrier_learning
             && replacement.learning_epoch != 0)
             .then_some(CarrierLearningContext {
                 profile_key: replacement.profile_key,
@@ -153,7 +153,7 @@ impl WebProcessRuntime {
             carrier: replacement.carrier,
             attempt: Some(replacement.attempt),
             candidate_count: Some(u8::try_from(entry.carrier_candidates.len()).unwrap_or(4)),
-            deadline_secs: Some(entry.profile.carrier_negotiation_deadlines_secs[3]),
+            deadline_secs: Some(entry.profile.shared.carrier_negotiation_deadlines_secs[3]),
             carrier_state: Some(CarrierChainPhase::Provisional.as_str()),
         };
         let predecessor_session_id = entry.predecessor_session_id;

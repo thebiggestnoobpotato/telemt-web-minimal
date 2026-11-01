@@ -47,11 +47,11 @@ pub fn web_links_for_user(config: &ProxyConfig, user: &str) -> Vec<String> {
     let secret = entry.secret.as_str();
     let mut links = Vec::new();
     for profile in &runtime.profiles {
-        if profile.user != user {
+        if profile.shared.user != user {
             continue;
         }
         if let Some(link) =
-            format_web_proxy_link(&profile.host, &vhost.base_path, secret, profile.secret_mode)
+            format_web_proxy_link(&profile.host, &vhost.base_path, secret, profile.shared.secret_mode)
         {
             links.push(link);
         }

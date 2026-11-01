@@ -28,15 +28,24 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
 
     let carrier_candidates: Arc<[WebCarrier]> = config.web.carrier_candidates().into();
     let vhost = &config.web.vhost;
-    if !vhost.host.is_empty() {
+    let single_host = !vhost.host.is_empty();
+    let web_on = single_host || vhost.hosts.as_ref().is_some_and(|hosts| !hosts.is_empty());
+    if web_on {
         let fallback = build_fallback(config, vhost)?;
-        // Every access user materializes exactly one WEB profile using its
-        // optional per-user overrides; absent ceilings inherit the global
-        // WEB limits.
+        // Every access user materializes one WEB profile per group host it
+        // does not override; absent ceilings inherit the global WEB limits.
         let secret_mode = config.web.secret_mode.ok_or_else(|| {
             ProxyError::Config("web requires web.secret_mode".to_string())
         })?;
-        let mut specs = Vec::with_capacity(auth.entries().len());
+        let group_hosts: Vec<String> = if single_host {
+            vec![vhost.host.clone()]
+        } else {
+            vhost.hosts.clone().unwrap_or_default()
+        };
+        let mut host_groups: BTreeMap<String, HostProfiles> = BTreeMap::new();
+        // Capability uniqueness is per exact host: different hosts derive
+        // different capabilities from the same secret.
+        let mut host_capabilities: BTreeMap<String, HashSet<[u8; 32]>> = BTreeMap::new();
         for auth_entry in auth.entries() {
             let user_entry = config.users.get(&auth_entry.user).ok_or_else(|| {
                 ProxyError::Config(format!(
@@ -44,42 +53,12 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                     auth_entry.user
                 ))
             })?;
-            specs.push((
-                auth_entry.user.as_str(),
-                secret_mode,
-                user_entry.host.as_deref().unwrap_or(vhost.host.as_str()),
-                user_entry.max_sessions,
-                user_entry.max_streams,
-                user_entry.max_streams_per_session,
-            ));
-        }
-        let mut host_groups: BTreeMap<String, HostProfiles> = BTreeMap::new();
-        let mut capabilities = HashSet::with_capacity(specs.len());
-        for (user, secret_mode, host, max_sessions, max_streams, max_streams_per_session) in &specs {
-            let user_id = auth.user_id_by_name(user).ok_or_else(|| {
-                ProxyError::Config(format!("WEB profile references unknown access user `{user}`"))
-            })?;
-            let auth_entry = auth.entry_by_id(user_id).ok_or_else(|| {
-                ProxyError::Config("WEB profile user snapshot is inconsistent".to_string())
-            })?;
-            let (client_secret, client_secret_len) = client_secret(auth_entry.secret, *secret_mode);
-            let capability = derive_web_capability(
-                &client_secret[..client_secret_len],
-                host.as_bytes(),
-                vhost.base_path.as_bytes(),
-            )?;
-            let key_fingerprint = debug_key_fingerprint(&client_secret[..client_secret_len]);
-            if !capabilities.insert(capability) {
-                return Err(ProxyError::Config(format!(
-                    "WEB host `{host}` contains profiles with the same client capability"
-                )));
-            }
-            let runtime_profile = Arc::new(WebRuntimeProfile {
-                host: host.to_string(),
+            let (client_secret, client_secret_len) = client_secret(auth_entry.secret, secret_mode);
+            let shared = Arc::new(WebRuntimeProfileShared {
                 public_addr: vhost.public_addr,
                 user: auth_entry.user.clone(),
                 credential_id: auth_entry.credential_id,
-                secret_mode: *secret_mode,
+                secret_mode,
                 carrier: config.web.carrier,
                 carrier_negotiation_enabled: config.web.carrier_negotiation_enabled(),
                 carrier_learning: config.web.carrier_negotiation_enabled()
@@ -88,18 +67,49 @@ pub(super) fn rebuild(config: &mut ProxyConfig) -> Result<()> {
                 carrier_negotiation_deadlines_secs: config
                     .timeouts
                     .carrier_negotiation_deadlines_secs,
-                capability,
-                key_fingerprint,
-                max_sessions: (*max_sessions).unwrap_or(config.limits.max_sessions_global),
-                max_streams: (*max_streams).unwrap_or(config.limits.max_streams_global),
-                max_streams_per_session: (*max_streams_per_session)
+                key_fingerprint: debug_key_fingerprint(&client_secret[..client_secret_len]),
+                max_sessions: user_entry
+                    .max_sessions
+                    .unwrap_or(config.limits.max_sessions_global),
+                max_streams: user_entry
+                    .max_streams
+                    .unwrap_or(config.limits.max_streams_global),
+                max_streams_per_session: user_entry
+                    .max_streams_per_session
                     .unwrap_or(config.limits.max_streams_per_session),
             });
-            runtime_capabilities.push(capability);
-            let group = host_groups.entry(host.to_string()).or_default();
-            group.profiles.push(Arc::clone(&runtime_profile));
-            group.capabilities.push(capability);
-            runtime_profiles.push(runtime_profile);
+            // An explicit user binding pins one host; otherwise every group
+            // host receives its own host-bound capability entry.
+            let binding_hosts: Vec<String> = match user_entry.host.as_deref() {
+                Some(host) => vec![host.to_string()],
+                None => group_hosts.clone(),
+            };
+            for host in binding_hosts {
+                let capability = derive_web_capability(
+                    &client_secret[..client_secret_len],
+                    host.as_bytes(),
+                    vhost.base_path.as_bytes(),
+                )?;
+                if !host_capabilities
+                    .entry(host.clone())
+                    .or_default()
+                    .insert(capability)
+                {
+                    return Err(ProxyError::Config(format!(
+                        "WEB host `{host}` contains profiles with the same client capability"
+                    )));
+                }
+                let runtime_profile = Arc::new(WebRuntimeProfile {
+                    host: host.clone(),
+                    capability,
+                    shared: Arc::clone(&shared),
+                });
+                runtime_capabilities.push(capability);
+                let group = host_groups.entry(host).or_default();
+                group.profiles.push(Arc::clone(&runtime_profile));
+                group.capabilities.push(capability);
+                runtime_profiles.push(runtime_profile);
+            }
         }
         let base = if vhost.base_path.is_empty() {
             "/".to_string()

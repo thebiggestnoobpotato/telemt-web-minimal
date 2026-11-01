@@ -42,7 +42,7 @@ fn profile_host_override_builds_one_runtime_entry_per_host() {
         .get("proxy.example.com")
         .expect("default vhost host entry");
     assert_eq!(default.profiles.len(), 1);
-    assert_eq!(default.profiles[0].user, "alice");
+    assert_eq!(default.profiles[0].shared.user, "alice");
     assert_eq!(default.profiles[0].host, "proxy.example.com");
     assert_eq!(default.capabilities.len(), 1);
     assert_eq!(default.capabilities[0], default.profiles[0].capability);
@@ -52,7 +52,7 @@ fn profile_host_override_builds_one_runtime_entry_per_host() {
         .get("alt.example.com")
         .expect("normalized profile host entry");
     assert_eq!(overridden.profiles.len(), 1);
-    assert_eq!(overridden.profiles[0].user, "bob");
+    assert_eq!(overridden.profiles[0].shared.user, "bob");
     assert_eq!(overridden.profiles[0].host, "alt.example.com");
     assert_eq!(overridden.capabilities.len(), 1);
     assert_eq!(overridden.capabilities[0], overridden.profiles[0].capability);
@@ -103,7 +103,7 @@ fn profile_host_accepts_several_users_on_one_host() {
     let shared = runtime.vhosts.get("alt.example.com").expect("shared profile host entry");
     assert_eq!(shared.profiles.len(), 2);
     assert!(runtime.vhosts.get("proxy.example.com").is_none());
-    let users: Vec<&str> = shared.profiles.iter().map(|p| p.user.as_str()).collect();
+    let users: Vec<&str> = shared.profiles.iter().map(|p| p.shared.user.as_str()).collect();
     assert_eq!(users, vec!["alice", "bob"]);
     assert_eq!(shared.capabilities.len(), 2);
 }
@@ -129,14 +129,14 @@ fn instantiated_profiles_keep_the_vhost_host() {
         .get("proxy.example.com")
         .expect("default vhost host entry");
     assert_eq!(default.profiles.len(), 1);
-    assert_eq!(default.profiles[0].user, "bob");
+    assert_eq!(default.profiles[0].shared.user, "bob");
     assert_eq!(default.profiles[0].host, "proxy.example.com");
     let overridden = runtime
         .vhosts
         .get("alt.example.com")
         .expect("normalized profile host entry");
     assert_eq!(overridden.profiles.len(), 1);
-    assert_eq!(overridden.profiles[0].user, "alice");
+    assert_eq!(overridden.profiles[0].shared.user, "alice");
 }
 
 #[test]

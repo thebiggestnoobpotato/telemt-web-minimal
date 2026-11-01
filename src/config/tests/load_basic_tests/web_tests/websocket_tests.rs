@@ -9,7 +9,7 @@ fn websocket_carriers_build_runtime_profiles_with_bounded_defaults() {
         let configured = WEB_CONFIG.replace("https-lanes", name);
         let config = load_config_from_temp_yaml(&configured);
         let profile = &config.web.runtime.unwrap().profiles[0];
-        assert_eq!(profile.carrier, carrier);
+        assert_eq!(profile.shared.carrier, carrier);
         assert_eq!(config.limits.websocket_bytes_global, 256 * 1024 * 1024);
         assert_eq!(config.limits.websocket_admission_watermark_pct, 75);
         assert_eq!(config.limits.websocket_eviction_watermark_pct, 90);

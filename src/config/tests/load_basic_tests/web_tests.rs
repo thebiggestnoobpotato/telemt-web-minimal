@@ -20,6 +20,10 @@ mod global_profiles_tests;
 #[path = "web_tests/profile_host_tests.rs"]
 mod profile_host_tests;
 
+// Exact host groups retain the legacy per-host routing contract.
+#[path = "web_tests/host_list_tests.rs"]
+mod host_list_tests;
+
 // Base path acceptance, rejection, and precomputed runtime form.
 #[path = "web_tests/base_path_tests.rs"]
 mod base_path_tests;
@@ -84,17 +88,17 @@ fn web_config_builds_canonical_runtime_snapshot() {
     assert_eq!(vhost.capabilities[0], vhost.profiles[0].capability);
     assert_eq!(runtime.capabilities.as_ref(), vhost.capabilities.as_ref());
     assert_eq!(vhost.fallback_fasttrack_mode, WebFallbackFastTrackMode::Off);
-    assert_eq!(vhost.profiles[0].user, "alice");
-    assert_eq!(vhost.profiles[0].secret_mode, WebSecretMode::Dd);
-    assert_eq!(vhost.profiles[0].carrier, WebCarrier::HttpsLanes);
-    assert_eq!(vhost.profiles[0].max_sessions, 4);
-    assert_eq!(vhost.profiles[0].max_streams, 64);
-    assert_eq!(vhost.profiles[0].max_streams_per_session, 16);
-    assert_eq!(vhost.profiles[0].key_fingerprint.len(), 16);
-    assert_ne!(vhost.profiles[0].key_fingerprint, "0001020304050607");
-    assert!(!vhost.profiles[0].carrier_negotiation_enabled);
+    assert_eq!(vhost.profiles[0].shared.user, "alice");
+    assert_eq!(vhost.profiles[0].shared.secret_mode, WebSecretMode::Dd);
+    assert_eq!(vhost.profiles[0].shared.carrier, WebCarrier::HttpsLanes);
+    assert_eq!(vhost.profiles[0].shared.max_sessions, 4);
+    assert_eq!(vhost.profiles[0].shared.max_streams, 64);
+    assert_eq!(vhost.profiles[0].shared.max_streams_per_session, 16);
+    assert_eq!(vhost.profiles[0].shared.key_fingerprint.len(), 16);
+    assert_ne!(vhost.profiles[0].shared.key_fingerprint, "0001020304050607");
+    assert!(!vhost.profiles[0].shared.carrier_negotiation_enabled);
     assert_eq!(
-        vhost.profiles[0].carriers.as_ref(),
+        vhost.profiles[0].shared.carriers.as_ref(),
         [WebCarrier::HttpsLanes]
     );
 }

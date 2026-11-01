@@ -4,7 +4,7 @@ use super::*;
 fn web_carriers_missing_or_false_disable_negotiation() {
     let missing = load_config_from_temp_yaml(WEB_CONFIG);
     assert!(!missing.web.carrier_negotiation_enabled());
-    assert!(!missing.web.runtime.unwrap().profiles[0].carrier_learning);
+    assert!(!missing.web.runtime.unwrap().profiles[0].shared.carrier_learning);
 
     let disabled = WEB_CONFIG.replace(
         "carrier: \"https-lanes\"",
@@ -12,9 +12,9 @@ fn web_carriers_missing_or_false_disable_negotiation() {
     );
     let disabled = load_config_from_temp_yaml(&disabled);
     assert!(!disabled.web.carrier_negotiation_enabled());
-    assert!(!disabled.web.runtime.as_ref().unwrap().profiles[0].carrier_learning);
+    assert!(!disabled.web.runtime.as_ref().unwrap().profiles[0].shared.carrier_learning);
     assert_eq!(
-        disabled.web.runtime.unwrap().profiles[0].carriers.as_ref(),
+        disabled.web.runtime.unwrap().profiles[0].shared.carriers.as_ref(),
         [WebCarrier::HttpsLanes]
     );
 }
@@ -30,14 +30,14 @@ fn web_carrier_array_enables_ordered_negotiation_and_appends_fallback() {
     assert!(!config.web.carrier_learning);
     let profile = &config.web.runtime.unwrap().profiles[0];
     assert_eq!(
-        profile.carriers.as_ref(),
+        profile.shared.carriers.as_ref(),
         [
             WebCarrier::Websocket,
             WebCarrier::Https,
             WebCarrier::HttpsLanes
         ]
     );
-    assert!(!profile.carrier_learning);
+    assert!(!profile.shared.carrier_learning);
 }
 
 #[test]

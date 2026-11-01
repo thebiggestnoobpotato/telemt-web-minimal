@@ -30,16 +30,16 @@ fn global_secret_mode_instantiates_every_user_in_the_vhost() {
         .get("proxy.example.com")
         .expect("canonical WEB vhost");
     assert_eq!(vhost.profiles.len(), 2);
-    let users: Vec<&str> = vhost.profiles.iter().map(|p| p.user.as_str()).collect();
+    let users: Vec<&str> = vhost.profiles.iter().map(|p| p.shared.user.as_str()).collect();
     assert!(users.contains(&"alice"), "{users:?}");
     assert!(users.contains(&"bob"), "{users:?}");
     for profile in &vhost.profiles {
-        assert_eq!(profile.secret_mode, WebSecretMode::Plain);
+        assert_eq!(profile.shared.secret_mode, WebSecretMode::Plain);
         // Instantiated profiles use the global WEB ceilings.
-        assert_eq!(profile.max_sessions, config.limits.max_sessions_global);
-        assert_eq!(profile.max_streams, config.limits.max_streams_global);
+        assert_eq!(profile.shared.max_sessions, config.limits.max_sessions_global);
+        assert_eq!(profile.shared.max_streams, config.limits.max_streams_global);
         assert_eq!(
-            profile.max_streams_per_session,
+            profile.shared.max_streams_per_session,
             config.limits.max_streams_per_session
         );
     }
@@ -62,14 +62,14 @@ fn per_user_ceilings_win_over_global_for_same_user() {
         .expect("canonical WEB vhost");
     assert_eq!(vhost.profiles.len(), 2);
     for profile in &vhost.profiles {
-        assert_eq!(profile.secret_mode, WebSecretMode::Plain);
-        if profile.user == "alice" {
+        assert_eq!(profile.shared.secret_mode, WebSecretMode::Plain);
+        if profile.shared.user == "alice" {
             // The per-user entry keeps its own ceilings.
-            assert_eq!(profile.max_sessions, 4);
+            assert_eq!(profile.shared.max_sessions, 4);
         } else {
-            assert_eq!(profile.user, "bob");
+            assert_eq!(profile.shared.user, "bob");
             assert_eq!(
-                profile.max_sessions,
+                profile.shared.max_sessions,
                 config.limits.max_sessions_global
             );
         }
@@ -126,6 +126,6 @@ fn web_profiles_table_is_stripped() {
         .expect("canonical WEB vhost");
     assert_eq!(vhost.profiles.len(), 2);
     for profile in &vhost.profiles {
-        assert_eq!(profile.max_sessions, config.limits.max_sessions_global);
+        assert_eq!(profile.shared.max_sessions, config.limits.max_sessions_global);
     }
 }

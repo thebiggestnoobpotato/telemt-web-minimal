@@ -33,13 +33,17 @@ pub enum WebSecretMode {
 }
 
 /// WEB vhost parameters, flattened directly into the `web` table as
-/// `host`, `base_path`, `public_addr`, `upstream`, and `resolve`. A set
-/// `host` enables vhost materialization; an empty one keeps WEB off.
+/// `host`, `hosts`, `base_path`, `public_addr`, `upstream`, and `resolve`.
+/// Exactly one of a set `host` or a non-empty `hosts` list enables vhost
+/// materialization; both absent keep WEB off.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WebVhostConfig {
-    /// Canonical lowercase ACE hostname used by Telegram Desktop.
+    /// Legacy single hostname selector, mutually exclusive with `hosts`.
     #[serde(default)]
     pub host: String,
+    /// Non-empty exact hostname list sharing one fallback and profile policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hosts: Option<Vec<String>>,
     /// Optional canonical WEB endpoint prefix without surrounding slashes.
     #[serde(default)]
     pub base_path: String,
@@ -63,6 +67,7 @@ impl Default for WebVhostConfig {
     fn default() -> Self {
         Self {
             host: String::new(),
+            hosts: None,
             base_path: String::new(),
             public_addr: default_web_vhost_public_addr(),
             upstream: String::new(),
@@ -466,5 +471,6 @@ impl Default for WebConfig {
 // Immutable runtime WEB configuration consumed by hot paths.
 mod runtime;
 pub(crate) use runtime::{
-    FallbackEndpoint, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile, WebRuntimeVhost,
+    FallbackEndpoint, WebRuntimeConfig, WebRuntimeFallback, WebRuntimeProfile,
+    WebRuntimeProfileShared, WebRuntimeVhost,
 };

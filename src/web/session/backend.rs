@@ -163,7 +163,7 @@ impl WebSession {
             manager.release_stream(
                 self.profile_key,
                 self.client_ip,
-                self.profile.public_addr,
+                self.profile.shared.public_addr,
                 peer_port,
             );
         }
@@ -292,8 +292,8 @@ async fn run_stream(
                     writer,
                     peer,
                     &deps.config,
-                    &session.profile.user,
-                    session.profile.secret_mode,
+                    &session.profile.shared.user,
+                    session.profile.shared.secret_mode,
                     &deps.shared,
                 )
                 .await,

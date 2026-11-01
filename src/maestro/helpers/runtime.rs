@@ -17,31 +17,32 @@ pub(crate) fn print_web_proxy_links(config: &ProxyConfig) {
     let Some(runtime) = config.web.runtime.as_ref() else {
         return;
     };
-    // Every runtime profile belongs to the single configured vhost.
-    let vhost = &config.web.vhost;
-    if vhost.host.is_empty() {
-        return;
-    }
     let mut heading_printed = false;
     for profile in &runtime.profiles {
+        // A profile binds to its exact runtime vhost; the source selector
+        // may be a host list, so the base path comes from the runtime entry.
+        let Some(vhost) = runtime.vhosts.get(&profile.host) else {
+            continue;
+        };
         if !heading_printed {
             tracing::info!(target: WEB_LINKS_LOG_TARGET, "WEB proxy links");
             heading_printed = true;
         }
-        let Some(entry) = config.users.get(&profile.user) else {
+        let Some(entry) = config.users.get(&profile.shared.user) else {
             continue;
         };
         tracing::info!(
             target: WEB_LINKS_LOG_TARGET,
             "User: {} ({:?})",
-            profile.user,
-            profile.secret_mode
+            profile.shared.user,
+            profile.shared.secret_mode
         );
+        let base_path = vhost.base.trim_matches('/');
         if let Some(link) = crate::web::links::format_web_proxy_link(
             &profile.host,
-            &vhost.base_path,
+            base_path,
             &entry.secret,
-            profile.secret_mode,
+            profile.shared.secret_mode,
         ) {
             tracing::info!(target: WEB_LINKS_LOG_TARGET, "WEB: {link}");
         }
@@ -181,3 +182,7 @@ pub(crate) fn expected_handshake_close_description(
         _ => None,
     }
 }
+
+// Execute the real emitter in a child so missing alias links cannot hide behind formatter tests.
+#[cfg(test)]
+mod host_list_tests;

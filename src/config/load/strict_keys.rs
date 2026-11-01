@@ -78,6 +78,7 @@ const WEB_CONFIG_KEYS: &[&str] = &[
     "fallback_fasttrack_mode",
     "http_connection_capacity_action",
     "host",
+    "hosts",
     "base_path",
     "public_addr",
     "upstream",
