@@ -90,6 +90,37 @@ fn profile_host_link_uses_the_overridden_host() {
 }
 
 #[test]
+fn hosts_list_links_cover_every_exact_group_entry() {
+    let yaml = PROFILE_HOST_CONFIG.replace(
+        "  host: \"proxy.example.com\"",
+        "  hosts: [\"proxy.example.com\", \"alias.example.com\"]",
+    );
+    let config = load_config_from_temp_yaml(&yaml);
+    let runtime = config.web.runtime.as_ref().expect("WEB runtime snapshot");
+    assert_eq!(runtime.vhosts.len(), 3);
+    assert_eq!(runtime.profiles.len(), 3);
+    // A host list leaves the scalar web.host empty: its exact entries still
+    // materialize runtime profiles and must keep their links.
+    let alice = crate::web::links::web_links_for_user(&config, "alice");
+    assert_eq!(alice.len(), 2, "{alice:?}");
+    assert!(
+        alice
+            .iter()
+            .any(|link| link.starts_with("tg://webproxy?server=proxy.example.com")),
+        "{alice:?}"
+    );
+    assert!(
+        alice
+            .iter()
+            .any(|link| link.starts_with("tg://webproxy?server=alias.example.com")),
+        "{alice:?}"
+    );
+    let bob = crate::web::links::web_links_for_user(&config, "bob");
+    assert_eq!(bob.len(), 1, "{bob:?}");
+    assert!(bob[0].starts_with("tg://webproxy?server=alt.example.com"), "{bob:?}");
+}
+
+#[test]
 fn profile_host_accepts_several_users_on_one_host() {
     // Both users explicitly point at the same host: the vhost host then
     // has no runtime entry at all.

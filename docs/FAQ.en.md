@@ -116,7 +116,7 @@ The service starts with privileges for socket setup and lets Telemt drop them wh
 ## Additional parameters
 
 ### Domain in the link instead of IP
-To display a domain instead of an IP address in `tg://webproxy` links, use the `web.host` key. Links use the concrete configured hostname and external port `443`; startup links are emitted only while `web.host` is a scalar exact hostname, so wildcard selectors and `web.hosts` lists emit none.
+To display a domain instead of an IP address in `tg://webproxy` links, use the `web.host` key. Links use the concrete configured hostname and external port `443`; startup links are emitted for every exact `web.host` or `web.hosts` entry, never for wildcard selectors.
 
 ### Upstream Manager
 To configure outbound connections (upstreams), add the corresponding parameters to the `upstreams` section of the configuration file:

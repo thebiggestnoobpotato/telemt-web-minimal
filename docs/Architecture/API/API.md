@@ -744,7 +744,7 @@ Returned by `PATCH /v1/config` on success (`200`).
 
 #### `UserLinks`
 
-`UserLinks` contains `tg://webproxy` links only. One link is derived for every runtime profile that belongs to the user; links are emitted only while `web.host` is a scalar exact hostname, so wildcard selectors and `web.hosts` lists never produce a link.
+`UserLinks` contains `tg://webproxy` links only. One link is derived for every runtime profile that belongs to the user; wildcard selectors never materialize runtime profiles, so they never produce a link.
 
 | Field | Type | Description |
 | --- | --- | --- |

@@ -14,6 +14,16 @@ fn wildcard_opt_in_accepts_shared_pattern_without_exact_expansion() {
     assert!(runtime.capabilities.is_empty());
 }
 
+#[test]
+fn wildcard_group_never_emits_startup_links() {
+    let source = wildcard_source("host: \"*.Example.COM\"");
+    let config = load_config_from_temp_yaml(&source);
+    let runtime = config.web.runtime.as_ref().unwrap();
+    assert!(runtime.vhosts.is_empty());
+    assert!(runtime.profiles.is_empty());
+    assert!(crate::web::links::web_links_for_user(&config, "alice").is_empty());
+}
+
 fn wildcard_source(selector: &str) -> String {
     WEB_CONFIG
         .replace("web:\n", "web:\n  allow_wildcard_hosts: true\n")
