@@ -105,10 +105,18 @@ root    soft    nofile  1048576
 root    hard    nofile  1048576
 ```
 
+### FreeBSD service initialization
+
+`telemt --init` refuses to replace any existing `/usr/local/etc/rc.d/telemt`, including a dangling symlink, before writing configuration. Manage an existing script through its package or edit it explicitly; old scripts are not migrated automatically.
+
+The generated rc.d script defaults to PID file `/var/run/telemt/telemt.pid` and data directory `/var/db/telemt`. It prepares the dedicated `/var/run/telemt` directory and the selected data directory with service ownership; it does not change ownership of `/var/run` itself. In `/etc/rc.conf`, use `telemt_uid`, `telemt_gid`, `telemt_pidfile`, and `telemt_data_dir` for overrides. Legacy `telemt_user` and `telemt_group` remain accepted aliases. An unspecified group follows the selected account's primary group.
+
+The service starts with privileges for socket setup and lets Telemt drop them when a non-root user is selected. If you override the PID path, its parent must already be writable by the service account.
+
 ## Additional parameters
 
 ### Domain in the link instead of IP
-To display a domain instead of an IP address in `tg://webproxy` links, use the `web.host` key.
+To display a domain instead of an IP address in `tg://webproxy` links, use the `web.host` key. Links use the concrete configured hostname and external port `443`; startup links are emitted only while `web.host` is a scalar exact hostname, so wildcard selectors and `web.hosts` lists emit none.
 
 ### Upstream Manager
 To configure outbound connections (upstreams), add the corresponding parameters to the `upstreams` section of the configuration file:

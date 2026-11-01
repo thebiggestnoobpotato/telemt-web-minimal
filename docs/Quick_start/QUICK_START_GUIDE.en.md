@@ -64,6 +64,8 @@ User=telemt
 WantedBy=multi-user.target
 ```
 
+For systemd, `telemt --init` grants capabilities through `AmbientCapabilities` and `CapabilityBoundingSet` in the generated unit, without file capabilities on the executable. File capabilities can clear the ambient set and leave firewall helpers unprivileged; if you set them on the binary, remove them before relying on the unit policy.
+
 ```bash
 systemctl daemon-reload
 systemctl enable --now telemt

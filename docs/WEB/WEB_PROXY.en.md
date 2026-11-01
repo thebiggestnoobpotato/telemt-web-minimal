@@ -110,7 +110,71 @@ Accepted-socket overload handling is independently configurable. `drop` preserve
 
 `fallback_fasttrack_mode` controls only capability work for `GET/HEAD` at the configured base root. `off` is the default and preserves the legacy full scan without fast-track counters. `shadow` records which structurally impossible requests could bypass the scan but still performs the complete legacy scan. `enforce` bypasses capability work only for `HEAD` or an absent/noncanonical `bridge` query. Every exact canonical bridge GET at the base root performs a complete scan across all profiles of the selected vhost, for both matches and misses. The setting is process-owned: a changed value applies at the next process restart. Fast-track does not protect against adversarial CPU load because a scanner can always submit canonical candidates, and enforce mode may expose a public request-shape timing class. Do not enable enforce without external timing measurements through the production TLS terminator.
 
+## Sharing profiles across exact hostnames
+
+Replace the `web.host` selector with a non-empty `web.hosts` list to share profile materialization and the fallback origin:
+
+```yaml
+web:
+  secret_mode: "dd"
+  hosts: ["proxy.example.com", "backup.example.com"]
+  base_path: "telegram/web"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:18081"
+```
+
+Use this fragment with the `users` entry and the WEB listener from the minimal configuration above. Specify exactly one of `web.host` or `web.hosts`. Hostnames are normalized at configuration load; duplicate normalized names are rejected. Wildcard patterns and `*` require the explicit process-level opt-in described below. All members use the same `base_path`, `public_addr`, profiles, and fallback; the single `web` group cannot hold two of those values, so a different setting requires a separate deployment. The TLS terminator must serve every listed hostname and forward the original canonical `Host`.
+
+Each hostname has its own capability, bootstrap/session ownership, and profile quota. The example allows up to eight sessions for this profile on each domain, subject to the existing process-wide, IP, and access-user limits. Startup links are emitted only for a scalar exact `web.host`, one per user and bound hostname; a `web.hosts` list emits none. Grouping does not redirect clients or make credentials transferable between aliases.
+
+`limits.max_profiles` counts expanded host/profile pairs: a user without an explicit host binding materializes one profile per exact group hostname, while an explicit binding counts once. For example, two hostnames with two users and no explicit bindings require a `max_profiles` of at least four. Configured session ceilings do not reserve sessions in advance. Shared immutable policy reduces duplication, but capability indexes still scale with host/profile pairs.
+
+Every `web` value applies at the next process restart, so switching between the scalar and list selectors is a restart migration: previously issued bootstraps and sessions do not survive the restart. Keeping a hostname in the list preserves its capability derivation, and removing a hostname stops routing for that host at the next restart. Limit increases apply at the next restart and must take effect before adding bindings beyond the active ceilings.
+
+## Automatic wildcard hosts
+
+Exact `web.host` and `web.hosts` entries remain the default. To accept arbitrary subdomains, set `web.allow_wildcard_hosts: true` and restart Telemt. The existing selectors then also accept `*.example.com` and `*`, including mixed exact/pattern lists:
+
+```yaml
+web:
+  secret_mode: "dd"
+  carrier: "https-lanes"
+  allow_wildcard_hosts: true
+  hosts: ["proxy.example.com", "*.example.com"]
+  base_path: "relay"
+  public_addr: "203.0.113.10:443"
+  upstream: "http://127.0.0.1:8080"
+
+limits:
+  memory_envelope_bytes: 1610612736
+  wildcard:
+    max_rules: 32
+    max_profiles_per_request: 256
+    cache_hosts: 256
+    cache_bytes: 8388608
+    cold_hmac_per_minute: 1000000
+    cold_hmac_burst: 65536
+```
+
+This extends the listener and access-user configuration shown earlier. Patterns match the whole `web` group: exact host first, then the longest matching suffix, then `*`. A suffix matches any descendant depth, including `a.b.example.com`, but not its apex `example.com`. Failed authentication never falls through to another rule. Embedded wildcards and regexes are rejected; normalized duplicate selectors are rejected. The group retains its fixed `public_addr`, endpoint base, profiles, and fallback. Request Host never chooses an origin address.
+
+In this opt-in mode, HTTP Host is ASCII-case normalized and only a literal optional `:443` is stripped. Duplicate Host headers, IP literals, invalid DNS/ACE label syntax, trailing dots and other ports are rejected. `X-Forwarded-Host` is not consulted. Capabilities use the actual canonical hostname and the existing client derivation; no client changes are required. Session/stream/profile quotas remain per actual `(host, user, secret_mode)`, with all process, IP and access-user restrictions still active. Startup links are emitted only while `web.host` is a scalar exact hostname; wildcard selectors and `hosts` lists emit none.
+
+The frontend **must restrict accepted Host values**, and the plain WEB backend must remain private. Its TLS certificates must cover each actual client hostname. This is an explicit security boundary: a capability for an unknown or evicted foreign wildcard hostname, misplaced on another hostname, can reach that hostname's fallback, including an exact host in a mixed configuration. Current-host capabilities, finite exact-host capabilities, process-authentic bootstrap/session tokens, and known positive-cache capabilities remain contained in request URI/header metadata, including percent-encoded forms. Public URLs, cookies and headers are not rejected merely for looking like credentials. Diagnostic copies instead conservatively mask credential-shaped text, including truncated prefixes; public request/response bytes and original User-Agent hashes are unchanged. Diagnostic displays can therefore mask ordinary long strings.
+
+A cold request reserves the complete selected profile count from the process-wide HMAC budget before deriving anything. Failure returns an immediate no-store HTTP 503 with no queue or partial scan. One request reuses its table for containment and bridge authentication. Warm cache hits avoid derivation. Authenticated carriers bypass capability-table caching and derivation entirely. Off/Shadow/Enforce fast-track policies still govern root authentication scans; misplaced current-host credentials remain contained in every mode.
+
+Only successful bridge/recovery bootstrap issuance populates the FIFO cache. `cache_hosts = 0` disables retention. Entry and byte ceilings are independent; evicted entries retain their byte charge while a request still borrows them. Insertion failure does not reject a valid bootstrap, and eviction never resets quotas. Cache keys include the process-unique immutable WEB snapshot ID, so a restarted process re-derives instead of reusing a stale table. Cached entries retain no fallback or generation.
+
+`limits.max_profiles` counts exact bindings plus one shared profile set per access user when wildcard selectors are enabled. `limits.wildcard.max_rules` bounds patterns, and `max_profiles_per_request` bounds each complete scan. Limits must be positive except `cache_hosts`; the HMAC burst must cover a complete per-request table. Checked memory reservations cover templates/rules, cache, handler scratch, and live host bindings only when wildcard mode is enabled. With otherwise standard limits, the existing 1280 MiB envelope is insufficient; 1290 MiB fits the current calculation, while the example declares 1536 MiB. The default exact-only envelope and processing policy remain unchanged.
+
+The enable flag and all `limits` values require a process restart. An API update may persist the flag and sufficient bounds together in one atomic change, because the complete candidate is validated on its own; wildcard routing starts at the next restart, and a pattern-introducing candidate without the flag is rejected without writing any file. To disable wildcard mode, first replace patterns with exact selectors, then restart with the flag disabled.
+
 ## Server-side carrier negotiation
+
+For `websocket-lanes`, rejection or timeout before a lane upgrades invokes shared session recovery. Failure after upgrade remains lane-local. This protocol behavior does not establish native macOS/iOS background-resume compatibility.
+
+Immutable bridge assembly is cached, while per-response nonce, bootstrap, host and base-path substitutions remain fresh. Expiry processing uses conservative deadline hints without extending expiration boundaries. These internal optimizations do not change wire formats, admission limits or configured timeouts, and do not by themselves establish an end-to-end connection-time improvement.
 
 Auto-negotiation is optional and disabled unless `carriers` is an explicit non-empty array. The configured `carrier` remains the final fallback and is appended exactly once, even when it also appears in the array:
 
@@ -342,7 +406,7 @@ Set `web_trusted_proxy_cidrs` to the address Caddy uses to connect to Telemt, fo
 | Configuration | Runtime behavior |
 | --- | --- |
 | WEB listener inventory, bind address, and trust policy | Process-owned; restart Telemt. |
-| Any `limits` value | Process-owned memory/resource contract; restart Telemt. |
+| `web.allow_wildcard_hosts` and any `limits` value | Process-owned memory/resource contract; restart Telemt. |
 | Carrier/negotiation policy, `logging.web_debug`, timeouts, vhosts, profiles, and fallbacks | Read at process start; a change applies at the next process restart. |
 | A vhost `base_path` change | Changes new HTTP routing and capability derivation from the next process restart. Reissue the generated link before the restart. After the restart, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling; old bootstraps and session tokens are process-local and no longer valid. |
 | Operator pause/drain state | Process-owned and ephemeral; never writes config, and resets to `running` at process start. |
@@ -363,7 +427,7 @@ WEB configuration, runtime status, and bounded runtime controls share the authen
 
 | Operation | API support |
 | --- | --- |
-| Read or patch `web`, vhosts, profiles, fallbacks, timeouts, or limits | Yes, through `GET` or `PATCH /v1/config`. The derived `web.runtime` snapshot is never returned or writable. Nested tables merge field-by-field; arrays replace the previous array wholesale. Changed `limits` values apply at the next process restart. |
+| Read or patch `web`, vhosts, profiles, fallbacks, timeouts, or limits | Yes, through `GET` or `PATCH /v1/config`. The derived `web.runtime` snapshot is never returned or writable. Nested tables merge field-by-field; arrays replace the previous array wholesale. Changed `web.allow_wildcard_hosts` and `limits` values apply at the next process restart. Because the complete candidate is validated on its own, one update may persist the flag together with wildcard patterns; a pattern-introducing candidate without the flag is rejected without writing any file. |
 | Persist `listener` | Yes, through `PATCH /v1/config`; a changed WEB listener applies at the next process restart. |
 | Apply an externally edited WEB configuration | Edit the YAML file, then restart the service. |
 | Inspect bounded server-side WEB request and lifecycle details | Yes, through authenticated `GET /web-status`. |

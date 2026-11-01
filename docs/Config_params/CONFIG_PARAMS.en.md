@@ -596,7 +596,7 @@ The single table binds exactly one endpoint: either a TCP pair (`ip` + `port`) o
     ```
 ## whitelist (metrics)
   - **Constraints / validation**: `IpNetwork[]`.
-  - **Description**: CIDR whitelist for metrics endpoint access.
+  - **Description**: CIDR whitelist for metrics endpoint access. Authorization checks the immediate peer IP in its original form and, for IPv4-mapped IPv6, the canonical IPv4 form; explicit IPv6 CIDRs remain valid. Forwarded headers do not grant access.
   - **Example**:
 
     ```yaml
@@ -613,6 +613,7 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 
 | Key | Type | Default |
 | --- | --- | --- |
+| `allow_wildcard_hosts` | `bool` | `false` |
 | `secret_mode` | `"plain"` or `"dd"` | unset |
 | `carrier` | `"https"`, `"https-lanes"`, `"websocket"`, or `"websocket-lanes"` | `"https"` |
 | `carriers` | `false` or a non-empty array of unique carriers | `false` |
@@ -621,12 +622,13 @@ WEB mode carries Telegram Desktop MTProxy traffic through HTTPS terminated by an
 | `fallback_fasttrack_mode` | `"off"`, `"shadow"`, or `"enforce"` | `"off"` |
 | `http_connection_capacity_action` | `"drop"`, `"wait"`, or `"respond"` | `"drop"` |
 | `host` | `String` | unset |
+| `hosts` | `String[]` | unset |
 | `base_path` | `String` | `""` |
 | `public_addr` | `SocketAddr` | unset |
 | `upstream` | `String` | unset |
 | `resolve` | `"never"` or `"startup"` | `"never"` |
 
-WEB requires at least one network-eligible `listener` entry, a set `web.host` (with `web.public_addr` and `web.upstream`), and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `limits` values and an absent host inherits `web.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
+WEB requires at least one network-eligible `listener` entry, a set `web.host` or `web.hosts` (with `web.public_addr` and `web.upstream`), and a set `web.secret_mode`. `web.secret_mode` is the single secret representation for every profile; a set one materializes **one profile per `users` user in the vhost**, where absent per-user ceilings inherit the `limits` values and an absent host inherits `web.host`. Per-user host and ceiling overrides live on the `users` entries. `https` preserves the serialized HTTPS transport and requires `max_http_handlers >= 2`. `https-lanes` gives stream zero and every logical stream independent uplink sequencing, downlink cursors, retries, and long polls; it requires `max_http_handlers >= 4` and public HTTP/2 on the TLS terminator. `websocket` carries all logical streams over one ordered RFC 6455 connection, while `websocket-lanes` owns one connection per non-zero logical stream and isolates lane failures. Both WebSocket carriers use `GET /api/v1/ws` after HTTPS session creation and require the TLS terminator to preserve HTTP/1.1 Upgrade headers.
 
 When `carriers` is missing or `false`, auto-negotiation and learning are disabled and `carrier` is the only mode. A non-empty `carriers` array enables startup-only negotiation in its configured order; `carrier` is appended exactly once as the final fallback. Empty arrays, duplicates, and `true` are rejected. The client advances candidates only before carrier commit and must create a new session to change carrier after commit. A metadata-free native client, including Telegram iOS, always uses the configured fixed `carrier`, even when negotiation is enabled. Current iOS supports only `https`, so such deployments must configure `carrier = "https"`. CFNetwork and Darwin User-Agent classification does not infer carrier support. Explicit native iOS capabilities are intersected with `{https}`; other explicit client capabilities participate as reported.
 
@@ -638,23 +640,25 @@ When `carriers` is missing or `false`, auto-negotiation and learning are disable
 
 ## vhost parameters
 
-The vhost parameters are direct keys under `web`: a set `host` enables vhost materialization, and `public_addr` plus `upstream` are required whenever it is set.
+The vhost parameters are direct keys under `web`: a set `host` or `hosts` enables vhost materialization, and `public_addr` plus `upstream` are required whenever a selector is set.
 
 | Key | Type | Required | Description |
 | --- | --- | --- | --- |
-| `host` | `String` | yes | Canonical lowercase ACE FQDN without port, path, credentials, or trailing dot. |
+| `host` | `String` | one selector | Exact canonical lowercase ACE FQDN without port, path, credentials, or trailing dot, or an opted-in wildcard selector; mutually exclusive with `hosts`. |
+| `hosts` | `String[]` | one selector | Non-empty selector list sharing profile materialization, `base_path`, `public_addr`, and the fallback origin; mutually exclusive with `host`. |
 | `base_path` | `String` | no | Exact case-sensitive WEB prefix without leading or trailing slash; empty by default. At most 128 ASCII bytes in slash-separated `[A-Za-z0-9][A-Za-z0-9_-]*` segments. |
 | `public_addr` | `SocketAddr` | yes | Concrete public IP on port `443`; used in the inner relay destination tuple. |
 | `upstream` | `String` | yes | Ordinary-site fallback origin for unauthenticated or invalid traffic: an `http://` origin without credentials, path, query, or fragment, or a `unix:/absolute/path.sock` socket path that must be absolute without URL control characters. With the default `resolve = "never"` an http host must be a loopback, link-local, or private IP literal. A unix fallback target must not equal any `socket_path` of a WEB listener. |
 | `resolve` | `"never"` or `"startup"` | no | Default `never`. `startup` resolves an http hostname once during config preparation: every answer must remain inside loopback or a private network, the answers are pinned for the running process, and a failed, timed out, or empty lookup fails the load. Rejected for `unix:` origins, where no DNS is performed and the vhost `host` is used as the request authority. |
 
-The hostname must be accepted by Telegram Desktop and is normalized during validation. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap is process-local: it remains valid only while the same profile identity is still active and is retired at process restart.
+Exactly one of `host` and `hosts` may be set; both set is rejected. Each hostname must be a non-IP FQDN accepted by Telegram Desktop, without a port, path, credentials, or trailing dot; it is normalized to lowercase ACE during validation. Canonical duplicates are rejected. `*.suffix` and `*` require the restart-only `web.allow_wildcard_hosts: true` opt-in. Exact selectors win, then the longest suffix, then catch-all; suffixes match any descendant depth but exclude the apex. Embedded wildcards and regexes remain unsupported. The normalized configuration preserves the chosen selector; lists are not expanded when serialized. An empty `base_path` keeps the root v1 capability and legacy hexadecimal link secret. A non-empty path uses the v2 host/path capability and a Telegram Desktop path link with percent-encoded `HOST/BASE` plus the `0x70` base64url secret marker. Routing requires the exact slash-terminated prefix and never redirects, normalizes, or strips it. A bootstrap is a bearer credential: its client address and address family may change before session creation. An unused bootstrap is process-local: it remains valid only while the same profile identity is still active and is retired at process restart.
 
 ## WEB lifecycle and API management
 
+- `web.allow_wildcard_hosts` and wildcard patterns are both process-owned and restart-required. A single `PATCH /v1/config` update may persist the flag together with patterns, because the complete candidate is validated on its own; the patterns route only after the next process restart, and a candidate that introduces patterns without the flag is rejected atomically without writing any file.
 - The configuration active at process start supplies carrier and negotiation policy, `logging.web_debug`, `timeouts`, the vhost parameters, per-user WEB fields, and fallback snapshots for the lifetime of the process. A change to any of these values applies at the next process restart. Existing sessions and in-flight negotiation chains keep their issuance-time carrier candidates, limits, timeouts, and absolute deadlines for the lifetime of the process.
 - Changing `base_path` changes the new-request route and derived capability from the next process restart. Reissue links before the restart: after it, requests on the old base are no longer routed by the vhost and follow ordinary fallback handling.
-- WEB listener inventory and trust policy under `listener`, and every `limits` value, are process-owned and restart-required.
+- WEB listener inventory and trust policy under `listener`, `web.allow_wildcard_hosts`, and every `limits` value, are process-owned and restart-required.
 - `GET /v1/config` returns the complete authored `web` tree except the derived `web.runtime` snapshot. `PATCH /v1/config` accepts a sparse `web` object, deep-merges tables, replaces arrays wholesale, validates the complete candidate, and reports the changed top-level sections. Changed `limits`, `timeouts`, and `listener` values apply at the next process restart.
 - `GET /v1/runtime/web/status`, `/sessions`, `/sessions/{session_ref}`, and `/operations/{operation_id}` expose bounded non-secret runtime state. POST controls close selected sessions, clear debug data, or reset carrier learning and require the current random `runtime_instance`.
 - Users can be created, changed, rotated, and deleted through `/v1/users`. With `web.secret_mode` set, every user materializes exactly one WEB profile; new, changed, or deleted users apply at the next process restart. Deleting a user updates admission and cancels that user's active sessions.
@@ -731,7 +735,7 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `control_bytes_global` | `usize` | `16777216` | Process-wide byte reserve available only to control frames. |
 | `max_bootstraps_global` | `usize` | `512` | Live bootstrap credentials process-wide. |
 | `max_bootstraps_per_ip` | `usize` | `64` | Live bootstrap credentials per client IP. |
-| `max_profiles` | `usize` | `32` | Access users materialized as WEB profiles in the vhost. |
+| `max_profiles` | `usize` | `32` | Exact host/profile bindings, plus one shared profile set per access user when wildcard selectors are enabled. |
 | `debug_records_capacity` | `usize` | `65536` | Maximum retained WEB debug record count. |
 | `debug_bytes_global` | `usize` | `67108864` | Retained plus in-flight WEB debug byte ceiling; minimum 4096. |
 | `memory_envelope_bytes` | `usize` | `1342177280` | Declared envelope for HTTP heads, bodies, shared queues/WebSocket I/O, capability indexes, lane state, carrier learning, and bounded debug/status buffers; maximum 4 GiB. |
@@ -741,6 +745,21 @@ These process-wide ceilings make every WEB registry, queue, request body, capabi
 | `new_sessions_burst` | `u32` | `128` | Process-wide session creation burst. |
 | `new_streams_per_minute` | `u32` | `6000` | Sustained logical-stream creation rate. |
 | `new_streams_burst` | `u32` | `512` | Process-wide logical-stream creation burst. |
+
+## limits.wildcard
+
+These process-frozen limits apply to automatic wildcard hosts. See the [deployment and security contract](../WEB/WEB_PROXY.en.md#automatic-wildcard-hosts). The frontend must restrict Host values; unknown or evicted foreign capabilities can reach the fallback. Diagnostic copies alone use conservative shape-based redaction.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `max_rules` | `usize` | `32` | Total suffix and catch-all selectors. |
+| `max_profiles_per_request` | `usize` | `256` | Complete wildcard group scan and cold HMAC cost ceiling. |
+| `cache_hosts` | `usize` | `256` | Positive FIFO entries; `0` disables retention. |
+| `cache_bytes` | `usize` | `8388608` | Charged entries and indexes, including evicted entries still borrowed. |
+| `cold_hmac_per_minute` | `u32` | `1000000` | Sustained process-wide cold HMAC evaluation budget. |
+| `cold_hmac_burst` | `u32` | `65536` | Evaluation burst, at least `max_profiles_per_request`. |
+
+Except for `cache_hosts`, bounds must be positive when wildcard mode is enabled. Cold requests reserve the entire selected profile count atomically; exhaustion returns HTTP 503 without waiting. Successful bootstrap issuance alone populates the cache. Established carriers bypass this cache and cold budget. Eviction never changes quotas. Cache hits are fenced by the process-unique runtime snapshot ID, so a restarted process re-derives. Additional checked memory reservations apply only in wildcard mode; standard limits need at least 1290 MiB rather than the legacy 1280 MiB envelope. Setting `memory_envelope_bytes = 1610612736` gives a 1536 MiB envelope for the example.
 
 # users
 

@@ -267,7 +267,7 @@ Returned by `GET /v1/config` as the envelope `data`. The fields are exactly the 
 | `limits` | `object` | Complete normalized `limits` section, including defaults. |
 | `timeouts` | `object` | Complete normalized `timeouts` section, including defaults. |
 | `upstreams` | `object[]` | Complete normalized upstream array. When no upstream is authored, the loader inserts one enabled direct upstream. |
-| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile and materializes one profile per `users` user in the vhost, where absent per-user ceilings inherit the `limits` values; the vhost parameters are direct keys of the section (`web.host`, `web.base_path` — empty string when omitted from the source —, `web.public_addr`, `web.upstream`, `web.resolve`). The derived runtime-only `web.runtime` field is excluded. |
+| `web` | `object` | Complete normalized `web` section, including defaults. `web.secret_mode` is the global secret representation for every profile and materializes one profile per `users` user in the vhost, where absent per-user ceilings inherit the `limits` values; the vhost parameters are direct keys of the section (`web.host`, `web.hosts`, `web.allow_wildcard_hosts`, `web.base_path` — empty string when omitted from the source —, `web.public_addr`, `web.upstream`, `web.resolve`). The section preserves either `host` or `hosts` as authored, and hostname lists remain grouped. The derived runtime-only `web.runtime` field is excluded. |
 
 The editable typed sections are serialized from the fully defaulted configuration, even when omitted from the source files. Only the editable sections above are returned; `users` (credentials), `api` (endpoint identity), and `metrics` (endpoint identity) are always excluded. The `listener` table is omitted when no listener is configured. Changes under `limits` or `timeouts` are persisted by the patch but take effect only at the next process restart.
 
@@ -744,7 +744,7 @@ Returned by `PATCH /v1/config` on success (`200`).
 
 #### `UserLinks`
 
-`UserLinks` contains `tg://webproxy` links only. One link is derived for every runtime profile that belongs to the user.
+`UserLinks` contains `tg://webproxy` links only. One link is derived for every runtime profile that belongs to the user; links are emitted only while `web.host` is a scalar exact hostname, so wildcard selectors and `web.hosts` lists never produce a link.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -816,9 +816,9 @@ Applies a sparse patch to the editable config sections. The merged config is ful
 | An unknown or non-editable top-level key (e.g. `users`, `server`, `api`, `network`) | `400` | `section_not_editable` |
 | Object with no editable key | `400` | `bad_request` |
 
-**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. The vhost parameters (`web.host`, `web.base_path`, `web.public_addr`, `web.upstream`, `web.resolve`) are scalar keys of `web`: a partial patch such as `base_path` alone deep-merges into the normalized section. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched YAML section bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a YAML section returns `409 config_patch_not_atomic` without writing any file.
+**Merge semantics:** tables are deep-merged field-by-field; arrays and scalar values replace the existing value wholesale. The vhost parameters (`web.host`, `web.hosts`, `web.allow_wildcard_hosts`, `web.base_path`, `web.public_addr`, `web.upstream`, `web.resolve`) are direct keys of `web`: scalar values deep-merge into the normalized section (a partial patch such as `base_path` alone), while `web.hosts` replaces the previous list wholesale. A mutation is written to the single source file that owns every touched semantic section. Untouched table bodies, the root file when it is not the owner, and all other include files remain byte-identical; touched YAML section bodies are reserialized and may lose their internal formatting or comments. A target split across sources, a patch spanning multiple owners, or an include directive nested inside a YAML section returns `409 config_patch_not_atomic` without writing any file.
 
-**Validation:** the merged config is deserialized into the full `ProxyConfig` type and validated before writing. Failures return `400` with a descriptive message; the file is not modified.
+**Validation:** the merged config is deserialized into the full `ProxyConfig` type and validated before writing. Failures return `400` with a descriptive message; the file is not modified. WEB host selectors are mutually exclusive; duplicate normalized names are rejected. Wildcard selectors require `web.allow_wildcard_hosts` in the candidate and count toward `limits.wildcard.max_rules`; `limits.max_profiles` counts exact host/profile bindings plus one shared profile set per access user when wildcard selectors are enabled. Because the candidate is validated on its own, a patch may raise `limits` and add bindings in the same update; both apply at the next process restart.
 
 **Read-only mode:** returns `403 read_only` when the API runs with `read_only = true`.
 
