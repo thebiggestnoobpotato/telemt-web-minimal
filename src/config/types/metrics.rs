@@ -9,6 +9,7 @@ pub struct MetricsConfig {
 
     /// Listen address for metrics in `IP:PORT` format (e.g. `"127.0.0.1:9090"`).
     /// Required when `enabled = true`; binds on the specified address only.
+    /// Docker port publishing requires an explicit container-reachable listen address.
     #[serde(default)]
     pub listen_address: Option<String>,
 
