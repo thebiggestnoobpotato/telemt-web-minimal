@@ -507,9 +507,9 @@ Operator lifecycle is WEB-only and does not change global readiness, liveness, o
 Enable bounded collection in the owned configuration file:
 
 ```yaml
-web:
-  debug:
-    enabled: true
+logging:
+  web_debug_enable: true
+  web_debug:
     capture_lifecycle: true
     sideband: true
     capture_headers: true
@@ -528,7 +528,7 @@ The process-owned ring is cleared at process restart. The ring defaults to 65536
 
 `body_capture: "off"` omits bodies, `metadata` retains lengths and terminal states, `prefix` retains configured prefixes, and `full` retains recognized carrier bodies up to `limits.max_body_bytes`. Ordinary fallback bodies remain limited by `fallback_body_prefix_bytes` even in `full` mode. Queries and raw capabilities are never stored; credential header values are omitted; known WEB capabilities and bearer tokens are scrubbed from captured bodies; the displayed key is a non-secret domain-separated fingerprint. Timing ends at Hyper body polling and does not claim kernel flush or TCP acknowledgment.
 
-Generated-bridge sideband reporting is effective only when `enabled`, `capture_lifecycle`, and `sideband` are all `true`. The policy is read at process start; only bridge pages generated after it is enabled contain the reporter. Each page can report each of the eight fixed events at most once: `runtime_started`, `status_posted`, `hello_received`, `boundary_timeout`, `hello_timeout`, `client_close_before_hello`, `document_unloaded_before_hello`, and `runtime_error_before_hello`. Reports are exact canonical JSON POSTs to `BASEapi/v1/diagnostic`, use the bootstrap bearer without consuming it, and do not participate in carrier framing. Malformed or unauthenticated reports follow the sanitized fallback path.
+Generated-bridge sideband reporting is effective only when `web_debug_enable`, `capture_lifecycle`, and `sideband` are all `true`. The policy is read at process start; only bridge pages generated after it is enabled contain the reporter. Each page can report each of the eight fixed events at most once: `runtime_started`, `status_posted`, `hello_received`, `boundary_timeout`, `hello_timeout`, `client_close_before_hello`, `document_unloaded_before_hello`, and `runtime_error_before_hello`. Reports are exact canonical JSON POSTs to `BASEapi/v1/diagnostic`, use the bootstrap bearer without consuming it, and do not participate in carrier framing. Malformed or unauthenticated reports follow the sanitized fallback path.
 
 After an administrator or configuration system updates the YAML file, restart the service:
 
